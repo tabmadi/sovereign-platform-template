@@ -1,44 +1,73 @@
-# PyCharm
-.idea/
+# Editors
+# JetBrains (default IDE) — commit shared config, ignore user-specific state.
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/shelf/
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+.idea/httpRequests/
+.idea/replstate.xml
+.idea/sonarlint/
+*.iml
 .run/
 
-# Visual Studio Code
+# VS Code (not the team's default — but if anyone uses it, keep it out of git)
 .vscode/
 .history
 
-# Vim files:
+# Vim
 *~
 *.swp
 *.swo
 
-# Environment variables files
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files (ADR-0005: never commit real secrets; encrypted .enc.yaml is ok)
 .env
-.env*
+.env.*
+!.env.example
 
-# Binaries for programs and plugins
-bin/
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, built with `go test -c`
+# Go
+/bin/
+/dist/
 *.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+coverage.*
 
-# Dependency directories
-vendor/
+# Node / Bun
+node_modules/
+.next/
+out/
+.bun/
 
-# Go workspace file
-go.work
-go.work.sum
+# Biome (ADR-0014)
+.biome/
 
-# Moonrepo
-.moon/cache
-.moon/docker
+# Playwright (ADR-0014)
+playwright-report/
+test-results/
 
-# Generated files
-gen/
+# Helm / Terraform
+**/charts/*.tgz
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Local k3d state
+.k3d/
+
+# Mise local cache
+.mise.local.toml
+
+# Generated artifacts that ARE committed (do NOT ignore — listed here for clarity):
+# - libs/sdks/{go,ts}/<service>/
+# - services/*/internal/store/   (sqlc output)
+# - infra/gateway/apis/
