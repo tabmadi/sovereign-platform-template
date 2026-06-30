@@ -18,16 +18,18 @@ spec:
       securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- if .Values.migrations.enabled }}
       initContainers:
+        # dbmate runs from the service image itself — it carries the static dbmate
+        # binary and the baked /db/migrations (see the service Dockerfile). `migrate`
+        # (not `up`) skips DB creation: CNPG provisions the databases (ADR-0007).
         - name: migrations
-          image: "{{ .Values.migrations.image.repository }}:{{ .Values.migrations.image.tag }}"
+          image: {{ include "service.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
-          command: ["dbmate", "--no-dump-schema", "up"]
+          command: ["/usr/local/bin/dbmate", "--no-dump-schema", "--migrations-dir", "/db/migrations", "migrate"]
           envFrom:
             {{- range .Values.secrets.envFrom }}
             - secretRef: { name: {{ . }} }
             {{- end }}
-          volumeMounts:
-            - { name: migrations, mountPath: /db/migrations, readOnly: true }
       {{- end }}
       containers:
         - name: server
@@ -58,10 +60,6 @@ spec:
             {{- end }}
       volumes:
         - { name: tmp, emptyDir: {} }
-        {{- if .Values.migrations.enabled }}
-        - name: migrations
-          configMap: { name: {{ include "service.fullname" . }}-migrations }
-        {{- end }}
         {{- range .Values.secrets.files }}
         - name: {{ .name }}
           secret: { secretName: {{ .name }} }

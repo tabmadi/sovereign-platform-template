@@ -1,5 +1,5 @@
 openapi: 3.1.0
-info: { title: orders, version: 0.1.0 }
+info: { title: orders, version: 0.1.0, description: Order checkout and saga orchestration service. }
 servers: [{ url: /api/orders }]
 tags: [{ name: orders }]
 paths:
@@ -10,6 +10,7 @@ paths:
       description: Starts the Checkout Temporal saga (ADR-0006).
       requestBody:
         required: true
+        description: The checkout to start.
         content:
           application/json:
             schema: { $ref: "#/components/schemas/CheckoutInput" }
@@ -18,26 +19,52 @@ paths:
           description: Accepted
           content:
             application/json:
-              schema: { $ref: "../../api/shared/workflow-handle.yaml#/WorkflowHandle" }
-        default: { $ref: "../../api/shared/error.yaml#/Error" }
+              schema: { $ref: "#/components/schemas/WorkflowHandle" }
+        default: { $ref: "#/components/responses/Error" }
   /orders/{id}:
     get:
       operationId: getOrder
+      description: Fetch an order by id.
       tags: [orders]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Order id., schema: { type: string, format: uuid } }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
-        default: { $ref: "../../api/shared/error.yaml#/Error" }
+        default: { $ref: "#/components/responses/Error" }
 components:
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    Problem:
+      type: object
+      description: RFC 7807 problem document.
+      required: [code, message]
+      properties:
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+    WorkflowHandle:
+      type: object
+      description: Handle to an async Temporal workflow run.
+      required: [id, run_id, status]
+      properties:
+        id:     { type: string }
+        run_id: { type: string }
+        status: { type: string, enum: [running, completed, failed, cancelled] }
+        result_url: { type: string, format: uri, description: "GET to fetch terminal status + result" }
     CheckoutInput:
       type: object
+      description: Request body to start a checkout.
       required: [product_id, quantity]
       properties:
         product_id: { type: string, format: uuid }
         quantity:   { type: integer, minimum: 1 }
     Order:
       type: object
+      description: A customer order.
       required: [id, product_id, quantity, total_cents, status]
       properties:
         id:          { type: string, format: uuid }

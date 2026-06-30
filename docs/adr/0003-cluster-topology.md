@@ -3,11 +3,13 @@
 - **Status:** Accepted
 - **Date:** 2026-05-19
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-monorepo.md), [ADR-0015](0015-naming-and-identifiers.md)
+- **Related:
+  ** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-monorepo.md), [ADR-0015](0015-naming-and-identifiers.md)
 
 ## Context
 
-Three environments — **dev**, **staging**, **prod** — each is one cluster. Workloads include stateless application services, stateful platform components (Postgres, Temporal, identity, observability), and ingress.
+Three environments — **dev**, **staging**, **prod** — each is one cluster. Workloads include stateless application
+services, stateful platform components (Postgres, Temporal, identity, observability), and ingress.
 
 We need a single answer to:
 
@@ -27,33 +29,53 @@ We need a single answer to:
 
 ## Decisions
 
-### Hosting: Hetzner Cloud
+### Hosting: compute instances, provisioned per project
 
-Production runs on **Hetzner Cloud VPS instances**, provisioned by Terraform under `infra/terraform/`. Hetzner is chosen for cost per core and integration via `hcloud-cloud-controller-manager`. The Terraform module isolates the provider; switching to an equivalent (OVH, Latitude.sh) is a module swap.
+Production runs on **plain compute instances** (e.g. Hetzner, GCP, or AWS — we run k3s on compute instances, never the
+provider's managed Kubernetes). How those instances come to exist is **per project**, and the template supports two
+modes against the same downstream bootstrap:
 
-The cost of self-hosting is operational. Ansible roles under `infra/ansible/` are the codified operational knowledge: new clusters are produced by `terraform apply` + `ansible-playbook bootstrap.yml` + `kubectl apply` of the ArgoCD root Application ([ADR-0004](0004-gitops.md)).
+- **Project provisions its own infrastructure** — Terraform under `infra/terraform/` creates instances, network, LB,
+  DNS, firewall, and bucket, isolating the provider behind a stable interface; swapping providers is a module swap, not
+  a
+  topology change. Terraform is a per-project tool, **not deployed or run by default**: it is added when a project owns
+  its infrastructure, exactly like the other latent tools in the toolchain.
+- **Infrastructure is pre-provided** — many projects deploy onto compute, network, and storage the operator already
+  owns. Here Terraform is skipped entirely; the Ansible bootstrap runs against the existing hosts (named in an
+  inventory)
+  and the bucket is referenced by configuration rather than created.
 
-The template can target **another cloud provider** when a project requires it; the Terraform module swap above covers the provider, and instance/resource names follow [ADR-0015](0015-naming-and-identifiers.md) regardless of cloud.
+The dividing line is provisioning only. Everything downstream — Ansible bootstrap, k3s, Cilium, ArgoCD — is identical in
+both modes.
+
+The cost of self-hosting is operational. Ansible roles under `infra/ansible/` are the codified operational knowledge:
+the universal path is `ansible-playbook bootstrap.yml` + `kubectl apply` of the ArgoCD root Application
+([ADR-0004](0004-gitops.md)), preceded by `terraform apply` only when the project provisions its own infrastructure.
 
 ### Distribution: k3s in production, k3d locally
 
-`k3s` is the Kubernetes distribution: single binary, embedded etcd in HA mode, ships with Traefik / ServiceLB / local-path / CoreDNS as replaceable defaults.
+`k3s` is the Kubernetes distribution: single binary, embedded etcd in HA mode, ships with Traefik / ServiceLB /
+local-path / CoreDNS as replaceable defaults.
 
 `k3d` is k3s in Docker, used locally. The same Helm charts and manifests apply.
 
-### OS: Ubuntu LTS
+### OS: Debian stable
 
-The current Ubuntu LTS major on every node. Unattended-upgrades enabled for security patches. Kernel upgrades require an explicit Ansible run with a cordoned reboot.
+The current Debian stable major on every node. Unattended-upgrades enabled for security patches. Kernel upgrades require
+an explicit Ansible run with a cordoned reboot.
 
 ### Topology and growth triggers
 
-**Day one (per environment):** three VPS nodes running k3s with embedded etcd. All workloads — application services, Postgres (via CNPG), Temporal, identity, observability — run on this 3-node set, sized for many cores and generous NVMe.
+**Day one (per environment):** three compute nodes running k3s with embedded etcd. All workloads — application services,
+Postgres (via CNPG), Temporal, identity, observability — run on this 3-node set, sized for many cores and generous NVMe.
 
 Three nodes from day one (not one) because:
 
 - Embedded-etcd HA needs three nodes.
-- A single-node cluster has multi-minute downtime on any node failure, which the platform thesis cannot accept even at the smallest scale.
-- The cost difference (3× small machines vs 1× larger) is acceptable; the operational simplification (no "later, rebuild to HA" migration) is worth it.
+- A single-node cluster has multi-minute downtime on any node failure, which the platform thesis cannot accept even at
+  the smallest scale.
+- The cost difference (3× small machines vs 1× larger) is acceptable; the operational simplification (no "later, rebuild
+  to HA" migration) is worth it.
 
 **Growth triggers** — each tied to a measurable signal, each landing in a follow-up ADR when it fires:
 
@@ -61,7 +83,6 @@ Three nodes from day one (not one) because:
 |------------------------|-------------------------------------------------------------|-----------------------------------------------------------------------------|
 | Resource pressure      | Sustained CPU or memory >70% for 7 days across the node set | Add worker nodes (k3s agents). Keep control plane at 3.                     |
 | Storage scale          | Any service's PVC >50% of node disk                         | Adopt Longhorn as default storage class. Existing PVs migrate per-workload. |
-| Network policy needs   | Need for eBPF observability or zero-trust policies          | Swap Flannel → Cilium at next cluster rebuild.                              |
 | Compliance segregation | Regulated data with isolation requirement                   | Dedicated cluster for that workload.                                        |
 
 Triggers are documented in `docs/cluster/growth-plan.md` so growth happens on data, not memory.
@@ -71,110 +92,155 @@ Triggers are documented in `docs/cluster/growth-plan.md` so growth happens on da
 ```text
 Internet
   │
-Hetzner Load Balancer  (provider L4 LB, one stable public IP per env)
+Provider Load Balancer  (provider L4 LB, one stable public IP per env)
   │
-Traefik (k3s default)  (TLS termination via cert-manager + Let's Encrypt, L7 routing)
-  ├── /api/*       ─▶ Tyk Gateway  ─▶ backend service (per ADR-0009)
-  ├── /panel/*     ─▶ Next.js pod
-  ├── /landing/*   ─▶ Next.js pod
-  ├── /admin/*     ─▶ Next.js pod
-  ├── /devportal/* ─▶ Next.js pod
-  └── /grafana/*   ─▶ Grafana (auth-gated)
+Traefik (k3s default)  (TLS termination via cert-manager + Let's Encrypt, L7 routing, rate limiting)
+  ├── /api/*            ─▶ Oathkeeper (identity) ─▶ backend service (per ADR-0009)
+  ├── /internal/admin/* ─▶ Oathkeeper (identity) ─▶ Lowdefy pod (internal admin, per ADR-0012)
+  ├── /(landing|panel|admin|devportal)/* ─▶ Next.js frontend pod (one app, route groups per ADR-0014)
+  ├── /grafana/*        ─▶ Grafana (auth-gated)
+  └── hubble.<host>/    ─▶ Hubble UI (Cilium network / service-map dashboard, auth-gated; own subdomain at root — its router can't run under a path prefix)
 ```
 
-**Traefik fronts Tyk, not the other way around.** Tyk is an API gateway: OpenAPI validation, JWT, rate limits. Traefik is a cluster ingress: TLS, hostname routing, static assets. Mixing the roles couples deploy cadences.
+**Traefik is the only ingress; Oathkeeper is an auth filter behind it, not a second gateway.** Traefik does TLS,
+hostname/path routing, load balancing, and rate limiting; Ory Oathkeeper validates identity and injects identity headers
+([ADR-0009](0009-api-gateway.md)). There is no API-management gateway in the default stack.
 
 **DNS:**
 
 - One wildcard `*.<env>.example.com` `A` record per environment, pointing at the LB IP.
-- `cert-manager` requests one wildcard certificate per environment via DNS-01 (Cloudflare).
+- `cert-manager` requests one wildcard certificate per environment via DNS-01 against the project's DNS provider.
 - `external-dns` is not used. The wildcard absorbs new services.
 
-**Cluster networking:** Flannel + VXLAN. Network policies are enabled cluster-wide with permissive defaults; per-service tightening is part of the service template.
+**Cluster networking:** Cilium. Network policies are the platform's internal service-to-service trust boundary
+([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)): the default is **deny**, and each service's chart declares
+which callers may reach it. Because internal calls carry forwarded identity headers and no token, NetworkPolicy is what
+guarantees only sanctioned callers reach a service's port. Hubble (bundled, UI exposed auth-gated at the `hubble.<host>`
+subdomain) provides per-flow visibility and is the audit surface for these policies. k3s is installed with
+`--flannel-backend=none --disable-network-policy`; Cilium is installed by the Ansible bootstrap role before ArgoCD is
+started, then adopted by ArgoCD for upgrades.
 
 ### Storage
 
 **Day one:**
 
 - **Block storage:** k3s `local-path` provisioner. PVCs are node-local NVMe directories.
-- **Object storage in production:** external S3-compatible bucket (Cloudflare R2 or AWS S3 — chosen per environment in Terraform). Loki, Mimir, Tempo, Pyroscope, and CNPG backups all write here. **No MinIO in production**; offloading durability to a managed bucket eliminates an entire stateful component.
-- **Object storage locally:** small MinIO Helm install for `mise run dev:up` (k3d). Local-only.
+- **Object storage in production:** external S3-compatible bucket, per environment — created by Terraform when the
+  project provisions its own infra, or referenced by configuration when the bucket is pre-provided. Loki, Mimir,
+  Tempo, CNPG backups (and Pyroscope where profiling is enabled, [ADR-0011](0011-observability.md)) all write here.
+  **No MinIO in production**; offloading durability to a managed
+  bucket eliminates an entire stateful component.
+- **Object storage in non-prod:** in-cluster MinIO (`infra/helm/platform/minio`), exposing the same S3 API as the prod
+  bucket. It runs in the full-platform local tier and in dev/staging; the inner loop omits it unless a service under
+  test needs it ([ADR-0016](0016-environment-parity.md)).
 
-When the storage-scale trigger fires, Longhorn becomes the default for new block PVCs; the external bucket strategy is unchanged.
+When the storage-scale trigger fires, Longhorn becomes the default for new block PVCs; the external bucket strategy is
+unchanged.
 
 ### Backups (mandatory, off-cluster)
 
-- **CNPG `ScheduledBackup`** writes to the external bucket with WAL archiving for PITR. Retention: 30 days production, 7 days non-prod.
+- **CNPG `ScheduledBackup`** writes to the external bucket with WAL archiving for PITR. Retention: 30 days production, 7
+  days non-prod.
 - **Temporal history** lives on Postgres; covered by CNPG backups.
 - **Observability long-term data** is already in the external bucket; the cluster PV holds hot cache only.
-- **Node-level snapshots** via Hetzner are taken daily as a catastrophic-recovery fallback.
-- Backup restore is rehearsed quarterly as a Temporal `Schedule` ([ADR-0006](0006-temporal.md)) that opens a tracking issue.
+- **Node-level snapshots** via the cloud provider are taken daily as a catastrophic-recovery fallback.
+- Backup restore is rehearsed quarterly as a Temporal `Schedule` ([ADR-0006](0006-temporal.md)) that opens a tracking
+  issue.
 
 ### Provisioning order
 
 ```text
-1. terraform apply              # VPS instances, network, LB, DNS, firewall, bucket
-2. ansible-playbook bootstrap   # OS hardening, kernel params, k3s install
-3. kubectl apply -f infra/gitops/bootstrap/root-application.yaml
+0. terraform apply              # ONLY when the project provisions its own infra:
+                                # compute instances, network, LB, DNS, firewall, bucket
+1. ansible-playbook bootstrap   # OS hardening, kernel params, k3s install (runs against the
+                                # Terraform-produced hosts, or a hand-written inventory of pre-provided hosts)
+2. kubectl apply -f infra/gitops/bootstrap/root-application.yaml
                                 # ArgoCD reconciles the rest
 ```
 
-The cluster identity is reproducible from git plus one Terraform state file (stored in the Terraform-managed bucket with state locking).
+When the project provisions its own infra, the cluster identity is reproducible from git plus one Terraform state file
+(stored in the Terraform-managed bucket with state locking). When infra is pre-provided, the same reproducibility comes
+from git plus the committed Ansible inventory and the referenced bucket; there is no Terraform state to keep.
 
 ### Local–prod parity
 
 Parity is at the manifest, chart, and API level. Topology differences are explicit:
 
-| Layer          | Local (k3d)     | Prod (k3s on Hetzner) | Same?                     |
-|----------------|-----------------|-----------------------|---------------------------|
-| Kubernetes API | k3s             | k3s                   | yes                       |
-| Helm charts    | `infra/helm/`   | `infra/helm/`         | yes                       |
-| Service code   | identical image | identical image       | yes                       |
-| Ingress        | Traefik         | Traefik               | yes                       |
-| TLS issuer     | mkcert local CA | Let's Encrypt         | no                        |
-| LB driver      | klipper-lb      | hcloud-ccm            | no                        |
-| Object storage | MinIO           | external S3 bucket    | interface yes, backend no |
-| GitOps         | not used        | ArgoCD                | no, by design             |
-| Sizing         | tiny            | sized for traffic     | no                        |
+| Layer          | Local (k3d)     | Prod (k3s on cloud VMs)           | Same?         |
+|----------------|-----------------|-----------------------------------|---------------|
+| Kubernetes API | k3s             | k3s                               | yes           |
+| Helm charts    | `infra/helm/`   | `infra/helm/`                     | yes           |
+| Service code   | identical image | identical image                   | yes           |
+| Ingress        | inner: direct / full: Traefik | Traefik             | full tier: yes |
+| TLS issuer     | cert-manager (self-signed) | cert-manager (Let's Encrypt) | mechanism: yes |
+| LB driver      | klipper-lb      | provider cloud-controller-manager | no            |
+| Object storage | MinIO (non-prod) | external S3 bucket               | API: yes      |
+| GitOps         | inner: n/a / full: ArgoCD | ArgoCD                  | full tier: yes |
+| Sizing         | tiny            | sized for traffic                 | no            |
 
-`mise run dev:up` brings up the full k3d cluster with `infra/helm/` charts and local-built images. For fast inner-loop work, `mise run dev:up --minimal` boots a stripped k3d profile (Postgres, Temporal dev server, OTel-LGTM bundle, MinIO) using a reduced Helm values overlay. There is no docker-compose path: k3d is the single local runtime, keeping local and prod on the same manifests.
+`mise run cluster:lite` creates the k3d cluster and the lightweight dev dependencies; the inner loop is then **native
+execution** — you run the service you are changing directly on the host (any editor/IDE, or `go run`) against those
+dependencies — see *Local development* below. There is no docker-compose path: k3d is the single local runtime, keeping
+local and prod on the same manifests.
 
 ### Local development
 
-k3d is the single local runtime. Two profiles, one cluster lifecycle:
+The local runtime is **k3d**, in two tiers ([ADR-0016](0016-environment-parity.md)). The **inner loop** below runs the
+service you are changing **natively on the host** against lightweight dependency stand-ins reached via port-forwards —
+the day-to-day path: no image build, no in-cluster redeploy, no file-watch on the hot path. The **full platform**
+(`mise run cluster:full`) brings the real charts up at a single replica, delivered by **ArgoCD** — the same mechanism
+the persistent dev/staging/prod clusters use ([ADR-0004](0004-gitops.md)) — for end-to-end and pre-merge validation.
 
-| Profile | Command                     | Brings up                                                                    | Use for                                                       |
-|---------|-----------------------------|------------------------------------------------------------------------------|---------------------------------------------------------------|
-| Full    | `mise run dev:up`           | every chart in `infra/helm/` (services, gateway, auth, observability, MinIO) | end-to-end flows, gateway/auth/policy work, demo              |
-| Minimal | `mise run dev:up --minimal` | Postgres (CNPG), Temporal dev server, OTel-LGTM bundle, MinIO                | inner loop: running one service + its tests against real deps |
+| Step          | Command                                    | Brings up / does                                                                                     |
+|---------------|--------------------------------------------|------------------------------------------------------------------------------------------------------|
+| Cluster+deps  | `mise run cluster:lite`                       | k3d cluster + a CNI + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
+| Port-forwards | `mise run dev:forward`                      | forwards the deps to localhost (Postgres 5432, Temporal 7233/8233, SpiceDB 50051); leave running     |
+| Inner loop    | run the service natively                    | set the env contract and run it in any editor/IDE or `go run ./services/<svc>/cmd/server` — no build/deploy |
+| In-cluster    | `mise run service:deploy -- <svc>`          | one-shot build → `k3d image import` → `helm upgrade` (for edge/auth/e2e testing); **no watch loop**  |
+| Migrations    | `mise run db:migrate`                       | applies each service's migrations to the local Postgres                                              |
+| Teardown      | `mise run cluster:stop` / `cluster:delete`   | stops (keeps image cache) / deletes the cluster                                                      |
 
-Both profiles use the same charts. Minimal is a values overlay (`infra/helm/values/local-minimal.yaml`) that:
+**Native, against real dependencies.** The service binary runs on the host; it reaches the k3d-hosted deps through the
+`dev:forward` port-forwards and the standard env contract (`DATABASE_URL`, `TEMPORAL_HOST_PORT`, `SPICEDB_ENDPOINT`).
+There is nothing to rebuild or redeploy on save — you just re-run. When you genuinely need the service *in* the cluster
+(exercising the edge, auth, or e2e), `service:deploy` does a single build-import-upgrade against the production
+`infra/helm/service` chart with the `local` values overlay — a one-shot, not a watch loop.
 
-- Sets `replicas: 1` everywhere and removes `PodDisruptionBudget`s and anti-affinity.
-- Disables ArgoCD, cert-manager, Renovate webhooks, backups, alerting, and long-term observability storage (Loki/Mimir/Tempo run with in-memory retention only).
-- Disables the gateway, auth stack (Kratos/Hydra/SpiceDB), and any non-target services. Services under test run directly via `mise run run` in `services/<name>/` and talk to deps over `localhost` port-forwards established by `dev:up`.
-- Substitutes `local-path` for the production storage class and shrinks PVC requests.
+**Lightweight deps in the inner loop only.** `infra/local/deps.yaml` ships throwaway Postgres / Temporal-dev / in-memory
+SpiceDB so a service has something to talk to without paying for the full platform. Their production counterparts (CNPG,
+the Temporal Helm chart, the SpiceDB chart, the observability stack, the gateway and auth edge) run in the full-platform
+local tier (`cluster:full`) and in dev/staging/prod, where their operators and ordering behave correctly
+([ADR-0016](0016-environment-parity.md)).
 
-What is **not** swapped out, ever: the Kubernetes API, the chart structure, the service images, the OTLP endpoint shape, the Postgres major version. A bug that reproduces against minimal reproduces against full and against prod.
+**What is not swapped out, ever:** the Kubernetes API, the service chart, the service images, the env contract (
+`DATABASE_URL`, `TEMPORAL_HOST_PORT`, OTLP, SpiceDB), the Postgres major version. A bug reproduced locally reproduces in
+staging and prod. `service:deploy` loads images into k3d directly (no registry round-trip).
 
-**Cold-start budget.** Full profile boots in <90s on a developer laptop; minimal in <20s. If either regresses, it gets treated as a build-time regression and fixed — slow `dev:up` is the failure mode that pushes engineers back toward ad-hoc compose files and breaks the single-source-of-truth invariant.
+### Service mesh
 
-**Port-forwards are declarative.** `infra/helm/values/local-minimal.yaml` carries the canonical port map (Postgres 5432, Temporal 7233, OTLP 4317, Grafana 3000, MinIO 9000/9001). `mise run dev:up` establishes them via `kubectl port-forward` managed as background tasks; `mise run dev:down` tears them down. Services running on the host talk to deps at `localhost:<canonical-port>` with no per-developer config.
+No dedicated service mesh (Istio, Linkerd, Consul Connect) is deployed. Sidecar meshes inject a proxy
+container per pod — at 100 services that's 100+ extra containers on the hot path, against ADR-0000's per-service cost
+principle — and the heavier ones (Istio, Consul Connect) add a CRD surface or a mandatory dependency the team size
+cannot absorb.
 
-**Image loading.** `mise run dev:build <service>` builds the image and `k3d image import`s it into the cluster, then triggers a `kubectl rollout restart`. No registry round-trip.
+**Cilium covers CNI + mesh as one component.** Its sidecarless eBPF mode provides mTLS (WireGuard node-to-node
+encryption), L7 network policies, and per-flow observability (Hubble) without an injected proxy or a second
+component. **Hubble UI is deployed as the cluster's network / service-map dashboard** — live service-to-service flows,
+dropped connections, and L7 traffic — and is the audit surface for the NetworkPolicy-based internal trust boundary
+([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)); it is exposed auth-gated at the `hubble.<host>` subdomain
+(its React Router is hardwired to basename `/`, so it must be served at a root origin, not under a path prefix). Cilium is
+installed
+from day one because CNI cannot be hot-swapped on a live cluster.
 
 ### Disaster recovery
 
-Three-node HA tolerates single-node failure with no downtime; etcd quorum survives. A full-cluster loss is the disaster case:
-
-1. **Detection** within 1–2 minutes via Uptime Kuma (self-hosted) paging on-call.
-2. **Recovery (target <30 min):**
-   - `terraform apply` provisions a new node set.
-   - `ansible-playbook bootstrap` installs k3s.
-   - ArgoCD root Application reconciles every component from git.
-   - CNPG restores Postgres from PITR in the external bucket.
-3. **RPO ≈ WAL archive interval** (minutes). In-flight requests at the moment of failure are lost.
-4. **Rehearsed quarterly** against a staging rebuild, tracked as a Temporal `Schedule`.
+Three-node HA tolerates single-node failure with no downtime; etcd quorum survives. A full-cluster loss recovers via
+(`terraform apply`, if the project provisions its own infra) → `ansible-playbook bootstrap` → ArgoCD reconciling from
+git → CNPG restoring Postgres from PITR. On pre-provided infra the hosts already exist, so recovery starts at the
+Ansible
+step.
+Detection target <2 min (Uptime Kuma); recovery target <30 min; RPO ≈ WAL archive interval. Rehearsed quarterly
+alongside the backup restore drill above.
 
 ## Consequences
 
@@ -184,20 +250,26 @@ Three-node HA tolerates single-node failure with no downtime; etcd quorum surviv
 - Same k3s API end-to-end; local and prod differ in detail, not in shape.
 - Growth triggers tied to measurable conditions, not opinion.
 - External S3 for durable storage removes MinIO as a production component.
-- Provisioning is reproducible from git + one Terraform state.
+- Provisioning is reproducible from git — plus one Terraform state when the project owns its infra, or the committed
+  Ansible inventory when the infra is pre-provided. Terraform is not a day-one dependency.
 
 ### Negative / Risks
 
-- Three Hetzner nodes cost more than one. Accepted; the alternative (later HA migration) is a maintenance window we never want to plan.
+- Three compute nodes cost more than one. Accepted; the alternative (later HA migration) is a maintenance window we
+  never want to plan.
 - k3s on bare metal is more ops than managed K8s. Mitigated by Ansible roles as the codified operational knowledge.
-- Flannel + permissive policies on day one is not zero-trust. Tightening per-service is part of the service template; Cilium is the documented upgrade.
-- External bucket fees grow with retention. Mitigated by lifecycle policies (cold-tier after 30 days) configured in Terraform.
+- Cilium is more complex to debug than Flannel (eBPF programs, `cilium status`, Hubble CLI). Mitigated by the Helm
+  chart being committed and ArgoCD managing upgrades after the initial bootstrap.
+- External bucket fees grow with retention. Mitigated by lifecycle policies (cold-tier after 30 days) — configured in
+  Terraform when it owns the bucket, or applied to the pre-provided bucket directly.
 
 ### Follow-ups
 
-- `infra/terraform/modules/hetzner/` for VPS, network, LB, DNS, firewall, bucket.
-- `infra/ansible/roles/` for `k3s_server`, `hardening`, `unattended_upgrades`, `node_exporter`.
-- `infra/helm/platform/{traefik,cert-manager,minio}/` with local and prod values.
+- **(Per-project, not day one)** `infra/terraform/modules/<provider>/` (e.g. `hetzner`) for compute instances, network,
+  LB, DNS, firewall, bucket — added when a project provisions its own infrastructure.
+- `infra/ansible/roles/` for `k3s_server`, `cilium`, `hardening`, `unattended_upgrades`, `node_exporter`, plus an
+  inventory template for pre-provided hosts.
+- `infra/helm/platform/{cilium,traefik,cert-manager,minio}/` with local and prod values.
 - `docs/cluster/growth-plan.md` (triggers and responses).
 - `docs/cluster/local-vs-prod.md` (parity table, divergences).
 - `docs/cluster/dr-runbook.md` (full-cluster recovery).
@@ -205,13 +277,28 @@ Three-node HA tolerates single-node failure with no downtime; etcd quorum surviv
 
 ## Rules
 
-- Production runs on Hetzner Cloud VPS instances; provisioning is Terraform under `infra/terraform/`.
-- Every environment runs k3s with three control-plane nodes (embedded etcd). Adding workers follows the resource-pressure trigger.
-- Local development runs k3d using the same Helm charts as production.
-- Ingress is Traefik with TLS via cert-manager. Tyk is an upstream service of Traefik, not the cluster ingress.
-- Object storage in production is an external S3-compatible bucket. MinIO exists only in local development.
+- Production runs on plain compute instances (never managed Kubernetes). When the project provisions its own infra,
+  provisioning is Terraform under `infra/terraform/`; Terraform is a per-project tool, not run or deployed by default.
+  When infra is pre-provided, Terraform is skipped and Ansible bootstraps the existing hosts from a committed inventory.
+- Every environment runs k3s with three control-plane nodes (embedded etcd). Adding workers follows the
+  resource-pressure trigger.
+- Local development runs on k3d in two tiers ([ADR-0016](0016-environment-parity.md)): a fast inner loop (the service
+  run natively against lightweight deps) and a full-platform tier (`cluster:full`) running the real charts at a single
+  replica, delivered by ArgoCD — the same deploy mechanism the persistent dev/staging/prod clusters use.
+- Ingress is Traefik with TLS via cert-manager. Ory Oathkeeper sits behind Traefik as the edge identity filter
+  ([ADR-0009](0009-api-gateway.md)); there is no API-management gateway in the default stack.
+- Object storage in production is an external S3-compatible bucket. Non-prod (local full tier, dev, staging) uses
+  in-cluster MinIO behind the same S3 API ([ADR-0016](0016-environment-parity.md)).
 - Database backups are written off-cluster to the same external bucket and rehearsed quarterly.
 - Storage class is k3s `local-path` until the storage-scale trigger fires, then Longhorn.
-- CNI is Flannel until the network-policy trigger fires, then Cilium.
-- A new cluster bootstraps with `terraform apply` → `ansible-playbook bootstrap` → `kubectl apply` of the ArgoCD root Application. No fourth manual step.
+- CNI is Cilium from day one. k3s is installed with `--flannel-backend=none --disable-network-policy`. Cilium is
+  bootstrapped by the Ansible `cilium` role (before ArgoCD) and adopted by ArgoCD for upgrades.
+- A new cluster bootstraps with `ansible-playbook bootstrap` → `kubectl apply` of the ArgoCD root Application, preceded
+  by `terraform apply` only when the project provisions its own infra. No further manual steps.
 - Growth from day-one topology happens only on a documented trigger firing, captured in a new ADR.
+- No dedicated service mesh is deployed. Sidecar meshes (Istio, Linkerd, Consul Connect) are ruled out by per-service
+  resource cost and component count. Cilium covers CNI + zero-trust + L7 policies + Hubble observability in a single
+  component with no per-pod proxy overhead.
+- Cilium NetworkPolicy is the internal service-to-service trust boundary; the default is deny and each service declares
+  its allowed callers ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)). Hubble UI (auth-gated at `hubble.<host>`)
+  is the dashboard and audit surface for cluster network flows.

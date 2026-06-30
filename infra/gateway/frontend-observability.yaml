@@ -1,0 +1,25 @@
+# Browser telemetry ingest (ADR-0011, ADR-0014). The frontend's Grafana Faro
+# agent POSTs RUM, JS errors, and web traces to /api/observability/faro/* from
+# both anonymous (landing) and authenticated users, so this route is
+# intentionally unauthenticated — no Oathkeeper ForwardAuth — and forwards
+# straight to the OTel Collector's `faro` receiver (port wired in
+# infra/helm/platform/observability/values.yaml). The receiver uses a catch-all
+# handler, so the full beacon path is accepted as-is. A per-project rate-limit
+# middleware can be added here if abuse of the public endpoint becomes a concern.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: frontend-observability
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: PathPrefix(`/api/observability/faro`)
+      middlewares:
+        - name: security-headers
+      services:
+        - name: otel-collector
+          port: 8027
+  tls:
+    secretName: wildcard-tls

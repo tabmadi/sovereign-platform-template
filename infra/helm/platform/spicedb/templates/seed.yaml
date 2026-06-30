@@ -1,0 +1,75 @@
+{{- if and .Values.seed.enabled .Values.seed.schema }}
+# Canonical schema, mounted into the seed Job. Sourced from the one schema file
+# (infra/auth/spicedb/schema.zed) via the ApplicationSet fileParameter seed.schema.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spicedb-schema
+  namespace: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  schema.zed: |
+{{ .Values.seed.schema | indent 4 }}
+---
+# Seed Job (ADR-0007, ADR-0017). Runs after SpiceDB is Ready (sync-wave 2, after
+# the Deployment's default wave 0). The schema write is an initContainer so it
+# precedes the grants; the per-dashboard grants run as parallel containers (each
+# an idempotent `relationship touch`). All use the `zed` CLI in args form, so the
+# image needs no shell. `$(SPICEDB_KEY)` is expanded by the kubelet from the env.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: spicedb-seed
+  namespace: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    # Re-run on every sync (the schema or grants may change); writes are idempotent.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: spicedb-seed }
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: write-schema
+          image: "{{ .Values.seed.image }}"
+          args:
+            - schema
+            - write
+            - /schema/schema.zed
+            - --endpoint=spicedb.platform.svc.cluster.local:50051
+            - --insecure
+            - --token=$(SPICEDB_KEY)
+          env:
+            - name: SPICEDB_KEY
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.existingSecret }}, key: preshared_key }
+          volumeMounts:
+            - { name: schema, mountPath: /schema, readOnly: true }
+      containers:
+        {{- range .Values.seed.dashboards }}
+        - name: grant-{{ . }}
+          image: "{{ $.Values.seed.image }}"
+          args:
+            - relationship
+            - touch
+            - dashboard:{{ . }}
+            - viewer
+            - group:operator#member
+            - --endpoint=spicedb.platform.svc.cluster.local:50051
+            - --insecure
+            - --token=$(SPICEDB_KEY)
+          env:
+            - name: SPICEDB_KEY
+              valueFrom:
+                secretKeyRef: { name: {{ $.Values.existingSecret }}, key: preshared_key }
+        {{- end }}
+      volumes:
+        - name: schema
+          configMap: { name: spicedb-schema }
+{{- end }}

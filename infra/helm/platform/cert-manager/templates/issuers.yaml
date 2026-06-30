@@ -1,3 +1,52 @@
+{{- if .Values.selfSigned.enabled }}
+# Local / non-public TLS (ADR-0016): cert-manager IS the mechanism in every env;
+# only the issuer differs. Locally a SelfSigned ClusterIssuer mints the same
+# wildcard secrets the edge consumes (wildcard-tls, wildcard-ops-tls) in the
+# platform namespace, where the IngressRoutes resolve them. This replaces the
+# imperative openssl block the old scripts/cluster-full.sh used.
+#
+# Resource sync-waves (relative to this app's sync): the Issuer/Certificates wait
+# for cert-manager's webhook (wave 0) to be Ready before they are admitted.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned
+  annotations: { argocd.argoproj.io/sync-wave: "1" }
+spec:
+  selfSigned: {}
+---
+# Product tier `*.<host>` (+ apex). Locally both wildcard secrets carry the same
+# multi-SAN self-signed cert; deployed envs split them into two Let's Encrypt certs.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard
+  namespace: platform
+  annotations: { argocd.argoproj.io/sync-wave: "1" }
+spec:
+  secretName: wildcard-tls
+  issuerRef: { name: selfsigned, kind: ClusterIssuer }
+  dnsNames:
+    - "*.{{ .Values.envHost }}"
+    - "{{ .Values.envHost }}"
+    - "*.ops.{{ .Values.envHost }}"
+---
+# Ops tier `*.ops.<host>` (two labels deep — a single-label wildcard does not
+# cover it). Same multi-SAN cert locally; routes in infra/gateway read this secret.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-ops
+  namespace: platform
+  annotations: { argocd.argoproj.io/sync-wave: "1" }
+spec:
+  secretName: wildcard-ops-tls
+  issuerRef: { name: selfsigned, kind: ClusterIssuer }
+  dnsNames:
+    - "*.{{ .Values.envHost }}"
+    - "{{ .Values.envHost }}"
+    - "*.ops.{{ .Values.envHost }}"
+{{- else }}
 # Cluster-scoped issuers. The Let's Encrypt issuer uses DNS-01 via Cloudflare;
 # credentials come from the SOPS-managed Secret `cloudflare-api-token`.
 apiVersion: cert-manager.io/v1
@@ -22,4 +71,19 @@ spec:
   secretName: wildcard-tls
   issuerRef: { name: letsencrypt, kind: ClusterIssuer }
   dnsNames:
-    - "*.{{ "{{ .Values.envHost }}" }}"
+    - "*.{{ .Values.envHost }}"
+---
+# Ops-tier wildcard (ADR-0017). The product wildcard `*.<host>` covers only one
+# label, so the two-labels-deep ops tools (`{tool}.ops.<host>`) need their own
+# `*.ops.<host>` cert. Routes in infra/gateway reference secret wildcard-ops-tls.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-ops
+  namespace: traefik
+spec:
+  secretName: wildcard-ops-tls
+  issuerRef: { name: letsencrypt, kind: ClusterIssuer }
+  dnsNames:
+    - "*.ops.{{ .Values.envHost }}"
+{{- end }}

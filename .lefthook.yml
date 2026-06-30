@@ -8,19 +8,24 @@ commit-msg:
 pre-commit:
   parallel: true
   commands:
-    gofmt:
+    go-fmt:
       glob: "*.go"
-      run: gofmt -w {staged_files}
+      # golangci-lint fmt applies the formatters from .golangci.yml and skips
+      # generated files (formatters.exclusions.generated), unlike bare gofumpt.
+      run: golangci-lint fmt {staged_files}
       stage_fixed: true
     golangci-lint:
       glob: "*.go"
-      run: golangci-lint run --new-from-rev HEAD -- {staged_files}
-    sqlfluff:
+      # Analyse packages, not the staged file list: golangci-lint rejects file
+      # arguments that span more than one directory. --new-from-rev still scopes
+      # reporting to issues introduced by the staged changes.
+      run: golangci-lint run --new-from-rev HEAD ./...
+    sqruff:
       glob: "{services/**/migrations/*.sql,services/**/internal/store/queries/*.sql}"
-      run: sqlfluff lint {staged_files}
-    spectral:
-      glob: "{services/**/openapi.yaml,api/shared/**/*.yaml}"
-      run: spectral lint --ruleset tools/codegen/spectral.yaml {staged_files}
+      run: sqruff lint {staged_files}
+    vacuum:
+      glob: "services/**/openapi.yaml"
+      run: vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error {staged_files}
     floating-tags:
       run: bash scripts/lint-floating-tags.sh
     gen-drift:
@@ -30,9 +35,9 @@ pre-commit:
       glob: "{apps/**/*.{ts,tsx,js,jsx,json},libs/ts/**/*.{ts,tsx,js,jsx,json}}"
       run: biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
-    markdownlint:
+    rumdl:
       glob: "*.md"
-      run: markdownlint-cli2 --fix {staged_files}
+      run: rumdl check --fix {staged_files}
       stage_fixed: true
 
 pre-push:

@@ -1,8 +1,30 @@
-# Per-env platform overrides (ADR-0004). Empty stub — populate as needed.
-postgres:
-  cluster:
-    instances: 3
-    storage: { size: 50Gi }
-    backup:
-      retentionPolicy: "7d"
-      s3: { endpointURL: "https://s3.eu-central-1.amazonaws.com", destinationPath: "s3://platform-dev-backups/postgres" }
+# Per-env platform overrides (ADR-0004).
+# Top-level `cluster:` — the postgres chart's own values schema has no
+# `postgres:` namespace wrapper (unlike the dependency subcharts below).
+cluster:
+  instances: 3
+  storage: { size: 50Gi }
+  backup:
+    retentionPolicy: "7d"
+    s3: { endpointURL: "http://minio.platform.svc.cluster.local:9000", destinationPath: "s3://platform-backups/postgres" }
+
+# Non-prod object storage is in-cluster MinIO, not an off-cluster bucket
+# (ADR-0016). Override each backend's S3 endpoint; prod keeps the chart
+# defaults (the off-cluster bucket) and disables this chart entirely.
+loki:
+  loki:
+    storage:
+      s3:
+        endpoint: minio.platform.svc.cluster.local:9000
+        s3ForcePathStyle: true
+        insecure: true
+tempo:
+  tempo:
+    storage:
+      trace:
+        s3:
+          endpoint: minio.platform.svc.cluster.local:9000
+          insecure: true
+mimir:
+  storage:
+    endpoint: minio.platform.svc.cluster.local:9000

@@ -1,0 +1,21 @@
+# Local full-tier values for the orders service (ADR-0016). Read by the local
+# services ApplicationSet (infra/gitops/bootstrap-local/appset-services-local.yaml).
+# Same chart as dev/prod; only host, image tag, and the SOPS secret name differ.
+# The secret name (orders-db) matches the local SopsSecret resource
+# (infra/gitops/platform/local/secrets/platform.enc.yaml), not dev's *-db-creds.
+name: orders
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/orders-server
+  tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
+worker:
+  enabled: true
+  image:
+    repository: ghcr.io/tabmadi/microservices-monorepo-template/orders-worker
+    tag: "0000000000000000000000000000000000000000"
+server:  { replicas: 1 }
+ingress: { enabled: true, host: dev.localtest.me }
+otel:    { deployEnv: local }
+secrets: { envFrom: [orders-db] }
+env:
+  CATALOG_URL: http://catalog-server.platform.svc.cluster.local
+  PAYMENT_URL: http://payment-server.platform.svc.cluster.local

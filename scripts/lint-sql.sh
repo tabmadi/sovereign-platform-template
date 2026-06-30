@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run sqlfluff across all service migrations and sqlc queries (ADR-0007).
+# Run sqruff across all service migrations and sqlc queries (ADR-0007).
 set -euo pipefail
 
 shopt -s nullglob globstar
@@ -14,4 +14,4 @@ if [[ ${#targets[@]} -eq 0 ]]; then
   exit 0
 fi
 
-exec sqlfluff lint "${targets[@]}"
+exec sqruff lint "${targets[@]}"

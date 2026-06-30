@@ -7,7 +7,7 @@
 
 ## Context
 
-Per [ADR-0000](0000-platform-foundations.md), we run ~100 services with a 3–8 person team on self-hosted Kubernetes. Workloads span CRUD APIs, payments (financial-grade correctness), blockchain integration, and occasional high-throughput paths. The frontend is Next.js.
+At the target scale ([ADR-0000](0000-platform-foundations.md)), workloads span CRUD APIs, payments (financial-grade correctness), blockchain integration, and occasional high-throughput paths. The frontend is Next.js.
 
 We pick:
 
@@ -27,7 +27,7 @@ In priority order:
 
 ## Considered options
 
-- **Go** — best fit for our stack. Fast cold start (~100 ms), small memory footprint (~30 MB idle), first-class SDKs for Temporal, OTel, k8s, sqlc, oapi-codegen. Verbose error handling and less expressive type system are accepted costs.
+- **Go** — best fit for our stack. Fast cold start (~100 ms), small memory footprint (~30 MB idle), first-class SDKs for Temporal, OTel, k8s, sqlc, ogen. Verbose error handling and less expressive type system are accepted costs.
 - **Rust** — best correctness and performance; velocity cost is real at 100-service scale with a small team; Temporal SDK is community-maintained. Kept as an escape hatch.
 - **JVM (Java/Kotlin)** — mature, but per-service memory footprint (200–500 MB) and JVM tuning tax are incompatible with the 100-service target.
 - **Node.js / TypeScript backend** — shared language with frontend is appealing, but single-threaded event loop and erased runtime types are wrong for CPU-bound and financial workloads.
@@ -41,6 +41,7 @@ In priority order:
 - **Sanctioned escape hatches:**
   - **Rust** for services with measured CPU/latency requirements Go cannot meet, or for blockchain components whose canonical libraries are Rust-native.
   - **Python** for ML/data services where the Python scientific ecosystem is the reason the service exists. Never permitted for general API services.
+  - **Node.js** solely as the Playwright end-to-end / visual test runner ([ADR-0018](0018-testing-strategy.md)). Bun cannot reliably run a browser test runner (extra-fd pipe transport + worker IPC are the corners of `child_process` Bun has not matched), and this is a Node-ecosystem-wide gap, not a tool we can swap to avoid it. Scoped to the `e2e/` runner and CI only — never in a service, container image, shipped artifact, or app/library code.
 - Every escape-hatch service requires its own ADR documenting the measured need.
 
 **Rejected as primary:** Rust (velocity), JVM (footprint), Node.js backend (concurrency, type-safety), .NET (ecosystem gap), Python (wrong tool).
@@ -53,12 +54,12 @@ In priority order:
 
 - One language across ~100 services. Shared libraries in `libs/go/`, shared lint/format, easy engineer rotation.
 - Predictable per-service footprint (~30 MB image, ~30 MB idle RAM) keeps 100 services tractable on the cluster sizes chosen in [ADR-0003](0003-cluster-topology.md).
-- Tightest fit with everything else we use: Temporal, OTel, Kubernetes, sqlc, oapi-codegen are all Go-native.
+- Tightest fit with everything else we use: Temporal, OTel, Kubernetes, sqlc, ogen are all Go-native.
 - Frontend TS + generated TS clients gives cross-language type sharing without polyglotting the backend.
 
 ### Negative / Risks
 
-- Go's type system is less expressive than Rust or Kotlin. Discipline + linters (`golangci-lint`) + codegen (sqlc, oapi-codegen) compensate.
+- Go's type system is less expressive than Rust or Kotlin. Discipline + linters (`golangci-lint`) + codegen (sqlc, ogen) compensate.
 - Verbose error handling is accepted. No bespoke error-handling DSLs.
 - Every Rust or Python service is a permanent ops tax: separate toolchain, separate codegen pipeline, separate CI cache, separate hire profile. The ADR requirement makes adoption deliberate.
 
@@ -72,7 +73,7 @@ In priority order:
 - Every backend service is written in Go unless an ADR sanctions an escape hatch.
 - Go version is pinned by `.mise.toml`; services do not override it.
 - The frontend is TypeScript on Next.js, single app per [ADR-0002](0002-monorepo.md).
-- Bun is the only JS runtime — Node.js is not installed locally or in any container image.
+- Bun is the only JS runtime — Node.js is not installed in any container image, service, or shipped artifact. The sole exception is the Playwright e2e/visual test runner ([ADR-0018](0018-testing-strategy.md)), where Node is sanctioned for the runner and CI only.
 - A Rust service requires its own ADR demonstrating measured Go inadequacy or Rust-native ecosystem need.
 - A Python service requires its own ADR; it is permitted only for ML/data workloads.
 - JVM, .NET, and Node.js backends are not permitted, with or without an ADR.

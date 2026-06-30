@@ -1,5 +1,5 @@
 // Developer portal (ADR-0009). Placeholder until the first external partner.
-import { devportal } from "@ui/strings/devportal";
+import { devportal } from "@/strings/devportal";
 
 export default function DevPortal() {
   return (

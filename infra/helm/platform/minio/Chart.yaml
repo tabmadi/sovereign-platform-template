@@ -11,3 +11,4 @@ dependencies:
   - name: minio
     version: "5.4.0"
     repository: https://charts.min.io/
+    condition: minio.enabled

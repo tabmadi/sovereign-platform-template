@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -18,23 +19,29 @@ import (
 const serviceName = "payment"
 
 func main() {
+	err := run()
+	if err != nil {
+		slog.Error("fatal", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	shutdown, err := observability.Init(ctx, observability.Config{ServiceName: serviceName + "-worker"})
 	if err != nil {
-		slog.Error("obs init", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("obs init: %w", err)
 	}
-	defer shutdown(context.Background())
+	defer func() { _ = shutdown(context.Background()) }()
 
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
 	tc, err := temporalmw.NewClient(serviceName + "-worker")
 	if err != nil {
-		slog.Error("temporal", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("temporal: %w", err)
 	}
 	defer tc.Close()
 
@@ -45,10 +52,11 @@ func main() {
 	w.RegisterActivity(acts.SettleActivity)
 	w.RegisterActivity(acts.MarkChargeStatusActivity)
 
-	interrupt := make(chan interface{}, 1)
+	interrupt := make(chan any, 1)
 	go func() { <-ctx.Done(); interrupt <- nil }()
-	if err := w.Run(interrupt); err != nil {
-		slog.Error("worker", "err", err)
-		os.Exit(1)
+	err = w.Run(interrupt)
+	if err != nil {
+		return fmt.Errorf("worker: %w", err)
 	}
+	return nil
 }

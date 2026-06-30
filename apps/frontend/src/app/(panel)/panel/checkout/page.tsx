@@ -1,15 +1,16 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 // Cross-service mutation (ADR-0006, ADR-0014). The orders service returns
 // 202 + a workflow handle; we poll it with the shared helper instead of
 // hand-rolling fetch loops.
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Button } from "@ui";
-import { createBrowserClient, pollWorkflow, type WorkflowHandle } from "@server-fetch";
-import { panel } from "@ui/strings/panel";
+import { Button } from "@/components/ui";
+import { createBrowserClient } from "@/lib/server-fetch/client";
+import { pollWorkflow, type WorkflowHandle } from "@/lib/server-fetch/workflow-handle";
+import { panel } from "@/strings/panel";
 
 const schema = z.object({
   product_id: z.string().uuid(),
@@ -28,7 +29,7 @@ type OrdersPaths = {
 };
 
 export default function Checkout() {
-  const [status, setStatus] = useState(panel.checkout.idle);
+  const [status, setStatus] = useState<string>(panel.checkout.idle);
   const orders = createBrowserClient<OrdersPaths>("orders");
 
   const { register, handleSubmit, formState } = useForm<FormValues>({

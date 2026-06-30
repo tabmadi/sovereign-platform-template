@@ -1,7 +1,9 @@
+# Consumed by sqruff (ADR-0007), which reads sqlfluff's config format for compatibility.
 [sqlfluff]
 dialect = postgres
 templater = raw
-exclude_rules = L016, AM05, ST05
+# RF04: allow common column names that are non-reserved keywords (e.g. "name").
+exclude_rules = LT05, AM05, ST05, RF04
 max_line_length = 120
 
 [sqlfluff:indentation]

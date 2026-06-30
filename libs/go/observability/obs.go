@@ -5,11 +5,14 @@ package observability
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"strconv"
+	"time"
 
 	otelslog "go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
@@ -35,15 +38,36 @@ type Config struct {
 
 // Init wires up tracing, metrics, logs, pprof, and slog. The returned shutdown
 // function must be called from main to flush all signals.
+//
+//nolint:funlen // ADR-0011: the single documented wiring point; kept linear on purpose.
 func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) {
 	if cfg.ServiceName == "" {
-		return nil, fmt.Errorf("observability.Init: ServiceName is required")
+		return nil, errors.New("observability.Init: ServiceName is required")
 	}
 	if cfg.AdminAddr == "" {
 		cfg.AdminAddr = ":9090"
 	}
 
-	res, err := resource.New(ctx,
+	// OTEL_SDK_DISABLED=true (OTel spec env) makes Init a no-op for exporters:
+	// no OTLP connections are opened, so a service can run locally without the
+	// Collector stack. Logs still go to stdout and pprof is still served.
+	disabled, _ := strconv.ParseBool(os.Getenv("OTEL_SDK_DISABLED"))
+	if disabled {
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+		go serveAdmin(cfg.AdminAddr)
+		return func(context.Context) error { return nil }, nil
+	}
+
+	// In local dev the OTel Collector is reached over plaintext (no TLS), so the
+	// OTLP exporters must opt out of their default https/TLS behavior.
+	var local bool
+	switch os.Getenv("DEPLOY_ENV") {
+	case "", "dev", "local":
+		local = true
+	}
+
+	res, err := resource.New(
+		ctx,
 		resource.WithAttributes(semconv.ServiceName(cfg.ServiceName)),
 		resource.WithFromEnv(),
 		resource.WithProcessRuntimeName(),
@@ -52,7 +76,16 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		return nil, fmt.Errorf("resource: %w", err)
 	}
 
-	traceExp, err := otlptracegrpc.New(ctx)
+	var traceOpts []otlptracegrpc.Option
+	var metricOpts []otlpmetricgrpc.Option
+	var logOpts []otlploghttp.Option
+	if local {
+		traceOpts = append(traceOpts, otlptracegrpc.WithInsecure())
+		metricOpts = append(metricOpts, otlpmetricgrpc.WithInsecure())
+		logOpts = append(logOpts, otlploghttp.WithInsecure())
+	}
+
+	traceExp, err := otlptracegrpc.New(ctx, traceOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("trace exporter: %w", err)
 	}
@@ -62,7 +95,7 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 	)
 	otel.SetTracerProvider(tp)
 
-	metricExp, err := otlpmetricgrpc.New(ctx)
+	metricExp, err := otlpmetricgrpc.New(ctx, metricOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("metric exporter: %w", err)
 	}
@@ -72,7 +105,7 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 	)
 	otel.SetMeterProvider(mp)
 
-	logExp, err := otlploghttp.New(ctx)
+	logExp, err := otlploghttp.New(ctx, logOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("log exporter: %w", err)
 	}
@@ -80,7 +113,11 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExp)),
 		sdklog.WithResource(res),
 	)
-	slog.SetDefault(slog.New(otelslog.NewHandler(cfg.ServiceName, otelslog.WithLoggerProvider(lp))))
+	handlers := fanout{otelslog.NewHandler(cfg.ServiceName, otelslog.WithLoggerProvider(lp))}
+	if local {
+		handlers = append(fanout{slog.NewTextHandler(os.Stdout, nil)}, handlers...)
+	}
+	slog.SetDefault(slog.New(handlers))
 
 	go serveAdmin(cfg.AdminAddr)
 
@@ -93,7 +130,51 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 	return shutdown, nil
 }
 
+// fanout is a slog.Handler that dispatches every record to all wrapped handlers,
+// so logs reach both stdout (visible in local runs) and the OTLP pipeline.
+type fanout []slog.Handler
+
+func (f fanout) Enabled(ctx context.Context, level slog.Level) bool {
+	for _, h := range f {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+	return false
+}
+
+func (f fanout) Handle(ctx context.Context, r slog.Record) error {
+	var err error
+	for _, h := range f {
+		if h.Enabled(ctx, r.Level) {
+			e := h.Handle(ctx, r.Clone())
+			if e != nil {
+				err = e
+			}
+		}
+	}
+	return err
+}
+
+func (f fanout) WithAttrs(attrs []slog.Attr) slog.Handler {
+	next := make(fanout, len(f))
+	for i, h := range f {
+		next[i] = h.WithAttrs(attrs)
+	}
+	return next
+}
+
+func (f fanout) WithGroup(name string) slog.Handler {
+	next := make(fanout, len(f))
+	for i, h := range f {
+		next[i] = h.WithGroup(name)
+	}
+	return next
+}
+
 // StartSpan wraps otel.Tracer().Start so service code never imports otel directly.
+//
+//nolint:spancheck // thin passthrough; the caller owns the returned span and its End().
 func StartSpan(ctx context.Context, name string) (context.Context, trace.Span) {
 	return otel.Tracer("service").Start(ctx, name)
 }
@@ -116,8 +197,10 @@ func serveAdmin(addr string) {
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	srv := &http.Server{Addr: addr, Handler: mux}
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		fmt.Fprintln(os.Stderr, "admin server:", err)
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	err := srv.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		// Runs in a goroutine, so the error can't be returned
+		slog.Error("admin server failed", "error", err)
 	}
 }

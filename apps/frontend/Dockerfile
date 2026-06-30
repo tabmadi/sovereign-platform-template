@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1.7
 # Bun is the only JS runtime in this image — install, build, and the
-# production server.js all run under Bun. Next 15's standalone output is
+# production server.js all run under Bun. Next's standalone output is
 # officially Node-targeted, but Bun runs it in practice and removing Node
 # keeps the platform on a single runtime (ADR-0000 §"one way to do things").
 ARG BUN_VERSION=1.3.14
 
 FROM oven/bun:${BUN_VERSION}-alpine AS deps
 WORKDIR /app
-COPY package.json bun.lockb* ./
+COPY package.json bun.lock ./
 COPY apps/frontend/package.json apps/frontend/
 RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile
 

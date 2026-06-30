@@ -11,20 +11,20 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],
-      "@sdks/*": ["../../libs/sdks/ts/*"],
-      "@ui": ["../../libs/ts/ui/index.ts"],
-      "@ui/*": ["../../libs/ts/ui/*"],
-      "@server-fetch": ["../../libs/ts/server-fetch/index.ts"],
-      "@observability/server": ["../../libs/ts/observability/server.ts"],
-      "@observability/client": ["../../libs/ts/observability/client.ts"],
-      "@flags": ["../../libs/ts/feature-flags/index.ts"]
+      "@sdks/*": ["../../libs/ts/sdks/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

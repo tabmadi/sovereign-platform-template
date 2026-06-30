@@ -6,6 +6,7 @@ import (
 )
 
 func TestClassify(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		files []string
@@ -49,7 +50,7 @@ func TestClassify(t *testing.T) {
 		},
 		{
 			name:  "sdk change marks underlying service",
-			files: []string{"libs/sdks/go/payment/client/client.gen.go"},
+			files: []string{"libs/go/sdks/payment/client/client.gen.go"},
 			want: Manifest{
 				Services: []string{"payment"},
 				Apps:     []string{},
@@ -83,16 +84,21 @@ func TestClassify(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := classify(tc.files, false)
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("classify(%v) =\n  %+v\nwant\n  %+v", tc.files, got, tc.want)
-			}
-		})
+		t.Run(
+			tc.name,
+			func(t *testing.T) {
+				t.Parallel()
+				got := classify(tc.files, false)
+				if !reflect.DeepEqual(got, tc.want) {
+					t.Errorf("classify(%v) =\n  %+v\nwant\n  %+v", tc.files, got, tc.want)
+				}
+			},
+		)
 	}
 }
 
 func TestClassifyAllFlag(t *testing.T) {
+	t.Parallel()
 	got := classify([]string{"services/orders/foo.go"}, true)
 	if !got.Global {
 		t.Errorf("--all should force Global=true, got %+v", got)

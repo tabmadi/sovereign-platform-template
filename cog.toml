@@ -7,9 +7,13 @@ generate_mono_repository_global_tag = false
 branch_whitelist = ["master", "release/**"]
 
 # Repo layout maps onto monorepo packages so per-component bumps work.
-[packages]
-"apps/frontend"  = { path = "apps/frontend",  changelog_path = "apps/frontend/CHANGELOG.md" }
-"apps/admin"     = { path = "apps/admin",     changelog_path = "apps/admin/CHANGELOG.md" }
+[monorepo.packages."apps/frontend"]
+path = "apps/frontend"
+changelog_path = "apps/frontend/CHANGELOG.md"
+
+[monorepo.packages."apps/admin"]
+path = "apps/admin"
+changelog_path = "apps/admin/CHANGELOG.md"
 
 # Allowed commit types.
 [commit_types]

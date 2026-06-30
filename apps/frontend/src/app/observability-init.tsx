@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { initBrowserObservability } from "@observability/client";
+import { initBrowserObservability } from "@/lib/observability/client";
 
 export function ObservabilityInit() {
   useEffect(() => {

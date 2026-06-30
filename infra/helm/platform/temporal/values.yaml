@@ -1,28 +1,56 @@
 temporal:
   server:
     config:
+      # Chart 1.x persistence schema (UPGRADING.md): stores live under
+      # persistence.datastores.<name> and are selected by defaultStore /
+      # visibilityStore. The sql block is passed through verbatim to the Temporal
+      # server config, so it uses raw server keys (pluginName/connectAddr), not
+      # the old chart's driver/host shorthand. existingSecret/secretKey/
+      # createDatabase/manageSchema are Helm-only and stripped before rendering.
       persistence:
-        default:
-          driver: sql
-          sql:
-            driver: postgres12
-            host: postgres-rw.platform.svc.cluster.local
-            port: 5432
-            database: temporal
-            existingSecret: temporal-db-creds
-        visibility:
-          driver: sql
-          sql:
-            driver: postgres12
-            host: postgres-rw.platform.svc.cluster.local
-            port: 5432
-            database: temporal_visibility
-            existingSecret: temporal-db-creds
-  cassandra: { enabled: false }
-  prometheus: { enabled: false }       # we scrape from OTel collector instead
-  grafana:   { enabled: false }
-  elasticsearch: { enabled: false }
+        defaultStore: default
+        visibilityStore: visibility
+        numHistoryShards: 512
+        datastores:
+          default:
+            sql:
+              pluginName: postgres12
+              driverName: postgres12
+              databaseName: temporal
+              connectAddr: postgres-rw.platform.svc.cluster.local:5432
+              connectProtocol: tcp
+              user: dev
+              existingSecret: temporal-db-creds
+              # CNPG (infra/helm/platform/postgres) already provisions the
+              # temporal / temporal_visibility databases via
+              # postInitApplicationSQL, so only the schema job runs here.
+              createDatabase: false
+              manageSchema: true
+          visibility:
+            sql:
+              pluginName: postgres12
+              driverName: postgres12
+              databaseName: temporal_visibility
+              connectAddr: postgres-rw.platform.svc.cluster.local:5432
+              connectProtocol: tcp
+              user: dev
+              existingSecret: temporal-db-creds
+              createDatabase: false
+              manageSchema: true
+      # Register the `default` namespace via the chart's setup job. The split
+      # production topology doesn't auto-create it the way `start-dev` does, so
+      # workers targeting TEMPORAL_NAMESPACE=default fail without this. The chart
+      # reads this at server.config.namespaces (NOT server.namespaces).
+      namespaces:
+        create: true
+        namespace:
+          - name: default
+            retention: 3d
+  # Cassandra/Prometheus/Grafana/Elasticsearch sub-charts were removed in chart
+  # v1.0.0-rc.2 (no longer top-level keys). Metrics are scraped from the OTel
+  # collector, so the bundled monitoring stack stays absent by simply not
+  # enabling server.metrics.serviceMonitor.
   web:
     image:
       repository: temporalio/ui
-      tag: "2.32.0"
+      tag: "2.51.1"

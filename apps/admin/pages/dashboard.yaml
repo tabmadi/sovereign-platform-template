@@ -3,12 +3,13 @@ type: PageHeaderMenu
 properties:
   title: Platform admin
 blocks:
-  - id: hello
+  - id: welcome
     type: Markdown
     properties:
       content: |
-        # Welcome, {{ _request.headers.x-user-email }}
+        # Platform admin
 
-        - [Products](/internal/admin/products)
-        - [Orders](/internal/admin/orders)
-        - [Refund tool](/internal/admin/refund-tool)
+        - [Products](/products)
+        - [Orders](/orders)
+        - [Refund tool](/refund-tool)
+        - [Operators](/operators)

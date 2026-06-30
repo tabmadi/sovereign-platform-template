@@ -6,9 +6,9 @@ description: |
   as the upstream implementation.
 type: application
 version: 0.1.0
-appVersion: "0.13.1"
+appVersion: "0.21.0"
 
 dependencies:
   - name: sops-secrets-operator
-    version: "0.16.0"
+    version: "0.27.1"
     repository: https://isindir.github.io/sops-secrets-operator/

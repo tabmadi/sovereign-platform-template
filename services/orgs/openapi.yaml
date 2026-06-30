@@ -1,26 +1,29 @@
 openapi: 3.1.0
-info: { title: orgs, version: 0.1.0 }
+info: { title: orgs, version: 0.1.0, description: Organization and membership service. }
 servers: [{ url: /api/orgs }]
 tags: [{ name: orgs }, { name: internal }]
 paths:
   /orgs:
     post:
       operationId: createOrg
+      description: Create an organization.
       tags: [orgs]
       requestBody:
         required: true
+        description: The organization to create.
         content: { application/json: { schema: { $ref: "#/components/schemas/OrgInput" } } }
       responses:
         "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
-        default: { $ref: "../../api/shared/error.yaml#/Error" }
+        default: { $ref: "#/components/responses/Error" }
   /orgs/{id}:
     get:
       operationId: getOrg
+      description: Fetch an organization by id.
       tags: [orgs]
-      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Organization id., schema: { type: string, format: uuid } }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
-        default: { $ref: "../../api/shared/error.yaml#/Error" }
+        default: { $ref: "#/components/responses/Error" }
   /internal/identity-created:
     post:
       operationId: onIdentityCreated
@@ -28,20 +31,44 @@ paths:
       description: Kratos post-registration webhook. Creates a personal org for the new identity.
       requestBody:
         required: true
-        content: { application/json: { schema: { type: object, properties: { identity_id: { type: string }, email: { type: string } } } } }
+        description: The newly created identity.
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Kratos identity-created payload.
+              properties:
+                identity_id: { type: string }
+                email:       { type: string }
       responses:
         "204": { description: Ack }
-        default: { $ref: "../../api/shared/error.yaml#/Error" }
+        default: { $ref: "#/components/responses/Error" }
 components:
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    Problem:
+      type: object
+      description: RFC 7807 problem document.
+      required: [code, message]
+      properties:
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
     Org:
       type: object
+      description: An organization.
       required: [id, name]
       properties:
         id:   { type: string, format: uuid }
         name: { type: string }
     OrgInput:
       type: object
+      description: Request body to create an organization.
       required: [name]
       properties:
         name: { type: string, minLength: 1 }

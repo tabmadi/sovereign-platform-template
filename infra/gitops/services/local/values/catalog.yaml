@@ -1,0 +1,11 @@
+# Local full-tier values for the catalog service (ADR-0016). See orders.yaml for
+# the secret-naming note (catalog-db = local SopsSecret resource).
+name: catalog
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/catalog-server
+  tag: "0000000000000000000000000000000000000000"
+worker:  { enabled: false }
+server:  { replicas: 1 }
+ingress: { enabled: true, host: dev.localtest.me }
+otel:    { deployEnv: local }
+secrets: { envFrom: [catalog-db] }

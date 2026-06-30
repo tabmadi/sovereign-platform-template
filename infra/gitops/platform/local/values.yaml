@@ -1,0 +1,127 @@
+# Local overrides for `cluster:full`, consumed the same way the ArgoCD
+# ApplicationSet consumes dev/staging/prod values (ADR-0016): local diverges from
+# prod only through this overlay, layered over each platform chart's own values.
+# Locally the local platform ApplicationSet (infra/gitops/bootstrap-local) syncs
+# these from master; ordering/readiness is Argo's job (sync-waves).
+
+# --- Cilium (CNI): k3d keeps kube-proxy, so disable kubeProxyReplacement; one
+# operator replica (the default 2 needs 2 nodes for anti-affinity). Cilium itself
+# is installed imperatively by cluster:full before Argo runs and is excluded from
+# the local platform ApplicationSet, but these values keep parity if it is synced.
+cilium:
+  kubeProxyReplacement: false
+  operator:
+    replicas: 1
+
+# --- TLS (cert-manager): self-signed wildcard for *.dev.localtest.me + ops, in
+# the platform namespace where the edge IngressRoutes resolve the secrets. Same
+# cert-manager mechanism as deployed envs; only the issuer differs (ADR-0016).
+envHost: dev.localtest.me
+selfSigned:
+  enabled: true
+
+# --- Data tier: instances=1 / small storage (laptop-sized) -----------------
+# Top-level `cluster:` — the postgres chart's own values schema has no
+# `postgres:` namespace wrapper (unlike the dependency subcharts below).
+cluster:
+  instances: 1
+  storage: { size: 2Gi }
+  backup:
+    enabled: false   # ephemeral local data; no backup destination needed
+
+# Top-level `replicas:` — the spicedb chart's own values schema has no
+# `spicedb:` namespace wrapper.
+replicas: 1
+
+# --- Ory (Kratos + Oathkeeper) --------------------------------------------
+kratos:
+  kratos:
+    config:
+      dsn: "postgres://dev:dev@postgres-rw.platform.svc.cluster.local:5432/kratos?sslmode=disable"
+      serve:
+        public:
+          base_url: "https://dev.localtest.me:8443/auth/"
+      # Prod values point these at dev.example.com; locally the edge is on :8443,
+      # so the unauthenticated browser redirect must come back to localtest.me.
+      selfservice:
+        default_browser_return_url: https://dev.localtest.me:8443/
+        flows:
+          login:        { ui_url: https://dev.localtest.me:8443/auth/login }
+          registration: { ui_url: https://dev.localtest.me:8443/auth/register }
+          recovery:     { ui_url: https://dev.localtest.me:8443/auth/recovery }
+          verification: { ui_url: https://dev.localtest.me:8443/auth/verification }
+          settings:     { ui_url: https://dev.localtest.me:8443/auth/settings }
+        # WebAuthn/TOTP are domain-bound: the relying-party id + origins must match
+        # the local edge host (the chart base uses dev.example.com).
+        methods:
+          totp:
+            config:
+              issuer: dev.localtest.me
+          webauthn:
+            config:
+              rp:
+                id: dev.localtest.me
+                display_name: Platform (local)
+                origins: ["https://dev.localtest.me:8443"]
+      # Share the session cookie with subdomains (hubble.dev.localtest.me is
+      # served at its own origin); overrides the chart's dev.example.com default.
+      session:
+        cookie:
+          domain: dev.localtest.me
+      courier:
+        smtp:
+          connection_uri: "smtps://test:test@localhost:1025/?skip_ssl_verify=true"
+    # Cookie/cipher/system secrets + dsn come from the SOPS-managed `kratos-secrets`
+    # Secret (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via
+    # secret.enabled=false + nameOverride in infra/auth/kratos/values.yaml — never
+    # inline here (ADR-0005, Phase 5).
+    # Run Kratos migrations automatically for local (initContainer before serve).
+    automigration:
+      enabled: true
+      type: initContainer
+
+# Oathkeeper sends unauthenticated browser (text/html) requests to a login page.
+# Override the prod placeholder host so gated routes redirect to the local edge.
+oathkeeper:
+  oathkeeper:
+    config:
+      errors:
+        handlers:
+          redirect:
+            config:
+              to: https://dev.localtest.me:8443/auth/login
+
+# --- Observability: point LGTM at in-cluster MinIO, single replica ---------
+# Only the endpoint + http (insecure) differ from prod; the S3 credentials come
+# from the observability-bucket Secret via extraEnvFrom (wired in the chart values
+# for every env), so no inline keys here — same mechanism as dev/staging/prod.
+loki:
+  loki:
+    storage:
+      s3:
+        endpoint: "minio.platform.svc.cluster.local:9000"
+        s3ForcePathStyle: true
+        insecure: true
+
+tempo:
+  tempo:
+    storage:
+      trace:
+        s3:
+          endpoint: "minio.platform.svc.cluster.local:9000"
+          insecure: true
+
+# Monolithic Mimir (templates/mimir.yaml) — point at MinIO over http.
+mimir:
+  storage:
+    endpoint: "minio.platform.svc.cluster.local:9000"
+    insecure: true
+
+# Grafana: a known local admin password (prod supplies one via Secret).
+# Served at the root of its ops origin (ADR-0017); root_url carries the local
+# edge's :8443 port so post-login redirects land back on the same origin.
+grafana:
+  adminPassword: "admin"
+  grafana.ini:
+    server:
+      root_url: "https://grafana.ops.dev.localtest.me:8443/"

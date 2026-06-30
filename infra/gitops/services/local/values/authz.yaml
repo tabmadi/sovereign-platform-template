@@ -1,0 +1,20 @@
+# Local full-tier values for the authz edge authorizer (ADR-0017). authz is
+# INTERNAL: Oathkeeper's remote_json authorizer calls it by service DNS, so it gets
+# no /api edge route (ingress off). It has no database (migrations off). It talks to
+# the real SpiceDB chart using the SOPS-managed preshared key (spicedb-creds).
+# Internal authorizer (no edge route, no database), talking to the real SpiceDB
+# chart via the SOPS-managed preshared key.
+name: authz
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/authz-server
+  tag: "0000000000000000000000000000000000000000"
+worker:     { enabled: false }
+server:     { replicas: 1 }
+ingress:    { enabled: false }   # internal authorizer — no edge route
+migrations: { enabled: false }   # no database
+otel:       { deployEnv: local }
+secrets:    { envFrom: [spicedb-creds] }
+env:
+  SPICEDB_ENDPOINT: "spicedb.platform.svc.cluster.local:50051"
+  # Blank so libs/go/authz falls back to spicedb-creds.preshared_key (envFrom).
+  SPICEDB_PRESHARED_KEY: ""

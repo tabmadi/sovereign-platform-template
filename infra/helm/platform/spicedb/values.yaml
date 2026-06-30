@@ -1,12 +1,35 @@
-cluster:
-  name: spicedb
-  datastoreEngine: postgres
-  secret:
-    existingSecret: spicedb-creds        # holds datastore_uri + preshared_key
-  replicas: 2
-  image:
-    repository: authzed/spicedb
-    tag: "v1.39.1"
-  config:
-    logLevel: info
-    dispatchClusterEnabled: false
+# Direct SpiceDB deployment (ADR-0010): a plain Deployment + Service, with a
+# `spicedb migrate head` initContainer that runs before serve. No operator/CRD —
+# the rare phased datastore migration is handled manually per SpiceDB release notes.
+image:
+  repository: authzed/spicedb
+  tag: "v1.54.0"
+
+replicas: 2
+logLevel: info
+httpEnabled: true            # REST gateway (8443) alongside gRPC (50051)
+
+# Secret holding the gRPC preshared key + Postgres connection URI (SOPS-managed
+# in prod). Expected keys: preshared_key, datastore_uri
+existingSecret: spicedb-creds
+
+migrate:
+  enabled: true              # run `spicedb migrate head` as an initContainer
+
+# Schema + ops-policy seed (ADR-0007, ADR-0017). After SpiceDB is Ready, write the
+# canonical schema and the static group->dashboard grants. Same Job in every env,
+# replacing the old imperative port-forward+zed step in scripts/cluster-full.sh.
+# Idempotent (schema write + relationship touch), so safe to re-run on every sync.
+seed:
+  enabled: true
+  image: authzed/zed:v1.1.1
+  # Each ops dashboard (ADR-0017) granted to group:operator members.
+  dashboards: [grafana, hubble, temporal, console]
+  # Canonical schema text, injected by the platform ApplicationSet fileParameter
+  # `seed.schema` from infra/auth/spicedb/schema.zed (the one schema source).
+  # Empty when rendered without that fileParameter, which disables the seed Job.
+  schema: ""
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits:   { memory: 256Mi }

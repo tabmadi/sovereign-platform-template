@@ -1,7 +1,28 @@
-postgres:
-  cluster:
-    instances: 3
-    storage: { size: 100Gi }
-    backup:
-      retentionPolicy: "7d"
-      s3: { destinationPath: "s3://platform-staging-backups/postgres" }
+# Top-level `cluster:` — the postgres chart's own values schema has no
+# `postgres:` namespace wrapper (unlike the dependency subcharts below).
+cluster:
+  instances: 3
+  storage: { size: 100Gi }
+  backup:
+    retentionPolicy: "7d"
+    s3: { endpointURL: "http://minio.platform.svc.cluster.local:9000", destinationPath: "s3://platform-backups/postgres" }
+
+# Non-prod object storage is in-cluster MinIO (ADR-0016); prod keeps the
+# chart defaults (the off-cluster bucket) and disables this chart entirely.
+loki:
+  loki:
+    storage:
+      s3:
+        endpoint: minio.platform.svc.cluster.local:9000
+        s3ForcePathStyle: true
+        insecure: true
+tempo:
+  tempo:
+    storage:
+      trace:
+        s3:
+          endpoint: minio.platform.svc.cluster.local:9000
+          insecure: true
+mimir:
+  storage:
+    endpoint: minio.platform.svc.cluster.local:9000

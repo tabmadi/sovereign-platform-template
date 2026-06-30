@@ -1,0 +1,51 @@
+# OpenAPI 3.1 lint ruleset for all services (ADR-0008). Spectral-format ruleset,
+# run by vacuum (`mise run lint:openapi`). `spectral:oas` is the built-in core ruleset.
+extends:
+  - "spectral:oas"
+
+rules:
+  # Style
+  # Specs are codegen contracts (ogen), not docs — per-property examples add
+  # maintenance burden to every scaffolded spec for no codegen value. Off.
+  oas3-missing-example: off
+  operation-operationId: error
+  operation-tag-defined: error
+  oas3-server-not-example.com: warn
+  info-contact: off
+  info-license: off
+
+  # Breaking-change hygiene — every operation must declare its security and a 2xx + 4xx response.
+  operation-success-response: error
+
+  # Naming conventions
+  operation-operationId-valid-in-url:
+    description: operationId must be camelCase, ASCII, no spaces
+    given: $.paths.*[get,post,put,patch,delete].operationId
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]+$"
+
+  # Enforce snake_case property names (this project's wire-format convention).
+  # Disable the built-in camelCase rule and replace it with the snake_case
+  # variant of the same function, so non-snake_case names still warn.
+  camel-case-properties: off
+  snake-case-properties:
+    description: schema property names must be snake_case
+    given: "$"
+    resolved: true
+    severity: warn
+    then:
+      function: oasCamelCaseProperties
+      functionOptions:
+        type: snake
+
+  # Every path must have a tag for grouping
+  must-have-tag:
+    description: every operation must have at least one tag
+    given: $.paths.*[get,post,put,patch,delete]
+    severity: error
+    then:
+      field: tags
+      function: truthy

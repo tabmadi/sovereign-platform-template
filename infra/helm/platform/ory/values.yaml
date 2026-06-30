@@ -1,24 +1,24 @@
-kratos:
-  kratos:
-    config:
-      dsn: "postgres://kratos@postgres-rw.platform.svc.cluster.local:5432/kratos?sslmode=disable"
-      identity:
-        default_schema_id: user_v1
-        schemas:
-          - id: user_v1
-            url: file:///etc/config/identity-schemas/user.v1.json
-      selfservice:
-        default_browser_return_url: https://dev.example.com/
-        flows:
-          login:        { ui_url: https://dev.example.com/auth/login }
-          registration: { ui_url: https://dev.example.com/auth/register }
-          recovery:     { ui_url: https://dev.example.com/auth/recovery }
-          settings:     { ui_url: https://dev.example.com/auth/settings }
-    identitySchemas:
-      "user.v1.json": |
-        {{ readFile "../../auth/kratos/identity-schemas/user.v1.json" | nindent 8 }}
+# Ory umbrella chart values (ADR-0009, ADR-0010).
+#
+# The auth config is NOT inlined here — it lives once in the canonical tree under
+# infra/auth/ and is injected at install time (Phase 0.4 of the auth plan):
+#   - infra/auth/kratos/values.yaml            → `-f` overlay (kratos.config map)
+#   - infra/auth/oathkeeper/values.yaml        → `-f` overlay (oathkeeper.config map)
+#   - infra/auth/kratos/identity-schemas/user.v1.json
+#                                              → --set-file kratos.kratos.identitySchemas."user.v1.json"
+#   - infra/auth/oathkeeper/access-rules.json  → --set-file oathkeeper.oathkeeper.accessRules
+# scripts/cluster-full.sh wires the local path; the platform ApplicationSet wires
+# the deployed path (valueFiles + fileParameters). A CI lint (mise run
+# lint:auth-inline) fails if any of these are re-inlined into this file.
 
+oathkeeper:
+  enabled: true
+
+# Hydra is a public-API add-on (ADR-0009). Off by default — internal-only
+# projects run Kratos + Oathkeeper + SpiceDB. The `hydra_thirdparty` flag flips
+# `hydra.enabled` on in the per-env GitOps values.
 hydra:
+  enabled: false
   hydra:
     config:
       dsn: "postgres://hydra@postgres-rw.platform.svc.cluster.local:5432/hydra?sslmode=disable"

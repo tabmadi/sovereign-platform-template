@@ -1,0 +1,17 @@
+# Local full-tier values for the payment service (ADR-0016). See orders.yaml for
+# the secret-naming note (payment-db = local SopsSecret resource). Locally there is
+# no separate payment-temporal-creds secret (Temporal runs without per-service
+# creds), so only payment-db is mounted — matching the old skaffold module.
+name: payment
+image:
+  repository: ghcr.io/tabmadi/microservices-monorepo-template/payment-server
+  tag: "0000000000000000000000000000000000000000"
+worker:
+  enabled: true
+  image:
+    repository: ghcr.io/tabmadi/microservices-monorepo-template/payment-worker
+    tag: "0000000000000000000000000000000000000000"
+server:  { replicas: 1 }
+ingress: { enabled: true, host: dev.localtest.me }
+otel:    { deployEnv: local }
+secrets: { envFrom: [payment-db] }

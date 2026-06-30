@@ -30,17 +30,19 @@ server:
     requests: { cpu: "50m",  memory: "64Mi" }
     limits:   { cpu: "500m", memory: "256Mi" }
 
-# Database migrations run as a Helm pre-install/pre-upgrade Job (ADR-0007).
+# Database migrations (ADR-0007) run as a dbmate initContainer on the server pod,
+# from the service image itself (it bakes the static dbmate binary + /db/migrations).
 migrations:
   enabled: true
-  image:
-    repository: ghcr.io/amacneil/dbmate
-    tag: "2.27.0"
 
 # Standard observability env (ADR-0011). The shared library reads these.
 otel:
   endpoint: "http://otel-collector.platform.svc.cluster.local:4317"
   sampling: "parentbased_traceidratio=0.1"
+  # Deployment environment. Anything other than "" / "dev" / "local" makes the
+  # shared library ship logs to OTLP only (no stdout), avoiding double-collection.
+  # Per-env GitOps values may override (e.g. "staging"); local flips it to "local".
+  deployEnv: "prod"
 
 # Ingress through Traefik (ADR-0003). API traffic is path-routed under /api/<name>/.
 ingress:
@@ -68,8 +70,12 @@ containerSecurityContext:
   capabilities:
     drop: ["ALL"]
 
-# NetworkPolicy is on by default (ADR-0003). Service-specific allowances go here.
+# NetworkPolicy is default-deny by default (ADR-0003). Service-specific
+# allowances go here.
 networkPolicy:
   enabled: true
   allowFromGateway: true
   egressDNS: true
+  # Other services (by slug) allowed to call this one on the server port.
+  # e.g. catalog/payment list `orders` here; orders accepts no inbound svc calls.
+  allowFrom: []

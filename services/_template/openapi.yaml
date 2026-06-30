@@ -13,6 +13,7 @@ paths:
   /items:
     get:
       operationId: listItems
+      description: List all items.
       tags: [items]
       responses:
         "200":
@@ -23,12 +24,14 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/Item" }
         "default":
-          $ref: "../../api/shared/error.yaml#/Error"
+          $ref: "#/components/responses/Error"
     post:
       operationId: createItem
+      description: Create an item.
       tags: [items]
       requestBody:
         required: true
+        description: The item to create.
         content:
           application/json:
             schema: { $ref: "#/components/schemas/ItemInput" }
@@ -39,18 +42,34 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Item" }
         "default":
-          $ref: "../../api/shared/error.yaml#/Error"
+          $ref: "#/components/responses/Error"
 
 components:
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    Problem:
+      type: object
+      description: RFC 7807 problem document.
+      required: [code, message]
+      properties:
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
     Item:
       type: object
+      description: A template item.
       required: [id, name]
       properties:
         id:   { type: string, format: uuid }
         name: { type: string, minLength: 1 }
     ItemInput:
       type: object
+      description: Request body to create an item.
       required: [name]
       properties:
         name: { type: string, minLength: 1 }

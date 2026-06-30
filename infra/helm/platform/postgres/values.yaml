@@ -3,15 +3,37 @@
 cloudnative-pg:
   fullnameOverride: cnpg-operator
   monitoring:
-    podMonitorEnabled: true
+    # No Prometheus Operator on this platform (observability is Grafana LGTM +
+    # OTel/Alloy). Alloy scrapes CNPG's metrics endpoint via discovery, so a
+    # PodMonitor (monitoring.coreos.com/v1) would reference an absent CRD.
+    podMonitorEnabled: false
 
 cluster:
   name: postgres
+  # Render the Cluster/Pooler CRs. The helm-direct local bring-up sets this false
+  # for a first pass (operator + CRDs only) so the CRs don't race CRD registration;
+  # the GitOps path leaves it true and orders via sync-waves.
+  create: true
   instances: 3
   imageName: ghcr.io/cloudnative-pg/postgresql:17.2
   storage:
     size: 20Gi
     storageClass: ""    # defaults to k3s local-path (ADR-0003)
+  # CNPG provisions one app database (`database`/`owner`) per Cluster; the
+  # platform needs one per service plus kratos/temporal/spicedb, so the rest
+  # are created via postInitApplicationSQL, owned by the same app role.
+  initdb:
+    database: orders
+    owner: dev
+    secretName: postgres-superuser
+    postInitApplicationSQL:
+      - "CREATE DATABASE catalog OWNER dev"
+      - "CREATE DATABASE orgs OWNER dev"
+      - "CREATE DATABASE payment OWNER dev"
+      - "CREATE DATABASE kratos OWNER dev"
+      - "CREATE DATABASE temporal OWNER dev"
+      - "CREATE DATABASE temporal_visibility OWNER dev"
+      - "CREATE DATABASE spicedb OWNER dev"
   pooler:
     instances: 2
     poolMode: transaction      # ADR-0007: transaction mode is the default

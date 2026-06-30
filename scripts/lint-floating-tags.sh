@@ -13,7 +13,7 @@ scan() {
   shift
   # shellcheck disable=SC2068
   local hits
-  hits=$(grep -RInE "$pattern" $@ 2>/dev/null || true)
+  hits=$(grep -RInE --exclude-dir=node_modules "$pattern" $@ 2>/dev/null || true)
   if [[ -n "$hits" ]]; then
     echo "✗ $label:"
     echo "$hits" | sed 's/^/    /'

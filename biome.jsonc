@@ -1,0 +1,107 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/build",
+      "!**/libs/ts/sdks",
+      "!**/apps/admin/_generated",
+      // The e2e/ Playwright workspace is the sanctioned Node island (ADR-0018) with
+      // its own toolchain; the frontend-tuned React preset does not apply to it
+      // (it is type-checked by its own tsconfig + the Playwright compile).
+      "!**/e2e"
+    ]
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "css": {
+    "parser": { "tailwindDirectives": true }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      // Every Biome rule (incl. nursery), minus the ones that fight Next.js or the ADRs.
+      "preset": "all",
+      "correctness": {
+        // Resolver can't see Next 16 type-only re-exports from next/server.
+        "noUnresolvedImports": "off",
+        // Bundler resolves path aliases and extensionless specifiers.
+        "useImportExtensions": "off",
+        "noProcessGlobal": "off"
+      },
+      "performance": {
+        // Solid.js-only rule; this is a React app (ADR-0014).
+        "useSolidForComponent": "off",
+        // components/ui/index.ts is a deliberate UI-kit barrel.
+        "noBarrelFile": "off"
+      },
+      "suspicious": {
+        // Solid.js-only rule; this is a React app (ADR-0014).
+        "noReactSpecificProps": "off"
+      },
+      "style": {
+        // ADR-0014 defers i18n.
+        "noJsxLiterals": "off",
+        "noProcessEnv": "off",
+        // ADR-0008 snake_case fields + Next.js SCREAMING_SNAKE env keys.
+        "useNamingConvention": "off",
+        // Color literals live in globals.css @theme.
+        "noHexColors": "off",
+        "useGlobalThis": "off",
+        // Next.js declares `metadata` atop route files.
+        "useExportsLast": "off",
+        "noMagicNumbers": "off",
+        "noImplicitBoolean": "off",
+        "noTernary": "off",
+        // `type` for object shapes; the one Window-augmentation interface carries a biome-ignore.
+        "useConsistentTypeDefinitions": { "level": "error", "options": { "style": "type" } },
+        // Next.js route files co-export metadata/viewport.
+        "useComponentExportOnlyModules": {
+          "level": "error",
+          "options": {
+            "allowExportNames": ["metadata", "generateMetadata", "viewport", "generateViewport"]
+          }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      // App Router route segments and config files use default exports.
+      "includes": ["**/app/**", "**/*.config.{js,cjs,mjs,ts}"],
+      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+    },
+    {
+      // Writes to stdout via console before slog/OTLP wiring.
+      "includes": ["**/apps/frontend/src/lib/observability/server.ts"],
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    },
+    {
+      // Canonical Oathkeeper access rules (ADR-0010): hand-curated one-rule-per-line
+      // for readability and consumed verbatim as a Helm --set-file string. Biome's
+      // JSON formatter collapses it to one line — never format this artefact.
+      "includes": ["**/infra/auth/oathkeeper/access-rules.json"],
+      "formatter": { "enabled": false }
+    }
+  ]
+}

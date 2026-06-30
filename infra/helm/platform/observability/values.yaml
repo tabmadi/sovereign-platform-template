@@ -1,38 +1,173 @@
+# Observability backend (ADR-0011): Grafana LGTM in monolithic single-binary
+# mode + a single OTel Collector DaemonSet. Durability is the off-cluster bucket
+# (ADR-0003); access keys come from the SOPS-decrypted `observability-bucket`
+# Secret (ADR-0005). Sizing here is the dev/staging default (single replica);
+# prod bumps each backend to 2 replicas in gitops/platform/prod/values.yaml.
+
+# Off-cluster object storage. Endpoint + bucket names are wired per backend
+# below; override the endpoint per environment in the GitOps platform values.
 opentelemetry-collector:
-  mode: deployment
+  # One tier: a DaemonSet on every node. Services send OTLP to localhost:4317;
+  # the agent batches, enriches with k8s attributes, head-samples, and exports
+  # directly to Loki/Mimir/Tempo. There is no separate gateway deployment.
+  mode: daemonset
   fullnameOverride: otel-collector
+  # contrib distro: required by the kubernetesAttributes preset (k8sattributes
+  # processor) and the `faro` receiver below (faroreceiver landed in contrib 0.128.0).
+  # The chart's default image is the core collector, so the repo is overridden; the
+  # tag is pinned to the chart's appVersion (0.154.0) to keep config schema + binary
+  # aligned — see the chart dependency version in Chart.yaml.
+  image: { repository: otel/opentelemetry-collector-contrib, tag: "0.154.0" }
   presets: { kubernetesAttributes: { enabled: true } }
+  # Browser beacons reach the collector through a ClusterIP Service (Traefik →
+  # otel-collector:8027). Services still emit to localhost:4317, not this Service.
+  # In daemonset mode the chart omits the Service unless explicitly enabled.
+  service: { enabled: true }
+  # Expose the Faro receiver port on that Service so Traefik can route to it
+  # (infra/gateway/frontend-observability.yaml, ADR-0014).
+  ports:
+    faro: { enabled: true, containerPort: 8027, servicePort: 8027, protocol: TCP }
   config:
     receivers:
       otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 }, http: { endpoint: 0.0.0.0:4318 } } }
+      # Browser RUM from the frontend's Grafana Faro agent (ADR-0014). Emits
+      # web traces and RUM logs/events; fed into the traces + logs pipelines
+      # below so browser signals land in the same Tempo/Loki as services.
+      faro: { endpoint: 0.0.0.0:8027 }
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+      # Head sampling at the agent (ADR-0011). Error traces are kept at 100% by
+      # the services' parentbased SDK sampler (OTEL_TRACES_SAMPLER_ARG); this
+      # caps healthy-trace volume. Tail sampling needs the gateway tier and is a
+      # per-project flag — not deployed here.
+      probabilistic_sampler:
+        sampling_percentage: 5
     exporters:
       otlphttp/tempo:   { endpoint: http://tempo.platform.svc.cluster.local:4318 }
-      otlphttp/mimir:   { endpoint: http://mimir-distributed-nginx.platform.svc.cluster.local/otlp }
-      loki:             { endpoint: http://loki.platform.svc.cluster.local:3100/loki/api/v1/push }
+      otlphttp/mimir:   { endpoint: http://mimir.platform.svc.cluster.local:8080/otlp }
+      # Loki's native OTLP endpoint — the standalone `loki` exporter was removed
+      # from the Collector (≤ v0.112), so push logs over OTLP instead.
+      otlphttp/loki:    { endpoint: http://loki.platform.svc.cluster.local:3100/otlp }
     service:
       pipelines:
-        traces:  { receivers: [otlp], exporters: [otlphttp/tempo] }
-        metrics: { receivers: [otlp], exporters: [otlphttp/mimir] }
-        logs:    { receivers: [otlp], exporters: [loki] }
+        traces:  { receivers: [otlp, faro], processors: [memory_limiter, probabilistic_sampler, batch], exporters: [otlphttp/tempo] }
+        metrics: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/mimir] }
+        logs:    { receivers: [otlp, faro], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
 
 grafana:
   fullnameOverride: grafana
   adminPassword: ""                # supplied via SOPS-decrypted Secret in prod
+  # Served at the ROOT of its own ops origin grafana.ops.<host> (ADR-0017), not
+  # under a /grafana path — so serve_from_sub_path is off. Each env overrides
+  # root_url with its external origin (the local overlay sets the :8443 edge).
+  grafana.ini:
+    server:
+      serve_from_sub_path: false
+      root_url: "%(protocol)s://%(domain)s/"
+    # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator holding
+    # dashboard:grafana#view, ADR-0017). Grafana trusts it and serves anonymously
+    # instead of running a second, redundant login that would redirect to /login and
+    # never render. Only AAL2 operators ever reach this origin.
+    auth:
+      disable_login_form: true
+    "auth.anonymous":
+      enabled: true
+      org_role: Admin
   datasources:
     datasources.yaml:
       apiVersion: 1
       datasources:
-        - { name: Mimir,     type: prometheus, url: http://mimir-distributed-nginx.platform.svc.cluster.local/prometheus }
-        - { name: Loki,      type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
-        - { name: Tempo,     type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
-        - { name: Pyroscope, type: grafana-pyroscope-datasource, url: http://pyroscope.platform.svc.cluster.local:4040 }
+        - { name: Mimir, type: prometheus, url: http://mimir.platform.svc.cluster.local:8080/prometheus }
+        - { name: Loki,  type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
+        - { name: Tempo, type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
   dashboardsConfigMaps:
     default: grafana-dashboards     # populated from infra/observability/dashboards/
 
-loki:                 { deploymentMode: SingleBinary, loki: { commonConfig: { replication_factor: 1 } } }
-tempo:                { tempo: { reportingEnabled: false } }
-mimir-distributed:    { mimir: { structuredConfig: { multitenancy_enabled: false } } }
-pyroscope:            { pyroscope: { replicas: 1 } }
+# Loki — single-binary monolithic (-target=all), bucket-backed (ADR-0011).
+loki:
+  # Pin the service name to `loki` (not the release-prefixed `observability-loki`)
+  # so the OTel exporter and Grafana datasource below — and prod — reach it at
+  # loki.<ns>.svc:3100. Mirrors grafana/mimir, which also fix their names.
+  fullnameOverride: loki
+  deploymentMode: SingleBinary
+  loki:
+    # Single-tenant (ADR-0011): no X-Scope-OrgID required, matching Mimir's
+    # multitenancy_enabled:false. Without this the chart defaults to multi-tenant
+    # and every header-less query (incl. Grafana's datasource health check) 401s
+    # with "no org id".
+    auth_enabled: false
+    commonConfig: { replication_factor: 1 }
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: s3
+          schema: v13
+          index: { prefix: loki_index_, period: 24h }
+    storage:
+      type: s3
+      bucketNames: { chunks: loki-chunks, ruler: loki-ruler, admin: loki-admin }
+      s3:
+        endpoint: s3.eu-central-1.amazonaws.com
+        region: eu-central-1
+        s3ForcePathStyle: true
+        # access_key_id / secret_access_key are left empty so Loki's S3 client uses
+        # the AWS SDK env credentials injected below from the observability-bucket Secret.
+  singleBinary:
+    replicas: 1
+    extraEnvFrom:
+      - secretRef: { name: observability-bucket }
+  # Disable the microservices read/write/backend topology.
+  read: { replicas: 0 }
+  write: { replicas: 0 }
+  backend: { replicas: 0 }
+  chunksCache: { enabled: false }
+  resultsCache: { enabled: false }
+  # The nginx gateway fronts the distributed read/write/backend split; in
+  # SingleBinary mode the OTel collector pushes and Grafana queries the loki
+  # service directly, so it is dead weight. The chart (7.x) also gives it a hard
+  # pod-anti-affinity that can't schedule on a single-node local cluster.
+  gateway: { enabled: false }
 
-alloy:
-  alloy: {}           # config supplied via ConfigMap by templates/alloy-config.yaml
+# Tempo — single-binary monolithic chart, bucket-backed.
+tempo:
+  # Pin the service name to `tempo` so the OTel exporter (tempo:4318) and Grafana
+  # datasource (tempo:3200) resolve it, instead of the release-prefixed default.
+  fullnameOverride: tempo
+  replicas: 1
+  tempo:
+    reportingEnabled: false
+    # S3 creds (AWS_ACCESS_KEY_ID/SECRET) from the observability-bucket Secret;
+    # access_key/secret_key under s3 are left empty for the AWS SDK env fallback.
+    extraEnvFrom:
+      - secretRef: { name: observability-bucket }
+    storage:
+      trace:
+        backend: s3
+        s3:
+          bucket: tempo-traces
+          endpoint: s3.eu-central-1.amazonaws.com
+          region: eu-central-1
+          # access_key / secret_key come from the observability-bucket Secret.
+
+# Mimir — monolithic single-binary (-target=all), one Deployment, bucket-backed.
+# Rendered by templates/mimir.yaml (ConfigMap + Deployment + Service), not a
+# subchart. dev/staging run 1 replica; prod overrides to 2.
+mimir:
+  image: grafana/mimir:3.1.2
+  replicas: 1
+  httpPort: 8080
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "1",    memory: "1Gi" }
+  # Off-cluster object storage (ADR-0003). Credentials come from the
+  # observability-bucket Secret via envFrom (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY).
+  secretName: observability-bucket
+  storage:
+    endpoint: s3.eu-central-1.amazonaws.com
+    region: eu-central-1
+    buckets: { blocks: mimir-blocks, ruler: mimir-ruler, alertmanager: mimir-alertmanager }

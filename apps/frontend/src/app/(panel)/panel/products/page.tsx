@@ -6,8 +6,8 @@
 // const catalog = await createServerClient<paths>({ service: "catalog" });
 // const { data } = await catalog.GET("/products");
 
-import { createServerClient } from "@server-fetch";
-import { panel } from "@ui/strings/panel";
+import { createServerClient } from "@/lib/server-fetch/server";
+import { panel } from "@/strings/panel";
 
 type Product = { id: string; name: string; price_cents: number };
 
@@ -27,9 +27,7 @@ export default async function Products() {
         {products.map((p) => (
           <li key={p.id} className="flex justify-between py-2">
             <span>{p.name}</span>
-            <span className="tabular-nums text-slate-600">
-              ${(p.price_cents / 100).toFixed(2)}
-            </span>
+            <span className="tabular-nums text-slate-600">${(p.price_cents / 100).toFixed(2)}</span>
           </li>
         ))}
       </ul>

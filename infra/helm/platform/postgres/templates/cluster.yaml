@@ -1,3 +1,8 @@
+{{- /* cluster.create lets the operator + CRDs install in a first pass before the
+   Cluster/Pooler CRs exist — the helm-direct local path needs that ordering
+   (prod gets it from ArgoCD sync-waves). Defaults true, so the GitOps path is
+   unchanged. */ -}}
+{{- if .Values.cluster.create }}
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -11,6 +16,16 @@ spec:
     {{- with .Values.cluster.storage.storageClass }}
     storageClass: {{ . }}
     {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.cluster.initdb.database }}
+      owner: {{ .Values.cluster.initdb.owner }}
+      secret:
+        name: {{ .Values.cluster.initdb.secretName }}
+      postInitApplicationSQL:
+        {{- range .Values.cluster.initdb.postInitApplicationSQL }}
+        - {{ . | quote }}
+        {{- end }}
   {{- if .Values.cluster.backup.enabled }}
   backup:
     barmanObjectStore:
@@ -41,3 +56,4 @@ spec:
     parameters:
       max_client_conn: {{ .Values.cluster.pooler.maxClientConn | quote }}
       default_pool_size: {{ .Values.cluster.pooler.defaultPoolSize | quote }}
+{{- end }}

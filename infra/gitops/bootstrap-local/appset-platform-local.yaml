@@ -1,0 +1,65 @@
+# Local Platform ApplicationSet (ADR-0004, ADR-0016). Identical to
+# bootstrap/appset-platform.yaml except the list generator carries a single
+# { env: local } element, so it deploys the same platform charts at the local
+# overlay (infra/gitops/platform/local/values.yaml). Sync waves order
+# CRDs → operators → instances; this replaces the imperative ordering that
+# scripts/cluster-full.sh did with two-pass helm + kubectl waits.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata: { name: platform-local, namespace: argocd }
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: local, server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                - { path: "infra/helm/platform/*" }
+                # Bootstrap-level components are installed imperatively by
+                # cluster:full BEFORE Argo can run (a CNI must exist before any pod
+                # schedules; Argo cannot install itself). Exclude them so Argo does
+                # not fight the imperative releases. Everything else is Argo-managed.
+                - { path: "infra/helm/platform/cilium", exclude: true }
+                - { path: "infra/helm/platform/argocd", exclude: true }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "10"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          # Stable Helm release name = chart basename, so resources are named
+          # the same under ArgoCD as under a direct `helm install <chart>` (a
+          # bare release name would prefix every resource with the app name and
+          # break in-cluster DNS / cross-component refs).
+          releaseName: "{{ .path.basename }}"
+          # Same auth single-source wiring as the prod appset; the per-env file
+          # (local/values.yaml) layers last so its host/dsn/secret overrides win.
+          valueFiles:
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            # SpiceDB schema for the seed Job (ADR-0007); only the spicedb chart
+            # reads it, the rest ignore the extra value.
+            - name: seed.schema
+              path: "../../../auth/spicedb/schema.zed"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]

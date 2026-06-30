@@ -11,6 +11,12 @@ keys:
   - &cluster_staging age1example0cluster0staging00000000000000000000000000000000000
   - &cluster_prod    age1example0cluster0prod0000000000000000000000000000000000000000
 
+  # `local` is the one exception to "private half lives only in that cluster"
+  # (ADR-0016): there is no bootstrap step to materialise it, so the private
+  # key is committed at infra/gitops/platform/local/age.key. Throwaway values
+  # only — never reuse this key pair for a real environment.
+  - &cluster_local   age1aapmzzzcs8qm2n9exkel8vtknqsmy9t3k9g99wpypfez8av4uaps0f9gpp
+
   # Ops-recovery — private halves held offline by 2-3 seniors.
   - &ops_recovery    age1example0ops0recovery000000000000000000000000000000000000000
 
@@ -31,6 +37,16 @@ creation_rules:
       - *eng_placeholder
       - *cluster_prod
       - *ops_recovery
+  # Local is the working exception: encrypted to the committed throwaway key
+  # ONLY. The eng/ops entries above are template placeholders, not real age
+  # recipients — sops cannot encrypt to them, and an adopter swaps in real keys
+  # for the deployed envs. `encrypted_regex` keeps the SopsSecret structure
+  # (apiVersion/kind/metadata/secretTemplates[].name) readable; only the values
+  # are ciphertext.
+  - path_regex: infra/gitops/platform/local/secrets/.*\.enc\.ya?ml$
+    encrypted_regex: ^(data|stringData)$
+    age:
+      - *cluster_local
 
   # Anything else encrypted in the repo: engineers + ops-recovery only.
   - path_regex: .*\.enc\.ya?ml$
