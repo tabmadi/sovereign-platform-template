@@ -43,6 +43,10 @@ e2e/.auth/
 
 # Helm / Terraform
 **/charts/*.tgz
+# ...except the observability subcharts, which are vendored into git so ArgoCD's
+# repo-server renders them offline (no `helm dependency build` / network, which
+# wedges behind the local privoxy edge). See observability/Chart.yaml.
+!infra/helm/platform/observability/charts/*.tgz
 .terraform/
 *.tfstate
 *.tfstate.*

@@ -1,22 +1,38 @@
 apiVersion: v2
 name: observability
 description: |
-  Grafana LGTM (Loki, Grafana, Tempo, Mimir) in monolithic single-binary mode +
-  a single-tier OTel Collector DaemonSet (ADR-0011). Self-hosted via official
-  charts; long-term storage is the external S3 bucket from ADR-0003. Pyroscope
-  (profile storage) and the OTel Collector gateway tier are per-project add-ons
-  (`profiling` / tail-sampling flags), not in the default release.
+  Grafana + Loki/Tempo (monolithic single-binary mode) + Prometheus (Core metrics,
+  local TSDB, OTLP ingest) + a single-tier OTel Collector DaemonSet (ADR-0011).
+  Self-hosted via official charts; log/trace long-term storage is the external S3
+  bucket from ADR-0003. Mimir (metrics Scale swap), Pyroscope (profile storage), and
+  the OTel Collector gateway tier are per-project add-ons (`profiling` / tail-sampling
+  flags / Scale seam), not in the default release.
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
 
-dependencies:
-  - { name: loki,             version: "7.0.0",  repository: https://grafana.github.io/helm-charts }
-  - { name: tempo,            version: "1.24.4", repository: https://grafana.github.io/helm-charts }
-  - { name: grafana,          version: "10.5.15", repository: https://grafana.github.io/helm-charts }
-  - { name: opentelemetry-collector, version: "0.159.0", repository: https://open-telemetry.github.io/opentelemetry-helm-charts }
+# Subcharts are vendored under charts/ and rendered directly — there is no
+# `dependencies:` block on purpose. ArgoCD's repo-server runs `helm dependency
+# build` whenever dependencies are declared, and that always fetches the repo
+# index over the network; behind the local privoxy edge that call wedges and the
+# app never renders. Vendoring + no dependencies keeps rendering fully offline.
+# Provenance (name @ version, source repo), matching the tgz files in charts/:
+#   loki                     7.0.0    https://grafana.github.io/helm-charts
+#   tempo                    1.24.4   https://grafana.github.io/helm-charts
+#   grafana                  10.5.15  https://grafana.github.io/helm-charts
+#   opentelemetry-collector  0.159.0  https://open-telemetry.github.io/opentelemetry-helm-charts
+# Refresh a subchart with: helm pull <repo>/<name> --version <v> -d charts/
+# NOTE: charts/loki-7.0.0.tgz is repacked from upstream with its bundled minio,
+# rollout-operator and grafana-agent-operator grandchild charts removed (Helm
+# won't honor their disable conditions two levels deep). After a fresh `helm
+# pull loki`, re-strip those three dirs from charts/ before repacking.
+# NOTE: charts/tempo-1.24.4.tgz is repacked too — its values.yaml receivers and
+# templates/_ports.tpl are trimmed to OTLP + metrics only (the jaeger/zipkin/
+# opencensus/otlp-legacy receiver ports are unused; the OTel collector ships
+# traces over OTLP). Re-apply both edits after a fresh `helm pull tempo`.
 
-# Mimir runs as a hand-written monolithic Deployment (templates/mimir.yaml), not
-# a subchart: there is no official monolithic Mimir chart, and the distributed
-# chart spins up 6+ components even at single-replica scale. `grafana/mimir
-# -target=all` is one process, matching Loki (SingleBinary) and Tempo (ADR-0011).
+# Prometheus runs as a hand-written Deployment (templates/prometheus.yaml), not a
+# subchart: the Core metrics floor is one prom/prometheus process with a local TSDB
+# and native OTLP ingest — no Helm dependency, no object storage. The horizontally
+# scalable, bucket-backed variant is the Mimir Scale swap (docs/operational-surface.md),
+# added per-project when a measured signal demands it, not shipped by default.

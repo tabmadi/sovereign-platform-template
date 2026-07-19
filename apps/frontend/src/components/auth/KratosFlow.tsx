@@ -8,6 +8,7 @@
 
 import type { HTMLAttributeReferrerPolicy, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { Input } from "@/components/base/input/input";
 
 export type FlowKind = "login" | "registration" | "recovery" | "verification" | "settings";
 
@@ -48,6 +49,13 @@ type UiNode = {
 
 function nodeType(node: UiNode): string {
   return node.type ?? node.attributes.node_type ?? "input";
+}
+
+function nodeKey(node: UiNode): string {
+  const attr = node.attributes;
+  return [nodeType(node), attr.name, attr.type, attr.value, attr.id, attr.text?.id, attr.src].join(
+    ":",
+  );
 }
 type Flow = {
   ui: { action: string; method: string; nodes: UiNode[]; messages?: UiText[] };
@@ -95,16 +103,17 @@ function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string })
     return <input type="hidden" name={attr.name} value={value} />;
   }
   if (attr.type === "submit" || attr.type === "button") {
+    // Stays a native button (not the Untitled <Button>): Kratos identifies the
+    // pressed method by this button's name=value, and a settings flow renders
+    // every method (password, WebAuthn, TOTP) in one form, each submit needing
+    // `formNoValidate` so one method's empty field can't block another's submit.
+    // React Aria's Button strips name/value/formNoValidate, so it can't be used
+    // here. Kratos validates the submitted method server-side.
     return (
       <button
         type={attr.type === "button" ? "button" : "submit"}
         name={attr.name}
         value={value}
-        // A settings flow renders every method (password, WebAuthn, TOTP) in this
-        // one form, each with its own submit. Native required-field validation
-        // would block one method's submit on another's empty input (e.g. enrolling
-        // TOTP while the password field is blank). Kratos validates the submitted
-        // method server-side, so skip the browser's cross-group check.
         formNoValidate
         className="w-full rounded bg-brand-600 px-4 py-2 text-white hover:bg-brand-700"
       >
@@ -112,23 +121,21 @@ function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string })
       </button>
     );
   }
+  const messages = node.messages ?? [];
+  const errorText = messages.map((message) => message.text).join(" ");
   return (
-    <label className="block">
-      <span className="text-sm text-slate-600">{labelText ?? attr.name}</span>
-      <input
-        name={attr.name}
-        type={attr.type}
-        required={attr.required}
-        disabled={attr.disabled}
-        defaultValue={attr.type === "password" ? undefined : value}
-        className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
-      />
-      {node.messages?.map((message) => (
-        <span key={message.id} className="mt-1 block text-sm text-red-600">
-          {message.text}
-        </span>
-      ))}
-    </label>
+    <Input
+      label={labelText ?? attr.name}
+      name={attr.name}
+      // Kratos drives the input type (email, password, text, …).
+      type={attr.type as "text" | "email" | "password" | "search" | "tel" | "url"}
+      isRequired={attr.required}
+      isDisabled={attr.disabled}
+      isInvalid={messages.length > 0}
+      hint={errorText || undefined}
+      // Never pre-fill password fields from the flow response.
+      defaultValue={attr.type === "password" ? undefined : value}
+    />
   );
 }
 
@@ -142,7 +149,9 @@ function FlowNode({ node, submitLabel }: { node: UiNode; submitLabel: string }) 
     case "text":
       // e.g. the TOTP shared secret to type into an authenticator app.
       return (
-        <p className="break-all rounded bg-slate-100 p-2 font-mono text-sm">{attr.text?.text}</p>
+        <p className="break-all rounded bg-secondary p-2 font-mono text-sm text-primary">
+          {attr.text?.text}
+        </p>
       );
     case "img":
       return <ImgNode src={attr.src} alt={labelText ?? "QR code"} />;
@@ -203,7 +212,7 @@ export function KratosFlow({
     return (
       <main className="mx-auto max-w-md p-6">
         <h1 className="text-2xl font-semibold">{strings.title}</h1>
-        <p className="mt-2 text-slate-600">{strings.starting}</p>
+        <p className="mt-2 text-tertiary">{strings.starting}</p>
       </main>
     );
   }
@@ -212,18 +221,13 @@ export function KratosFlow({
     <main className="mx-auto max-w-md p-6">
       <h1 className="text-2xl font-semibold">{strings.title}</h1>
       {flow.ui.messages?.map((message) => (
-        <p key={message.id} className="mt-2 text-slate-600">
+        <p key={message.id} className="mt-2 text-tertiary">
           {message.text}
         </p>
       ))}
       <form method={flow.ui.method} action={flow.ui.action} className="mt-4 space-y-3">
-        {flow.ui.nodes.map((node, i) => (
-          <FlowNode
-            // Nodes are stable in order; text/img/script have no name, so index-key.
-            key={node.attributes.name ?? `${nodeType(node)}-${i}`}
-            node={node}
-            submitLabel={strings.submit}
-          />
+        {flow.ui.nodes.map((node) => (
+          <FlowNode key={nodeKey(node)} node={node} submitLabel={strings.submit} />
         ))}
       </form>
       {footer}

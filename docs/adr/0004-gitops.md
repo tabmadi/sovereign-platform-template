@@ -1,13 +1,13 @@
 # ADR-0004: GitOps & Deploy
 
 - **Status:** Accepted
-- **Date:** 2026-05-19
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0002](0002-monorepo.md), [ADR-0003](0003-cluster-topology.md), [ADR-0005](0005-secrets.md), [ADR-0013](0013-release-and-versioning.md)
 
 ## Context
 
-Three environments — **dev**, **staging**, **prod** — each on a k3s cluster ([ADR-0003](0003-cluster-topology.md)). Deploys cover the full service fleet (the target scale, [ADR-0000](0000-platform-foundations.md)), the frontend, and platform components (Postgres via CNPG, Temporal, Kratos/Oathkeeper (Hydra when a public API exists), SpiceDB, the observability stack, ArgoCD itself).
+Three environments — **dev**, **staging**, **prod** — each on a k3s cluster ([ADR-0003](0003-cluster-topology.md)). Deploys cover the full service fleet (the target scale, [ADR-0000](0000-platform-foundations.md)), the frontend, and platform components (Postgres via CNPG, Temporal, Kratos/Oathkeeper (Hydra when a public API exists), OpenFGA, the observability stack, ArgoCD itself).
 
 We need a single answer to:
 
@@ -71,12 +71,34 @@ Adding a new service is: create the service folder ([ADR-0002](0002-monorepo.md)
 
 ### Fan-out: ApplicationSet per environment
 
-Two ApplicationSets per environment:
+The platform tier is split into three dependency layers, each its own ApplicationSet, plus a services set — four ApplicationSets per environment. They are ordered by sync-wave on the root app-of-apps:
 
-1. **Platform ApplicationSet** — list generator over `infra/helm/platform/*`. Sync waves order CRDs → operators → instances.
-2. **Services ApplicationSet** — git-directory generator over `infra/gitops/services/<env>/values/*.yaml`. One Application per service per environment, created and deleted automatically as files are added and removed.
+| Wave | Set / App | Components | Depends on |
+| ---- | --------- | ---------- | ---------- |
+| `-10` | AppProjects | per-env `AppProject`s | — |
+| `0` | `platform-base` | sops-operator, cert-manager, network-policies (+ cilium, argocd in prod) | — |
+| `1` | secrets | the per-env `SopsSecret` CR (`secrets` ApplicationSet for dev/staging/prod, `local-secrets` app locally) | base (operator + CRD up) |
+| `2` | `platform-data` | postgres, minio | secrets (creds decrypted) |
+| `3` | `platform-core` | observability *(tempo/loki)*, ory, temporal, openfga, pgweb, headlamp, lowdefy | data (live Postgres, MinIO buckets) |
+| `4` | gateway | Traefik middlewares + cross-cutting IngressRoutes | core |
+| `5` | services | one Application per service (git-directory generator over `infra/gitops/services/<env>/values/*.yaml`) | gateway |
+
+`cilium`/`argocd` are in the prod base tier but excluded locally, where `cluster:full` installs them imperatively (a CNI must exist before any pod; Argo cannot install itself).
+
+**Why three sets and not per-chart sync-waves within one set:** sync-waves on the Applications a single ApplicationSet generates are *inert*. Those Applications are created by the ApplicationSet controller, not synced as a parent's resources, so ArgoCD never sequences them among themselves — it applies them all concurrently. Ordering exists only at the granularity of a root-app-of-apps child, so each tier must be its own set.
+
+**What makes the waves real gates:** the default ApplicationSet health only reflects successful templating, so a custom health check on the `ApplicationSet` kind (`infra/helm/platform/argocd/values.yaml`) walks `.status.resources` and reports Progressing until every generated Application is Synced+Healthy — so wave 3 blocks until every wave-0/1/2 component is actually up. A companion health check on the CNPG `Cluster` kind makes the data→core gate honest (otherwise ArgoCD reports the unknown CRD Healthy the instant it applies, and core would start against a not-yet-ready Postgres). Charts *within* a tier are still applied concurrently and must tolerate that.
 
 A new service appears in dev the moment its `dev/values/<svc>.yaml` lands in `master`. No ArgoCD config changes required to onboard a service. This is the property that makes 100 services tractable for an 8-engineer team.
+
+### Naming & grouping
+
+Generated Applications are named **`<env>-<tier>-<component>`** — env always a *prefix*, never a suffix: `dev-platform-postgres`, `prod-service-orders`, `local-platform-tempo`. The local tree mirrors this exactly (`local-platform`, `local-services`, `local-gateway`, `local-secrets`, `local-root`); the `-local` suffix is gone. Env-less, cross-cutting apps keep a bare name (`root`, `gateway`).
+
+The name is a **display convenience, not the grouping mechanism**. Grouping is by ArgoCD's real primitives:
+
+- **AppProject per environment** (`infra/gitops/{bootstrap,local-bootstrap}/appproject.yaml`) — every generated app sets `spec.project: <env>`, so `local`/`dev`/`staging`/`prod` are first-class tenancy boundaries (scoped `sourceRepos` + `destinations`), not string prefixes. Sync windows live here (staging's 05:00 UTC gate). The hand-applied `root` seed and the shared `gateway` app stay in the built-in `default` project — they create the projects / span all envs, so they belong to none.
+- **Labels** — `env`, `app.kubernetes.io/part-of` (`platform`/`services`/`gateway`/`secrets`/`bootstrap`), and `app.kubernetes.io/component` on every Application and ApplicationSet, so the UI and `argocd app list -l` filter by concept.
 
 ### Image promotion
 
@@ -114,6 +136,14 @@ the window for incident response.
 **Why `selfHeal=false` for prod platform:** manual interventions during an incident must be visible, not silently
 reverted. Drift alerts fire to Slack via ArgoCD notifications.
 
+**Retry on failed syncs:** every Application and ApplicationSet template carries a `retry` policy
+(`limit: 20`, exponential backoff `10s → 2m`). `automated`+`selfHeal` do *not* re-run a sync that
+**errored** on the same commit — `selfHeal` reacts only to live drift — so without `retry` a transient
+repo-server restart or network blip during bootstrap parks the app (a stale `ComparisonError`) until a
+manual `argocd app sync`. This is most dangerous on the hand-applied root App-of-Apps: if it wedges, its
+wave-gated children (gateway, services) are never created. `retry` makes that self-heal. Manual `app sync`
+remains the break-glass if retries exhaust; a cluster rebuild is never the remedy for a transient failure.
+
 ### Bootstrap
 
 A new cluster bootstraps with two commands after [ADR-0003](0003-cluster-topology.md)'s Ansible step (and Terraform, when the project provisions its own infra):
@@ -135,7 +165,7 @@ GitOps is **not the inner loop's engine.** The inner loop runs the service nativ
 lightweight deps — ArgoCD reconciles committed git state, which is the opposite of what a working-tree loop needs.
 
 The **full-platform local tier** (`mise run cluster:full`) and the CI/preview tier do run this same app-of-apps. Locally
-a sibling bootstrap (`infra/gitops/bootstrap-local/`) applies a local root-app that syncs committed `master` from the
+a sibling bootstrap (`infra/gitops/local-bootstrap/`) applies a local root-app that syncs committed `master` from the
 remote, so sync ordering, app discovery, and secret materialisation are exercised exactly as in prod
 ([ADR-0016](0016-environment-parity.md)). The only components installed imperatively first are the two ArgoCD cannot
 bootstrap — the CNI (Cilium) and ArgoCD itself; everything else is Argo-managed. To iterate on uncommitted infra, use
@@ -170,11 +200,10 @@ bootstrap — the CNI (Cilium) and ArgoCD itself; everything else is Argo-manage
 
 - `infra/helm/platform/argocd/` chart values (HA in prod, single-replica in dev/staging).
 - `infra/helm/service/` shared backend service chart.
-- `infra/gitops/bootstrap/root-application.yaml` and both ApplicationSets.
+- `infra/gitops/bootstrap/root-application.yaml`, the three platform ApplicationSets (base/data/core), and the services ApplicationSet.
 - `tools/promote/` Go program: open the values-bump PR for dev + staging (on merge) and for prod (on release tag).
 - `.github/workflows/promote-on-merge.yml` for dev + staging value bumps on `master` merge.
 - `.github/workflows/promote-on-release.yml` for prod value bump + GitHub Release on tag push.
-- AppProject manifests with the `05:00 UTC` staging sync window and `manualSync: true`.
 - `helm template` snapshot tests in CI; `helm lint` and `kubeconform` on the chart.
 - `docs/gitops/runbook.md` covering sync failures, drift, rollback, and fresh-cluster bootstrap.
 
@@ -191,4 +220,4 @@ bootstrap — the CNI (Cilium) and ArgoCD itself; everything else is Argo-manage
 - Prod platform syncs are manual with `selfHeal=false`. Prod services sync automatically with `selfHeal=true`.
 - Secret values never appear in git. Manifests carry SOPS-encrypted files or ExternalSecret references; see [ADR-0005](0005-secrets.md).
 - The inner loop runs services natively against k3d (no ArgoCD); the full-platform local tier (`cluster:full`) is
-  ArgoCD-driven from committed `master` via `infra/gitops/bootstrap-local/`, the same engine prod uses.
+  ArgoCD-driven from committed `master` via `infra/gitops/local-bootstrap/`, the same engine prod uses.

@@ -226,6 +226,7 @@ const (
 	OrderStatusPending   OrderStatus = "pending"
 	OrderStatusConfirmed OrderStatus = "confirmed"
 	OrderStatusFailed    OrderStatus = "failed"
+	OrderStatusCancelled OrderStatus = "cancelled"
 )
 
 // AllValues returns all OrderStatus values.
@@ -234,6 +235,7 @@ func (OrderStatus) AllValues() []OrderStatus {
 		OrderStatusPending,
 		OrderStatusConfirmed,
 		OrderStatusFailed,
+		OrderStatusCancelled,
 	}
 }
 
@@ -245,6 +247,8 @@ func (s OrderStatus) MarshalText() ([]byte, error) {
 	case OrderStatusConfirmed:
 		return []byte(s), nil
 	case OrderStatusFailed:
+		return []byte(s), nil
+	case OrderStatusCancelled:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -262,6 +266,9 @@ func (s *OrderStatus) UnmarshalText(data []byte) error {
 		return nil
 	case OrderStatusFailed:
 		*s = OrderStatusFailed
+		return nil
+	case OrderStatusCancelled:
+		*s = OrderStatusCancelled
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

@@ -76,6 +76,51 @@ func (q *Queries) GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, er
 	return i, err
 }
 
+const listOrders = `-- name: ListOrders :many
+select
+  id,
+  product_id,
+  quantity,
+  total_cents,
+  status
+from orders
+order by created_at desc limit 100
+`
+
+type ListOrdersRow struct {
+	ID         pgtype.UUID `json:"id"`
+	ProductID  pgtype.UUID `json:"product_id"`
+	Quantity   int32       `json:"quantity"`
+	TotalCents int32       `json:"total_cents"`
+	Status     string      `json:"status"`
+}
+
+func (q *Queries) ListOrders(ctx context.Context) ([]ListOrdersRow, error) {
+	rows, err := q.db.Query(ctx, listOrders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrdersRow
+	for rows.Next() {
+		var i ListOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProductID,
+			&i.Quantity,
+			&i.TotalCents,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateOrderStatus = `-- name: UpdateOrderStatus :exec
 update orders set status = $2
 where id = $1

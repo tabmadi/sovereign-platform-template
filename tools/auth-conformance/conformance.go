@@ -46,7 +46,7 @@ func Fixtures() ([]Fixture, error) {
 
 // RoleAllowed is the sample authorisation contract used by conformance: a
 // request is allowed when the edge-resolved principal carries the required
-// role. Real services delegate to the SpiceDB Checker (libs/go/authz); this
+// role. Real services delegate to the OpenFGA Checker (libs/go/authz); this
 // hermetic stand-in keeps the conformance suite free of external services while
 // still asserting "principal in → decision out".
 func RoleAllowed(p *authmw.Principal, requiredRole string) bool {

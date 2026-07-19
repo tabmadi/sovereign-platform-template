@@ -1,7 +1,7 @@
 # ADR-0002: Monorepo Structure & Build
 
 - **Status:** Accepted
-- **Date:** 2026-05-19
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-language-and-runtime.md)
 
@@ -48,7 +48,7 @@ services/<name>/              # one backend service (package, not a module)
 
 apps/
 ├── frontend/                 # one Next.js app, route groups inside
-│   └── src/app/(landing|panel|admin|devportal)/
+│   └── src/app/(landing|panel|devportal)/
 └── admin/                    # Lowdefy YAML config for internal admin (ADR-0012)
     ├── lowdefy.yaml
     ├── _generated/<service>/ # codegen from OpenAPI, drift-checked
@@ -67,7 +67,7 @@ infra/
 ├── helm/                     # Helm charts (ours + values for upstream)
 ├── gitops/                   # ArgoCD ApplicationSets + per-env values
 ├── ansible/                  # host configuration
-├── auth/                     # Kratos, Hydra, SpiceDB config
+├── auth/                     # Kratos, Hydra, OpenFGA config
 ├── gateway/                  # Traefik routing + rate-limit config (Oathkeeper rules live in infra/auth/)
 └── observability/            # dashboards and alerts as code
 
@@ -81,6 +81,10 @@ backends; `apps/` holds first-party deployable applications (`frontend/` and `ad
 open for future partner portals, CLIs, or mobile apps without requiring a layout migration).
 Adding a new application under `apps/` requires its own ADR — `apps/admin/` is the subject of
 [ADR-0012](0012-internal-admin.md).
+
+`services/` stays spelled out (unlike `apps/`, `libs/`, `infra/`): the short forms `svc`/`svc/` already mean
+a Kubernetes Service here (`kubectl … svc/grafana`) and the per-service metavariable in docs (`services/<svc>`),
+so abbreviating the directory would overload the token. Directory names abbreviate only when unambiguous.
 
 `infra/` is a single home for everything not-an-application: infrastructure-as-code (Terraform, Helm, GitOps, Ansible)
 *and* the configuration of the platform services those tools deploy (auth, gateway, observability). One top-level
@@ -97,7 +101,11 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
 
 - Tasks are defined in `.mise.toml` files: a root file declares repo-wide tasks; each service has its own with
   service-local tasks.
-- **Standard task names** at every service: `build`, `test`, `lint`, `generate`, `migrate`, `run`, `worker`.
+- **Standard task names** at every service: `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker`.
+  The two long-running tasks are named for the process type they start, matching `cmd/{server,worker}/`, the
+  `<service>-{server,worker}` images, and the in-cluster DNS names — one vocabulary end to end. (Frontends are not
+  services and keep `run`: they have no worker to be symmetric with, and the task starts a dev server, not a
+  production binary.)
 - **Standard task names** at repo root: `cluster:lite`, `cluster:stop`, `ci:lint`, `ci:test`, `ci:build`, `ci:affected`,
   `e2e`, `e2e:smoke`, `gen`, `db:migrate`. The `e2e` tasks ([ADR-0018](0018-testing-strategy.md)) run against `cluster:full`
   and are deliberately outside `ci:affected` — every e2e crosses service boundaries.
@@ -119,9 +127,9 @@ External tools (Go, sqlc, dbmate, helm, kubectl, etc.) are installed via `mise` 
 Every executable the repo depends on is pinned to a specific version in one of exactly two places:
 
 - **Developer / CI tools** (Go, Bun, `dbmate`, `sqlc`, `sqruff`, `ogen`, `vacuum`, `helm`, `kubectl`,
-  `terraform`, `ansible`, `zed`, `age`, `sops`, `mise` itself, etc.) live in the root `.mise.toml` (and
+  `terraform`, `ansible`, `fga`, `age`, `sops`, `mise` itself, etc.) live in the root `.mise.toml` (and
   service-local `.mise.toml` files when a service genuinely needs a different version).
-- **Runtime services** (Postgres, Temporal, Kratos, Oathkeeper, Hydra, SpiceDB, MinIO, Loki, Mimir, Tempo,
+- **Runtime services** (Postgres, Temporal, Kratos, Oathkeeper, Hydra, OpenFGA, MinIO, Loki, Prometheus, Tempo,
   Grafana, OTel Collector, ArgoCD, CNPG operator, etc.) live as Helm chart `appVersion` plus an explicit `image.tag` in
   `infra/helm/.../values.yaml`. Local development uses the same Helm values via k3d (
   see [ADR-0003](0003-cluster-topology.md));
@@ -161,7 +169,7 @@ Accepted trade-offs:
 
 ### TypeScript workspaces: Bun, one Next.js app
 
-The frontend is **one Next.js application** with route groups for `(landing)`, `(panel)`, `(admin)`, `(devportal)`.
+The frontend is **one Next.js application** with route groups for `(landing)`, `(panel)`, `(devportal)`.
 Reasons:
 
 - Cross-subdomain auth is hostile in modern browsers (Safari ITP especially). Sharing cookies/session across subdomains
@@ -312,7 +320,7 @@ Each upgrade is its own ADR when triggered.
 - Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed.
 - The frontend is one Next.js app at `apps/frontend/`. New frontends require an ADR.
 - Tasks are invoked via `mise run <task>`. The set of task names at each service is
-  `build, test, lint, generate, migrate, run, worker`.
+  `build, test, lint, generate, migrate, server, worker`.
 - Every external tool the repo depends on is pinned to a specific version: developer/CI tools in `.mise.toml`, runtime
   services as explicit `image.tag` in Helm values. Floating tags (`latest`, `stable`, `main`, unpinned majors) are
   forbidden and CI fails on them.

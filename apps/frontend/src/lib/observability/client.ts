@@ -1,13 +1,14 @@
 // Browser observability init (ADR-0011, ADR-0014). OpenTelemetry-JS web SDK
 // for traces (joining the upstream trace via traceparent) plus Grafana Faro
 // for RUM, errors, and Web Vitals. Both ship to the cluster's OTel Collector
-// via a Traefik-fronted ingest route at /api/observability/*.
+// via a Traefik-fronted ingest route at /api/rum (a vendor-neutral path — the
+// agent behind it can change without breaking the URL).
 "use client";
 
 import { getWebInstrumentations, initializeFaro } from "@grafana/faro-web-sdk";
 import { TracingInstrumentation } from "@grafana/faro-web-tracing";
 
-const INGEST = "/api/observability";
+const INGEST = "/api/rum";
 const FIRST_PARTY_API = /\/api\//;
 
 let initialized = false;
@@ -19,7 +20,7 @@ export function initBrowserObservability(): void {
   initialized = true;
 
   initializeFaro({
-    url: `${INGEST}/faro/collect`,
+    url: INGEST,
     app: {
       name: "frontend",
       version: process.env.NEXT_PUBLIC_SERVICE_VERSION ?? "dev",

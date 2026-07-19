@@ -15,7 +15,7 @@ oathkeeper:
   enabled: true
 
 # Hydra is a public-API add-on (ADR-0009). Off by default — internal-only
-# projects run Kratos + Oathkeeper + SpiceDB. The `hydra_thirdparty` flag flips
+# projects run Kratos + Oathkeeper + OpenFGA. The `hydra_thirdparty` flag flips
 # `hydra.enabled` on in the per-env GitOps values.
 hydra:
   enabled: false

@@ -1,0 +1,28 @@
+# Local AppProject (ADR-0004). ArgoCD's real tenancy/grouping primitive — the
+# thing every local Application is grouped *by* (spec.project: local), so grouping
+# no longer relies on parsing the `local-` name prefix. The prefix is now just a
+# display convenience; this is the boundary.
+#
+# Applied by local-root before the apps that reference it (sync-wave "-10"), so the
+# project exists first. Scoped to this repo + the in-cluster server to demonstrate
+# the boundary; resource whitelists stay wide-open because platform charts install
+# arbitrary CRDs/cluster-scoped objects (a narrow whitelist would wedge them).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: local
+  namespace: argocd
+  labels:
+    env: local
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  description: Local (k3d) environment — platform, services, gateway, secrets.
+  sourceRepos:
+    - https://github.com/tabmadi/microservices-monorepo-template.git
+  destinations:
+    - { server: https://kubernetes.default.svc, namespace: "*" }
+  clusterResourceWhitelist:
+    - { group: "*", kind: "*" }
+  namespaceResourceWhitelist:
+    - { group: "*", kind: "*" }

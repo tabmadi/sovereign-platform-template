@@ -13,6 +13,15 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// CancelOrder implements cancelOrder operation.
+//
+// Cancel an order. Starts the CancelOrder workflow (ADR-0006).
+//
+// POST /orders/{id}/cancel
+func (UnimplementedHandler) CancelOrder(ctx context.Context, params CancelOrderParams) (r *WorkflowHandle, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // Checkout implements checkout operation.
 //
 // Starts the Checkout Temporal saga (ADR-0006).
@@ -28,6 +37,15 @@ func (UnimplementedHandler) Checkout(ctx context.Context, req *CheckoutInput) (r
 //
 // GET /orders/{id}
 func (UnimplementedHandler) GetOrder(ctx context.Context, params GetOrderParams) (r *Order, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListOrders implements listOrders operation.
+//
+// List all orders.
+//
+// GET /orders
+func (UnimplementedHandler) ListOrders(ctx context.Context) (r []Order, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

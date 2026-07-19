@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
@@ -50,7 +51,14 @@ func run() error {
 	}
 	defer tc.Close()
 
-	api, err := orders.NewServer(handlers.New(db, tc))
+	// Authz plane (ADR-0010): the shared OpenFGA Checker gates the operator-only
+	// cancel. Lazily dialed — OPENFGA_PRESHARED_KEY (envFrom openfga-creds) must be set.
+	checker, err := authz.New()
+	if err != nil {
+		return fmt.Errorf("authz: %w", err)
+	}
+
+	api, err := orders.NewServer(handlers.New(db, tc, checker))
 	if err != nil {
 		return fmt.Errorf("ogen server: %w", err)
 	}

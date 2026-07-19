@@ -47,6 +47,7 @@ func run() error {
 
 	w := temporalmw.NewWorker(tc, serviceName+"-queue")
 	w.RegisterWorkflow(workflows.Checkout)
+	w.RegisterWorkflow(workflows.CancelOrder)
 
 	acts := activities.New(db)
 	w.RegisterActivity(acts.LookupProductActivity)

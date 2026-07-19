@@ -26,6 +26,17 @@ const nextConfig = {
     NEXT_PUBLIC_SERVICE_VERSION: process.env.SERVICE_VERSION ?? "dev",
     NEXT_PUBLIC_DEPLOY_ENV: process.env.DEPLOY_ENV ?? "dev",
   },
+  // Stamp the shipped build's identity on every response (ADR-0013), so "did prod
+  // actually update?" is answerable from response headers / devtools, and a stale
+  // browser bundle is caught by comparing this against the backend's X-App-Version.
+  headers() {
+    return Promise.resolve([
+      {
+        source: "/:path*",
+        headers: [{ key: "X-App-Version", value: process.env.SERVICE_VERSION ?? "dev" }],
+      },
+    ]);
+  },
 };
 
 export default nextConfig;

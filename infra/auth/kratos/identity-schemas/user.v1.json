@@ -17,7 +17,12 @@
             "recovery": { "via": "email" }
           }
         },
-        "name": { "type": "string", "title": "Name" }
+        "name": { "type": "string", "title": "Name" },
+        "operator": {
+          "type": "boolean",
+          "title": "Operator",
+          "description": "Grants the coarse ops-tier gate (ADR-0017): with AAL2, this trait reaches the operator dashboards. Absent/false for product users."
+        }
       },
       "required": ["email"],
       "additionalProperties": false

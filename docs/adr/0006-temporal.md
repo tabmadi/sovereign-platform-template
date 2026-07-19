@@ -1,7 +1,7 @@
 # ADR-0006: Durable Execution (Temporal)
 
 - **Status:** Accepted
-- **Date:** 2026-05-19
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-language-and-runtime.md)
 
@@ -19,7 +19,7 @@ Without a single durable-execution platform, each grows its own ad-hoc machinery
 
 ## Decision drivers
 
-1. **One reliability primitive, not five.** No coexistence of outbox + DLQ + cron + ad-hoc retries with a workflow engine.
+1. **One reliability primitive, not five.** No coexistence of DLQ + cron + ad-hoc retries with a workflow engine. A single sanctioned lighter path — a transactional outbox for trivial best-effort dispatch — is the one deliberate exception, bounded below.
 2. **Service boundaries stay HTTP/OpenAPI.** A workflow engine must not become the cross-service bus.
 3. **Operationally cheap per workflow.** Adding a workflow must cost less than building the same reliability by hand.
 4. **Self-host** ([ADR-0000](0000-platform-foundations.md)).
@@ -51,19 +51,32 @@ A workflow is the **wrong** primitive when the operation is a single atomic acti
 
 Concrete classification:
 
-| Operation                                                    | Workflow?                                    |
+| Operation                                                    | Primitive                                    |
 |--------------------------------------------------------------|----------------------------------------------|
-| Register user (Kratos + orgs + authz tuples + welcome email) | Yes                                          |
-| Checkout (reserve → charge → order → deduct → confirm)       | Yes                                          |
-| Payment (often a child workflow of checkout)                 | Yes                                          |
-| Refund (compensation, multi-system)                          | Yes                                          |
-| Authz-relevant resource mutation (app DB + authz store)      | Yes — per [ADR-0010](0010-auth.md)           |
-| Send transactional email                                     | Yes                                          |
-| Generate thumbnail / index document                          | Yes                                          |
-| Daily reconciliation job                                     | Yes — Temporal `Schedule`, not k8s `CronJob` |
-| Update profile name                                          | No                                           |
-| Add item to cart                                             | No                                           |
-| List orders                                                  | No                                           |
+| Register user (Kratos + orgs + authz tuples + welcome email) | Workflow                                     |
+| Checkout (reserve → charge → order → deduct → confirm)       | Workflow                                     |
+| Payment (often a child workflow of checkout)                 | Workflow                                     |
+| Refund (compensation, multi-system)                          | Workflow                                     |
+| Authz-relevant resource mutation (app DB + authz store)      | Workflow — per [ADR-0010](0010-auth.md)      |
+| Daily reconciliation job                                     | Workflow — Temporal `Schedule`, not k8s `CronJob` |
+| Send transactional email (fire-and-forget)                   | Outbox (or workflow if delivery must be tracked) |
+| Generate thumbnail / index document                          | Outbox (or workflow if part of a larger process) |
+| Update profile name                                          | Neither — synchronous                        |
+| Add item to cart                                             | Neither — synchronous                        |
+| List orders                                                  | Neither — synchronous                        |
+
+### Trivial best-effort async: the outbox seam
+
+Not every async job earns a workflow. A **trivial best-effort** job — one that is single-step, owned by one service, and tolerable to lose or retry crudely (a welcome email, a thumbnail) — MAY instead use a **transactional outbox**: the triggering row and an `outbox` row commit in one Postgres transaction, and a small per-service dispatcher drains it. This is the [`docs/operational-surface.md`](../operational-surface.md) Scale seam in reverse — the *lighter* floor for the simple 80%, with Temporal as the default the moment a job grows a second step, a cross-service call, compensation, or a durability guarantee.
+
+A job stays on the outbox only while **all** of these hold; the moment any fails, it is a workflow:
+
+1. single logical step,
+2. inside one service (no cross-service or external-system coordination that must not half-apply),
+3. best-effort — losing or double-running it is acceptable, so at-least-once dispatch with an idempotent handler suffices,
+4. no compensation on failure.
+
+**Honesty caveat.** Only two systems exercise Temporal so far — not enough real usage to harden a blanket "all async is a workflow" law. Temporal is the **default** async primitive; the outbox is the sanctioned lighter path for the trivial case; the blanket rule is revisited once more workflows exist in practice.
 
 ### Architecture: co-located workflows, HTTP between services
 
@@ -124,10 +137,10 @@ Liberal use of workflows for multi-step / compensable / cross-system operations;
 
 ### Replacement of legacy patterns
 
-- **Outbox tables → workflows.** The application DB write and the downstream effect are activities in the same workflow.
+- **Multi-step / cross-service outbox machinery → workflows.** When a downstream effect must not leave the system half-applied, the application DB write and the downstream effect are activities in the same workflow — not a hand-rolled outbox with its own retry loop. The transactional outbox survives only for the trivial best-effort case defined above.
 - **Event bus (NATS / Kafka) — not adopted.** HTTP + Temporal signals (via webhook callbacks where needed) cover cross-service notification. A true pub/sub fan-out need gets its own ADR.
 - **k8s CronJobs → Temporal Schedules** for any business-meaningful periodic task. k8s CronJobs remain for pure infrastructure (DB vacuum, log rotation).
-- **Background queues → workflows** on a `background-tq` task queue.
+- **Background queues → workflows** on a `background-tq` task queue, except trivial best-effort jobs on the outbox seam.
 
 ### Operational shape
 
@@ -163,7 +176,7 @@ gated by Cilium NetworkPolicy — no per-call token); trace propagation through 
 
 - One reliability primitive answers four problems. Engineers learn Temporal once; no second runtime to operate.
 - Saga compensation is boring, the highest praise distributed transactions can receive.
-- Outbox patterns disappear as a concept.
+- Hand-rolled multi-step outbox machinery disappears as a concept; the outbox survives only as the deliberate lighter path for trivial best-effort jobs.
 - Authz dual-write risk ([ADR-0010](0010-auth.md)) is structurally solved, not policed.
 - Service boundaries remain HTTP / OpenAPI.
 
@@ -185,8 +198,8 @@ gated by Cilium NetworkPolicy — no per-call token); trace propagation through 
 
 ## Rules
 
-- Temporal is the only durable-execution mechanism in the platform. No coexisting outbox tables, DLQs, ad-hoc retry loops, or cron jobs for business-meaningful periodic work.
-- A workflow exists if and only if the operation matches at least one of the five scope criteria above.
+- Temporal is the platform's durable-execution mechanism and the default async primitive. No DLQs, ad-hoc retry loops, or cron jobs for business-meaningful periodic work. The one sanctioned lighter path is a transactional outbox for trivial best-effort jobs (single-step, single-service, best-effort, no compensation); anything else is a workflow.
+- A workflow exists if the operation matches at least one of the five scope criteria above. A trivial best-effort job that matches none MAY use the outbox seam instead of a workflow.
 - Workflows, activities, and the worker for a service live under `services/<service>/`. There is no top-level workflow directory.
 - Cross-service workflow invocation is HTTP through the generated client. Direct Temporal-client calls across service boundaries are forbidden.
 - Cross-service result wait is one of: poll the handle, webhook callback, fire-and-forget. Direct cross-service Temporal signals are forbidden.

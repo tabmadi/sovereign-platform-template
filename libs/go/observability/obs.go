@@ -5,6 +5,7 @@ package observability
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,18 +15,22 @@ import (
 	"strconv"
 	"time"
 
-	otelslog "go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo"
 )
 
 // Config is read from environment variables when omitted. Service code provides
@@ -48,6 +53,16 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		cfg.AdminAddr = ":9090"
 	}
 
+	// Install the W3C trace-context + baggage propagator globally. otelhttp (server
+	// handler in httpmw.Chain and the client transport on outbound calls) reads the
+	// GLOBAL propagator, which otherwise defaults to a no-op — so without this every
+	// service would extract nothing inbound and inject nothing outbound, starting a
+	// fresh root span per hop and breaking end-to-end traces. Set unconditionally
+	// (even when exporters are disabled) so context still threads through HTTP.
+	otel.SetTextMapPropagator(
+		propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}),
+	)
+
 	// OTEL_SDK_DISABLED=true (OTel spec env) makes Init a no-op for exporters:
 	// no OTLP connections are opened, so a service can run locally without the
 	// Collector stack. Logs still go to stdout and pprof is still served.
@@ -66,9 +81,17 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		local = true
 	}
 
+	// service.version (release) + service.build.sha (precise, always-unique) come
+	// from the baked-in build identity (ADR-0013), so every trace/log/metric
+	// self-reports which binary emitted it — answering "what's actually running"
+	// in Grafana without a bespoke endpoint.
 	res, err := resource.New(
 		ctx,
-		resource.WithAttributes(semconv.ServiceName(cfg.ServiceName)),
+		resource.WithAttributes(
+			semconv.ServiceName(cfg.ServiceName),
+			semconv.ServiceVersion(buildinfo.Version),
+			attribute.String("service.build.sha", buildinfo.SHA),
+		),
 		resource.WithFromEnv(),
 		resource.WithProcessRuntimeName(),
 	)
@@ -76,13 +99,18 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		return nil, fmt.Errorf("resource: %w", err)
 	}
 
+	// All three signals share one OTLP/gRPC endpoint ($OTEL_EXPORTER_OTLP_ENDPOINT,
+	// the collector's :4317). Logs use otlploggrpc — not otlploghttp — for exactly
+	// that reason: the HTTP log exporter would POST to :4317 (the gRPC port) and
+	// every export would fail with "malformed HTTP response", so logs never reached
+	// Loki. gRPC keeps the port correct and the endpoint uniform across signals.
 	var traceOpts []otlptracegrpc.Option
 	var metricOpts []otlpmetricgrpc.Option
-	var logOpts []otlploghttp.Option
+	var logOpts []otlploggrpc.Option
 	if local {
 		traceOpts = append(traceOpts, otlptracegrpc.WithInsecure())
 		metricOpts = append(metricOpts, otlpmetricgrpc.WithInsecure())
-		logOpts = append(logOpts, otlploghttp.WithInsecure())
+		logOpts = append(logOpts, otlploggrpc.WithInsecure())
 	}
 
 	traceExp, err := otlptracegrpc.New(ctx, traceOpts...)
@@ -105,7 +133,7 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 	)
 	otel.SetMeterProvider(mp)
 
-	logExp, err := otlploghttp.New(ctx, logOpts...)
+	logExp, err := otlploggrpc.New(ctx, logOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("log exporter: %w", err)
 	}
@@ -191,7 +219,32 @@ func Counter(name string, opts ...metric.Int64CounterOption) metric.Int64Counter
 
 func serveAdmin(addr string) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	// Liveness is SHALLOW — "the process is running", never a dependency check.
+	// (A dep-aware liveness turns a dependency blip into a self-inflicted restart.)
+	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	// Readiness is DEEP — "can I serve?" — 200 only if every registered dependency
+	// check passes; on failure the pod leaves Service rotation WITHOUT restarting,
+	// and rejoins when the dependency recovers (see readiness.go).
+	mux.HandleFunc(
+		"/readyz",
+		func(w http.ResponseWriter, r *http.Request) {
+			name, err := checkReadiness(r.Context())
+			if err != nil {
+				http.Error(w, "not ready: "+name+": "+err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		},
+	)
+	// Build identity of the running binary (ADR-0013): scriptable/curl-able per pod,
+	// so "is this pod the version I released?" is answerable directly, not inferred.
+	mux.HandleFunc(
+		"/version",
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(buildinfo.Get())
+		},
+	)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)

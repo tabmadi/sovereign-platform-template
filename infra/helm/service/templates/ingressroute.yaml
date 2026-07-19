@@ -1,8 +1,9 @@
 {{- if .Values.ingress.enabled }}
-# Strip the /api/<svc> prefix before the request reaches the backend: services
-# mount their router at root (e.g. /orders), but the edge routes them under
-# /api/<svc>/. Applied AFTER oathkeeper-forward-auth so Oathkeeper still matches
-# the rule on the original /api/<svc> path.
+{{- if .Values.ingress.resources }}
+# Flat-API routing (ADR-0017): the edge routes each /api/<resource> the service
+# owns and strips the shared /api prefix, so the service mounts its resources at
+# root (e.g. /products) and the service topology stays hidden from the URL.
+# Applied AFTER oathkeeper-forward-auth so Oathkeeper still matches on /api/.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -11,12 +12,16 @@ metadata:
 spec:
   stripPrefix:
     prefixes:
-      - {{ include "service.ingressPath" . | trimSuffix "/" | quote }}
+      - /api
 ---
-# Traefik IngressRoute (ADR-0003, ADR-0009). Traefik fronts the edge: /api/<svc>
-# traffic passes through the Oathkeeper ForwardAuth middleware, which validates
-# the Kratos session / Hydra JWT and injects the trusted identity headers the
-# service reads. Static browser-security headers are stamped on every response.
+{{- end }}
+# Traefik IngressRoute (ADR-0003, ADR-0009, ADR-0017). Traefik fronts the edge:
+# /api/<resource> traffic passes through the Oathkeeper ForwardAuth middleware,
+# which validates the Kratos session / Hydra JWT and injects the trusted identity
+# headers the service reads. Static browser-security headers are stamped on every
+# response. Which service owns a resource is a routing detail here, not a URL: a
+# resource can move between services without a URL change (CI lints that no two
+# x-audience specs claim the same resource — ADR-0008).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -26,7 +31,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: Host(`{{ required ".Values.ingress.host is required when ingress.enabled" .Values.ingress.host }}`) && PathPrefix(`{{ include "service.ingressPath" . }}`)
+      match: {{ include "service.ingressMatch" . }}
       middlewares:
         # Anti-spoofing (ADR-0009): strip any client-supplied identity headers
         # BEFORE forwardAuth, so a client cannot inject X-User-* on an anonymous
@@ -37,7 +42,9 @@ spec:
           namespace: platform
         - name: security-headers
           namespace: platform
+{{- if .Values.ingress.resources }}
         - name: {{ include "service.fullname" . }}-stripprefix
+{{- end }}
       services:
         - name: {{ include "service.fullname" . }}-server
           port: 80

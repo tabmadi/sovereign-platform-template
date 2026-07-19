@@ -12,6 +12,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo"
 )
 
 // Chain wraps h with tracing, RED metrics, and access logging. The metric
@@ -27,8 +29,27 @@ func Chain(h http.Handler, serviceName string) http.Handler {
 	if err != nil {
 		panic(err)
 	}
-	traced := otelhttp.NewHandler(h, "http", otelhttp.WithServerName(serviceName))
-	return red(requestCount, requestDur, access(traced))
+	// otelhttp must wrap red+access, not the other way round: it creates the server
+	// span and injects it into the request context it passes inward. The access log
+	// reads that context, so keeping it INSIDE the span is what stamps trace_id/
+	// span_id onto every access log line (→ Loki structured metadata), giving
+	// logs↔traces correlation. With access outside otelhttp the log had no span and
+	// every line landed in Loki untraceable.
+	traced := otelhttp.NewHandler(red(requestCount, requestDur, access(h)), "http", otelhttp.WithServerName(serviceName))
+	return version(traced)
+}
+
+// version stamps the running binary's identity on every response (ADR-0013), so a
+// client — the frontend, a curl, DevOps — can confirm which build answered without
+// trusting the deploy pipeline. Set outermost so the headers land before any write.
+func version(next http.Handler) http.Handler {
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-App-Version", buildinfo.Version)
+			w.Header().Set("X-App-Revision", buildinfo.SHA)
+			next.ServeHTTP(w, r)
+		},
+	)
 }
 
 type statusWriter struct {

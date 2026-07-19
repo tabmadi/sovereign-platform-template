@@ -14,6 +14,9 @@ var (
 	rn1AllowedHeaders = map[string]string{
 		"POST": "Content-Type,Idempotency-Key",
 	}
+	rn4AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
 )
 
 func (s *Server) cutPrefix(path string) (string, bool) {
@@ -65,11 +68,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if len(elem) == 0 {
 				switch r.Method {
+				case "GET":
+					s.handleListChargesRequest([0]string{}, elemIsEscaped, w, r)
 				case "POST":
 					s.handleCreateChargeRequest([0]string{}, elemIsEscaped, w, r)
 				default:
 					s.notAllowed(w, r, notAllowedParams{
-						allowedMethods: "POST",
+						allowedMethods: "GET,POST",
 						allowedHeaders: rn1AllowedHeaders,
 						acceptPost:     "application/json",
 						acceptPatch:    "",
@@ -88,16 +93,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 
 				// Param: "id"
-				// Leaf parameter, slashes are prohibited
+				// Match until "/"
 				idx := strings.IndexByte(elem, '/')
-				if idx >= 0 {
-					break
+				if idx < 0 {
+					idx = len(elem)
 				}
-				args[0] = elem
-				elem = ""
+				args[0] = elem[:idx]
+				elem = elem[idx:]
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch r.Method {
 					case "GET":
 						s.handleGetChargeRequest([1]string{
@@ -113,6 +117,35 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					}
 
 					return
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/refund"
+
+					if l := len("/refund"); len(elem) >= l && elem[0:l] == "/refund" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleRefundChargeRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "POST",
+								allowedHeaders: rn4AllowedHeaders,
+								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
 				}
 
 			}
@@ -213,6 +246,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 			if len(elem) == 0 {
 				switch method {
+				case "GET":
+					r.name = ListChargesOperation
+					r.summary = ""
+					r.operationID = "listCharges"
+					r.operationGroup = ""
+					r.pathPattern = "/charges"
+					r.args = args
+					r.count = 0
+					return r, true
 				case "POST":
 					r.name = CreateChargeOperation
 					r.summary = ""
@@ -236,16 +278,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				}
 
 				// Param: "id"
-				// Leaf parameter, slashes are prohibited
+				// Match until "/"
 				idx := strings.IndexByte(elem, '/')
-				if idx >= 0 {
-					break
+				if idx < 0 {
+					idx = len(elem)
 				}
-				args[0] = elem
-				elem = ""
+				args[0] = elem[:idx]
+				elem = elem[idx:]
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch method {
 					case "GET":
 						r.name = GetChargeOperation
@@ -259,6 +300,33 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					default:
 						return
 					}
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/refund"
+
+					if l := len("/refund"); len(elem) >= l && elem[0:l] == "/refund" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = RefundChargeOperation
+							r.summary = ""
+							r.operationID = "refundCharge"
+							r.operationGroup = ""
+							r.pathPattern = "/charges/{id}/refund"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			}

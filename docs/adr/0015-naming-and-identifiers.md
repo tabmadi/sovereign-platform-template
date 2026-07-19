@@ -1,7 +1,7 @@
 # ADR-0015: Naming & Identifiers
 
 - **Status:** Accepted
-- **Date:** 2026-05-26
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-cluster-topology.md), [ADR-0005](0005-secrets.md)
 
@@ -111,12 +111,21 @@ cluster; repeating the project on every in-cluster object is noise.
 
 ### SSH keys
 
-- **Key naming:** one key pair per engineer per project: `~/.ssh/{project}-{env}` (e.g. `~/.ssh/acme-prod`). The
-  matching `~/.ssh/config` `Host` alias is the full instance slug (`acme-prod-cp-1`), so `ssh acme-prod-cp-1` works
+- **Key naming:** one key pair per engineer per project: `~/.ssh/{project}-{env}` (e.g. `~/.ssh/acme-prod`). The local
+  filename carries no owner segment — a laptop holds only its own engineer's key, so there is nothing to disambiguate.
+  The matching `~/.ssh/config` `Host` alias is the full instance slug (`acme-prod-cp-1`), so `ssh acme-prod-cp-1` works
   without flags and reads the same as the panel.
+- **Engineer discriminator.** Wherever several engineers' *public* keys share a single namespace — the host's
+  `authorized_keys`, a cloud provider's named SSH-key resource, the per-engineer `age` recipients of
+  [ADR-0005](0005-secrets.md) — the key gains a `{handle}` segment identifying its owner: `{project}-{env}-{handle}`
+  (e.g. `acme-prod-alice`). Without it, every engineer's key reads as `{project}-{env}` in the one place they coexist and
+  none can be traced to a person. `handle` is a short, stable, lowercase token per engineer obeying the same
+  `^[a-z][a-z0-9-]*$` rule, so a key greps to its owner identically in the repo and in every console; the public key's
+  comment is `{project}-{env}-{handle} {date}`.
 - **Rotation:** keys are rotated on engineer offboarding or suspected compromise via the same Ansible run that manages
-  `authorized_keys` ([ADR-0003](0003-cluster-topology.md)). Authorized public keys are tracked in the repo per project;
-  removing one and re-running the playbook is the revocation procedure.
+  `authorized_keys` ([ADR-0003](0003-cluster-topology.md)). Authorized public keys are tracked in the repo per project,
+  each named by its owner's `{handle}`; removing one and re-running the playbook is the revocation procedure — and
+  because the key names the person, revoking the right one is unambiguous.
 
 ## Consequences
 
@@ -156,5 +165,7 @@ cluster; repeating the project on every in-cluster object is noise.
 - The full slug is required where names cross the cluster boundary (cloud-provider resources, kube contexts, SSH
   aliases, `age`
   recipients); in-cluster hostnames and namespaces MAY drop the implied `{project}-{env}`.
-- SSH key pairs are named `{project}-{env}`; rotation is an Ansible re-run after editing the per-project authorized
-  keys.
+- SSH key pairs are named `{project}-{env}` on the engineer's laptop; where several engineers' public keys share a
+  namespace (`authorized_keys`, cloud named-key resources, per-engineer `age` recipients) each carries a `{handle}` owner
+  segment (`{project}-{env}-{handle}`, e.g. `acme-prod-alice`). `handle` is a short lowercase per-engineer token obeying
+  `^[a-z][a-z0-9-]*$`. Rotation is an Ansible re-run after editing the per-project authorized keys.

@@ -1,7 +1,7 @@
 # Local overrides for `cluster:full`, consumed the same way the ArgoCD
 # ApplicationSet consumes dev/staging/prod values (ADR-0016): local diverges from
 # prod only through this overlay, layered over each platform chart's own values.
-# Locally the local platform ApplicationSet (infra/gitops/bootstrap-local) syncs
+# Locally the local platform ApplicationSet (infra/gitops/local-bootstrap) syncs
 # these from master; ordering/readiness is Argo's job (sync-waves).
 
 # --- Cilium (CNI): k3d keeps kube-proxy, so disable kubeProxyReplacement; one
@@ -29,8 +29,8 @@ cluster:
   backup:
     enabled: false   # ephemeral local data; no backup destination needed
 
-# Top-level `replicas:` — the spicedb chart's own values schema has no
-# `spicedb:` namespace wrapper.
+# Top-level `replicas:` — the openfga chart's own values schema has no
+# `openfga:` namespace wrapper.
 replicas: 1
 
 # --- Ory (Kratos + Oathkeeper) --------------------------------------------
@@ -45,7 +45,13 @@ kratos:
       # so the unauthenticated browser redirect must come back to localtest.me.
       selfservice:
         default_browser_return_url: https://dev.localtest.me:8443/
+        # Allow post-login `return_to` back to any gated app route on the local
+        # edge (the chart baseline lists dev.example.com); without this, a
+        # session-less visit to /panel or /devportal 400s into the error flow.
+        allowed_return_urls:
+          - https://dev.localtest.me:8443/
         flows:
+          error:        { ui_url: https://dev.localtest.me:8443/auth/error }
           login:        { ui_url: https://dev.localtest.me:8443/auth/login }
           registration: { ui_url: https://dev.localtest.me:8443/auth/register }
           recovery:     { ui_url: https://dev.localtest.me:8443/auth/recovery }
@@ -91,7 +97,7 @@ oathkeeper:
             config:
               to: https://dev.localtest.me:8443/auth/login
 
-# --- Observability: point LGTM at in-cluster MinIO, single replica ---------
+# --- Observability: point Loki/Tempo at in-cluster MinIO, single replica ---
 # Only the endpoint + http (insecure) differ from prod; the S3 credentials come
 # from the observability-bucket Secret via extraEnvFrom (wired in the chart values
 # for every env), so no inline keys here — same mechanism as dev/staging/prod.
@@ -111,11 +117,17 @@ tempo:
           endpoint: "minio.platform.svc.cluster.local:9000"
           insecure: true
 
-# Monolithic Mimir (templates/mimir.yaml) — point at MinIO over http.
-mimir:
-  storage:
-    endpoint: "minio.platform.svc.cluster.local:9000"
-    insecure: true
+# Keep every healthy trace locally. Prod/dev head-sample at 5% in the chart default
+# to cap volume, but on a laptop a developer needs to see the exact request they
+# just made stitch end-to-end (frontend → orders → catalog → payment) in Tempo — a
+# 1-in-20 chance of survival makes that useless, and the e2e trace assertion
+# (e2e/platform/purchase.spec.ts) would be non-deterministic. Merges over the base
+# collector config; the pipeline still runs the sampler, just at 100%.
+opentelemetry-collector:
+  config:
+    processors:
+      probabilistic_sampler:
+        sampling_percentage: 100
 
 # Grafana: a known local admin password (prod supplies one via Secret).
 # Served at the root of its ops origin (ADR-0017); root_url carries the local
@@ -124,4 +136,24 @@ grafana:
   adminPassword: "admin"
   grafana.ini:
     server:
-      root_url: "https://grafana.ops.dev.localtest.me:8443/"
+      root_url: "https://o11y.ops.dev.localtest.me:8443/"
+
+# --- Lowdefy admin console (ADR-0012) -------------------------------------
+# Repo-built image: pulled from the local registry (the CI stand-in) at the
+# stable `local` tag; Always so a cluster:full re-run picks up a rebuild.
+# Namespaced under `lowdefy:` to avoid colliding with the openfga chart's
+# top-level `image` (both charts share this overlay).
+lowdefy:
+  replicas: 1
+  image:
+    repository: k3d-registry.localhost:5000/admin
+    tag: local
+    pullPolicy: Always
+
+# --- Core ops tools: local wiring -----------------------------------------
+# Headlamp (ADR-0024) at k8s.ops and pgweb (ADR-0012) at db.ops are Core, on in
+# every env from their chart defaults. Only pgweb's local DSN is overlay-specific:
+# it points read-only at the in-cluster CNPG dev role (same dev:dev creds Kratos
+# uses locally). Headlamp needs no local override.
+pgweb:
+  databaseUrl: "postgres://dev:dev@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"

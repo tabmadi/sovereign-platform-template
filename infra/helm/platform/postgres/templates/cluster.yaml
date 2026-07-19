@@ -44,7 +44,10 @@ spec:
 apiVersion: postgresql.cnpg.io/v1
 kind: Pooler
 metadata:
-  name: {{ .Values.cluster.name }}-rw
+  # Must NOT collide with the Cluster's own auto-managed Services
+  # (<name>-rw/-ro/-r) — CNPG's ownership check rejects a Pooler whose Service
+  # name is already owned by the Cluster controller.
+  name: {{ .Values.cluster.name }}-pgbouncer-rw
   namespace: platform
 spec:
   cluster:

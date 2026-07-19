@@ -1,8 +1,8 @@
 # Lightweight local dependencies for the inner dev loop (ADR-0003).
 # NOT the production components — these are throwaway, in-memory/ephemeral stand-ins
-# so a service (run natively on the host) has Postgres, Temporal and SpiceDB to talk to.
+# so a service (run natively on the host) has Postgres, Temporal and OpenFGA to talk to.
 # The production-grade versions (CNPG, the Temporal Helm chart, operator-backed
-# SpiceDB) are exercised by ArgoCD in staging/prod, not here.
+# OpenFGA) are exercised by ArgoCD in staging/prod, not here.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -82,31 +82,31 @@ spec:
     - { name: grpc, port: 7233, targetPort: 7233 }
     - { name: ui,   port: 8233, targetPort: 8233 }
 ---
-# --- SpiceDB (in-memory datastore, fixed dev preshared key) -----------------
+# --- OpenFGA (in-memory datastore, fixed dev preshared key) -----------------
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: spicedb, namespace: platform }
+metadata: { name: openfga, namespace: platform }
 spec:
   replicas: 1
-  selector: { matchLabels: { app: spicedb } }
+  selector: { matchLabels: { app: openfga } }
   template:
-    metadata: { labels: { app: spicedb } }
+    metadata: { labels: { app: openfga } }
     spec:
       containers:
-        - name: spicedb
-          image: authzed/spicedb:latest
-          args: ["serve", "--grpc-preshared-key", "dev", "--datastore-engine", "memory"]
-          ports: [{ name: grpc, containerPort: 50051 }]
+        - name: openfga
+          image: openfga/openfga:v1.14.2
+          args: ["run", "--datastore-engine", "memory", "--authn-method", "preshared", "--authn-preshared-keys", "dev"]
+          ports: [{ name: http, containerPort: 8080 }]
           readinessProbe:
-            tcpSocket: { port: 50051 }
+            httpGet: { path: /healthz, port: 8080 }
             initialDelaySeconds: 3
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: spicedb, namespace: platform }
+metadata: { name: openfga, namespace: platform }
 spec:
-  selector: { app: spicedb }
-  ports: [{ port: 50051, targetPort: 50051 }]
+  selector: { app: openfga }
+  ports: [{ port: 8080, targetPort: 8080 }]
 ---
 # --- Per-service DATABASE_URL secrets (consumed via secrets.envFrom) --------
 apiVersion: v1

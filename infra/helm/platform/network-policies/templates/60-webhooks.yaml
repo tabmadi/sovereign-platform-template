@@ -1,0 +1,29 @@
+## Admission/conversion webhooks are called BY the Kubernetes API server. Without
+## these allows a namespace-wide default-deny silently breaks cert issuance and
+## CNPG cluster reconciliation (the apiserver → webhook call times out).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cert-manager-webhook
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: webhook
+      app.kubernetes.io/instance: cert-manager
+  ingress:
+    - fromEntities: [kube-apiserver]
+      toPorts:
+        - ports: [{ port: "10250", protocol: TCP }]
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cnpg-webhook
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: cloudnative-pg
+  ingress:
+    - fromEntities: [kube-apiserver]
+      toPorts:
+        - ports: [{ port: "9443", protocol: TCP }]

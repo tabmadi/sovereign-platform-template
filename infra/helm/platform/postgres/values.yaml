@@ -3,9 +3,10 @@
 cloudnative-pg:
   fullnameOverride: cnpg-operator
   monitoring:
-    # No Prometheus Operator on this platform (observability is Grafana LGTM +
-    # OTel/Alloy). Alloy scrapes CNPG's metrics endpoint via discovery, so a
-    # PodMonitor (monitoring.coreos.com/v1) would reference an absent CRD.
+    # No Prometheus Operator on this platform — metrics flow through the OTel
+    # Collector into Prometheus (ADR-0011), and the PodMonitor CRD
+    # (monitoring.coreos.com/v1) the operator would install is absent, so a
+    # PodMonitor here would reference a CRD that does not exist.
     podMonitorEnabled: false
 
 cluster:
@@ -20,7 +21,7 @@ cluster:
     size: 20Gi
     storageClass: ""    # defaults to k3s local-path (ADR-0003)
   # CNPG provisions one app database (`database`/`owner`) per Cluster; the
-  # platform needs one per service plus kratos/temporal/spicedb, so the rest
+  # platform needs one per service plus kratos/temporal/openfga, so the rest
   # are created via postInitApplicationSQL, owned by the same app role.
   initdb:
     database: orders
@@ -33,7 +34,7 @@ cluster:
       - "CREATE DATABASE kratos OWNER dev"
       - "CREATE DATABASE temporal OWNER dev"
       - "CREATE DATABASE temporal_visibility OWNER dev"
-      - "CREATE DATABASE spicedb OWNER dev"
+      - "CREATE DATABASE openfga OWNER dev"
   pooler:
     instances: 2
     poolMode: transaction      # ADR-0007: transaction mode is the default

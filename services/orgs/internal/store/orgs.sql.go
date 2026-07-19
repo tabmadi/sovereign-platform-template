@@ -43,6 +43,15 @@ func (q *Queries) CreateOrg(ctx context.Context, name string) (CreateOrgRow, err
 	return i, err
 }
 
+const deleteOrg = `-- name: DeleteOrg :exec
+delete from orgs where id = $1
+`
+
+func (q *Queries) DeleteOrg(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteOrg, id)
+	return err
+}
+
 const getOrg = `-- name: GetOrg :one
 select
   id,
@@ -59,6 +68,62 @@ type GetOrgRow struct {
 func (q *Queries) GetOrg(ctx context.Context, id pgtype.UUID) (GetOrgRow, error) {
 	row := q.db.QueryRow(ctx, getOrg, id)
 	var i GetOrgRow
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const listOrgs = `-- name: ListOrgs :many
+select
+  id,
+  name
+from orgs
+order by created_at desc limit 100
+`
+
+type ListOrgsRow struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) ListOrgs(ctx context.Context) ([]ListOrgsRow, error) {
+	rows, err := q.db.Query(ctx, listOrgs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrgsRow
+	for rows.Next() {
+		var i ListOrgsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateOrg = `-- name: UpdateOrg :one
+update orgs set name = $2
+where id = $1
+returning id, name
+`
+
+type UpdateOrgParams struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+type UpdateOrgRow struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+}
+
+func (q *Queries) UpdateOrg(ctx context.Context, arg UpdateOrgParams) (UpdateOrgRow, error) {
+	row := q.db.QueryRow(ctx, updateOrg, arg.ID, arg.Name)
+	var i UpdateOrgRow
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
 }

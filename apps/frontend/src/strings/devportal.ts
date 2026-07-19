@@ -1,10 +1,6 @@
 export const devportal = {
   title: "Developer portal",
-  description: "API documentation coming soon.",
-  endpoints: [
-    "GET /api/catalog/openapi.yaml",
-    "GET /api/orders/openapi.yaml",
-    "GET /api/payment/openapi.yaml",
-    "GET /api/orgs/openapi.yaml",
-  ] as const,
+  // Rendered by Scalar from the merged internal projection
+  // (scripts/gen-openapi-public.sh → public/devportal/openapi/internal.json).
+  description: "Internal API reference across every service.",
 } as const;

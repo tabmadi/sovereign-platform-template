@@ -43,7 +43,7 @@ func (p *Principal) HasRole(role string) bool {
 	return slices.Contains(p.Roles, role)
 }
 
-// Subject renders the principal as a SpiceDB subject ("user:<id>") for the
+// Subject renders the principal as an OpenFGA user string ("user:<id>") for the
 // authz Checker (ADR-0010).
 func (p *Principal) Subject() string {
 	if !p.Authenticated() {
@@ -67,6 +67,12 @@ func Read(h http.Header) *Principal {
 func FromContext(ctx context.Context) (*Principal, bool) {
 	p, ok := ctx.Value(principalKey).(*Principal)
 	return p, ok
+}
+
+// NewContext returns ctx with p attached — the inverse of FromContext. Handlers
+// receive a principal via Middleware; tests inject one directly with this.
+func NewContext(ctx context.Context, p *Principal) context.Context {
+	return context.WithValue(ctx, principalKey, p)
 }
 
 // Middleware attaches the parsed principal to the request context. It never

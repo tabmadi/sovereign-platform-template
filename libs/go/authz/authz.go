@@ -1,5 +1,6 @@
-// Package authz is the shared SpiceDB client wrapper (ADR-0010). Services
-// never import authzed-go directly; they call Checker.Allowed(...).
+// Package authz is the shared OpenFGA client wrapper (ADR-0010). Services never
+// import openfga/go-sdk directly; they call Checker.Allowed(...). A depguard rule
+// (.golangci.yml) enforces this — the SDK is confined to this package.
 package authz
 
 import (
@@ -7,131 +8,169 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
-	v1 "github.com/authzed/authzed-go/proto/authzed/api/v1"
-	"github.com/authzed/authzed-go/v1"
-	"github.com/authzed/grpcutil"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	openfga "github.com/openfga/go-sdk"
+	"github.com/openfga/go-sdk/client"
+	"github.com/openfga/go-sdk/credentials"
 )
+
+// storeName is the single platform store the seed Job creates; the library
+// discovers its ID by name (no ConfigMap plumbing required).
+const storeName = "platform"
 
 // Checker is the only authz surface service code uses.
 type Checker interface {
 	Allowed(ctx context.Context, subject, permission, resource string) (bool, error)
 }
 
-// Granter writes a relationship into SpiceDB (e.g. adding a user to group:operator).
+// Granter writes a relationship tuple into OpenFGA (e.g. adding a user to group:operator).
 type Granter interface {
 	Grant(ctx context.Context, subject, relation, resource string) error
 }
 
-type spice struct{ c *authzed.Client }
-
-// New dials the cluster SpiceDB and returns a value satisfying both Checker and Granter.
-//
-// SPICEDB_ENDPOINT and SPICEDB_PRESHARED_KEY are required env vars
-// (typically envFrom-mounted from a SOPS Secret — ADR-0005).
-func New() (Checker, error) {
-	s, err := dial()
-	return s, err
+type fga struct {
+	c        *client.OpenFgaClient
+	envID    string    // OPENFGA_STORE_ID if pinned; else discovered lazily
+	once     sync.Once // resolves the store ID exactly once, on first use
+	storeErr error
 }
 
-// NewGranter returns the SpiceDB client as a Granter for relationship writes.
+// New dials the cluster OpenFGA and returns a value satisfying both Checker and Granter.
+//
+// OPENFGA_API_URL and the preshared key (OPENFGA_PRESHARED_KEY, or the SOPS
+// secret's native key `preshared_key` — ADR-0005) drive the connection. The
+// store ID is taken from OPENFGA_STORE_ID if set, else discovered by name on
+// first use — so New() never blocks on OpenFGA being reachable at startup.
+func New() (Checker, error) {
+	return dial()
+}
+
+// NewGranter returns the OpenFGA client as a Granter for relationship writes.
 func NewGranter() (Granter, error) {
 	return dial()
 }
 
-func dial() (*spice, error) {
-	endpoint := os.Getenv("SPICEDB_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "spicedb.platform.svc.cluster.local:50051"
+func dial() (*fga, error) {
+	apiURL := os.Getenv("OPENFGA_API_URL")
+	if apiURL == "" {
+		apiURL = "http://openfga.platform.svc.cluster.local:8080"
 	}
-	// Fall back to the SOPS secret's native key name (spicedb-creds.preshared_key,
+	// Fall back to the SOPS secret's native key name (openfga-creds.preshared_key,
 	// ADR-0005) so a consumer can mount that Secret with envFrom unmodified.
-	psk := os.Getenv("SPICEDB_PRESHARED_KEY")
-	if psk == "" {
-		psk = os.Getenv("preshared_key")
+	key := os.Getenv("OPENFGA_PRESHARED_KEY")
+	if key == "" {
+		key = os.Getenv("preshared_key")
 	}
-	if psk == "" {
-		return nil, errors.New("SPICEDB_PRESHARED_KEY (or preshared_key) not set")
-	}
-	c, err := authzed.NewClient(
-		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpcutil.WithInsecureBearerToken(psk),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("dial spicedb: %w", err)
-	}
-	return &spice{c: c}, nil
-}
-
-// Allowed runs a CheckPermission against SpiceDB.
-// subject  = "user:alice"
-// resource = "order:o1"
-// permission = "read".
-func (s *spice) Allowed(ctx context.Context, subject, permission, resource string) (bool, error) {
-	subT, subID, err := split(subject)
-	if err != nil {
-		return false, err
-	}
-	resT, resID, err := split(resource)
-	if err != nil {
-		return false, err
+	if key == "" {
+		return nil, errors.New("OPENFGA_PRESHARED_KEY (or preshared_key) not set")
 	}
 
-	r, err := s.c.CheckPermission(
-		ctx,
-		&v1.CheckPermissionRequest{
-			Resource:   &v1.ObjectReference{ObjectType: resT, ObjectId: resID},
-			Permission: permission,
-			Subject:    &v1.SubjectReference{Object: &v1.ObjectReference{ObjectType: subT, ObjectId: subID}},
-		},
-	)
-	if err != nil {
-		return false, fmt.Errorf("authz: check permission: %w", err)
-	}
-	return r.GetPermissionship() == v1.CheckPermissionResponse_PERMISSIONSHIP_HAS_PERMISSION, nil
-}
-
-// Grant writes a TOUCH relationship: subject relation resource.
-// Example: subject="user:alice", relation="member", resource="group:operator".
-func (s *spice) Grant(ctx context.Context, subject, relation, resource string) error {
-	subT, subID, err := split(subject)
-	if err != nil {
-		return err
-	}
-	resT, resID, err := split(resource)
-	if err != nil {
-		return err
-	}
-	_, err = s.c.WriteRelationships(
-		ctx,
-		&v1.WriteRelationshipsRequest{
-			Updates: []*v1.RelationshipUpdate{
-				{
-					Operation: v1.RelationshipUpdate_OPERATION_TOUCH,
-					Relationship: &v1.Relationship{
-						Resource: &v1.ObjectReference{ObjectType: resT, ObjectId: resID},
-						Relation: relation,
-						Subject:  &v1.SubjectReference{Object: &v1.ObjectReference{ObjectType: subT, ObjectId: subID}},
-					},
-				},
+	c, err := client.NewSdkClient(
+		&client.ClientConfiguration{
+			ApiUrl: apiURL,
+			Credentials: &credentials.Credentials{
+				Method: credentials.CredentialsMethodApiToken,
+				Config: &credentials.Config{ApiToken: key},
 			},
 		},
 	)
 	if err != nil {
+		return nil, fmt.Errorf("dial openfga: %w", err)
+	}
+	return &fga{c: c, envID: os.Getenv("OPENFGA_STORE_ID")}, nil
+}
+
+// Allowed runs a Check against OpenFGA.
+// subject  = "user:alice"
+// resource = "order:o1"
+// permission = "read".
+//
+// OpenFGA's user/object strings are already "type:id", so the platform's tuple
+// strings pass straight through — no splitting needed.
+func (f *fga) Allowed(ctx context.Context, subject, permission, resource string) (bool, error) {
+	err := f.ensureStore(ctx)
+	if err != nil {
+		return false, err
+	}
+	resp, err := f.c.Check(ctx).Body(
+		client.ClientCheckRequest{
+			User:     subject,
+			Relation: permission,
+			Object:   resource,
+		},
+	).Execute()
+	if err != nil {
+		return false, fmt.Errorf("authz: check: %w", err)
+	}
+	return resp.GetAllowed(), nil
+}
+
+// Grant writes a relationship tuple: subject relation resource.
+// Example: subject="user:alice", relation="member", resource="group:operator".
+//
+// OpenFGA rejects a write of a tuple that already exists; since the platform only
+// ever writes structurally-valid, fixed-shape tuples, that error can only mean the
+// grant is already present, so it is treated as idempotent success (so a retried
+// Temporal activity does not fail on the second write).
+func (f *fga) Grant(ctx context.Context, subject, relation, resource string) error {
+	err := f.ensureStore(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = f.c.Write(ctx).Body(
+		client.ClientWriteRequest{
+			Writes: []client.ClientTupleKey{
+				{User: subject, Relation: relation, Object: resource},
+			},
+		},
+	).Execute()
+	if err != nil {
+		var verr openfga.FgaApiValidationError
+		if errors.As(err, &verr) &&
+			verr.ResponseCode() == openfga.ERRORCODE_WRITE_FAILED_DUE_TO_INVALID_INPUT {
+			return nil
+		}
 		return fmt.Errorf("authz: grant: %w", err)
 	}
 	return nil
 }
 
-// split converts "type:id" → ("type", "id").
-func split(s string) (string, string, error) {
-	for i := range len(s) {
-		if s[i] == ':' {
-			return s[:i], s[i+1:], nil
+// ensureStore resolves and pins the store ID on the client, once. If
+// OPENFGA_STORE_ID is set it is used directly; otherwise the platform store is
+// found by name. Deferred to first Allowed/Grant so startup never blocks on
+// OpenFGA readiness (the seed Job may still be creating the store).
+func (f *fga) ensureStore(ctx context.Context) error {
+	f.once.Do(
+		func() {
+			id := f.envID
+			if id == "" {
+				id, f.storeErr = f.discoverStore(ctx)
+				if f.storeErr != nil {
+					return
+				}
+			}
+			f.storeErr = f.c.SetStoreId(id)
+			if f.storeErr != nil {
+				f.storeErr = fmt.Errorf("set openfga store id: %w", f.storeErr)
+			}
+		},
+	)
+	return f.storeErr
+}
+
+// discoverStore finds the platform store's ID by name. The seed Job creates
+// exactly one store named `platform`; a check omitting the model ID uses that
+// store's latest model, which is all the template needs.
+func (f *fga) discoverStore(ctx context.Context) (string, error) {
+	resp, err := f.c.ListStores(ctx).Execute()
+	if err != nil {
+		return "", fmt.Errorf("list openfga stores: %w", err)
+	}
+	for _, s := range resp.GetStores() {
+		if s.GetName() == storeName {
+			return s.GetId(), nil
 		}
 	}
-	return "", "", fmt.Errorf("authz: invalid id %q (expected type:id)", s)
+	return "", fmt.Errorf("openfga store %q not found (has the seed Job run?)", storeName)
 }

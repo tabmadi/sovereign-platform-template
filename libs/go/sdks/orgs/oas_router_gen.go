@@ -17,6 +17,9 @@ var (
 	rn1AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
+	rn3AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
 )
 
 func (s *Server) cutPrefix(path string) (string, bool) {
@@ -70,9 +73,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
-			case 'i': // Prefix: "internal/identity-created"
+			case 'i': // Prefix: "identity-created"
 
-				if l := len("internal/identity-created"); len(elem) >= l && elem[0:l] == "internal/identity-created" {
+				if l := len("identity-created"); len(elem) >= l && elem[0:l] == "identity-created" {
 					elem = elem[l:]
 				} else {
 					break
@@ -105,11 +108,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				if len(elem) == 0 {
 					switch r.Method {
+					case "GET":
+						s.handleListOrgsRequest([0]string{}, elemIsEscaped, w, r)
 					case "POST":
 						s.handleCreateOrgRequest([0]string{}, elemIsEscaped, w, r)
 					default:
 						s.notAllowed(w, r, notAllowedParams{
-							allowedMethods: "POST",
+							allowedMethods: "GET,POST",
 							allowedHeaders: rn1AllowedHeaders,
 							acceptPost:     "application/json",
 							acceptPatch:    "",
@@ -139,14 +144,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					if len(elem) == 0 {
 						// Leaf node.
 						switch r.Method {
+						case "DELETE":
+							s.handleDeleteOrgRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
 						case "GET":
 							s.handleGetOrgRequest([1]string{
 								args[0],
 							}, elemIsEscaped, w, r)
+						case "PUT":
+							s.handleUpdateOrgRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
 						default:
 							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "GET",
-								allowedHeaders: nil,
+								allowedMethods: "DELETE,GET,PUT",
+								allowedHeaders: rn3AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -257,9 +270,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
-			case 'i': // Prefix: "internal/identity-created"
+			case 'i': // Prefix: "identity-created"
 
-				if l := len("internal/identity-created"); len(elem) >= l && elem[0:l] == "internal/identity-created" {
+				if l := len("identity-created"); len(elem) >= l && elem[0:l] == "identity-created" {
 					elem = elem[l:]
 				} else {
 					break
@@ -273,7 +286,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						r.summary = ""
 						r.operationID = "onIdentityCreated"
 						r.operationGroup = ""
-						r.pathPattern = "/internal/identity-created"
+						r.pathPattern = "/identity-created"
 						r.args = args
 						r.count = 0
 						return r, true
@@ -292,6 +305,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 				if len(elem) == 0 {
 					switch method {
+					case "GET":
+						r.name = ListOrgsOperation
+						r.summary = ""
+						r.operationID = "listOrgs"
+						r.operationGroup = ""
+						r.pathPattern = "/orgs"
+						r.args = args
+						r.count = 0
+						return r, true
 					case "POST":
 						r.name = CreateOrgOperation
 						r.summary = ""
@@ -326,10 +348,28 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					if len(elem) == 0 {
 						// Leaf node.
 						switch method {
+						case "DELETE":
+							r.name = DeleteOrgOperation
+							r.summary = ""
+							r.operationID = "deleteOrg"
+							r.operationGroup = ""
+							r.pathPattern = "/orgs/{id}"
+							r.args = args
+							r.count = 1
+							return r, true
 						case "GET":
 							r.name = GetOrgOperation
 							r.summary = ""
 							r.operationID = "getOrg"
+							r.operationGroup = ""
+							r.pathPattern = "/orgs/{id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "PUT":
+							r.name = UpdateOrgOperation
+							r.summary = ""
+							r.operationID = "updateOrg"
 							r.operationGroup = ""
 							r.pathPattern = "/orgs/{id}"
 							r.args = args

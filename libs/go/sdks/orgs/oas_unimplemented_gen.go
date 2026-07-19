@@ -22,6 +22,15 @@ func (UnimplementedHandler) CreateOrg(ctx context.Context, req *OrgInput) (r *Or
 	return r, ht.ErrNotImplemented
 }
 
+// DeleteOrg implements deleteOrg operation.
+//
+// Delete an organization.
+//
+// DELETE /orgs/{id}
+func (UnimplementedHandler) DeleteOrg(ctx context.Context, params DeleteOrgParams) error {
+	return ht.ErrNotImplemented
+}
+
 // GetOrg implements getOrg operation.
 //
 // Fetch an organization by id.
@@ -31,13 +40,31 @@ func (UnimplementedHandler) GetOrg(ctx context.Context, params GetOrgParams) (r 
 	return r, ht.ErrNotImplemented
 }
 
+// ListOrgs implements listOrgs operation.
+//
+// List all organizations.
+//
+// GET /orgs
+func (UnimplementedHandler) ListOrgs(ctx context.Context) (r []Org, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // OnIdentityCreated implements onIdentityCreated operation.
 //
 // Kratos post-registration webhook. Creates a personal org for the new identity.
 //
-// POST /internal/identity-created
+// POST /identity-created
 func (UnimplementedHandler) OnIdentityCreated(ctx context.Context, req *OnIdentityCreatedReq) error {
 	return ht.ErrNotImplemented
+}
+
+// UpdateOrg implements updateOrg operation.
+//
+// Rename an organization.
+//
+// PUT /orgs/{id}
+func (UnimplementedHandler) UpdateOrg(ctx context.Context, req *OrgInput, params UpdateOrgParams) (r *Org, _ error) {
+	return r, ht.ErrNotImplemented
 }
 
 // NewError creates *ErrorStatusCode from error returned by handler.

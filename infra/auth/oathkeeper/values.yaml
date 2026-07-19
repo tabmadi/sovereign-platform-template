@@ -57,7 +57,7 @@ oathkeeper:
           # The global config requires both `remote` and `payload` (Oathkeeper
           # schema); each access rule overrides `payload` with its own tool slug.
           config:
-            remote: http://authz-server.platform.svc.cluster.local/internal/authorize
+            remote: http://authz-server.platform.svc.cluster.local/authorize
             payload: '{"subject":"{{ print .Subject }}","aal":"{{ print .Extra.authenticator_assurance_level }}"}'
       mutators:
         header:

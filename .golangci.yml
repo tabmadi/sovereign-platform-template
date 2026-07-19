@@ -54,6 +54,14 @@ linters:
           deny:
             - pkg: github.com/jackc/pgx/v5/stdlib
               desc: Use *pgxpool.Pool, not stdlib database/sql. ADR-0007 §SQL access.
+        authz-sdk-confinement:
+          list-mode: lax
+          files:
+            # Everything except the authz wrapper itself.
+            - '!**/libs/go/authz/**'
+          deny:
+            - pkg: github.com/openfga/go-sdk
+              desc: Authorization is OpenFGA, accessed only through libs/go/authz/ (ADR-0010).
   exclusions:
     generated: lax
     presets:

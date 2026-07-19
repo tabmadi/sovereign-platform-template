@@ -7,10 +7,79 @@ argo-cd:
     cm:
       kustomize.buildOptions: "--enable-helm"
       timeout.reconciliation: "60s"
+      # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator
+      # holding dashboard:deploy#view, ADR-0017). Argo trusts it and serves
+      # anonymously instead of running a second, redundant login — the same stance
+      # Grafana takes (infra/helm/platform/observability/values.yaml). Only AAL2
+      # operators ever reach this origin; the anonymous role is set by rbac
+      # policy.default below.
+      users.anonymous.enabled: "true"
+      # ArgoCD's built-in health for ApplicationSet only reflects successful
+      # templating ("all Applications generated"), not whether the Applications
+      # it spawned actually synced and became healthy. That default makes
+      # sync-wave gating on an ApplicationSet a no-op — the ADR-0004 root
+      # app-of-apps (root(-local)) relies on the platform ApplicationSets
+      # (platform-base wave 0, platform-data wave 2, platform-core wave 3) truly
+      # blocking each other and the gateway/services waves until every platform
+      # component in the prior tier is up, so this override walks .status.resources
+      # (populated with each generated Application's own sync + health status)
+      # and reports Progressing until all of them are Synced and Healthy.
+      resource.customizations.health.argoproj.io_ApplicationSet: |
+        hs = {}
+        if obj.status ~= nil and obj.status.resources ~= nil and #obj.status.resources > 0 then
+          hs.status = "Healthy"
+          hs.message = "All generated Applications are Synced and Healthy"
+          for i, r in ipairs(obj.status.resources) do
+            if r.status ~= "Synced" or r.health == nil or r.health.status ~= "Healthy" then
+              hs.status = "Progressing"
+              hs.message = "Waiting for " .. r.name .. " (sync=" .. tostring(r.status) .. ", health=" .. tostring(r.health and r.health.status) .. ")"
+              return hs
+            end
+          end
+          return hs
+        end
+        hs.status = "Progressing"
+        hs.message = "Waiting for ApplicationSet to generate Applications"
+        return hs
+      # CNPG Cluster health. Without this, ArgoCD's default assessment reports an
+      # unknown CRD Healthy the instant its manifest applies — so the data-tier
+      # ApplicationSet (postgres) would gate-close before the database is actually
+      # accepting connections, and the core tier (ory/temporal/openfga/pgweb,
+      # ADR-0004 wave 3) would start against a not-yet-ready Postgres. Report
+      # Healthy only when the operator says the cluster is up with all instances
+      # ready.
+      resource.customizations.health.postgresql.cnpg.io_Cluster: |
+        hs = {}
+        if obj.status ~= nil then
+          local ready = obj.status.readyInstances
+          local want = obj.status.instances
+          if obj.status.phase == "Cluster in healthy state"
+             and ready ~= nil and want ~= nil and ready == want and ready > 0 then
+            hs.status = "Healthy"
+            hs.message = obj.status.phase
+            return hs
+          end
+          hs.status = "Progressing"
+          hs.message = tostring(obj.status.phase)
+                       .. " (" .. tostring(ready) .. "/" .. tostring(want) .. " ready)"
+          return hs
+        end
+        hs.status = "Progressing"
+        hs.message = "Waiting for CNPG cluster status"
+        return hs
     rbac:
-      policy.default: role:readonly
+      # Anonymous (edge-authenticated operator, see users.anonymous above) gets
+      # admin — mirroring Grafana's anonymous org_role:Admin. The edge already
+      # proved AAL2 + the dashboard:deploy grant; full UI access is the point.
+      policy.default: role:admin
   server:
     service: { type: ClusterIP }
   redis-ha: { enabled: false }         # 3-node embedded etcd; HA Redis is overkill (ADR-0003)
+  redis:
+    # Chart defaults to the ecr-public.aws.com vanity host, which only publishes
+    # AAAA records; pin the canonical public.ecr.aws mirror (identical image,
+    # IPv4-reachable) so redis doesn't wedge on IPv6-less networks.
+    image:
+      repository: public.ecr.aws/docker/library/redis
   controller: { replicas: 1 }
   applicationSet: { replicas: 1 }

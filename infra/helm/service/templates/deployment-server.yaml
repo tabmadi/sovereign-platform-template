@@ -48,8 +48,10 @@ spec:
             {{- range .Values.secrets.envFrom }}
             - secretRef: { name: {{ . }} }
             {{- end }}
-          readinessProbe: { httpGet: { path: /healthz, port: admin }, initialDelaySeconds: 2 }
-          livenessProbe:  { httpGet: { path: /healthz, port: admin }, periodSeconds: 30 }
+          # readiness = deep (deps pinged) → gates Service traffic without restarting;
+          # liveness = shallow (process alive) → never dep-aware (ADR-0011).
+          readinessProbe: { httpGet: { path: /readyz, port: admin }, initialDelaySeconds: 2, timeoutSeconds: 4 }
+          livenessProbe:  { httpGet: { path: /livez,  port: admin }, periodSeconds: 30 }
           resources: {{- toYaml .Values.server.resources | nindent 12 }}
           volumeMounts:
             - { name: tmp, mountPath: /tmp }

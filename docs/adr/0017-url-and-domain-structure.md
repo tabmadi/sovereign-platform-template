@@ -1,25 +1,25 @@
 # ADR-0017: URL & Domain Structure (Trust Tiers)
 
-- **Status:** Proposed
-- **Date:** 2026-06-25
+- **Status:** Accepted
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0003](0003-cluster-topology.md), [ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md), [ADR-0011](0011-observability.md), [ADR-0012](0012-internal-admin.md), [ADR-0014](0014-frontend.md), [ADR-0015](0015-naming-and-identifiers.md)
+- **Related:** [ADR-0003](0003-cluster-topology.md), [ADR-0008](0008-api-contracts.md), [ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md), [ADR-0011](0011-observability.md), [ADR-0012](0012-internal-admin.md), [ADR-0014](0014-frontend.md), [ADR-0015](0015-naming-and-identifiers.md), [ADR-0022](0022-api-lifecycle.md)
 
 ## Context
 
 Every environment exposes two very different kinds of HTTP surface behind the same Traefik edge
 ([ADR-0003](0003-cluster-topology.md), [ADR-0009](0009-api-gateway.md)):
 
-1. **Product** — the user-facing Next.js app (landing, auth UI, the `panel`/`admin`/`devportal` route groups,
-   [ADR-0014](0014-frontend.md)), the service APIs (`/api/<svc>`, [ADR-0008](0008-api-contracts.md)), and browser
+1. **Product** — the user-facing Next.js app (landing, auth UI, the `panel`/`devportal` route groups,
+   [ADR-0014](0014-frontend.md)), the service APIs (flat `/api/<resource>`, [ADR-0008](0008-api-contracts.md)), and browser
    telemetry ingest.
 2. **Operations tooling** — third-party operator dashboards we deploy but do not author: Hubble
    ([ADR-0003](0003-cluster-topology.md)), Grafana ([ADR-0011](0011-observability.md)), the Lowdefy internal-admin
    console ([ADR-0012](0012-internal-admin.md)), Argo CD ([ADR-0004](0004-gitops.md)), the Temporal Web UI
    ([ADR-0006](0006-temporal.md)), and the MinIO console (non-prod).
 
-Until now these were addressed ad hoc: most product and ops surfaces shared **one origin** (`<env-host>`) and were
-separated only by URL path (`/grafana`, `/internal/admin`, `/api/*`). That has two problems the team hit in practice:
+Serving both tiers as URL paths on one shared origin (`<env-host>/grafana`, `/internal/admin`, `/api/*`) has two
+disqualifying problems:
 
 - **No browser-level isolation between tiers.** Path segments on one origin share cookies, `localStorage`, and the DOM.
   A flaw in code we do not control (a Hubble/Grafana XSS, a dangling-subdomain takeover) executes in the **same origin**
@@ -61,34 +61,44 @@ split into exactly two tiers:
 
 | Tier        | Origin                 | What lives there                                                                 |
 |-------------|------------------------|----------------------------------------------------------------------------------|
-| **Product** | `<host>` (apex)        | Next.js app — landing, `/auth/*`, `panel`/`admin`/`devportal`; `/api/<svc>/*`; `/api/observability/faro` |
+| **Product** | `<host>` (apex)        | Next.js app — landing, `/auth/*`, `panel`/`devportal`; `/api/<resource>/*`; `/api/rum` (browser RUM ingest) |
 | **Ops**     | `*.ops.<host>`         | one origin per operator tool (table below)                                       |
 
 The Next.js app is the **whole product origin**: it serves the public landing page and the authenticated route groups,
-and the service APIs stay **same-origin** under `<host>/api/<svc>/*` (the browser app is their only client, so
-same-origin avoids CORS and keeps the session cookie naturally scoped). The ops tier nests every tool one level under a
+and the service APIs stay **same-origin** under the flat `<host>/api/<resource>/*` (the browser app is their only client,
+so same-origin avoids CORS and keeps the session cookie naturally scoped). The ops tier nests every tool one level under a
 shared `ops.` label.
 
 ### Ops-tier hostnames
 
 | Tool                       | Hostname                  | Notes                                              |
 |----------------------------|---------------------------|----------------------------------------------------|
-| Hubble UI                  | `hubble.ops.<host>`       | served at root (router can't run under a path)     |
-| Grafana                    | `grafana.ops.<host>`      | drop `serve_from_sub_path`; served at root         |
-| Argo CD                    | `argo.ops.<host>`         | replaces port-forward access                       |
-| Temporal Web UI            | `temporal.ops.<host>`     | replaces port-forward access                       |
-| Lowdefy internal admin     | `console.ops.<host>`      | named `console` to disambiguate from the product `/admin` route group |
-| MinIO console              | `minio.ops.<host>`        | **non-prod only** ([ADR-0016](0016-environment-parity.md))         |
+| Hubble UI                  | `network.ops.<host>`       | served at root (router can't run under a path)     |
+| Grafana                    | `o11y.ops.<host>`      | drop `serve_from_sub_path`; served at root         |
+| Argo CD                    | `deploy.ops.<host>`         | replaces port-forward access                       |
+| Temporal Web UI            | `workflows.ops.<host>`     | replaces port-forward access                       |
+| Lowdefy internal admin     | `admin.ops.<host>`        | the sole admin surface; the product frontend has no `/admin` route group |
+| Headlamp (k8s debug UI)    | `k8s.ops.<host>`          | Core, read-only by default ([ADR-0024](0024-kubernetes-debug-ui.md))      |
+| pgweb (DB inspector)       | `db.ops.<host>`           | Core, read-only break-glass ([ADR-0012](0012-internal-admin.md))          |
+| MinIO console              | `s3.ops.<host>`        | **non-prod only** ([ADR-0016](0016-environment-parity.md))         |
 
 Names follow [ADR-0015](0015-naming-and-identifiers.md)'s charset (`^[a-z][a-z0-9-]*$`, hyphen within a segment, never
-underscore). The grammar is `{tool}.{tier}.{env-host}`; the product tier carries **no** tier label (it is the apex).
+underscore). The grammar is `{concept}.{tier}.{env-host}`; the product tier carries **no** tier label (it is the apex).
+
+**Origins are named after the concept, not the tool.** `o11y` (not `grafana`), `network` (not `hubble`), `workflows`
+(not `temporal`), `s3` (not `minio`), `deploy` (not `argo`), `db` (not `pgweb`), `k8s` (not `headlamp`); `admin` names
+the internal-admin concept whatever renders it. The URL is a stable seam — the same discipline as the `Checker` seam
+([ADR-0010](0010-auth.md)) or the Core/Scale storage swap ([ADR-0011](0011-observability.md)): it describes *what the
+operator is there to do*, so swapping the tool behind it (Grafana → another dashboard, pgweb → another inspector) does
+not churn the URL, the cert SANs, the DNS, or anyone's bookmarks. Short, well-known forms (`o11y`, `s3`, `k8s`, `db`)
+are preferred where one exists, matching the numeronym style already used elsewhere.
 
 ### Why the `ops.` label is load-bearing, not cosmetic
 
 Cookies are sent to a domain and its **descendants** only, never to siblings or a higher ancestor's other children.
 That single rule forces the nesting:
 
-- If ops tools were flat (`hubble.<host>`, `grafana.<host>`), the only domain that covers all of them is the common
+- If ops tools were flat (`network.<host>`, `o11y.<host>`), the only domain that covers all of them is the common
   parent `<host>` — which **is the product origin**. A cookie shared across flat ops tools would therefore also reach the
   product, re-merging the tiers.
 - Nesting under `ops.<host>` lets the ops session cookie be scoped `Domain=ops.<host>`: it covers every `*.ops.<host>`
@@ -124,31 +134,37 @@ Authentication only proves *who* the operator is; it does not entitle them to ev
 surface, at one of two enforcement points split by **who owns the code**:
 
 - **Product surfaces are our code → the app/service decides.** The `/admin`, `/panel`, `/devportal` route groups and the
-  `/api/<svc>` endpoints authorize with SpiceDB through `libs/go/authz`'s `Checker` ([ADR-0010](0010-auth.md)); the edge
+  `/api/<svc>` endpoints authorize with OpenFGA through `libs/go/authz`'s `Checker` ([ADR-0010](0010-auth.md)); the edge
   only authenticates. Page-level access to `/admin` is a `Checker.Allowed` call in the RSC layer, not a bare session
   check.
 - **Ops dashboards are third-party → the edge decides.** Hubble, Grafana, Argo CD, Temporal, the MinIO console, and the
-  Lowdefy console cannot run a permission check themselves, so authorization moves to the ops-tier Oathkeeper. Its
-  authorizer is **not** `allow`: each ops route uses the `remote_json` authorizer to call the same SpiceDB `Checker`,
-  modelling each tool as a resource:
+  Lowdefy console cannot run a permission check themselves, so authorization moves to the ops-tier Oathkeeper, in two
+  layers:
 
-  ```zed
-  definition dashboard {
-    relation viewer: user | group#member
-    permission view = viewer
-  }
-  ```
+  - **Coarse gate (mandatory) — a claim, not a `Checker` call.** The whole ops tier is gated on the operator's identity:
+    the ops-tier forward-auth requires `X-Roles` to contain `operator` (the `operator` trait on the Kratos identity,
+    injected as a header per [ADR-0010](0010-auth.md)) **and** an **AAL2 session** (operator MFA). This decision reads
+    only the authenticated session and its claims — it makes **no OpenFGA call**. That is deliberate: the ops dashboards
+    are how an operator debugs an outage, so their coarse gate must not share fate with the product authorization plane.
+    An OpenFGA or authz-endpoint outage must not lock every operator out of Grafana/Hubble/Argo. Losing OpenFGA degrades
+    the ops tier to "any operator reaches any tool," not "nobody reaches anything."
 
-  A request to `grafana.ops.<host>` checks `view` on `dashboard:grafana`; `hubble.ops.<host>` checks `dashboard:hubble`.
-  Granting `dashboard:console#viewer@user:alice` **without** a `dashboard:hubble` tuple gives Alice the admin console but
-  not Hubble — per-tool, per-user, revocable, inheritable through `group`/`org` relations.
+  - **Fine gate (optional) — per-tool `remote_json` → OpenFGA `Checker`.** When per-tool grants are wanted (`alice: Grafana
+    but not Hubble`), each ops route adds the `remote_json` authorizer calling the OpenFGA `Checker`, modelling each tool
+    as a resource:
 
-Coarse-then-fine: an `operator` group gates the **whole** ops tier (a non-operator gets nothing), and per-`dashboard`
-grants refine within it. The ops tier additionally requires an **AAL2 session** (operator MFA,
-[ADR-0010](0010-auth.md)) — the operator's second factor is enforced at the ops-tier forward-auth, independent of the
-product tier (where B2C MFA stays optional). The current `"authorizer": { "handler": "allow" }` on every dashboard rule
-is the gap this closes. The edge decision still flows through the SpiceDB `Checker`, so [ADR-0010](0010-auth.md)'s "every
-permission decision goes through `Checker`" holds.
+        type dashboard
+          relations
+            define viewer: [user, group#member]
+            define view: viewer
+
+    A request to `o11y.ops.<host>` then also checks `view` on `dashboard:o11y`. For 3–8 operators this fine layer
+    is typically deferrable, so the `dashboard` resource and its `remote_json` wiring are optional day-one, not required.
+
+The coarse claim gate is the load-bearing one; the fine per-tool layer refines within it when a project needs it. Product
+surfaces are unaffected: they authorize in-app/in-service through the OpenFGA `Checker` ([ADR-0010](0010-auth.md)), so
+"every product permission decision goes through `Checker`" still holds — only the ops tier's coarse gate is intentionally
+a claim, for break-glass independence.
 
 ### Certificates & DNS
 
@@ -159,10 +175,74 @@ permission decision goes through `Checker`" holds.
 
 ### Routing
 
-- Product: Traefik `Host(\<host>\)` routes (the per-service `/api/<svc>` IngressRoutes and the frontend catch-all
+- Product: Traefik `Host(\<host>\)` routes (the per-resource `/api/<resource>` IngressRoutes and the frontend catch-all
   already match on `Host`, [ADR-0009](0009-api-gateway.md)).
-- Ops: one `Host(\{tool}.ops.<host>\)` IngressRoute per tool, each behind the ops forward-auth middleware. Host-
+- Ops: one `Host(\{concept}.ops.<host>\)` IngressRoute per tool, each behind the ops forward-auth middleware. Host-
   parameterised so local and deployed envs share the manifests ([ADR-0016](0016-environment-parity.md)).
+
+### Content & the public developer surface: SEO axis vs trust axis
+
+Two independent axes decide where a surface lives, and conflating them is the mistake this rule prevents:
+
+- **SEO / link-equity consolidation** favours an **apex subdirectory**: Google treats a subdomain as a separate site
+  whose authority is not shared with the root, so anonymous, indexable content compounds domain authority only when
+  served under `<host>/…`.
+- **Trust isolation** favours a **separate origin** — the boundary this ADR already draws for the ops tier.
+
+They conflict only for anonymous content, and one rule resolves it: **the SEO axis applies only to surfaces that are both
+anonymous and indexable; anything behind a login is `noindex` and is therefore placed on trust-isolation grounds alone.**
+
+| Surface                                                       | Placement                                | Deciding axis                                                     |
+|---------------------------------------------------------------|------------------------------------------|-------------------------------------------------------------------|
+| Product docs, blog, guides, changelog                         | `<host>/docs`, `<host>/blog`, … (subdir) | anonymous + indexable → SEO                                       |
+| Public API reference (`x-audience: public` operations only, [ADR-0008](0008-api-contracts.md)) | `<host>/developers` (subdir) | anonymous + indexable → SEO; first-party read-only, like the landing page |
+| Dev portal (edge surface — audience `>= internal`, [ADR-0009](0009-api-gateway.md)) | `<host>/devportal` (subdir)           | behind app session + `Checker`; same-origin with `/api`, so "try it" needs no CORS |
+| Partner credential dashboard (issue/rotate Hydra OAuth2 keys)  | its own subdomain, separate auth realm  | behind login → `noindex`; a non-Kratos (Hydra) realm must not share the apex session cookie |
+
+The public docs portal is **anonymous — no login** ([ADR-0009](0009-api-gateway.md)); only *credential management* is
+authenticated, on the separate dashboard origin above. This is a **deferred, external third tier**: internal-only
+projects (the default) have exactly the product and ops tiers; a project shipping a public API adds this external tier,
+scoped by the same two axes.
+
+### The API endpoint path: flat `/api/<resource>`, service topology hidden
+
+The service API is exposed as a **flat resource namespace on one shared prefix — `<host>/api/<resource>`** (e.g.
+`/api/products`, `/api/orders`, `/api/charges`), **not** per-service (`/api/<svc>/...`). The URL names the *resource*,
+not the service that happens to own it today. This is the Stripe/GitHub facade: a caller sees one coherent API surface,
+and which service serves a route is an internal detail that can change (a resource can move between services, or a service
+split in two) **without breaking a single URL**. The edge maps each resource prefix to its backing service; the mapping
+is infrastructure, invisible to consumers. Specs already declare resource-noun paths (`/products`, `/charges`), so the
+service segment was only ever leaking topology.
+
+**Collision governance.** One flat namespace means two services cannot both own `/api/orders`. That is a *feature*, not a
+limitation — a name collision is a genuine domain-modelling conflict — and it is enforced, not left to chance: a CI lint
+fails if two `x-audience`-exposed specs claim the same top-level resource prefix. The edge route table (per-resource
+`PathPrefix`, [ADR-0009](0009-api-gateway.md)) is the single registry of who owns what.
+
+**East-west endpoints are not on this surface.** Internal service-to-service endpoints (`x-audience: cluster`, no `/api`
+route) bypass the edge entirely ([ADR-0006](0006-temporal.md), [ADR-0009](0009-api-gateway.md)) and are reached in-cluster,
+gated by Cilium NetworkPolicy — they are never `/api/<resource>` edge routes, and appear in neither docs portal.
+
+A **path, not its own origin** — and that holds **even for a public/partner API**. The origin-isolation argument that puts
+ops dashboards on `*.ops.<host>` does **not** carry over to a JSON API: there is no DOM, JS, or browser storage to isolate,
+so a separate origin protects nothing an API has. The reasons a subdomain *sounds* right mostly evaporate here:
+
+- **CORS is a cost, not a benefit.** Same-origin `<host>/api` needs none; a subdomain would manufacture a cross-origin
+  problem. (A third-party's own browser app needs CORS to call us regardless of where our API sits.)
+- **WAF and rate-limits are path-scoped already.** Traefik attaches middleware per `PathPrefix` router — the per-resource
+  `/api/<resource>` IngressRoutes do ([ADR-0009](0009-api-gateway.md)).
+- **Infra separation already exists.** The edge routes `/api/*` to service pods and `/` to the frontend; a subdomain adds
+  nothing until traffic is routed to genuinely different edge/CDN infrastructure.
+- **Versioning is not in the URL.** The default API is single-live-version ([ADR-0022](0022-api-lifecycle.md)), so there is
+  no version segment at all; when external consumers force online versioning on, the version rides an `Api-Version` header,
+  not the path — which is *why* the flat resource URL stays stable across versions. Auth realm is a path-scoped Oathkeeper
+  rule (session *and* JWT on the same `/api` prefix), not a host.
+
+A distinct origin is warranted in only two narrow cases, neither the template default: **hard credential isolation** —
+guaranteeing the app session cookie never reaches the API — which requires a **separate registrable domain**, not merely a
+subdomain (a parent-scoped `Domain=<host>` cookie is sent to `api.<host>` too); or **separate edge/CDN infrastructure at
+scale**. Absent those, the public API is another `<host>/api/<resource>` route, distinguished from the internal one by its
+`x-audience: public` contract ([ADR-0008](0008-api-contracts.md)) and Hydra-JWT auth, not by its origin.
 
 ## Consequences
 
@@ -187,28 +267,43 @@ permission decision goes through `Checker`" holds.
   origin is first-party; per-tool authz + operator AAL2 + product CSP are the compensating controls, and the OIDC
   upgrade closes it if needed.
 - **Subdomain-takeover hygiene** matters more: dangling `*.ops.<host>` DNS must not be left claimable.
-- **Migration churn:** existing `/grafana`, `/internal/admin`, and the recently-added `hubble.<host>` URLs all move;
-  docs, bookmarks, and the redirect handler change.
 
 ### Follow-ups
 
-- Implement the product/ops split in `infra/gateway` (host-parameterised ops IngressRoutes), the per-tool chart values
-  (Grafana/Argo/Temporal base-path off; Hubble already root), and the cert-manager Certificate (two wildcards).
-- Switch every ops dashboard authorizer from `allow` to `remote_json` → SpiceDB `Checker`; add the `operator` group and
-  `dashboard` resource to `infra/auth/spicedb/schema.zed`; enforce **AAL2** on the ops-tier forward-auth.
-- Keep the default parent-scoped cookie. *Optional hardening:* stand up the ops-tier OIDC proxy (Hydra) for token
-  isolation — required only if a non-first-party origin is ever hosted under `<host>`.
-- Move `hubble.<host>` → `hubble.ops.<host>` (supersedes the [ADR-0003](0003-cluster-topology.md) hubble-subdomain note
-  and the work recorded in this session).
-- Update `docs/dev-loop.md`, ADR-0003/0009/0011/0012 endpoint references, and the `scripts/cluster-full.sh` banner.
+- The product/ops split lives in `infra/gateway` (host-parameterised ops IngressRoutes), the per-tool chart values
+  (Grafana/Argo/Temporal base-path off; Hubble root), and the cert-manager Certificate (two wildcards).
+- The ops-tier forward-auth enforces the coarse **`operator` claim + AAL2** gate (no OpenFGA call). The `operator` trait
+  is declared on the Kratos identity schema and injected as `X-Roles` ([ADR-0010](0010-auth.md)). The optional fine
+  per-tool layer adds `remote_json` → OpenFGA `Checker` with a `dashboard` resource in `infra/auth/openfga/model.fga`.
+- The default session cookie is parent-scoped. *Optional hardening:* an ops-tier OIDC proxy (Hydra) for token isolation,
+  required only if a non-first-party origin is ever hosted under `<host>`.
+- Break-glass recovery for a full auth-plane outage is `docs/ops/break-glass.md` (`kubectl port-forward` with an
+  independently-obtained kubeconfig), cross-linked from the `scripts/cluster-full.sh` banner.
 
 ## Rules
 
 - Surfaces belong to exactly one tier: **product** on the apex `<host>`, **ops tooling** on `*.ops.<host>`. No operator
-  dashboard is served from a product path, and no product surface is served from an `ops.` subdomain.
-- Service APIs stay same-origin under `<host>/api/<svc>/*`; they are not given their own origin unless a non-browser
-  client requires it.
-- Ops-tier hostnames are `{tool}.ops.<host>`, lowercase, matching `^[a-z][a-z0-9-]*$`
+  dashboard is served from a product path, and no product surface is served from an `ops.` subdomain. A project that ships
+  a public API adds a deferred **external** tier (public docs at `<host>/developers` and the partner credential dashboard
+  subdomain); internal-only projects have only the product and ops tiers.
+- Anonymous, indexable, first-party content — product docs, blog, guides, changelog, and the public read-only API
+  reference — is served from an **apex subdirectory** for link-equity consolidation. A subdomain is used only for a
+  distinct trust boundary (third-party code or a separate auth realm), never merely because a surface is public.
+- The public API docs portal is anonymous; only credential management (Hydra keys) is authenticated, on its own origin
+  ([ADR-0009](0009-api-gateway.md)).
+- The service API is a **flat resource namespace** on the path `<host>/api/<resource>` (`/api/products`, `/api/orders`,
+  …), never per-service (`/api/<svc>/...`) — the URL names the resource, and which service serves it is a hidden,
+  movable edge-routing detail. A CI lint fails if two `x-audience`-exposed specs claim the same top-level resource
+  prefix; the edge route table is the ownership registry. East-west endpoints (`x-audience: cluster`, no `/api` route) bypass the edge and
+  are not on this surface.
+- The path holds **including the public/partner API** — a JSON API has no DOM/storage to origin-isolate, and
+  CORS/WAF/rate-limits are path-scoped; the API is not versioned in the URL at all (single-live-version by default, an
+  `Api-Version` header when online versioning is flagged on — [ADR-0022](0022-api-lifecycle.md)). The public API is a
+  `<host>/api/<resource>` route distinguished by its `x-audience: public` contract ([ADR-0008](0008-api-contracts.md))
+  and Hydra-JWT auth, not by its origin. A distinct origin is used only for **hard credential isolation** (which needs a
+  *separate registrable domain*, since a `Domain=<host>` cookie reaches `api.<host>`) or **separate edge/CDN
+  infrastructure at scale** — never for CORS/WAF, which do not require it.
+- Ops-tier hostnames are `{concept}.ops.<host>`, lowercase, matching `^[a-z][a-z0-9-]*$`
   ([ADR-0015](0015-naming-and-identifiers.md)).
 - The default is one session cookie scoped to the parent `<host>`, shared across tiers; tier isolation is enforced by
   per-tool authorization and an **AAL2 (operator MFA)** requirement on the ops tier, not by cookie scope. This is
@@ -216,6 +311,8 @@ permission decision goes through `Checker`" holds.
 - Splitting the cookie (product host-only on the apex + an `ops.<host>` cookie minted via OIDC) is the optional token-
   isolation upgrade, and is **mandatory** if any non-first-party origin is hosted under `<host>`.
 - Each environment provisions both `*.<host>` and `*.ops.<host>` certificates.
-- Third-party operator dashboards are authorized **per-tool at the edge** by Oathkeeper's `remote_json` authorizer
-  against the SpiceDB `Checker` (`dashboard:<tool>#view`), never `allow`. Product surfaces authorize in-app/in-service
-  through `libs/go/authz` ([ADR-0010](0010-auth.md)); a bare authenticated session never grants tool access.
+- The ops tier's coarse gate is a **claim, not a `Checker` call**: the ops-tier forward-auth requires `X-Roles` to
+  contain `operator` plus an **AAL2** session, and makes no OpenFGA call — so the debugging surface does not share fate
+  with the product authorization plane. Optional per-tool refinement adds Oathkeeper's `remote_json` authorizer against
+  the OpenFGA `Checker` (`dashboard:<tool>#view`). Product surfaces authorize in-app/in-service through `libs/go/authz`
+  ([ADR-0010](0010-auth.md)); a bare authenticated session never grants ops-tool access.

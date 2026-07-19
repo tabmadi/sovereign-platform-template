@@ -100,6 +100,48 @@ func (q *Queries) GetCharge(ctx context.Context, id pgtype.UUID) (GetChargeRow, 
 	return i, err
 }
 
+const listCharges = `-- name: ListCharges :many
+select
+  id,
+  order_id,
+  amount_cents,
+  status
+from charges
+order by created_at desc limit 100
+`
+
+type ListChargesRow struct {
+	ID          pgtype.UUID `json:"id"`
+	OrderID     pgtype.UUID `json:"order_id"`
+	AmountCents int32       `json:"amount_cents"`
+	Status      string      `json:"status"`
+}
+
+func (q *Queries) ListCharges(ctx context.Context) ([]ListChargesRow, error) {
+	rows, err := q.db.Query(ctx, listCharges)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListChargesRow
+	for rows.Next() {
+		var i ListChargesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.AmountCents,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateChargeStatus = `-- name: UpdateChargeStatus :exec
 update charges set status = $2
 where id = $1

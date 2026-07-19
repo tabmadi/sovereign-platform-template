@@ -25,8 +25,8 @@ in the [ADRs](docs/adr) so a new project starts at "build features" rather than 
 | Database             | PostgreSQL via CNPG, sqlc, dbmate, sqruff                 | [0007](docs/adr/0007-data.md)                                                    |
 | API contract         | OpenAPI 3.1 (ogen + openapi-typescript)                   | [0008](docs/adr/0008-api-contracts.md)                                           |
 | Edge                 | Traefik + Ory Oathkeeper                                  | [0009](docs/adr/0009-api-gateway.md)                                             |
-| Auth                 | Ory Kratos + Oathkeeper + SpiceDB (Hydra per-flag)        | [0010](docs/adr/0010-auth.md)                                                    |
-| Observability        | OpenTelemetry → Grafana LGTM (monolithic)                 | [0011](docs/adr/0011-observability.md)                                           |
+| Auth                 | Ory Kratos + Oathkeeper + OpenFGA (Hydra per-flag)        | [0010](docs/adr/0010-auth.md)                                                    |
+| Observability        | OpenTelemetry → Grafana + Loki/Tempo + Prometheus         | [0011](docs/adr/0011-observability.md)                                           |
 | Internal admin       | Lowdefy (YAML pages)                                      | [0012](docs/adr/0012-internal-admin.md)                                          |
 | Release / versioning | Conventional Commits + cocogitto, tag per product         | [0013](docs/adr/0013-release-and-versioning.md)                                  |
 
@@ -99,15 +99,20 @@ need. Pick tools by training-data density and verifiability — a criterion thes
 curl https://mise.run | sh
 mise install                  # pinned tools from .mise.toml
 mise run setup                # install git hooks
-age-keygen -o ~/.config/sops/age/keys.txt   # SOPS private key (ADR-0005)
+mise run secrets:age          # SOPS private key + your public key to add to .sops.yaml (ADR-0005)
 
 # Local cluster
-mise run cluster:lite         # k3d cluster + local deps (Postgres, Temporal, SpiceDB)
+mise run cluster:lite         # k3d cluster + local deps (Postgres, Temporal, OpenFGA)
+mise run dev:forward          # port-forward the deps to localhost (leave running)
+mise run db:migrate           # apply each service's migrations
 
-# Inner loop on a single service
+# Inner loop on a single service — native, no image build (docs/dev-loop.md)
 cd services/catalog
-mise run run                  # http server
-mise run worker               # temporal worker
+cp .env.example .env
+mise run server               # http server
+
+# Services with a Temporal worker (orders, payment, orgs) also expose:
+mise run worker
 ```
 
 ## Layout
@@ -134,7 +139,7 @@ The template ships with a tiny "shop" example exercising every tool from the ADR
 
 | Service   | Demonstrates                                                   |
 |-----------|----------------------------------------------------------------|
-| `orgs`    | Kratos identity + B2B multi-tenancy + SpiceDB ReBAC            |
+| `orgs`    | Kratos identity + B2B multi-tenancy + OpenFGA ReBAC            |
 | `catalog` | Plain CRUD: OpenAPI handler, sqlc, migrations, observability   |
 | `orders`  | Temporal checkout saga calling `catalog` + `payment` over HTTP |
 | `payment` | Child workflow with idempotency + compensation                 |

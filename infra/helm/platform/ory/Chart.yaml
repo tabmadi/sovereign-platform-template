@@ -9,7 +9,7 @@ dependencies:
   - name: kratos
     version: "0.62.1"
     repository: https://k8s.ory.sh/helm/charts
-  # Edge identity/access proxy (ADR-0009). Always on: Kratos + Oathkeeper + SpiceDB
+  # Edge identity/access proxy (ADR-0009). Always on: Kratos + Oathkeeper + OpenFGA
   # is the internal-only default stack.
   - name: oathkeeper
     version: "0.62.1"

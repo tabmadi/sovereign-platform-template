@@ -2,7 +2,7 @@
 // E2E_HOST to point the suite at a deployed env; defaults to the local edge.
 import path from "node:path";
 
-// Product apex origin (landing, /auth/*, /api/<svc>). Includes the local :8443.
+// Product apex origin (landing, /auth/*, flat /api/<resource>). Includes the local :8443.
 export const HOST = process.env.E2E_HOST ?? "dev.localtest.me:8443";
 export const BASE_URL = `https://${HOST}`;
 

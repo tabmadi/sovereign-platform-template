@@ -1,0 +1,44 @@
+## Kratos — identity APIs. Public (4433) is reached by Oathkeeper (session
+## checks) and the edge gateway (login/registration flows); admin (4434) by the
+## authz service, which provisions operator identities for the Lowdefy admin
+## console (ADR-0012, services/authz operator handler). Cilium enforces on the pod
+## containerPort, not the Service port (ory-kratos-admin:80 → 4434).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: ory-kratos
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: kratos
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: oathkeeper }
+      toPorts:
+        - ports: [{ port: "4433", protocol: TCP }]
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "4433", protocol: TCP }]
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: authz }
+      toPorts:
+        - ports: [{ port: "4434", protocol: TCP }]
+---
+## Oathkeeper — the edge auth gate. Traefik forwards through the proxy (4455) and
+## queries the decision API (4456).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: ory-oathkeeper
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: oathkeeper
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports:
+            - { port: "4455", protocol: TCP }
+            - { port: "4456", protocol: TCP }

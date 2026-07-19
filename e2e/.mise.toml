@@ -1,0 +1,44 @@
+# The Node island (ADR-0001 §runtime, ADR-0018). Node is sanctioned for exactly one
+# job — driving the Playwright browser runner — because Bun cannot: the extra-fd
+# pipe transport and worker IPC corners of `child_process` are a Node-ecosystem-wide
+# gap, not a tool we can swap to avoid. So the runtime is pinned HERE, next to the
+# only code that needs it, and not in the root [tools] where every dev running
+# `lint`/`test` would install ~200MB of it for nothing.
+#
+# The version is NOT duplicated: it resolves from the root config's [env]
+# NODE_VERSION, so there is one number to bump for both this and apps/admin.
+#
+# Nothing extra to install by hand. `mise install` at the root deliberately skips
+# this; the root `e2e*` tasks delegate here with `mise run -C e2e …`, which
+# auto-installs node on first use. Ad-hoc runs work the same way, e.g.
+#   mise x -C e2e -- npx playwright test --ui
+[tools]
+node = "{{env.NODE_VERSION}}"
+
+# Tasks live here rather than at the root because mise tools flow DOWN a config
+# tree, never up — a root task cannot see this node. The root keeps thin `e2e*`
+# delegates so `mise run e2e` and the CI workflow are unchanged.
+[tasks.install]
+# One-time (and CI) setup: workspace deps + the Chromium binary. npm is bundled
+# with the node tool above.
+# The browser DOWNLOAD is OS-independent; `--with-deps` is intentionally omitted
+# because it shells out to apt-get (Debian-only) and breaks on Arch/Fedora/macOS.
+# Chromium's runtime libs come from the host (present on desktops; on Ubuntu CI
+# run `playwright install-deps chromium` in the workflow step instead).
+run = """
+npm ci || npm install
+npm run install:browsers
+"""
+
+# The edge (*.localtest.me) must be hit directly, never through a dev HTTPS_PROXY;
+# the in-cluster port-forwards are loopback. Belt-and-suspenders for both cases.
+[tasks.test]
+# Full browser acceptance + visual suite against a running cluster:full (ADR-0018).
+# Nightly + pre-release in CI; never part of ci:affected.
+env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
+run = "npm run test"
+
+[tasks."test:smoke"]
+# Label-gated per-PR subset: one product golden path + a key dashboard render.
+env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
+run = "npm run test:smoke"

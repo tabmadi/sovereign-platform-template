@@ -1,9 +1,22 @@
 # Services ApplicationSet (ADR-0004). Git-directory generator over per-env
 # values files; one Application per service per environment, auto-onboarded
 # when its values file lands in master.
+#
+# sync-wave "5" holds this back until the whole platform tier (base "0", data "2",
+# core "3" — each gated by a custom ApplicationSet health check, see
+# infra/helm/platform/argocd/values.yaml) and the gateway Application (wave "4")
+# are all Synced+Healthy. Services depend on both: platform for
+# Postgres/Temporal/OpenFGA/CoreDNS-affecting CNI stability, gateway for the
+# Traefik middlewares their IngressRoutes reference.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
-metadata: { name: services, namespace: argocd }
+metadata:
+  name: services
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: services
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -12,9 +25,11 @@ spec:
         generators:
           - list:
               elements:
-                - { env: dev,     syncWindowStart: "*",          server: "https://kubernetes.default.svc" }
-                - { env: staging, syncWindowStart: "0 5 * * *",  server: "https://kubernetes.default.svc" }
-                - { env: prod,    syncWindowStart: "*",          server: "https://kubernetes.default.svc" }
+                # Sync windows (e.g. staging's 05:00 UTC gate) live on the
+                # per-env AppProject, not here — see bootstrap/appproject.yaml.
+                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: staging, server: "https://kubernetes.default.svc" }
+                - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
               revision: master
@@ -22,17 +37,27 @@ spec:
                 - { path: "infra/gitops/services/{{ .env }}/values/*.yaml" }
   template:
     metadata:
-      name: "{{ .env }}-svc-{{ .path.filenameNormalized }}"
+      name: "{{ .env }}-service-{{ .path.filenameNormalized }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: services
+        app.kubernetes.io/component: "{{ .path.filenameNormalized }}"
     spec:
-      project: default
+      project: "{{ .env }}"
       source:
         repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
         targetRevision: master
         path: infra/helm/service
         helm:
           valueFiles:
-            - "../../../gitops/services/{{ .env }}/values/{{ .path.filename }}"
+            - "../../gitops/services/{{ .env }}/values/{{ .path.filename }}"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }
         syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        # Retry on failure — automated+selfHeal won't re-run a sync that errored
+        # on the same commit; without this a transient repo-server/network blip
+        # parks the generated app until a manual sync. Caps at 2m (ADR-0004).
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

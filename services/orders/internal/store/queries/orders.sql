@@ -1,3 +1,13 @@
+-- name: ListOrders :many
+select
+  id,
+  product_id,
+  quantity,
+  total_cents,
+  status
+from orders
+order by created_at desc limit 100;
+
 -- name: CreateOrder :one
 insert into orders (product_id, quantity, total_cents, status)
 values ($1, $2, $3, 'pending')

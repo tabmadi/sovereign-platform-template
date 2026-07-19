@@ -1,0 +1,21 @@
+# Values namespaced under `pgweb:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions.
+pgweb:
+  # Core (ADR-0012): deployed in every environment. The gate stays here so a
+  # project can drop pgweb by setting `enabled: false` in an env overlay, like
+  # any Core component removed per its ADR.
+  enabled: true
+
+  image:
+    repository: sosedoff/pgweb
+    tag: "0.17.0"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+  service:
+    port: 80
+
+  # Postgres DSN pgweb connects to. Empty by default; each env's overlay supplies
+  # it (local points at the in-cluster CNPG dev role). A dedicated read-only DB
+  # role is the documented intent but not enforced here.
+  databaseUrl: ""

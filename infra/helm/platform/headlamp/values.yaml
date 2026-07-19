@@ -1,0 +1,21 @@
+# Values namespaced under `headlamp:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions.
+headlamp:
+  # Core (ADR-0024): deployed in every environment. The gate stays here so a
+  # project can drop Headlamp by setting `enabled: false` in an env overlay,
+  # like any Core component removed per its ADR.
+  enabled: true
+
+  image:
+    repository: ghcr.io/headlamp-k8s/headlamp
+    tag: v0.43.0
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+  service:
+    port: 80
+
+  # Bound to the built-in `view` ClusterRole: list/get/watch across the cluster,
+  # no writes. Read-only is the documented intent (ADR-0024); swap this for a
+  # narrower custom role if a project needs to tighten it further.
+  clusterRole: view

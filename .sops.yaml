@@ -1,6 +1,6 @@
 # SOPS recipient rules (ADR-0005).
 # `name`s are placeholders — replace with real age public keys before use.
-# Engineer keys are added per-PR via `age-keygen` onboarding.
+# Engineer keys are added per-PR via `mise run secrets:age` onboarding.
 
 keys:
   # Engineer keys — one per active engineer.
@@ -21,18 +21,26 @@ keys:
   - &ops_recovery    age1example0ops0recovery000000000000000000000000000000000000000
 
 creation_rules:
-  # Per-env secret files: cluster + engineers + ops-recovery.
-  - path_regex: infra/gitops/dev/secrets/.*\.enc\.ya?ml$
+  # Per-env secret files: cluster + engineers + ops-recovery. Path mirrors the
+  # per-env platform overlay (infra/gitops/platform/<env>/) — same convention the
+  # local tier already uses (infra/gitops/platform/local/secrets/). Delivered by
+  # the `secrets` ApplicationSet (infra/gitops/bootstrap/appset-secrets.yaml).
+  # encrypted_regex keeps the SopsSecret structure readable in review; only the
+  # values are ciphertext.
+  - path_regex: infra/gitops/platform/dev/secrets/.*\.enc\.ya?ml$
+    encrypted_regex: ^(data|stringData)$
     age:
       - *eng_placeholder
       - *cluster_dev
       - *ops_recovery
-  - path_regex: infra/gitops/staging/secrets/.*\.enc\.ya?ml$
+  - path_regex: infra/gitops/platform/staging/secrets/.*\.enc\.ya?ml$
+    encrypted_regex: ^(data|stringData)$
     age:
       - *eng_placeholder
       - *cluster_staging
       - *ops_recovery
-  - path_regex: infra/gitops/prod/secrets/.*\.enc\.ya?ml$
+  - path_regex: infra/gitops/platform/prod/secrets/.*\.enc\.ya?ml$
+    encrypted_regex: ^(data|stringData)$
     age:
       - *eng_placeholder
       - *cluster_prod

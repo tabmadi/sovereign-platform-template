@@ -5,6 +5,9 @@ export const landing = {
   title: "Platform",
   tagline: "Self-hosted microservices template.",
   signIn: "Sign in",
+  createAccount: "Create account",
+  forgotPassword: "Forgot your password?",
+  accountSettings: "Account settings & security",
   customerPanel: "Customer panel",
   developerPortal: "Developer portal",
   auth: {
@@ -42,5 +45,12 @@ export const landing = {
     starting: "Starting Kratos settings flow…",
     submit: "Save",
     error: "Could not start settings. Please retry.",
+  },
+  errorFlow: {
+    // Kratos' error flow (selfservice.flows.error.ui_url) lands here with ?id=.
+    title: "Something went wrong",
+    loading: "Loading error details…",
+    generic: "An unexpected error occurred.",
+    toLogin: "Back to sign in",
   },
 } as const;

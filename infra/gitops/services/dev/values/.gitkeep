@@ -1,2 +1,0 @@
-# Per-service deploy values land here as <svc>.yaml.
-# The Services ApplicationSet picks them up automatically (ADR-0004).

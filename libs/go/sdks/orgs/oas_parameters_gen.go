@@ -15,6 +15,72 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+// DeleteOrgParams is parameters of deleteOrg operation.
+type DeleteOrgParams struct {
+	// Id of the organization to delete.
+	ID uuid.UUID
+}
+
+func unpackDeleteOrgParams(packed middleware.Parameters) (params DeleteOrgParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeDeleteOrgParams(args [1]string, argsEscaped bool, r *http.Request) (params DeleteOrgParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetOrgParams is parameters of getOrg operation.
 type GetOrgParams struct {
 	// Organization id.
@@ -33,6 +99,72 @@ func unpackGetOrgParams(packed middleware.Parameters) (params GetOrgParams) {
 }
 
 func decodeGetOrgParams(args [1]string, argsEscaped bool, r *http.Request) (params GetOrgParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// UpdateOrgParams is parameters of updateOrg operation.
+type UpdateOrgParams struct {
+	// Id of the organization to update.
+	ID uuid.UUID
+}
+
+func unpackUpdateOrgParams(packed middleware.Parameters) (params UpdateOrgParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeUpdateOrgParams(args [1]string, argsEscaped bool, r *http.Request) (params UpdateOrgParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

@@ -34,18 +34,36 @@ type Invoker interface {
 	//
 	// POST /orgs
 	CreateOrg(ctx context.Context, request *OrgInput) (*Org, error)
+	// DeleteOrg invokes deleteOrg operation.
+	//
+	// Delete an organization.
+	//
+	// DELETE /orgs/{id}
+	DeleteOrg(ctx context.Context, params DeleteOrgParams) error
 	// GetOrg invokes getOrg operation.
 	//
 	// Fetch an organization by id.
 	//
 	// GET /orgs/{id}
 	GetOrg(ctx context.Context, params GetOrgParams) (*Org, error)
+	// ListOrgs invokes listOrgs operation.
+	//
+	// List all organizations.
+	//
+	// GET /orgs
+	ListOrgs(ctx context.Context) ([]Org, error)
 	// OnIdentityCreated invokes onIdentityCreated operation.
 	//
 	// Kratos post-registration webhook. Creates a personal org for the new identity.
 	//
-	// POST /internal/identity-created
+	// POST /identity-created
 	OnIdentityCreated(ctx context.Context, request *OnIdentityCreatedReq) error
+	// UpdateOrg invokes updateOrg operation.
+	//
+	// Rename an organization.
+	//
+	// PUT /orgs/{id}
+	UpdateOrg(ctx context.Context, request *OrgInput, params UpdateOrgParams) (*Org, error)
 }
 
 // Client implements OAS client.
@@ -170,6 +188,104 @@ func (c *Client) sendCreateOrg(ctx context.Context, request *OrgInput) (res *Org
 	return result, nil
 }
 
+// DeleteOrg invokes deleteOrg operation.
+//
+// Delete an organization.
+//
+// DELETE /orgs/{id}
+func (c *Client) DeleteOrg(ctx context.Context, params DeleteOrgParams) error {
+	_, err := c.sendDeleteOrg(ctx, params)
+	return err
+}
+
+func (c *Client) sendDeleteOrg(ctx context.Context, params DeleteOrgParams) (res *DeleteOrgNoContent, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("deleteOrg"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.URLTemplateKey.String("/orgs/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, DeleteOrgOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/orgs/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeDeleteOrgResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetOrg invokes getOrg operation.
 //
 // Fetch an organization by id.
@@ -268,11 +384,91 @@ func (c *Client) sendGetOrg(ctx context.Context, params GetOrgParams) (res *Org,
 	return result, nil
 }
 
+// ListOrgs invokes listOrgs operation.
+//
+// List all organizations.
+//
+// GET /orgs
+func (c *Client) ListOrgs(ctx context.Context) ([]Org, error) {
+	res, err := c.sendListOrgs(ctx)
+	return res, err
+}
+
+func (c *Client) sendListOrgs(ctx context.Context) (res []Org, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listOrgs"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/orgs"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ListOrgsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/orgs"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeListOrgsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // OnIdentityCreated invokes onIdentityCreated operation.
 //
 // Kratos post-registration webhook. Creates a personal org for the new identity.
 //
-// POST /internal/identity-created
+// POST /identity-created
 func (c *Client) OnIdentityCreated(ctx context.Context, request *OnIdentityCreatedReq) error {
 	_, err := c.sendOnIdentityCreated(ctx, request)
 	return err
@@ -282,7 +478,7 @@ func (c *Client) sendOnIdentityCreated(ctx context.Context, request *OnIdentityC
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("onIdentityCreated"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.URLTemplateKey.String("/internal/identity-created"),
+		semconv.URLTemplateKey.String("/identity-created"),
 	}
 	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
 
@@ -316,7 +512,7 @@ func (c *Client) sendOnIdentityCreated(ctx context.Context, request *OnIdentityC
 	stage = "BuildURL"
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [1]string
-	pathParts[0] = "/internal/identity-created"
+	pathParts[0] = "/identity-created"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	stage = "EncodeRequest"
@@ -344,6 +540,107 @@ func (c *Client) sendOnIdentityCreated(ctx context.Context, request *OnIdentityC
 
 	stage = "DecodeResponse"
 	result, err := decodeOnIdentityCreatedResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// UpdateOrg invokes updateOrg operation.
+//
+// Rename an organization.
+//
+// PUT /orgs/{id}
+func (c *Client) UpdateOrg(ctx context.Context, request *OrgInput, params UpdateOrgParams) (*Org, error) {
+	res, err := c.sendUpdateOrg(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendUpdateOrg(ctx context.Context, request *OrgInput, params UpdateOrgParams) (res *Org, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("updateOrg"),
+		semconv.HTTPRequestMethodKey.String("PUT"),
+		semconv.URLTemplateKey.String("/orgs/{id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, UpdateOrgOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/orgs/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.UUIDToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeUpdateOrgRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeUpdateOrgResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

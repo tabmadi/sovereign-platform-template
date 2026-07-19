@@ -11,8 +11,9 @@ scan() {
   shift
   local pattern="$1"
   shift
-  # shellcheck disable=SC2068
   local hits
+  # word-splitting the path list into separate grep args is intentional here.
+  # shellcheck disable=SC2068
   hits=$(grep -RInE --exclude-dir=node_modules "$pattern" $@ 2>/dev/null || true)
   if [[ -n "$hits" ]]; then
     echo "✗ $label:"

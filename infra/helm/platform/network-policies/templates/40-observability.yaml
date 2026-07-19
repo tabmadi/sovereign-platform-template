@@ -1,0 +1,109 @@
+## OTel collector (DaemonSet) — the single telemetry ingest point. Every app pod
+## pushes OTLP (4317 gRPC / 4318 HTTP); nothing else should.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: otel-collector
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-collector
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform }
+      toPorts:
+        - ports:
+            - { port: "4317", protocol: TCP }
+            - { port: "4318", protocol: TCP }
+---
+## Loki — writes come from the OTel collector, reads from Grafana.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: loki
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: loki
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: opentelemetry-collector }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: grafana }
+      toPorts:
+        - ports: [{ port: "3100", protocol: TCP }]
+---
+## Prometheus — OTLP metrics push from OTel, queries from Grafana (9090).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: prometheus
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: opentelemetry-collector }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: grafana }
+      toPorts:
+        - ports: [{ port: "9090", protocol: TCP }]
+---
+## Tempo — trace push (OTLP 4317/4318) from OTel, queries (3200) from Grafana.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: tempo
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: opentelemetry-collector }
+      toPorts:
+        - ports:
+            - { port: "4317", protocol: TCP }
+            - { port: "4318", protocol: TCP }
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: grafana }
+      toPorts:
+        - ports: [{ port: "3200", protocol: TCP }]
+---
+## MinIO — object storage for Loki/Tempo (9000). Console (9001) is edge-only.
+## The minio-post-job (app: minio-job) provisions the buckets + users Loki/Tempo
+## need, so it must reach 9000 too — without it every backend crashloops
+## on "bucket does not exist".
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: minio
+spec:
+  endpointSelector:
+    matchLabels:
+      app: minio
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: loki }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: tempo }
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app: minio-job }
+      toPorts:
+        - ports: [{ port: "9000", protocol: TCP }]
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "9001", protocol: TCP }]
+---
+## Grafana — the ops UI, reached only through the edge gateway (3000).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: grafana
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "3000", protocol: TCP }]

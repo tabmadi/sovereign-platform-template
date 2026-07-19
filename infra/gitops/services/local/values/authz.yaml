@@ -1,20 +1,31 @@
 # Local full-tier values for the authz edge authorizer (ADR-0017). authz is
 # INTERNAL: Oathkeeper's remote_json authorizer calls it by service DNS, so it gets
 # no /api edge route (ingress off). It has no database (migrations off). It talks to
-# the real SpiceDB chart using the SOPS-managed preshared key (spicedb-creds).
-# Internal authorizer (no edge route, no database), talking to the real SpiceDB
+# the real OpenFGA chart using the SOPS-managed preshared key (openfga-creds).
+# Internal authorizer (no edge route, no database), talking to the real OpenFGA
 # chart via the SOPS-managed preshared key.
 name: authz
 image:
-  repository: ghcr.io/tabmadi/microservices-monorepo-template/authz-server
-  tag: "0000000000000000000000000000000000000000"
+  repository: k3d-registry.localhost:5000/authz-server
+  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0002)
+  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
 worker:     { enabled: false }
 server:     { replicas: 1 }
 ingress:    { enabled: false }   # internal authorizer — no edge route
 migrations: { enabled: false }   # no database
 otel:       { deployEnv: local }
-secrets:    { envFrom: [spicedb-creds] }
+secrets:    { envFrom: [openfga-creds] }
+# Not edge-exposed (chart default networkPolicy.allowFromGateway is for
+# Traefik→server-port), so it must be turned off here. Two legitimate callers
+# of the server port: Oathkeeper's remote_json authorizer (every gated
+# dashboard request), and the Lowdefy admin console's server-side "authz-admin"
+# connection (apps/admin/lowdefy.yaml), which POSTs to /operators
+# directly — an already-authenticated backend-to-backend admin call, not
+# routed back through the edge/Oathkeeper.
+networkPolicy:
+  allowFromGateway: false
+  allowFrom: [oathkeeper, lowdefy]
 env:
-  SPICEDB_ENDPOINT: "spicedb.platform.svc.cluster.local:50051"
-  # Blank so libs/go/authz falls back to spicedb-creds.preshared_key (envFrom).
-  SPICEDB_PRESHARED_KEY: ""
+  OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
+  # Blank so libs/go/authz falls back to openfga-creds.preshared_key (envFrom).
+  OPENFGA_PRESHARED_KEY: ""

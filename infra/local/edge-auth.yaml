@@ -56,7 +56,7 @@ spec:
   tls:
     secretName: wildcard-tls
 ---
-# Catch-all → host `next dev`. The routes above and the per-service /api/<svc>
+# Catch-all → host `next dev`. The routes above and the flat /api/<resource>
 # and /internal routes are longer prefixes, and the hubble.<host> route matches
 # by Host, so Traefik matches them first; everything else (landing, /auth/login,
 # /panel …) is served by the app.

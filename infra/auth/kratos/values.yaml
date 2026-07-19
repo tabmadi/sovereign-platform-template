@@ -22,9 +22,39 @@ kratos:
             url: file:///etc/config/user.v1.json
       selfservice:
         default_browser_return_url: https://dev.example.com/
+        # Kratos forbids any post-flow `return_to` not prefixed by an entry here.
+        # The proxy (ADR-0014) sends a session-less visit to a gated route
+        # (/panel, /devportal) to login with `return_to=<that path>`, so the app
+        # origin must be allow-listed or the login redirect 400s into the error
+        # flow. Per-env overlays override the host.
+        allowed_return_urls:
+          - https://dev.example.com/
         flows:
+          # No local error UI ⇒ Kratos falls back to its hosted error page; keep
+          # the whole self-service flow set pointed at our own routes.
+          error:        { ui_url: https://dev.example.com/auth/error }
           login:        { ui_url: https://dev.example.com/auth/login }
-          registration: { ui_url: https://dev.example.com/auth/register }
+          registration:
+            ui_url: https://dev.example.com/auth/register
+            after:
+              # After a successful registration, create the identity's personal
+              # org (ADR-0010). East-west call to the orgs service (in-cluster,
+              # off the edge — ADR-0017); the handler starts a Temporal dual-write
+              # workflow. Blocking (default `ignore: false`) so a failed enqueue
+              # surfaces as a registration error the user can retry, rather than
+              # silently losing the org — once enqueued, Temporal guarantees it.
+              # `body` is the Jsonnet payload {identity_id, email}, inlined as a
+              # base64:// URL:  function(ctx) { identity_id: ctx.identity.id,
+              #                                  email: ctx.identity.traits.email, }
+              hooks:
+                - hook: web_hook
+                  config:
+                    url: http://orgs-server.platform.svc.cluster.local/identity-created
+                    method: POST
+                    body: base64://ZnVuY3Rpb24oY3R4KSB7CiAgaWRlbnRpdHlfaWQ6IGN0eC5pZGVudGl0eS5pZCwKICBlbWFpbDogY3R4LmlkZW50aXR5LnRyYWl0cy5lbWFpbCwKfQo=
+                    response:
+                      ignore: false
+                      parse: false
           recovery:
             enabled: true
             use: code              # enumeration-resistant; no account-existence leak
@@ -70,7 +100,7 @@ kratos:
         whoami:
           required_aal: highest_available
         # Scope the session cookie to the parent host so it is shared with
-        # subdomains (e.g. hubble.ops.<host>, served at its own origin). Without a
+        # subdomains (e.g. network.ops.<host>, served at its own origin). Without a
         # domain the cookie is host-only and the subdomain sees no session. Set to
         # the app host; each env overrides it (local → dev.localtest.me).
         cookie:

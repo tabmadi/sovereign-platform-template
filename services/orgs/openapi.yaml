@@ -1,9 +1,20 @@
 openapi: 3.1.0
-info: { title: orgs, version: 0.1.0, description: Organization and membership service. }
-servers: [{ url: /api/orgs }]
-tags: [{ name: orgs }, { name: internal }]
+info: { title: orgs, version: 0.1.0, description: Organization and membership service., x-audience: public }
+servers: [{ url: /api }]   # flat resource namespace (ADR-0017); paths are globally unique
+# `x-admin: crud` marks the resource group the admin generator (ADR-0012, tools/admin-gen)
+# scaffolds list/detail/create/edit pages for, from the operations present below.
+tags: [{ name: orgs, x-admin: crud }, { name: cluster }]
 paths:
   /orgs:
+    get:
+      operationId: listOrgs
+      # Listing every org is a back-office view, kept out of public docs (ADR-0008).
+      x-audience: internal
+      description: List all organizations.
+      tags: [orgs]
+      responses:
+        "200": { description: The organization list, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Org" } } } } }
+        default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createOrg
       description: Create an organization.
@@ -24,10 +35,35 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
         default: { $ref: "#/components/responses/Error" }
-  /internal/identity-created:
+    put:
+      operationId: updateOrg
+      x-audience: internal
+      description: Rename an organization.
+      tags: [orgs]
+      parameters: [{ name: id, in: path, required: true, description: Id of the organization to update., schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        description: The new organization fields.
+        content: { application/json: { schema: { $ref: "#/components/schemas/OrgInput" } } }
+      responses:
+        "200": { description: The updated organization, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteOrg
+      x-audience: internal
+      description: Delete an organization.
+      tags: [orgs]
+      parameters: [{ name: id, in: path, required: true, description: Id of the organization to delete., schema: { type: string, format: uuid } }]
+      responses:
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Error" }
+  /identity-created:
     post:
       operationId: onIdentityCreated
-      tags: [internal]
+      # East-west webhook (Kratos → orgs, in-cluster): bypasses the edge, gated by
+      # NetworkPolicy. `x-audience: cluster` keeps it off both docs portals (ADR-0008).
+      x-audience: cluster
+      tags: [cluster]
       description: Kratos post-registration webhook. Creates a personal org for the new identity.
       requestBody:
         required: true

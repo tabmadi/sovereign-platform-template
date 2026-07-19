@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Activities struct {
@@ -25,8 +26,12 @@ type Activities struct {
 
 func New(db *pgxpool.Pool) *Activities {
 	return &Activities{
-		DB:         db,
-		HTTP:       &http.Client{},
+		DB: db,
+		// otelhttp transport injects the W3C traceparent on every outbound call, so
+		// the catalog/payment server spans stitch under this activity's span (which
+		// Temporal's tracing interceptor already links to the checkout workflow).
+		// Without it the cross-service hop starts a detached root trace.
+		HTTP:       &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)},
 		CatalogURL: env("CATALOG_URL", "http://catalog-server.platform.svc.cluster.local"),
 		PaymentURL: env("PAYMENT_URL", "http://payment-server.platform.svc.cluster.local"),
 	}

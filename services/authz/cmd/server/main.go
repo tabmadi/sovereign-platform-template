@@ -1,6 +1,6 @@
 // authz — the ops-tier edge authorizer (ADR-0017). A tiny internal HTTP service
 // (no DB, no edge route) that Oathkeeper's remote_json authorizer calls to decide
-// per-tool operator dashboard access via libs/go/authz's SpiceDB Checker.
+// per-tool operator dashboard access via libs/go/authz's OpenFGA Checker.
 package main
 
 import (
@@ -17,8 +17,8 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/decision"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/operator"
+	authzsdk "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/authz"
+	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/handlers"
 )
 
 const serviceName = "authz"
@@ -50,13 +50,22 @@ func run() error {
 		return fmt.Errorf("authz granter: %w", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/internal/authorize", decision.New(checker, slog.Default()))
-	mux.Handle("/admin/operators", operator.New(granter, slog.Default()))
+	// Coarse claim gate is always on; the optional fine per-tool OpenFGA layer is
+	// enabled per-project (ADR-0017). Default off keeps the coarse gate free of any
+	// OpenFGA dependency.
+	fineGrained := os.Getenv("OPS_FINE_GRAINED") == "true"
+
+	// authz is spec-first like every HTTP service (ADR-0008): the ogen server routes
+	// and validates; the handlers implement the generated interface. No authmw — the
+	// caller is Oathkeeper (remote_json), not a user session.
+	api, err := authzsdk.NewServer(handlers.New(checker, granter, fineGrained, slog.Default()))
+	if err != nil {
+		return fmt.Errorf("ogen server: %w", err)
+	}
 
 	srv := &http.Server{
 		Addr:              ":8080",
-		Handler:           httpmw.Chain(mux, serviceName),
+		Handler:           httpmw.Chain(api, serviceName),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	serveErr := make(chan error, 1)

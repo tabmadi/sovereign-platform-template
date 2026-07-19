@@ -13,8 +13,11 @@ set -uo pipefail
 HOST="${E2E_HOST:-dev.localtest.me:8443}"
 failed=0
 
-ok()   { printf '✓ %s\n' "$1"; }
-bad()  { printf '✗ %s: %s\n' "$1" "$2" >&2; failed=$((failed + 1)); }
+ok() { printf '✓ %s\n' "$1"; }
+bad() {
+  printf '✗ %s: %s\n' "$1" "$2" >&2
+  failed=$((failed + 1))
+}
 
 deploy_ready() { # ns name
   local reps
@@ -31,24 +34,29 @@ edge_gates() { # tool
   code=$(curl -sk --noproxy '*' -o /dev/null -w '%{http_code}' \
     "https://$1.ops.${HOST}/" --max-time 8 2>/dev/null)
   case "$code" in
-    401 | 403 | 302 | 303) ok "edge gates $1 (HTTP $code)" ;;
-    *) bad "edge gates $1" "unexpected HTTP $code (edge/oathkeeper not gating)" ;;
+  401 | 403 | 302 | 303) ok "edge gates $1 (HTTP $code)" ;;
+  *) bad "edge gates $1" "unexpected HTTP $code (edge/oathkeeper not gating)" ;;
   esac
 }
 
-deploy_ready platform    ory-oathkeeper
-deploy_ready platform    ory-kratos
-deploy_ready platform    authz-server
-deploy_ready platform    spicedb
-deploy_ready platform    grafana
-deploy_ready platform    temporal-web
-deploy_ready platform    lowdefy
+deploy_ready platform ory-oathkeeper
+deploy_ready platform ory-kratos
+deploy_ready platform authz-server
+deploy_ready platform openfga
+deploy_ready platform grafana
+deploy_ready platform temporal-web
+deploy_ready platform lowdefy
+deploy_ready platform headlamp
+deploy_ready platform pgweb
 deploy_ready kube-system hubble-ui
 deploy_ready kube-system hubble-relay
-edge_gates grafana
-edge_gates temporal
-edge_gates hubble
-edge_gates console
+# Ops origins are the ADR-0017 concept slugs, not the tool names.
+edge_gates o11y
+edge_gates workflows
+edge_gates network
+edge_gates admin
+edge_gates k8s
+edge_gates db
 
 if [ "$failed" -gt 0 ]; then
   printf '\npreflight: %d check(s) failed — cluster:full is not ready (infra down, not app broken)\n' "$failed" >&2

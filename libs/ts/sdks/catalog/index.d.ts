@@ -31,9 +31,11 @@ export interface paths {
         };
         /** @description Fetch a product by id. */
         get: operations["getProduct"];
-        put?: never;
+        /** @description Update a product. */
+        put: operations["updateProduct"];
         post?: never;
-        delete?: never;
+        /** @description Delete a product. */
+        delete: operations["deleteProduct"];
         options?: never;
         head?: never;
         patch?: never;
@@ -149,6 +151,57 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Product"];
                 };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the product to update. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The new product fields. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductInput"];
+            };
+        };
+        responses: {
+            /** @description The updated product */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the product to delete. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Error"];
         };

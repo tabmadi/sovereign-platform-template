@@ -1,7 +1,7 @@
 # ADR-0005: Secrets Management
 
 - **Status:** Accepted
-- **Date:** 2026-05-19
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0002](0002-monorepo.md), [ADR-0004](0004-gitops.md), [ADR-0015](0015-naming-and-identifiers.md)
 
@@ -35,11 +35,11 @@ Every environment needs secrets: database passwords, JWT signing keys, OAuth cli
 
 Every encrypted file in the repo has exactly three classes of recipient, listed in `.sops.yaml` at the repo root:
 
-1. **Per-engineer keys** — one age public key per engineer with current access. Engineers generate their own key pairs with `age-keygen`; the private key lives at `~/.config/sops/age/keys.txt` and never leaves the laptop.
+1. **Per-engineer keys** — one age public key per engineer with current access, named by that engineer's `{handle}` from [ADR-0015](0015-naming-and-identifiers.md) (e.g. the `eng_alice` recipient) so each key in the list traces to a person. A per-engineer key is a recipient across every environment's files, so it is scoped by project and handle, not by env. Engineers generate their own key pairs with `age-keygen`; the private key lives at `~/.config/sops/age/keys.txt` and never leaves the laptop.
 2. **Per-cluster key** — one age public key per environment (`dev`, `staging`, `prod`), named in `.sops.yaml` by the `{project}-{env}` form from [ADR-0015](0015-naming-and-identifiers.md). The matching private key lives only in that cluster, as a Kubernetes Secret in the `sops` namespace, materialised at cluster bootstrap by Ansible. The in-cluster operator (below) reads it.
 3. **Ops-recovery key** — a single age public key whose private half is held offline by 2–3 senior engineers. It exists so that a lost cluster key can be recovered without re-encrypting every secret. Used only in disaster recovery.
 
-`.sops.yaml` declares creation rules per path so files under `infra/gitops/<env>/` are encrypted to that environment's cluster key plus engineers plus ops-recovery; files outside an env path are encrypted to engineers plus ops-recovery only.
+`.sops.yaml` declares creation rules per path so files under `infra/gitops/platform/<env>/secrets/` are encrypted to that environment's cluster key plus engineers plus ops-recovery; files outside an env path are encrypted to engineers plus ops-recovery only. Those per-env `SopsSecret` files are delivered to the cluster by the `secrets` ApplicationSet (dev/staging/prod) and the `local-secrets` Application (local), both at sync-wave 1 — after the base-tier sops-operator, before the data tier that consumes the Secrets ([ADR-0004](0004-gitops.md)).
 
 ### In-cluster decryption
 
@@ -51,19 +51,21 @@ Service authors reference secrets by name in the service's Helm values, exactly 
 
 ### Local decryption
 
-`age-keygen` once, after which `mise run cluster:lite` and any `sops decrypt` invocation works without further configuration.
+`mise run secrets:age` once, after which `mise run cluster:lite` and any `sops decrypt` invocation works without further configuration.
 
 Engineers run services locally against decrypted secrets via:
 
 ```sh
-sops exec-env infra/gitops/dev/secrets/<svc>.enc.yaml -- mise run -C services/<svc> run
+sops exec-env infra/gitops/platform/dev/secrets/platform.enc.yaml -- mise run -C services/<svc> server
 ```
 
-The wrapper task in each service's `.mise.toml` makes this a single `mise run run` invocation.
+The lite inner loop needs no decryption: each service's `.env.example` (copied to `.env`, loaded by its
+`.mise.toml`) carries the local dev credentials, so `mise run server` stands alone. Reach for `sops exec-env`
+only when running against a real environment's secrets.
 
 ### Key lifecycle
 
-- **Onboarding:** the new engineer runs `age-keygen`, opens a PR adding the public key to `.sops.yaml`, and runs `sops updatekeys` on all encrypted files. The PR diff is the audit trail.
+- **Onboarding:** the new engineer runs `mise run secrets:age`, opens a PR adding the public key to `.sops.yaml`, and runs `sops updatekeys` on all encrypted files. The PR diff is the audit trail.
 - **Offboarding:** the leaving engineer's public key is removed from `.sops.yaml`, `sops updatekeys` runs on all files, and every secret that engineer had access to is rotated. The rotation is non-optional regardless of departure circumstances; it is the standing policy.
 - **Cluster-key rotation:** a new cluster key pair is generated, the public key is added as an additional recipient to env-scoped files via `sops updatekeys`, the in-cluster Secret is updated, and after one full sync cycle the old key is removed.
 - **Ops-recovery key rotation:** generated fresh annually as part of the security review; old key destroyed.

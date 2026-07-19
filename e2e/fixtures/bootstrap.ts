@@ -1,23 +1,26 @@
 // Committed test-identity bootstrap (ADR-0018 §Test data). Idempotently provisions
 // the deterministic identities into Kratos via the admin API and grants the
-// operator group membership in SpiceDB — the same way in CI and locally, with no
+// operator group membership in OpenFGA — the same way in CI and locally, with no
 // hand-seeded state and no SMTP dependency.
 //
 // Split of responsibility (single source of truth):
-//   - cluster:full bring-up seeds the SpiceDB schema + the static
+//   - cluster:full bring-up seeds the OpenFGA store + model + the static
 //     dashboard->group:operator grants (platform policy; see scripts/cluster-full.sh).
 //   - this bootstrap creates the Kratos identities and writes the one relation that
 //     can only exist at test time: group:operator#member@user:<operator-kratos-id>.
-import { execFileSync } from "node:child_process";
 import { IDENTITIES, OPERATOR, type TestIdentity } from "./identities";
 import { portForward } from "./kube";
 
 const KRATOS_ADMIN = "http://127.0.0.1:4434";
 const SCHEMA_ID = "user_v1";
-const SPICEDB_PORT = 50051;
-// Local/CI cluster:full preshared key (infra secret spicedb-creds). Override for a
+const OPENFGA_PORT = 8080;
+// Local forward port for the OpenFGA HTTP API. NOT 8080: the local k3d cluster maps
+// host 8080 -> the edge loadbalancer (Traefik), so binding 8080 here would collide
+// with the edge and requests would hit Traefik (404) instead of OpenFGA.
+const OPENFGA_LOCAL_PORT = Number(process.env.OPENFGA_LOCAL_PORT ?? 18080);
+// Local/CI cluster:full preshared key (infra secret openfga-creds). Override for a
 // deployed target.
-const SPICEDB_TOKEN = process.env.SPICEDB_TOKEN ?? "localdevkey";
+const OPENFGA_TOKEN = process.env.OPENFGA_TOKEN ?? "localdevkey";
 
 type KratosIdentity = { id: string; traits: { email: string } };
 
@@ -46,7 +49,11 @@ async function createIdentity(id: TestIdentity): Promise<string> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       schema_id: SCHEMA_ID,
-      traits: { email: id.email },
+      // The `operator` trait is the coarse ops-gate claim (ADR-0017) and is ALWAYS
+      // enforced — OpenFGA group:operator membership only feeds the optional fine
+      // gate. Set it here too, or the operator fails the gate despite the grant
+      // below (same coupling as scripts/ops-grant.sh).
+      traits: { email: id.email, operator: id.operator },
       // Import path: the password is hashed by Kratos and is NOT run through the
       // sign-up policy (HIBP/length) — deterministic committed creds are fine.
       credentials: { password: { config: { password: id.password } } },
@@ -75,12 +82,37 @@ async function resetIdentity(id: TestIdentity): Promise<string> {
   return createIdentity(id);
 }
 
-function zed(args: string[]): void {
-  execFileSync(
-    "zed",
-    [...args, "--endpoint", `127.0.0.1:${SPICEDB_PORT}`, "--insecure", "--token", SPICEDB_TOKEN],
-    { stdio: "pipe" },
-  );
+const OPENFGA_API = `http://127.0.0.1:${OPENFGA_LOCAL_PORT}`;
+const fgaHeaders = { authorization: `Bearer ${OPENFGA_TOKEN}`, "content-type": "application/json" };
+
+// Discover the platform store by name (same lookup the services do).
+async function storeId(): Promise<string> {
+  const res = await fetch(`${OPENFGA_API}/stores`, { headers: fgaHeaders });
+  if (!res.ok) {
+    throw new Error(`openfga list stores failed: ${res.status} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { stores?: { id: string; name: string }[] };
+  const hit = body.stores?.find((s) => s.name === "platform");
+  if (!hit) {
+    throw new Error("openfga store 'platform' not found — has the seed Job run?");
+  }
+  return hit.id;
+}
+
+// Write a tuple, tolerating the idempotent "already existed" duplicate error.
+async function writeTuple(sid: string, user: string, relation: string, object: string): Promise<void> {
+  const res = await fetch(`${OPENFGA_API}/stores/${sid}/write`, {
+    method: "POST",
+    headers: fgaHeaders,
+    body: JSON.stringify({ writes: { tuple_keys: [{ user, relation, object }] } }),
+  });
+  if (res.ok) {
+    return;
+  }
+  const text = await res.text();
+  if (!text.includes("already existed")) {
+    throw new Error(`openfga write failed: ${res.status} ${text}`);
+  }
 }
 
 // provision creates both identities and writes the operator's group membership.
@@ -97,12 +129,13 @@ export async function provision(): Promise<Record<string, string>> {
   }
 
   // Operator membership keyed by the freshly-created Kratos id (the authz subject
-  // is `user:<kratos-id>`). `touch` is idempotent.
-  const spicedbPf = await portForward("spicedb", SPICEDB_PORT, SPICEDB_PORT);
+  // is `user:<kratos-id>`). The write is idempotent.
+  const openfgaPf = await portForward("openfga", OPENFGA_LOCAL_PORT, OPENFGA_PORT);
   try {
-    zed(["relationship", "touch", "group:operator", "member", `user:${ids[OPERATOR.label]}`]);
+    const sid = await storeId();
+    await writeTuple(sid, `user:${ids[OPERATOR.label]}`, "member", "group:operator");
   } finally {
-    spicedbPf.stop();
+    openfgaPf.stop();
   }
 
   return ids;

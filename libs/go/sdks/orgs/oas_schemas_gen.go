@@ -13,6 +13,9 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
+// DeleteOrgNoContent is response for DeleteOrg operation.
+type DeleteOrgNoContent struct{}
+
 // ErrorStatusCode wraps Problem with StatusCode.
 type ErrorStatusCode struct {
 	StatusCode int

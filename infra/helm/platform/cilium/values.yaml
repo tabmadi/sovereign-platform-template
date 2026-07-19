@@ -7,6 +7,13 @@ cilium:
   ipam:
     mode: kubernetes
 
+  # WireGuard transparent encryption for all east-west pod traffic (ADR-0003).
+  # A config flag, not a sidecar: multi-tenant PII and audit posture do not ship
+  # plaintext east-west. Node-to-node only; host-level traffic is out of scope.
+  encryption:
+    enabled: true
+    type: wireguard
+
   # Hubble gives per-flow network visibility without a sidecar (ADR-0003). It is
   # the audit surface for internal header-trust (ADR-0009). The UI is deployed
   # and exposed auth-gated at the hubble.<host> subdomain via the gateway

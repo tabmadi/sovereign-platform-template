@@ -22,6 +22,15 @@ func (UnimplementedHandler) CreateProduct(ctx context.Context, req *ProductInput
 	return r, ht.ErrNotImplemented
 }
 
+// DeleteProduct implements deleteProduct operation.
+//
+// Delete a product.
+//
+// DELETE /products/{id}
+func (UnimplementedHandler) DeleteProduct(ctx context.Context, params DeleteProductParams) error {
+	return ht.ErrNotImplemented
+}
+
 // GetProduct implements getProduct operation.
 //
 // Fetch a product by id.
@@ -37,6 +46,15 @@ func (UnimplementedHandler) GetProduct(ctx context.Context, params GetProductPar
 //
 // GET /products
 func (UnimplementedHandler) ListProducts(ctx context.Context) (r []Product, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// UpdateProduct implements updateProduct operation.
+//
+// Update a product.
+//
+// PUT /products/{id}
+func (UnimplementedHandler) UpdateProduct(ctx context.Context, req *ProductInput, params UpdateProductParams) (r *Product, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -1,0 +1,45 @@
+{{- if .Values.pgweb.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgweb
+  namespace: platform
+  labels: { app.kubernetes.io/name: pgweb }
+spec:
+  replicas: {{ .Values.pgweb.replicas }}
+  selector: { matchLabels: { app.kubernetes.io/name: pgweb } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: pgweb } }
+    spec:
+      # pgweb exits (not retries) if the DB is unreachable at startup, so on a cold
+      # bring-up it crash-loops for minutes while CNPG bootstraps. Wait for the DSN
+      # to accept connections first — pg_isready ships in the pgweb image, so this
+      # reuses it (no extra pull). Mirrors the services' dbmw startup-retry.
+      initContainers:
+        - name: wait-for-db
+          image: "{{ .Values.pgweb.image.repository }}:{{ .Values.pgweb.image.tag }}"
+          imagePullPolicy: {{ .Values.pgweb.image.pullPolicy }}
+          command: ["sh", "-c", "until pg_isready -d \"$PGWEB_DATABASE_URL\"; do echo waiting for postgres; sleep 2; done"]
+          env:
+            - { name: PGWEB_DATABASE_URL, value: {{ .Values.pgweb.databaseUrl | quote }} }
+      containers:
+        - name: pgweb
+          image: "{{ .Values.pgweb.image.repository }}:{{ .Values.pgweb.image.tag }}"
+          imagePullPolicy: {{ .Values.pgweb.image.pullPolicy }}
+          # --readonly is pgweb's own session guard (ADR-0012 break-glass intent);
+          # --bind/--listen must be repeated when args are overridden. The DSN is
+          # read from PGWEB_DATABASE_URL below.
+          args: ["--bind=0.0.0.0", "--listen=8081", "--readonly"]
+          env:
+            - { name: PGWEB_DATABASE_URL, value: {{ .Values.pgweb.databaseUrl | quote }} }
+          ports: [{ name: http, containerPort: 8081 }]
+          readinessProbe: { tcpSocket: { port: http } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: pgweb, namespace: platform }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: pgweb }
+  ports: [{ name: http, port: {{ .Values.pgweb.service.port }}, targetPort: http }]
+{{- end }}

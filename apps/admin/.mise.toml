@@ -1,8 +1,23 @@
 # Lowdefy 5 requires Node + pnpm (it shells out to pnpm and serves a Next.js app),
-# so these host tasks run the lowdefy CLI under Node, not bun — a tool-confined
-# island, the same exception ADR-0018 makes for the Playwright runner. corepack
-# provides pnpm; pnpm 10+ needs build scripts allowed for the server's deps
-# (sharp, @sentry/cli). The container build does the same (apps/admin/Dockerfile).
+# so these host tasks run the lowdefy CLI under Node, not bun. Lowdefy is a
+# third-party app we run, not code we author, so the runtime is upstream's choice:
+# the CLI aborts without pnpm and `lowdefy start` shells out to `next start`, a
+# `#!/usr/bin/env node` binary. This is the second of the two Node exceptions
+# ADR-0001 sanctions (the other is the Playwright runner in e2e/).
+# corepack provides pnpm; pnpm
+# 10+ needs build scripts allowed for the server's deps (sharp, @sentry/cli). The
+# container build does the same (apps/admin/Dockerfile).
+#
+# These tasks are OPTIONAL — a `lowdefy dev` hot-reload convenience. Nothing depends
+# on them: not root lint/test/build, not CI. Both paths that matter build the image
+# instead, with Node inside it (publish.yml `context=apps/admin`; `platform:deploy --
+# lowdefy` → `docker build -f apps/admin/Dockerfile`). `gen:admin`, the only
+# admin task at the root, is pure bash + yq. So node is pinned here, for this loop
+# only, and auto-installs on first `mise run -C apps/admin …` — never for a dev who
+# does not use it. Version comes from the root [env]; do not repeat the number.
+[tools]
+node = "{{env.NODE_VERSION}}"
+
 [env]
 LOWDEFY_VERSION = "5.4.0"
 

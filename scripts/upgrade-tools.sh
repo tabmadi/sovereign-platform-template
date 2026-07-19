@@ -2,6 +2,7 @@
 # Checks .mise.toml tools against latest available versions and optionally upgrades them.
 # Uses --bump to cross major/minor boundaries and write new versions back to .mise.toml.
 set -euo pipefail
+source "$(dirname "$0")/lib/log.sh"
 
 cd "$(dirname "$0")/.."
 
@@ -28,22 +29,19 @@ if [[ -z "${GITHUB_TOKEN:-}" ]]; then
     GITHUB_TOKEN=$(gh auth token 2>/dev/null || true)
     export GITHUB_TOKEN
   else
-    echo "WARN: GITHUB_TOKEN is not set. mise makes unauthenticated GitHub API calls,"
-    echo "      which are rate-limited (60 req/hr). Set a token to avoid 403 errors:"
-    echo ""
-    echo "  export GITHUB_TOKEN=<your-token>   # https://github.com/settings/tokens"
-    echo "  # or: log in with 'gh auth login' and this script will use it automatically"
-    echo ""
+    warn "GITHUB_TOKEN is not set. mise makes unauthenticated GitHub API calls,"
+    detail "which are rate-limited (60 req/hr). Set a token to avoid 403 errors:"
+    detail "  export GITHUB_TOKEN=<your-token>   # https://github.com/settings/tokens"
+    detail "  # or: log in with 'gh auth login' and this script will use it automatically"
   fi
 fi
 
-echo "Checking for outdated tools (latest across all versions)..."
-echo ""
+step "checking for outdated tools (latest across all versions)"
 
 outdated=$(mise outdated --bump --no-header)
 
 if [[ -z "$outdated" ]]; then
-  echo "All tools are up to date."
+  ok "all tools are up to date"
   exit 0
 fi
 
@@ -54,7 +52,7 @@ echo "$outdated"
 echo ""
 
 if $DRY_RUN; then
-  echo "Dry run — no changes made."
+  ok "dry run — no changes made"
   exit 0
 fi
 
@@ -62,9 +60,9 @@ fi
 # Only prompt when interactive; otherwise the explicit task invocation is consent.
 if ! $YES && [[ -t 0 ]]; then
   read -rp "Upgrade all outdated tools and update .mise.toml? [y/N] " confirm
-  [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+  [[ "$confirm" =~ ^[Yy]$ ]] || { ok "aborted"; exit 0; }
 fi
 
+step "upgrading tools and updating .mise.toml"
 mise upgrade --bump
-echo ""
-echo "Done. Review version bumps with: git diff .mise.toml"
+ok "done — review version bumps with: git diff .mise.toml"

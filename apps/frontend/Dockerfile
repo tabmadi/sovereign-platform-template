@@ -15,6 +15,11 @@ FROM oven/bun:${BUN_VERSION}-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules /app/node_modules
 COPY . .
+# Build identity baked into the bundle (ADR-0013): next.config inlines
+# NEXT_PUBLIC_SERVICE_VERSION from SERVICE_VERSION at build, so the shipped JS and
+# the X-App-Version response header both report the git SHA / release.
+ARG SERVICE_VERSION=dev
+ENV SERVICE_VERSION=$SERVICE_VERSION
 RUN cd apps/frontend && bun run build
 
 FROM oven/bun:${BUN_VERSION}-alpine AS runtime

@@ -1,7 +1,9 @@
 openapi: 3.1.0
-info: { title: catalog, version: 0.1.0, description: Product catalog service. }
-servers: [{ url: /api/catalog }]
-tags: [{ name: products }]
+info: { title: catalog, version: 0.1.0, description: Product catalog service., x-audience: public }
+servers: [{ url: /api }]   # flat resource namespace (ADR-0017); paths are globally unique
+# `x-admin: crud` marks the resource group the admin generator (ADR-0012, tools/admin-gen)
+# scaffolds list/detail/create/edit pages for, from the operations present below.
+tags: [{ name: products, x-admin: crud }]
 paths:
   /products:
     get:
@@ -13,6 +15,10 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createProduct
+      # First-party edge op: writing the catalog is an internal/admin action, so it
+      # is edge-reachable but kept out of the public docs (overrides the service's
+      # `public` default — ADR-0008 audience ladder). The public catalog is read-only.
+      x-audience: internal
       description: Create a product.
       tags: [products]
       requestBody:
@@ -30,6 +36,29 @@ paths:
       parameters: [{ name: id, in: path, required: true, description: Product id., schema: { type: string, format: uuid } }]
       responses:
         "200": { description: The requested product, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    put:
+      operationId: updateProduct
+      # First-party edit action, kept out of public docs (ADR-0008 audience ladder).
+      x-audience: internal
+      description: Update a product.
+      tags: [products]
+      parameters: [{ name: id, in: path, required: true, description: Id of the product to update., schema: { type: string, format: uuid } }]
+      requestBody:
+        required: true
+        description: The new product fields.
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProductInput" } } }
+      responses:
+        "200": { description: The updated product, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteProduct
+      x-audience: internal
+      description: Delete a product.
+      tags: [products]
+      parameters: [{ name: id, in: path, required: true, description: Id of the product to delete., schema: { type: string, format: uuid } }]
+      responses:
+        "204": { description: Deleted }
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:

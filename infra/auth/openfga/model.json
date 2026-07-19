@@ -1,0 +1,228 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {
+      "type": "user"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "admin": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "manage": {},
+          "member": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "read": {},
+          "write": {}
+        }
+      },
+      "relations": {
+        "admin": {
+          "this": {}
+        },
+        "manage": {
+          "computedUserset": {
+            "relation": "admin"
+          }
+        },
+        "member": {
+          "this": {}
+        },
+        "read": {
+          "union": {
+            "child": [
+              {
+                "computedUserset": {
+                  "relation": "member"
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "admin"
+                }
+              }
+            ]
+          }
+        },
+        "write": {
+          "computedUserset": {
+            "relation": "admin"
+          }
+        }
+      },
+      "type": "org"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "org": {
+            "directly_related_user_types": [
+              {
+                "type": "org"
+              }
+            ]
+          },
+          "read": {},
+          "write": {}
+        }
+      },
+      "relations": {
+        "org": {
+          "this": {}
+        },
+        "read": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "read"
+            },
+            "tupleset": {
+              "relation": "org"
+            }
+          }
+        },
+        "write": {
+          "tupleToUserset": {
+            "computedUserset": {
+              "relation": "write"
+            },
+            "tupleset": {
+              "relation": "org"
+            }
+          }
+        }
+      },
+      "type": "product"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "org": {
+            "directly_related_user_types": [
+              {
+                "type": "org"
+              }
+            ]
+          },
+          "owner": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "read": {},
+          "write": {}
+        }
+      },
+      "relations": {
+        "org": {
+          "this": {}
+        },
+        "owner": {
+          "this": {}
+        },
+        "read": {
+          "union": {
+            "child": [
+              {
+                "computedUserset": {
+                  "relation": "owner"
+                }
+              },
+              {
+                "tupleToUserset": {
+                  "computedUserset": {
+                    "relation": "write"
+                  },
+                  "tupleset": {
+                    "relation": "org"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "write": {
+          "union": {
+            "child": [
+              {
+                "computedUserset": {
+                  "relation": "owner"
+                }
+              },
+              {
+                "tupleToUserset": {
+                  "computedUserset": {
+                    "relation": "write"
+                  },
+                  "tupleset": {
+                    "relation": "org"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "type": "order"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "member": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "member": {
+          "this": {}
+        }
+      },
+      "type": "group"
+    },
+    {
+      "metadata": {
+        "relations": {
+          "view": {},
+          "viewer": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "relation": "member",
+                "type": "group"
+              }
+            ]
+          }
+        }
+      },
+      "relations": {
+        "view": {
+          "computedUserset": {
+            "relation": "viewer"
+          }
+        },
+        "viewer": {
+          "this": {}
+        }
+      },
+      "type": "dashboard"
+    }
+  ]
+}

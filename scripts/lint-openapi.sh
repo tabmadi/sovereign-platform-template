@@ -4,6 +4,7 @@
 # declared in each spec's own components rather than via cross-file $refs, to
 # keep specs portable across the codegen (ogen) and linting (vacuum) tools.
 set -euo pipefail
+source "$(dirname "$0")/lib/log.sh"
 
 shopt -s nullglob globstar
 
@@ -13,8 +14,9 @@ for f in services/*/openapi.yaml; do
 done
 
 if [[ ${#specs[@]} -eq 0 ]]; then
-  echo "no OpenAPI specs yet"
+  ok "no OpenAPI specs yet"
   exit 0
 fi
 
+step "linting ${#specs[@]} OpenAPI spec(s) with vacuum"
 exec vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error "${specs[@]}"

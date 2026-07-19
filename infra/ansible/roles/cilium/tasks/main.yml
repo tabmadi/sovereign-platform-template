@@ -29,3 +29,16 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   when: inventory_hostname == groups['servers'][0]
+
+# hubble-peer is backed by the cilium-agent pod itself (hostPort :4244); the chart
+# ships it with no publishNotReadyAddresses. When an agent restarts, its endpoint
+# goes NotReady and Cilium's LB can quarantine that backend, breaking hubble-relay's
+# peer discovery (fatal under kubeProxyReplacement=false, cosmetic under true). Keep
+# the peer endpoint always-ready so a restarting agent never gets health-gated out.
+- name: Keep hubble-peer endpoints published across agent restarts
+  shell: >
+    kubectl -n kube-system patch svc hubble-peer --type merge
+    -p '{"spec":{"publishNotReadyAddresses":true}}'
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: inventory_hostname == groups['servers'][0]

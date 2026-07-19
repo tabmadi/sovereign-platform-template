@@ -25,6 +25,11 @@ tempo:
         s3:
           endpoint: minio.platform.svc.cluster.local:9000
           insecure: true
-mimir:
-  storage:
-    endpoint: minio.platform.svc.cluster.local:9000
+
+# Lowdefy admin console (ADR-0012): the one repo-built platform image. Pulled from
+# ghcr and promoted by git SHA on merge (promote-on-merge), exactly like the Go
+# services and the frontend. Local uses the k3d registry (platform/local/values.yaml).
+lowdefy:
+  image:
+    repository: ghcr.io/tabmadi/microservices-monorepo-template/admin
+    tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge

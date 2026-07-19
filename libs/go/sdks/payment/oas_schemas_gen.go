@@ -313,6 +313,22 @@ func (s *ProblemDetails) init() ProblemDetails {
 	return m
 }
 
+// Request body to refund a charge.
+// Ref: #/components/schemas/RefundInput
+type RefundInput struct {
+	Reason string `json:"reason"`
+}
+
+// GetReason returns the value of Reason.
+func (s *RefundInput) GetReason() string {
+	return s.Reason
+}
+
+// SetReason sets the value of Reason.
+func (s *RefundInput) SetReason(val string) {
+	s.Reason = val
+}
+
 // Handle to an async Temporal workflow run.
 // Ref: #/components/schemas/WorkflowHandle
 type WorkflowHandle struct {

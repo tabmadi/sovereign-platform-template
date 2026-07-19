@@ -15,6 +15,72 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+// DeleteProductParams is parameters of deleteProduct operation.
+type DeleteProductParams struct {
+	// Id of the product to delete.
+	ID uuid.UUID
+}
+
+func unpackDeleteProductParams(packed middleware.Parameters) (params DeleteProductParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeDeleteProductParams(args [1]string, argsEscaped bool, r *http.Request) (params DeleteProductParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetProductParams is parameters of getProduct operation.
 type GetProductParams struct {
 	// Product id.
@@ -33,6 +99,72 @@ func unpackGetProductParams(packed middleware.Parameters) (params GetProductPara
 }
 
 func decodeGetProductParams(args [1]string, argsEscaped bool, r *http.Request) (params GetProductParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToUUID(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// UpdateProductParams is parameters of updateProduct operation.
+type UpdateProductParams struct {
+	// Id of the product to update.
+	ID uuid.UUID
+}
+
+func unpackUpdateProductParams(packed middleware.Parameters) (params UpdateProductParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(uuid.UUID)
+	}
+	return params
+}
+
+func decodeUpdateProductParams(args [1]string, argsEscaped bool, r *http.Request) (params UpdateProductParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

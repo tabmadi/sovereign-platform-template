@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run sqruff across all service migrations and sqlc queries (ADR-0007).
 set -euo pipefail
+source "$(dirname "$0")/lib/log.sh"
 
 shopt -s nullglob globstar
 
@@ -10,8 +11,9 @@ for d in services/*/migrations services/*/internal/store/queries; do
 done
 
 if [[ ${#targets[@]} -eq 0 ]]; then
-  echo "no SQL targets to lint (yet)"
+  ok "no SQL targets to lint (yet)"
   exit 0
 fi
 
+step "linting ${#targets[@]} SQL target(s) with sqruff"
 exec sqruff lint "${targets[@]}"

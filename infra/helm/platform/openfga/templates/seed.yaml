@@ -1,0 +1,102 @@
+{{- if and .Values.seed.enabled .Values.seed.model }}
+# Canonical authorization model (JSON), mounted into the seed Job. Generated from
+# the one model source (infra/auth/openfga/model.fga) and injected via the
+# ApplicationSet fileParameter seed.model.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openfga-model
+  namespace: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # Drift anchor for the grants (the seed Job below is a `hook: Sync`, which Argo
+    # excludes from OutOfSync detection — so a dashboards-only change would never
+    # trigger a sync and the hook would never re-run). Hashing the list onto this
+    # tracked ConfigMap makes any grant change mutate a tracked resource → OutOfSync
+    # → auto-sync → the Sync hook fires. The model already drifts via data below.
+    seed.openfga/dashboards-checksum: {{ .Values.seed.dashboards | toJson | sha256sum }}
+    seed.openfga/service-operators-checksum: {{ .Values.seed.serviceOperators | toJson | sha256sum }}
+data:
+  model.json: |
+{{ .Values.seed.model | indent 4 }}
+---
+# Seed Job (ADR-0007, ADR-0017). Runs after OpenFGA is Ready (sync-wave 2, after
+# the Deployment's default wave 0). One shell container drives the HTTP API with
+# curl + jq: ensure the `platform` store (list → find-by-name → else create),
+# write the model, then apply the ops grants. Idempotent — store find-or-create,
+# a fresh model version, and duplicate-tolerant tuple writes make it safe to
+# re-run on every sync. No fga CLI (its image is distroless and cannot script).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: openfga-seed
+  namespace: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: openfga-seed }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed
+          image: "{{ .Values.seed.image }}"
+          env:
+            - name: OPENFGA_KEY
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.existingSecret }}, key: preshared_key }
+            - name: DASHBOARDS
+              value: {{ .Values.seed.dashboards | join " " | quote }}
+            - name: SERVICE_OPERATORS
+              value: {{ .Values.seed.serviceOperators | join " " | quote }}
+          command:
+            - sh
+            - -ceu
+            - |
+              API=http://openfga.platform.svc.cluster.local:8080
+              AUTH="Authorization: Bearer $OPENFGA_KEY"
+
+              echo "waiting for openfga to serve..."
+              until curl -sf "$API/healthz" >/dev/null 2>&1; do sleep 2; done
+
+              # Ensure exactly one store named `platform` (idempotent across re-syncs).
+              SID=$(curl -sS "$API/stores" -H "$AUTH" | jq -r '.stores[] | select(.name=="platform") | .id' | head -n1)
+              if [ -z "$SID" ]; then
+                SID=$(curl -sS -X POST "$API/stores" -H "$AUTH" -H 'content-type: application/json' \
+                      -d '{"name":"platform"}' | jq -r '.id')
+                echo "created store $SID"
+              else
+                echo "reusing store $SID"
+              fi
+
+              # Write the model (a new immutable version each run; latest is used).
+              MID=$(curl -sS -X POST "$API/stores/$SID/authorization-models" -H "$AUTH" \
+                    -H 'content-type: application/json' -d @/model/model.json | jq -r '.authorization_model_id')
+              echo "wrote model $MID"
+
+              # write_tuple tolerates ONLY the duplicate-write error; any other
+              # failure aborts the Job (no blanket error swallowing).
+              write_tuple() {
+                body="{\"writes\":{\"tuple_keys\":[{\"user\":\"$3\",\"relation\":\"$2\",\"object\":\"$1\"}]}}"
+                out=$(curl -sS -o /tmp/resp -w '%{http_code}' -X POST "$API/stores/$SID/write" \
+                      -H "$AUTH" -H 'content-type: application/json' -d "$body")
+                if [ "$out" = "200" ]; then echo "  + $3 $2 $1"; return 0; fi
+                if grep -q 'already existed' /tmp/resp; then echo "  = $3 $2 $1"; return 0; fi
+                echo "ERROR $3 $2 $1: HTTP $out $(cat /tmp/resp)" >&2; return 1
+              }
+
+              # Ops dashboards → operator group; service accounts → operator members.
+              for d in $DASHBOARDS; do write_tuple "dashboard:$d" viewer "group:operator#member"; done
+              for u in $SERVICE_OPERATORS; do write_tuple "group:operator" member "user:$u"; done
+              echo "seed complete"
+          volumeMounts:
+            - { name: model, mountPath: /model, readOnly: true }
+      volumes:
+        - name: model
+          configMap: { name: openfga-model }
+{{- end }}

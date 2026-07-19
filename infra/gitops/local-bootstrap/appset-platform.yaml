@@ -1,0 +1,207 @@
+# Local Platform ApplicationSets (ADR-0004, ADR-0016). Identical to
+# bootstrap/appset-platform.yaml except each list generator carries a single
+# { env: local } element, and the base tier omits cilium + argocd — cluster:full
+# installs those imperatively before Argo can run (a CNI must exist before any pod
+# schedules; Argo cannot install itself), so Argo must not fight the imperative
+# releases.
+#
+# Naming: env-prefix throughout (ADR-0004). Every generated Application is
+# `local-platform-<chart>` regardless of which tier set produced it — grouping is
+# by the `local` AppProject + labels (appproject.yaml), not the ApplicationSet
+# name.
+#
+# The platform tier is split into three dependency layers so ArgoCD can order
+# them; see bootstrap/appset-platform.yaml for the full rationale (why three sets
+# and not per-chart sync-waves — generated-Application waves are inert). Wave
+# ladder (root children): -10 projects · 0 base · 1 secrets · 2 data · 3 core ·
+# 4 gateway · 25→5 services. local-secrets (wave 1) delivers the SopsSecret CR the
+# base-tier sops-operator decrypts into the Secrets the data/core tiers consume.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: local-platform-base
+  namespace: argocd
+  labels:
+    env: local
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: base
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: local, server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                - { path: "infra/helm/platform/sops-operator" }
+                - { path: "infra/helm/platform/cert-manager" }
+                - { path: "infra/helm/platform/network-policies" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: local-platform-data
+  namespace: argocd
+  labels:
+    env: local
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: data
+  annotations:
+    # Wave 2: after base (sops-operator up) and local-secrets (wave 1) so Postgres
+    # finds its superuser Secret instead of CreateContainerConfigError.
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: local, server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                - { path: "infra/helm/platform/postgres" }
+                - { path: "infra/helm/platform/minio" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: local-platform-core
+  namespace: argocd
+  labels:
+    env: local
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: core
+  annotations:
+    # Wave 3: after the data tier is Healthy, so Tempo/Loki find MinIO + their
+    # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: local, server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                - { path: "infra/helm/platform/observability" }
+                - { path: "infra/helm/platform/ory" }
+                - { path: "infra/helm/platform/temporal" }
+                - { path: "infra/helm/platform/openfga" }
+                - { path: "infra/helm/platform/pgweb" }
+                - { path: "infra/helm/platform/headlamp" }
+                - { path: "infra/helm/platform/lowdefy" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

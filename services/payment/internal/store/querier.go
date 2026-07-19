@@ -14,6 +14,7 @@ type Querier interface {
 	CreateCharge(ctx context.Context, arg CreateChargeParams) (CreateChargeRow, error)
 	GetByIdempotencyKey(ctx context.Context, idempotencyKey string) (GetByIdempotencyKeyRow, error)
 	GetCharge(ctx context.Context, id pgtype.UUID) (GetChargeRow, error)
+	ListCharges(ctx context.Context) ([]ListChargesRow, error)
 	UpdateChargeStatus(ctx context.Context, arg UpdateChargeStatusParams) error
 }
 

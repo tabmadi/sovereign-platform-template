@@ -2,7 +2,7 @@
 
 Per [ADR-0003](adr/0003-cluster-topology.md), k3d is the only local runtime.
 `mise run cluster:lite` creates the cluster and applies the lightweight dev
-dependencies (Postgres, Temporal, SpiceDB) from `infra/local/deps.yaml`. The
+dependencies (Postgres, Temporal, OpenFGA) from `infra/local/deps.yaml`. The
 inner loop is **native execution**: you run the service you are changing directly
 on the host against those dependencies — no image build, no in-cluster redeploy,
 no file-watch on the hot path.
@@ -14,27 +14,40 @@ This file is editor-agnostic. Any IDE that can load a `.env` file and run a Go
 
 ```sh
 mise run setup                       # lefthook hooks
-cp services/catalog/.env.example services/catalog/.env  # only for host-process debugging
+cp services/<svc>/.env.example services/<svc>/.env   # per service you work on
 ```
+
+Every service ships a `.env.example` listing exactly the variables it reads, with
+values already pointing at the port-forwarded deps. Its `.mise.toml` loads `.env`
+(`_.file`), so `mise run server` needs no inline environment. `.env` is gitignored;
+`.env.example` is the tracked contract.
 
 ## Inner loop (native)
 
 ```sh
-mise run cluster:lite  # k3d + a CNI + deps (Postgres, Temporal, SpiceDB)
+mise run cluster:lite  # k3d + a CNI + deps (Postgres, Temporal, OpenFGA)
 mise run dev:forward   # port-forward the deps to localhost (leave running in its own terminal)
 mise run db:migrate    # apply each service's migrations to the local Postgres
-# then run the service natively (any editor/IDE, or go run):
-DATABASE_URL=postgres://dev:dev@localhost:5432/catalog?sslmode=disable \
-  TEMPORAL_HOST_PORT=localhost:7233 SPICEDB_ENDPOINT=localhost:50051 \
-  go run ./services/catalog/cmd/server      # → http://localhost:8080
+
+cd services/catalog
+mise run server        # http server → http://localhost:8080
+mise run worker        # temporal worker (orders, payment, orgs)
 ```
 
 `dev:forward` exposes Postgres (`localhost:5432`), Temporal (`7233` gRPC / `8233`
-UI), and SpiceDB (`50051`) so the host process — and tools like `psql` — can reach
-them. Re-running the service is just re-running the binary; there is nothing to
+UI), and OpenFGA (`localhost:18080`) so the host process — and tools like `psql` —
+can reach them. OpenFGA is forwarded to `18080`, not its own `8080`, because the
+service under test already serves on `8080` (and k3d maps host `8080` to the edge);
+`OPENFGA_API_URL` in each service's `.env.example` points at `18080` to match. Re-running the service is just re-running the binary; there is nothing to
 rebuild or redeploy. To debug, point your editor's Go run configuration at
-`services/<svc>/cmd/server/main.go` with those env vars set; breakpoints and
-hot-restart work because the service is a plain host process.
+`services/<svc>/cmd/server/main.go` and have it load that service's `.env`;
+breakpoints and hot-restart work because the service is a plain host process.
+
+Every server hardcodes `:8080`, so only one can run natively at a time. To exercise
+a service that calls another (orders → catalog/payment), deploy the callee into the
+cluster with `mise run service:deploy -- catalog` and override `CATALOG_URL` /
+`PAYMENT_URL` in `.env` — their defaults are in-cluster DNS, which a host process
+cannot resolve.
 
 ### Putting a service *in* the cluster (edge/auth/e2e)
 
@@ -52,6 +65,19 @@ mise run service:undeploy -- catalog     # helm uninstall
 mise run cluster:stop        # stops the cluster, keeps the image cache + volumes
 mise run cluster:delete       # deletes the cluster (reclaims disk, forces a clean recreate)
 ```
+
+## After a reboot
+
+If the whole cluster is stuck (every pod `ContainerCreating`, Cilium down) after
+your machine rebooted, it's almost always the node's `host.k3d.internal` alias:
+Docker's restart policy replays the node container raw, skipping the k3d start
+step that injects it, so image pulls fail and the CNI never comes up. Heal it:
+
+```sh
+mise run cluster:heal        # stop + start so k3d re-injects host.k3d.internal
+```
+
+This is idempotent; run it whenever the cluster looks wedged after a reboot.
 
 ## End-to-end & visual tests
 
@@ -77,7 +103,7 @@ by hand. Playwright's runner is Node — the **one** sanctioned Node tool in the
 Generated code is never linted or formatted: Go SDKs (ogen) and sqlc store code
 are skipped via `exclusions.generated` in `.golangci.yml` (both `golangci-lint
 run` and `golangci-lint fmt`), the TS SDKs and admin `_generated/` via
-`biome.json`, and rumdl via `.rumdl.toml`.
+`biome.jsonc`, and rumdl via `.rumdl.toml`.
 Markdown is governed by **rumdl** (`.rumdl.toml`), the single source of truth for
 both linting and formatting. `mise run format:md` (`rumdl fmt`) auto-fixes most
 rules and runs on staged `.md` files via the lefthook pre-commit hook. For inline
@@ -99,18 +125,32 @@ For end-to-end work, the edge, auth, NetworkPolicy, or observability on a laptop
 `mise run cluster:full` (scripts/cluster-full.sh) stands up the **same charts
 production runs**, at a single replica ([ADR-0016](adr/0016-environment-parity.md)),
 **delivered by ArgoCD** — the same engine staging/prod use: **Cilium** as the CNI
-(real NetworkPolicy + Hubble), **CNPG**, the **Temporal** chart, the **SpiceDB**
+(real NetworkPolicy + Hubble), **CNPG**, the **Temporal** chart, the **OpenFGA**
 chart, in-cluster **MinIO**, the **observability** chart, Traefik + Ory (Kratos +
 Oathkeeper), and the Lowdefy console.
 
 `cluster:full` creates the cluster, installs the two components ArgoCD cannot
-bootstrap (the CNI and ArgoCD itself), plants the SOPS age key, then applies a
-local root-app (`infra/gitops/bootstrap-local/`) that syncs committed **`master`**
-from the remote. Ordering, readiness, and secret materialisation are ArgoCD's job
-(sync waves), not a shell script's. Because it syncs committed `master`, services
-run **CI-built images**; to put uncommitted service code in the cluster use
-`service:deploy`, and for uncommitted infra see
-[cluster/gitops-local.md](cluster/gitops-local.md).
+bootstrap (the CNI and ArgoCD itself), plants the SOPS age key, **builds + pushes the
+repo images (the 5 services and the Lowdefy console) to a local registry**, then
+applies a local root-app (`infra/gitops/local-bootstrap/`) that syncs committed
+**`master`** from the remote. Ordering, readiness, and secret materialisation are
+ArgoCD's job (sync waves), not a shell script's. Because it syncs committed `master`,
+uncommitted infra needs a push — see [cluster/gitops-local.md](cluster/gitops-local.md);
+for fast iteration on uncommitted **service** code use `service:deploy`.
+
+**Local image registry (the CI stand-in).** Prod's GitOps works because CI builds
+each repo image, pushes it to ghcr, and Argo pulls it. Locally there is no CI, so
+`cluster:full` builds and pushes those images to a k3d-managed registry
+(`k3d-registry.localhost:5000`) at a stable `:local` tag, and the local overlays point
+`image.repository` there — Argo then deploys services and Lowdefy **exactly as prod
+does**, the only difference being the registry host (the sanctioned env-divergence
+point). The registry is wired at cluster-create via `--registry-use`, so a pre-existing
+cluster must be recreated once to gain it. **One-time host setup:** add
+`127.0.0.1 k3d-registry.localhost` to `/etc/hosts` so the host `docker push` resolves
+the registry to IPv4 (bare `*.localhost` resolves to IPv6 `::1` on some systems, which
+the registry does not listen on). This mirrors the proxy: machine setup, never in the
+repo. The only components still installed imperatively are the two ArgoCD cannot
+bootstrap (Cilium and ArgoCD) — the same pair prod bootstraps before GitOps takes over.
 
 Local diverges from prod **only** through one values overlay,
 `infra/gitops/platform/local/values.yaml`, consumed the same way the ArgoCD
@@ -129,36 +169,59 @@ Everything is served from one origin, **`https://dev.localtest.me:8443`** (real 
 → 127.0.0.1, self-signed wildcard TLS — accept the cert once). The edge (Traefik)
 matches longest-prefix, so the specific routes below win over the `/` catch-all.
 
-| URL | What it gives you | Auth | Defined in |
-| --- | --- | --- | --- |
-| `/` | Landing page (host-run `next dev`) | public | `infra/local/edge-auth.yaml` |
-| `/panel`, `/admin`, `/devportal` | Frontend authenticated areas | Kratos session | `apps/frontend/src/proxy.ts` |
-| `/auth/login`, `/auth/registration`, … | Kratos UI pages (host-run `next dev`) | public | `infra/local/edge-auth.yaml` |
-| `/auth/self-service`, `/auth/.well-known`, `/auth/sessions` | Kratos public API | public | `infra/local/edge-auth.yaml` |
-| `/api/catalog/`, `/api/orders/`, `/api/orgs/`, `/api/payment/` | Service APIs through the edge | Oathkeeper | `infra/helm/service/templates/ingressroute.yaml` |
-| `/api/observability/faro` | Faro/RUM browser-telemetry ingest | public | `infra/gateway/frontend-observability.yaml` |
+| URL                                                            | What it gives you                     | Auth           | Defined in                                       |
+|----------------------------------------------------------------|---------------------------------------|----------------|--------------------------------------------------|
+| `/`                                                            | Landing page (host-run `next dev`)    | public         | `infra/local/edge-auth.yaml`                     |
+| `/panel`, `/devportal`                                         | Frontend authenticated areas          | Kratos session | `apps/frontend/src/proxy.ts`                     |
+| `/auth/login`, `/auth/registration`, …                         | Kratos UI pages (host-run `next dev`) | public         | `infra/local/edge-auth.yaml`                     |
+| `/auth/self-service`, `/auth/.well-known`, `/auth/sessions`    | Kratos public API                     | public         | `infra/local/edge-auth.yaml`                     |
+| `/api/products`, `/api/orders`, `/api/orgs`, `/api/charges`    | Service APIs (flat `/api/<resource>`, ADR-0017) | Oathkeeper | `infra/helm/service/templates/ingressroute.yaml` |
+| `/api/rum`                                                     | Faro/RUM browser-telemetry ingest     | public         | `infra/gateway/frontend-observability.yaml`      |
 
 The **ops tier** (ADR-0017) is a separate origin per operator dashboard under
-`*.ops.<host>` — never a product path. Each requires an authorized (AAL2 operator)
-session; a bare login does not grant tool access.
+`*.ops.<host>` — never a product path. The **coarse gate** is a claim, not a
+OpenFGA call: the ops forward-auth requires the `operator` trait **and** an AAL2
+session, and makes no `Checker` call, so the debugging surface never shares fate
+with the product authz plane ([docs/ops/break-glass.md](ops/break-glass.md)). A
+bare login does not grant tool access. Per-tool `dashboard:<tool>#view` grants are
+the **optional fine layer** (`OPS_FINE_GRAINED`), off by default.
 
-| Ops URL | Tool | Auth | Defined in |
-| --- | --- | --- | --- |
-| `grafana.ops.dev.localtest.me/` | **Grafana** — LGTM dashboards | Oathkeeper (`dashboard:grafana#view`) | `infra/gateway/ingressroutes.yaml` |
-| `hubble.ops.dev.localtest.me/` | Cilium **Hubble UI** — network-flow map | Oathkeeper (`dashboard:hubble#view`) | `infra/gateway/ingressroutes.yaml` |
-| `temporal.ops.dev.localtest.me/` | **Temporal Web UI** | Oathkeeper (`dashboard:temporal#view`) | `infra/gateway/ingressroutes.yaml` |
-| `minio.ops.dev.localtest.me/` | **MinIO console** (non-prod) | Oathkeeper (`dashboard:minio#view`) | `infra/gateway/ingressroutes.yaml` |
-| `console.ops.<host>/` | **Lowdefy** admin console (deployed envs) | Oathkeeper (`dashboard:console#view`) | `infra/gateway/ingressroutes.yaml` |
-| `argo.ops.<host>/` | **Argo CD** (deployed envs) | Oathkeeper (`dashboard:argo#view`) | `infra/gateway/ingressroutes.yaml` |
+The local edge is published on the unprivileged port **`:8443`** (see the URLs
+below); deployed envs terminate on standard `443` and omit the port.
 
-Grafana has its own login behind the Kratos gate — sign in with `admin` / `admin`
-(the local `grafana.adminPassword`). Without the edge you can still reach it by
+The **Auth** column shows the always-on coarse gate (`operator` claim + AAL2); the
+optional per-tool `dashboard:<tool>#view` fine layer is off by default. Every route
+below is defined in `infra/gateway/ingressroutes.yaml` (the opt-in tools' routes
+resolve to a backend only once their chart is enabled).
+
+| Ops URL                                        | Tool                                                                                   | Auth                                             |
+|------------------------------------------------|----------------------------------------------------------------------------------------|--------------------------------------------------|
+| `https://o11y.ops.dev.localtest.me:8443/`      | **Grafana** — metrics/logs/traces                                                      | operator + AAL2                                  |
+| `https://network.ops.dev.localtest.me:8443/`   | Cilium **Hubble UI** — network-flow map                                                | operator + AAL2                                  |
+| `https://workflows.ops.dev.localtest.me:8443/` | **Temporal Web UI**                                                                    | operator + AAL2                                  |
+| `https://s3.ops.dev.localtest.me:8443/`        | **MinIO console** (non-prod)                                                           | operator + AAL2, then `minio` / `minio-password` |
+| `https://admin.ops.dev.localtest.me:8443/`     | **Lowdefy** admin console                                                              | operator + AAL2                                  |
+| `https://deploy.ops.dev.localtest.me:8443/`    | **Argo CD**                                                                            | operator + AAL2                                  |
+| `https://k8s.ops.dev.localtest.me:8443/`       | **Headlamp** — k8s debug UI (r/o, [ADR-0024](adr/0024-kubernetes-debug-ui.md))         | operator + AAL2                                  |
+| `https://db.ops.dev.localtest.me:8443/`        | **pgweb** — read-only DB inspector ([ADR-0012](adr/0012-internal-admin.md))            | operator + AAL2                                  |
+
+Grafana trusts the Oathkeeper edge and serves anonymously (its login form is
+disabled, `auth.anonymous` Admin) — an operator who clears the edge lands straight
+on the dashboards, no second login. Without the edge you can still reach it by
 port-forward: `kubectl -n platform port-forward svc/grafana 3000:80`, then
-<http://localhost:3000/> (it now serves at root, not a sub-path).
+<http://localhost:3000/> (anonymous Admin; it serves at root, not a sub-path).
+
+The **MinIO console** is the one dashboard that keeps a second login: unlike
+Grafana/Argo CD (which trust the Oathkeeper edge and serve anonymously), MinIO's
+console has no proxy-trust/SSO mode, so after the edge gate it prompts for MinIO
+credentials — the pre-seeded root user `minio` / `minio-password`.
 
 `cluster:full` brings up the whole platform (edge, services, observability,
 console); Argo CD itself is installed imperatively for the local full tier and is
-reachable at `argo.ops.<host>` like the other dashboards.
+reachable at `deploy.ops.<host>` like the other dashboards. Headlamp (`k8s.ops`)
+and pgweb (`db.ops`) are Core ops tools, on in every environment
+([docs/operational-surface.md](operational-surface.md)); a project that does not
+want one drops it with `enabled: false` in its env values overlay.
 
 ### Login flow
 
@@ -167,7 +230,8 @@ The edge serves `*.dev.localtest.me` on `:8443` (real DNS → 127.0.0.1, no
 `https://hubble.dev.localtest.me:8443/`) redirect an unauthenticated browser to
 Kratos at `…/auth/login`; register/login there and the redirect returns you to the
 gated page. The Kratos session cookie is scoped to `dev.localtest.me` (parent
-domain), so one login covers the edge and every `*.dev.localtest.me` subdomain. The landing page and `/auth` UI are served by a host-run `next dev`
+domain), so one login covers the edge and every `*.dev.localtest.me` subdomain. The landing page and `/auth` UI are
+served by a host-run `next dev`
 (run `next dev -H 0.0.0.0` on the host — the dev server is not in-cluster), wired
 through `infra/local/edge-auth.yaml`.
 
@@ -198,91 +262,84 @@ local-only).
 ## HTTP proxies
 
 Proxy configuration is a property of **your machine**, not of this template — the
-repo carries no proxy values or logic, and the scripts never will. Behind a
-corporate/loopback proxy you configure it once, system-side, and the `cluster:*`
-tasks work unchanged.
+repo carries no proxy values or logic, and the scripts never will. On a clean
+network, skip this whole section. Behind a proxy, do the three one-time steps
+below and the `cluster:*` tasks work unchanged.
 
-There are two independent layers, and they need separate handling:
+The steps assume a **loopback** proxy on your host — e.g. privoxy at
+`http://127.0.0.1:8118`. Each step is read from a different place (host, a build
+container, the k3d node), so the address you write differs — that's the only
+subtlety. If your proxy is instead a **routable** address
+(`http://proxy.example.com:8080`), it works from everywhere: use it verbatim in
+every step and ignore the per-step address notes.
 
-**1. Host-side pulls (the k3s node image, host `docker pull`/`helm`).** These go
-through the Docker daemon and the Docker CLI on your host. Point both at your proxy:
+### Step 1 — Proxy the Docker daemon (image pulls)
 
-- Docker **CLI** (`~/.docker/config.json`) — used by host `docker` commands:
+Create `/etc/systemd/system/docker.service.d/http-proxy.conf`. The daemon runs on
+your host, so a loopback proxy stays `127.0.0.1`:
 
-  ```json
-  {
-    "proxies": {
-      "default": {
-        "httpProxy": "http://proxy.example.com:8080",
-        "httpsProxy": "http://proxy.example.com:8080",
-        "noProxy": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
-      }
-    }
-  }
-  ```
-
-- Docker **daemon** (`/etc/systemd/system/docker.service.d/http-proxy.conf`) — so
-  the daemon's own image pulls are proxied:
-
-  ```ini
-  [Service]
-  Environment="HTTP_PROXY=http://proxy.example.com:8080"
-  Environment="HTTPS_PROXY=http://proxy.example.com:8080"
-  Environment="NO_PROXY=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
-  ```
-
-  then `sudo systemctl daemon-reload && sudo systemctl restart docker`.
-
-**2. In-cluster pulls (Cilium, the inner-loop deps, every ArgoCD-synced workload).**
-These are pulled by the **containerd that runs inside the k3d node**, using the
-node's own process environment — which none of the settings above reach. k3d creates
-its nodes through the Docker SDK, so it does **not** inherit `~/.docker/config.json`
-proxies, the daemon's proxy env, or your exported shell `HTTP_PROXY`. The proxy has
-to be present on the node, and the only way to put it there is at cluster-create time
-(k3d `-e` flags or a k3d config file).
-
-`cluster-ensure.sh` deliberately does **not** pass these — it stays proxy-free. So,
-behind a proxy, create the cluster **once yourself** with your proxy injected, then
-let the tasks take over. `cluster:ensure` is convergent: it reuses an existing
-cluster (only starting it), so every later `cluster:lite` / `cluster:full`
-just works.
-
-```sh
-# One-time, on a proxied machine. Mirror the flags cluster-ensure.sh uses, plus
-# YOUR proxy values. Substitute your proxy URL for the example below.
-k3d cluster create platform \
-  --servers 1 --agents 0 \
-  --port 8080:80@loadbalancer --port 8443:443@loadbalancer \
-  --k3s-arg '--flannel-backend=none@server:*' \
-  --k3s-arg '--disable-network-policy@server:*' \
-  -e 'HTTP_PROXY=http://proxy.example.com:8080@server:*' \
-  -e 'HTTPS_PROXY=http://proxy.example.com:8080@server:*' \
-  -e 'NO_PROXY=localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,cluster.local,.localtest.me@server:*'
-
-# Verify the node actually has it, then drive the cluster normally:
-docker exec k3d-platform-server-0 env | grep -i proxy
-mise run cluster:lite      # cluster:ensure reuses the cluster you just made
+```ini
+[Service]
+Environment="HTTP_PROXY=http://127.0.0.1:8118"
+Environment="HTTPS_PROXY=http://127.0.0.1:8118"
+Environment="NO_PROXY=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
 ```
 
-Prefer keeping those values out of your shell history? Put them in a personal k3d
-config file outside the repo and `k3d cluster create platform --config ~/…/k3d.yaml`
-— same effect, same one-time step.
+then `sudo systemctl daemon-reload && sudo systemctl restart docker`.
 
-> **Loopback proxies** (e.g. `127.0.0.1:8080`, as some sandboxes use) are not
-> reachable from inside a container as `127.0.0.1`. Point the k3d nodes at the host
-> instead — substitute `host.k3d.internal` for `127.0.0.1`/`localhost` in the proxy
-> URL (e.g. `-e 'HTTPS_PROXY=http://host.k3d.internal:8118@server:*'`), and make
-> sure that name resolves on the node (Docker normally adds it as the gateway; if a
-> restart drops it, re-add `<gateway-ip> host.k3d.internal` to the node's
-> `/etc/hosts`).
->
-> **Large image layers through a proxy.** Some egress proxies truncate large image
-> layers on a single-stream containerd pull — the Cilium agent is the usual victim,
-> leaving the node `NotReady`. If that happens, pre-pull it on the host (where
-> Docker resumes/retries) and import it into the cluster, then re-run the bring-up:
->
-> ```sh
-> img=$(helm template cilium infra/helm/platform/cilium --set cilium.image.useDigest=false \
->   | grep -oE 'quay\.io/cilium/cilium:[A-Za-z0-9._-]+' | head -1)
-> docker pull "$img" && k3d image import "$img" -c platform
-> ```
+### Step 2 — Proxy Docker builds (the Lowdefy image's npm fetch)
+
+Docker injects `~/.docker/config.json` → `proxies.default` into `docker build` RUN
+steps. There the reader is *inside a container*, where `127.0.0.1` would mean the
+container itself — so use the **docker-bridge gateway IP** (find it with
+`docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}'`, usually
+`172.17.0.1`):
+
+```json
+{
+  "proxies": {
+    "default": {
+      "httpProxy": "http://172.17.0.1:8118",
+      "httpsProxy": "http://172.17.0.1:8118",
+      "noProxy": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
+    }
+  }
+}
+```
+
+Keep `registry.npmjs.org`/`docker.io` **out** of `noProxy` so they route through the
+proxy. A loopback value here is the classic Lowdefy-build failure: `npm` inside the
+build can't see the proxy, goes direct, and the firewall blocks it.
+
+### Step 3 — Export the proxy before bringing up the cluster (the k3d node)
+
+Export it in the shell you run `cluster:full` from; write it as **your host** sees it
+(loopback stays `127.0.0.1`). At create time `cluster:ensure` injects it onto the k3d
+node, rewriting a loopback proxy to `host.k3d.internal` for you:
+
+```sh
+export HTTPS_PROXY=http://127.0.0.1:8118
+mise run cluster:full
+```
+
+Verify the node got it (a loopback proxy should now read `host.k3d.internal`):
+
+```sh
+docker exec k3d-platform-server-0 env | grep -i proxy
+```
+
+`cluster:ensure` wires the proxy only at **create** time, so export it **before the
+first** bring-up. To rewire an existing cluster, recreate it
+(`mise run cluster:delete && mise run cluster:full`). If a node restart drops
+`host.k3d.internal`, re-add `<gateway-ip> host.k3d.internal` to the node's
+`/etc/hosts`.
+
+> **Stalled image pulls through a proxy.** Even with the node proxied, some egress
+> proxies time out or truncate large image layers on containerd's single-stream pull
+> (Cilium, ArgoCD, and the OpenFGA seed's `openfga/cli` are the usual victims),
+> leaving pods in `ImagePullBackOff`. The opt-in **`mise run cluster:unwedge`**
+> ([`scripts/cluster-unwedge-images.sh`](../scripts/cluster-unwedge-images.sh))
+> recovers them: it host-pulls whatever is stuck (Docker resumes/retries reliably),
+> `k3d image import`s it into the node, and restarts the waiting pods. Re-run it — or
+> `watch -n15 mise run cluster:unwedge` — while a fresh `cluster:full` converges.
+> Clean networks never need it.

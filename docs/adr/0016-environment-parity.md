@@ -1,7 +1,7 @@
 # ADR-0016: Environment Parity & Local Tiers
 
 - **Status:** Accepted
-- **Date:** 2026-06-23
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-cluster-topology.md), [ADR-0004](0004-gitops.md), [ADR-0005](0005-secrets.md), [ADR-0007](0007-data.md), [ADR-0011](0011-observability.md)
 
@@ -39,7 +39,7 @@ hand-written Deployment standing in for an operator-managed component — is per
 below, and never silently.
 
 The **contract never differs in any tier**: the Kubernetes API, the service chart, the service images, and the env
-contract (`DATABASE_URL`, `TEMPORAL_HOST_PORT`, OTLP endpoint, SpiceDB) are identical everywhere. What may differ is
+contract (`DATABASE_URL`, `TEMPORAL_HOST_PORT`, OTLP endpoint, OpenFGA) are identical everywhere. What may differ is
 *scale* (replica counts, storage), and — in the inner loop only — the *implementation behind a contract*.
 
 ### Two local tiers
@@ -49,10 +49,10 @@ Local is two tiers with different jobs:
 | Tier | Command | Parity | What runs | For |
 |------|---------|--------|-----------|-----|
 | **Inner loop** | `cluster:lite` + `dev:forward` + **native run** | **interface** | k3d + lightweight dependency stand-ins (`infra/local/deps.yaml`); the service under change runs natively on the host | day-to-day coding |
-| **Full platform** | `cluster:full` | **implementation** | k3d + the real platform charts at `instances=1` (CNPG, the Temporal chart, SpiceDB, MinIO, the observability stack, the edge + auth) | end-to-end tests ([ADR-0018](0018-testing-strategy.md)), pre-merge validation, CI, label-gated per-PR preview |
+| **Full platform** | `cluster:full` | **implementation** | k3d + the real platform charts at `instances=1` (CNPG, the Temporal chart, OpenFGA, MinIO, the observability stack, the edge + auth) | end-to-end tests ([ADR-0018](0018-testing-strategy.md)), pre-merge validation, CI, label-gated per-PR preview |
 
 The **inner loop** optimises for speed. The service under change runs **natively on the host** (any editor/IDE, or
-`go run`) against lightweight stand-ins (a plain Postgres, `temporal server start-dev`, in-memory SpiceDB; see
+`go run`) against lightweight stand-ins (a plain Postgres, `temporal server start-dev`, in-memory OpenFGA; see
 [ADR-0003](0003-cluster-topology.md), [ADR-0006](0006-temporal.md)) reached through `dev:forward` port-forwards. The
 stand-ins are acceptable because they honour the same wire contract — a bug reproduced against them reproduces in prod.
 There is no image build, in-cluster redeploy, or file-watch on the hot path; the full platform is not running, so the
@@ -60,7 +60,7 @@ loop is fast and light.
 
 The **full platform** optimises for fidelity. It runs the **same charts production runs**, scaled to a single replica
 through the `local` values overlay — CNPG (not a plain Postgres pod), the Temporal Helm chart (not `start-dev`), the
-SpiceDB chart, in-cluster MinIO, and the observability stack. This is the tier that catches operator behaviour, sync
+OpenFGA chart, in-cluster MinIO, and the observability stack. This is the tier that catches operator behaviour, sync
 ordering, and chart wiring before code reaches a deployed environment, and it is the exact configuration CI and per-PR
 preview environments use. It is also the environment the end-to-end and visual suites run against ([ADR-0018](0018-testing-strategy.md)):
 the full e2e suite nightly + pre-release, a smoke subset on label-gated per-PR previews.
@@ -90,7 +90,7 @@ Two independent axes, resolved by two independent mechanisms:
   | Profile | Components up | Typical user |
   |---------|---------------|--------------|
   | `min` | Postgres only | backend, no workflows |
-  | `backend` | + Temporal + SpiceDB | backend with workflows |
+  | `backend` | + Temporal + OpenFGA | backend with workflows |
   | `obs` | observability + Faro/Grafana | frontend RUM / dashboards |
   | `full` | everything | operator end-to-end |
 
@@ -104,7 +104,7 @@ Profiles stay a handful of composable toggles, not per-engineer snowflakes.
 
 ArgoCD reconciles committed git state, so it is **not** the inner loop's engine — the inner loop runs the service
 natively against `cluster:lite`'s stand-ins ([ADR-0004](0004-gitops.md)). The **full-platform tier does run ArgoCD**: a
-local bootstrap (`infra/gitops/bootstrap-local/`) applies the same app-of-apps prod uses, syncing committed `master`
+local bootstrap (`infra/gitops/local-bootstrap/`) applies the same app-of-apps prod uses, syncing committed `master`
 from the remote, so sync ordering, app discovery, and secret materialisation are exercised exactly as in prod. Only the
 two genuine bootstrap components ArgoCD cannot self-create — the CNI (Cilium) and ArgoCD itself — are installed
 imperatively by `cluster:full` before the root-app is applied; everything else is Argo-managed.
@@ -164,7 +164,7 @@ A small, enumerated set of manifests has no production analogue, and each states
 |---------|------------------------|-----------------|
 | Kubernetes distribution | k3d (ephemeral) vs k3s (persistent) | the charts and manifests applied |
 | Scale | replicas, storage size, anti-affinity, HPA | which components the full tier runs |
-| Data-tier implementation | inner-loop stand-ins vs the real charts | the wire contract (`DATABASE_URL`, Temporal gRPC, SpiceDB), the Postgres major |
+| Data-tier implementation | inner-loop stand-ins vs the real charts | the wire contract (`DATABASE_URL`, Temporal gRPC, OpenFGA), the Postgres major |
 | Object storage provider | MinIO (non-prod) vs external bucket (prod) | the S3 API contract |
 | TLS issuer | self-signed (local) vs Let's Encrypt (deployed) | cert-manager as the mechanism |
 | Secret plaintext | throwaway (local) vs real | SOPS as the decrypt mechanism |

@@ -1,15 +1,17 @@
-# Observability backend (ADR-0011): Grafana LGTM in monolithic single-binary
-# mode + a single OTel Collector DaemonSet. Durability is the off-cluster bucket
-# (ADR-0003); access keys come from the SOPS-decrypted `observability-bucket`
-# Secret (ADR-0005). Sizing here is the dev/staging default (single replica);
-# prod bumps each backend to 2 replicas in gitops/platform/prod/values.yaml.
+# Observability backend (ADR-0011): Grafana + Loki/Tempo (monolithic single-binary
+# mode) + Prometheus (Core metrics, local TSDB) + a single OTel Collector DaemonSet.
+# Log/trace durability is the off-cluster bucket (ADR-0003); access keys come from
+# the SOPS-decrypted `observability-bucket` Secret (ADR-0005). Sizing here is the
+# dev/staging default (single replica); prod bumps Loki/Tempo to 2 replicas in
+# gitops/platform/prod/values.yaml. The metrics Scale swap is Mimir
+# (docs/operational-surface.md).
 
 # Off-cluster object storage. Endpoint + bucket names are wired per backend
 # below; override the endpoint per environment in the GitOps platform values.
 opentelemetry-collector:
   # One tier: a DaemonSet on every node. Services send OTLP to localhost:4317;
   # the agent batches, enriches with k8s attributes, head-samples, and exports
-  # directly to Loki/Mimir/Tempo. There is no separate gateway deployment.
+  # directly to Loki/Prometheus/Tempo. There is no separate gateway deployment.
   mode: daemonset
   fullnameOverride: otel-collector
   # contrib distro: required by the kubernetesAttributes preset (k8sattributes
@@ -47,21 +49,23 @@ opentelemetry-collector:
       probabilistic_sampler:
         sampling_percentage: 5
     exporters:
-      otlphttp/tempo:   { endpoint: http://tempo.platform.svc.cluster.local:4318 }
-      otlphttp/mimir:   { endpoint: http://mimir.platform.svc.cluster.local:8080/otlp }
+      otlphttp/tempo:      { endpoint: http://tempo.platform.svc.cluster.local:4318 }
+      # Prometheus native OTLP receiver (--web.enable-otlp-receiver). The otlphttp
+      # exporter appends /v1/metrics to this base path.
+      otlphttp/prometheus: { endpoint: http://prometheus.platform.svc.cluster.local:9090/api/v1/otlp }
       # Loki's native OTLP endpoint — the standalone `loki` exporter was removed
       # from the Collector (≤ v0.112), so push logs over OTLP instead.
-      otlphttp/loki:    { endpoint: http://loki.platform.svc.cluster.local:3100/otlp }
+      otlphttp/loki:       { endpoint: http://loki.platform.svc.cluster.local:3100/otlp }
     service:
       pipelines:
         traces:  { receivers: [otlp, faro], processors: [memory_limiter, probabilistic_sampler, batch], exporters: [otlphttp/tempo] }
-        metrics: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/mimir] }
+        metrics: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
         logs:    { receivers: [otlp, faro], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
 
 grafana:
   fullnameOverride: grafana
   adminPassword: ""                # supplied via SOPS-decrypted Secret in prod
-  # Served at the ROOT of its own ops origin grafana.ops.<host> (ADR-0017), not
+  # Served at the ROOT of its own ops origin o11y.ops.<host> (ADR-0017), not
   # under a /grafana path — so serve_from_sub_path is off. Each env overrides
   # root_url with its external origin (the local overlay sets the :8443 edge).
   grafana.ini:
@@ -69,7 +73,7 @@ grafana:
       serve_from_sub_path: false
       root_url: "%(protocol)s://%(domain)s/"
     # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator holding
-    # dashboard:grafana#view, ADR-0017). Grafana trusts it and serves anonymously
+    # dashboard:o11y#view, ADR-0017). Grafana trusts it and serves anonymously
     # instead of running a second, redundant login that would redirect to /login and
     # never render. Only AAL2 operators ever reach this origin.
     auth:
@@ -77,13 +81,35 @@ grafana:
     "auth.anonymous":
       enabled: true
       org_role: Admin
+    # Skip the "Welcome to Grafana" home page and land operators on a real
+    # dashboard. dashboardsConfigMaps.default (grafana-dashboards) mounts at
+    # /var/lib/grafana/dashboards/default, so service-red.json is served there.
+    dashboards:
+      default_home_dashboard_path: /var/lib/grafana/dashboards/default/service-red.json
+    # No phone-home: version/plugin update checks and usage analytics are the only
+    # reason Grafana reaches the internet (seen in Hubble as grafana -> <gcp-ip>:443).
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+      check_for_plugin_updates: false
+    # Grafana 11.4+ ships the drilldown apps (Explore Logs/Traces/Metrics, Pyroscope)
+    # as *preinstalled* plugins and fetches them from grafana.com on startup — which
+    # fails on an air-gapped/proxied cluster ("Failed to install plugin … context
+    # deadline exceeded"). check_for_plugin_updates only governs update checks, not
+    # this preinstall; we don't use those apps, so disable it for a clean startup.
+    # public_key_retrieval_disabled stops the separate startup call that pulls plugin
+    # signature keys from grafana.com/api/plugins/ci/keys (also proxy-blocked); the
+    # bundled plugins verify against the keys embedded in the Grafana binary.
+    plugins:
+      preinstall_disabled: true
+      public_key_retrieval_disabled: true
   datasources:
     datasources.yaml:
       apiVersion: 1
       datasources:
-        - { name: Mimir, type: prometheus, url: http://mimir.platform.svc.cluster.local:8080/prometheus }
-        - { name: Loki,  type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
-        - { name: Tempo, type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
+        - { name: Prometheus, type: prometheus, url: http://prometheus.platform.svc.cluster.local:9090 }
+        - { name: Loki,       type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
+        - { name: Tempo,      type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
   dashboardsConfigMaps:
     default: grafana-dashboards     # populated from infra/observability/dashboards/
 
@@ -91,15 +117,17 @@ grafana:
 loki:
   # Pin the service name to `loki` (not the release-prefixed `observability-loki`)
   # so the OTel exporter and Grafana datasource below — and prod — reach it at
-  # loki.<ns>.svc:3100. Mirrors grafana/mimir, which also fix their names.
+  # loki.<ns>.svc:3100. Mirrors tempo/prometheus, which also fix their names.
   fullnameOverride: loki
   deploymentMode: SingleBinary
   loki:
-    # Single-tenant (ADR-0011): no X-Scope-OrgID required, matching Mimir's
-    # multitenancy_enabled:false. Without this the chart defaults to multi-tenant
-    # and every header-less query (incl. Grafana's datasource health check) 401s
-    # with "no org id".
+    # Single-tenant (ADR-0011): no X-Scope-OrgID required. Without this the chart
+    # defaults to multi-tenant and every header-less query (incl. Grafana's
+    # datasource health check) 401s with "no org id".
     auth_enabled: false
+    # Don't phone home usage stats to stats.grafana.org — the only reason loki
+    # makes an external egress connection (seen in Hubble as loki -> <gcp-ip>:443).
+    analytics: { reporting_enabled: false }
     commonConfig: { replication_factor: 1 }
     schemaConfig:
       configs:
@@ -132,6 +160,17 @@ loki:
   # service directly, so it is dead weight. The chart (7.x) also gives it a hard
   # pod-anti-affinity that can't schedule on a single-node local cluster.
   gateway: { enabled: false }
+  # loki-canary is a synthetic log-probe DaemonSet (+ its helm test) used to
+  # measure ingest latency; not something this template needs to run. These two
+  # toggles are the loki chart's own templates, so a values override works.
+  lokiCanary: { enabled: false }
+  test: { enabled: false }
+  # NOTE: the loki chart also bundles minio, rollout-operator and
+  # grafana-agent-operator as *grandchild* subcharts, which Helm renders even
+  # when their conditions are set false (nested-condition limitation). They are
+  # all dead weight here — loki uses the shared platform MinIO, runs one replica,
+  # and self-telemetry goes through the OTel collector — so they are physically
+  # stripped from the vendored charts/loki-7.0.0.tgz (see observability/Chart.yaml).
 
 # Tempo — single-binary monolithic chart, bucket-backed.
 tempo:
@@ -154,20 +193,16 @@ tempo:
           region: eu-central-1
           # access_key / secret_key come from the observability-bucket Secret.
 
-# Mimir — monolithic single-binary (-target=all), one Deployment, bucket-backed.
-# Rendered by templates/mimir.yaml (ConfigMap + Deployment + Service), not a
-# subchart. dev/staging run 1 replica; prod overrides to 2.
-mimir:
-  image: grafana/mimir:3.1.2
+# Prometheus — the Core-tier metrics store: one Deployment, local TSDB, native
+# OTLP ingest, no object storage. Rendered by templates/prometheus.yaml (ConfigMap
+# + Deployment + Service), not a subchart. The object-storage-backed, horizontally
+# scalable variant is the Mimir Scale swap (docs/operational-surface.md).
+prometheus:
+  image: prom/prometheus:v3.1.0
   replicas: 1
-  httpPort: 8080
+  httpPort: 9090
+  # Local-TSDB retention. A project needing long retention takes the Mimir swap.
+  retention: 15d
   resources:
     requests: { cpu: "100m", memory: "256Mi" }
     limits:   { cpu: "1",    memory: "1Gi" }
-  # Off-cluster object storage (ADR-0003). Credentials come from the
-  # observability-bucket Secret via envFrom (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY).
-  secretName: observability-bucket
-  storage:
-    endpoint: s3.eu-central-1.amazonaws.com
-    region: eu-central-1
-    buckets: { blocks: mimir-blocks, ruler: mimir-ruler, alertmanager: mimir-alertmanager }

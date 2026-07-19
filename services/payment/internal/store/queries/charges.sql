@@ -3,6 +3,15 @@ insert into charges (order_id, amount_cents, status, idempotency_key)
 values ($1, $2, 'pending', $3)
 returning id, order_id, amount_cents, status;
 
+-- name: ListCharges :many
+select
+  id,
+  order_id,
+  amount_cents,
+  status
+from charges
+order by created_at desc limit 100;
+
 -- name: GetCharge :one
 select
   id,

@@ -1,0 +1,40 @@
+## Temporal service mesh — the four roles gossip (membership 6933-6939) and RPC
+## (7233-7239) among themselves; only name=temporal may reach those ports.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: temporal-internal
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: temporal
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: temporal }
+      toPorts:
+        - ports:
+            - { port: "6933", protocol: TCP }
+            - { port: "6934", protocol: TCP }
+            - { port: "6935", protocol: TCP }
+            - { port: "6939", protocol: TCP }
+            - { port: "7233", protocol: TCP }
+            - { port: "7234", protocol: TCP }
+            - { port: "7235", protocol: TCP }
+            - { port: "7239", protocol: TCP }
+---
+## Frontend RPC (7233) is the client entrypoint: app workers, temporal-web and
+## admintools call it. Any platform pod may reach the frontend on 7233 only.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: temporal-frontend-clients
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: temporal
+      app.kubernetes.io/component: frontend
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform }
+      toPorts:
+        - ports: [{ port: "7233", protocol: TCP }]

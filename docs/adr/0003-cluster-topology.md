@@ -1,10 +1,9 @@
 # ADR-0003: Cluster Topology & Hosting
 
 - **Status:** Accepted
-- **Date:** 2026-05-19
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
-- **Related:
-  ** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-monorepo.md), [ADR-0015](0015-naming-and-identifiers.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0002](0002-monorepo.md), [ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md), [ADR-0015](0015-naming-and-identifiers.md)
 
 ## Context
 
@@ -95,11 +94,11 @@ Internet
 Provider Load Balancer  (provider L4 LB, one stable public IP per env)
   │
 Traefik (k3s default)  (TLS termination via cert-manager + Let's Encrypt, L7 routing, rate limiting)
-  ├── /api/*            ─▶ Oathkeeper (identity) ─▶ backend service (per ADR-0009)
-  ├── /internal/admin/* ─▶ Oathkeeper (identity) ─▶ Lowdefy pod (internal admin, per ADR-0012)
-  ├── /(landing|panel|admin|devportal)/* ─▶ Next.js frontend pod (one app, route groups per ADR-0014)
-  ├── /grafana/*        ─▶ Grafana (auth-gated)
-  └── hubble.<host>/    ─▶ Hubble UI (Cilium network / service-map dashboard, auth-gated; own subdomain at root — its router can't run under a path prefix)
+  ├── <host>/api/*      ─▶ Oathkeeper (identity) ─▶ backend service (per ADR-0009)
+  ├── <host>/(landing|panel|devportal)/* ─▶ Next.js frontend pod (one app, route groups per ADR-0014)
+  ├── admin.ops.<host>/ ─▶ Oathkeeper (operator + AAL2) ─▶ Lowdefy pod (internal admin, per ADR-0012)
+  ├── o11y.ops.<host>/ ─▶ Oathkeeper (operator + AAL2) ─▶ Grafana
+  └── network.ops.<host>/  ─▶ Oathkeeper (operator + AAL2) ─▶ Hubble UI (Cilium network / service-map dashboard)
 ```
 
 **Traefik is the only ingress; Oathkeeper is an auth filter behind it, not a second gateway.** Traefik does TLS,
@@ -112,13 +111,26 @@ hostname/path routing, load balancing, and rate limiting; Ory Oathkeeper validat
 - `cert-manager` requests one wildcard certificate per environment via DNS-01 against the project's DNS provider.
 - `external-dns` is not used. The wildcard absorbs new services.
 
-**Cluster networking:** Cilium. Network policies are the platform's internal service-to-service trust boundary
-([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)): the default is **deny**, and each service's chart declares
-which callers may reach it. Because internal calls carry forwarded identity headers and no token, NetworkPolicy is what
-guarantees only sanctioned callers reach a service's port. Hubble (bundled, UI exposed auth-gated at the `hubble.<host>`
-subdomain) provides per-flow visibility and is the audit surface for these policies. k3s is installed with
-`--flannel-backend=none --disable-network-policy`; Cilium is installed by the Ansible bootstrap role before ArgoCD is
-started, then adopted by ArgoCD for upgrades.
+**Cluster networking (CNI): Cilium + WireGuard + default-deny, day one.** Cilium is the CNI; k3s is installed with
+`--flannel-backend=none --disable-network-policy`, and Cilium is installed by the Ansible bootstrap role before ArgoCD is
+started, then adopted by ArgoCD for upgrades. CNI cannot be hot-swapped on a live cluster, so the security posture is set
+at bootstrap, not retrofitted. Three postures are on from day one and are checked invariants, not aspirations:
+
+1. **Default-deny segmentation.** The `platform-baseline` CiliumNetworkPolicy (`infra/helm/platform/network-policies/`)
+   sets `enableDefaultDeny` for both ingress and egress across every platform pod; all allows are additive. Each backend
+   grants its own callers in the sibling templates, and each service's chart declares which callers may reach it. Because
+   internal calls carry forwarded identity headers and no token ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)),
+   NetworkPolicy is what guarantees only sanctioned callers reach a service's port.
+2. **Encryption in transit.** WireGuard transparent encryption (`encryption.type: wireguard`) encrypts all east-west pod
+   traffic node-to-node — a Cilium config flag, not a component. Multi-tenant PII and audit posture do not ship
+   plaintext east-west, and there is no separate mesh to run for it.
+3. **Egress control, including the cloud metadata endpoint.** Default-deny egress means no pod reaches the internet
+   unless a policy grants it (only Loki/Tempo, to object storage on :443 in prod). A clusterwide policy additionally
+   denies the link-local cloud metadata address `169.254.169.254/32` outright, so even a future broad egress grant
+   cannot become an SSRF path to instance credentials.
+
+Hubble (bundled, UI exposed auth-gated at the `network.ops.<host>` subdomain) provides per-flow visibility and is the audit
+surface for these policies.
 
 ### Storage
 
@@ -126,8 +138,9 @@ started, then adopted by ArgoCD for upgrades.
 
 - **Block storage:** k3s `local-path` provisioner. PVCs are node-local NVMe directories.
 - **Object storage in production:** external S3-compatible bucket, per environment — created by Terraform when the
-  project provisions its own infra, or referenced by configuration when the bucket is pre-provided. Loki, Mimir,
-  Tempo, CNPG backups (and Pyroscope where profiling is enabled, [ADR-0011](0011-observability.md)) all write here.
+  project provisions its own infra, or referenced by configuration when the bucket is pre-provided. Loki,
+  Tempo, CNPG backups (and Pyroscope where profiling is enabled, [ADR-0011](0011-observability.md)) all write here;
+  Prometheus keeps a local TSDB and needs no bucket (the Mimir Scale swap does — [ADR-0011](0011-observability.md)).
   **No MinIO in production**; offloading durability to a managed
   bucket eliminates an entire stateful component.
 - **Object storage in non-prod:** in-cluster MinIO (`infra/helm/platform/minio`), exposing the same S3 API as the prod
@@ -193,41 +206,58 @@ the persistent dev/staging/prod clusters use ([ADR-0004](0004-gitops.md)) — fo
 
 | Step          | Command                                    | Brings up / does                                                                                     |
 |---------------|--------------------------------------------|------------------------------------------------------------------------------------------------------|
-| Cluster+deps  | `mise run cluster:lite`                       | k3d cluster + a CNI + lightweight Postgres, Temporal dev server, in-memory SpiceDB (`infra/local/deps.yaml`) |
-| Port-forwards | `mise run dev:forward`                      | forwards the deps to localhost (Postgres 5432, Temporal 7233/8233, SpiceDB 50051); leave running     |
+| Cluster+deps  | `mise run cluster:lite`                       | k3d cluster + a CNI + lightweight Postgres, Temporal dev server, in-memory OpenFGA (`infra/local/deps.yaml`) |
+| Port-forwards | `mise run dev:forward`                      | forwards the deps to localhost (Postgres 5432, Temporal 7233/8233, OpenFGA 8080); leave running     |
 | Inner loop    | run the service natively                    | set the env contract and run it in any editor/IDE or `go run ./services/<svc>/cmd/server` — no build/deploy |
 | In-cluster    | `mise run service:deploy -- <svc>`          | one-shot build → `k3d image import` → `helm upgrade` (for edge/auth/e2e testing); **no watch loop**  |
 | Migrations    | `mise run db:migrate`                       | applies each service's migrations to the local Postgres                                              |
 | Teardown      | `mise run cluster:stop` / `cluster:delete`   | stops (keeps image cache) / deletes the cluster                                                      |
 
 **Native, against real dependencies.** The service binary runs on the host; it reaches the k3d-hosted deps through the
-`dev:forward` port-forwards and the standard env contract (`DATABASE_URL`, `TEMPORAL_HOST_PORT`, `SPICEDB_ENDPOINT`).
+`dev:forward` port-forwards and the standard env contract (`DATABASE_URL`, `TEMPORAL_HOST_PORT`, `OPENFGA_API_URL`).
 There is nothing to rebuild or redeploy on save — you just re-run. When you genuinely need the service *in* the cluster
 (exercising the edge, auth, or e2e), `service:deploy` does a single build-import-upgrade against the production
 `infra/helm/service` chart with the `local` values overlay — a one-shot, not a watch loop.
 
 **Lightweight deps in the inner loop only.** `infra/local/deps.yaml` ships throwaway Postgres / Temporal-dev / in-memory
-SpiceDB so a service has something to talk to without paying for the full platform. Their production counterparts (CNPG,
-the Temporal Helm chart, the SpiceDB chart, the observability stack, the gateway and auth edge) run in the full-platform
+OpenFGA so a service has something to talk to without paying for the full platform. Their production counterparts (CNPG,
+the Temporal Helm chart, the OpenFGA chart, the observability stack, the gateway and auth edge) run in the full-platform
 local tier (`cluster:full`) and in dev/staging/prod, where their operators and ordering behave correctly
 ([ADR-0016](0016-environment-parity.md)).
 
 **What is not swapped out, ever:** the Kubernetes API, the service chart, the service images, the env contract (
-`DATABASE_URL`, `TEMPORAL_HOST_PORT`, OTLP, SpiceDB), the Postgres major version. A bug reproduced locally reproduces in
+`DATABASE_URL`, `TEMPORAL_HOST_PORT`, OTLP, OpenFGA), the Postgres major version. A bug reproduced locally reproduces in
 staging and prod. `service:deploy` loads images into k3d directly (no registry round-trip).
 
-### Service mesh
+### Service mesh — and why Cilium, not Linkerd
 
-No dedicated service mesh (Istio, Linkerd, Consul Connect) is deployed. Sidecar meshes inject a proxy
-container per pod — at 100 services that's 100+ extra containers on the hot path, against ADR-0000's per-service cost
-principle — and the heavier ones (Istio, Consul Connect) add a CRD surface or a mandatory dependency the team size
-cannot absorb.
+No dedicated service mesh (Istio, Linkerd, Consul Connect) is deployed. A category note first: **Linkerd is not a CNI
+and not a Cilium substitute** — it rides *on top of* a CNI via per-pod sidecars. The real day-one choice is a CNI-level
+one, compared on **security capability** (dashboards and RAM aside):
 
-**Cilium covers CNI + mesh as one component.** Its sidecarless eBPF mode provides mTLS (WireGuard node-to-node
-encryption), L7 network policies, and per-flow observability (Hubble) without an injected proxy or a second
-component. **Hubble UI is deployed as the cluster's network / service-map dashboard** — live service-to-service flows,
+| Security capability                              | flannel only        | flannel + Linkerd            | **Cilium + WireGuard**            |
+|--------------------------------------------------|---------------------|------------------------------|-----------------------------------|
+| L3/L4 default-deny segmentation                  | none (flat)         | meshed app traffic only      | all pods                          |
+| Data-tier protection (PG/MinIO/OpenFGA)          | wide open           | only if the data tier is meshed (fiddly) | NetworkPolicy         |
+| Cryptographic workload identity (anti-spoof)     | —                   | mTLS certs (meshed)          | label identity; SPIFFE optional   |
+| Encryption in transit (east-west)                | plaintext           | meshed only                  | all pods (WireGuard)              |
+| L7 authz (route/method)                          | —                   | fine-grained                 | Envoy, coarse — already have Oathkeeper + OpenFGA |
+| Egress control + DNS/FQDN (exfil/C2/metadata SSRF) | —                 | not Linkerd's job            | FQDN + L3 egress                  |
+
+flannel *silently ignores* applied NetworkPolicy objects — worse than "no policy," because it grants false confidence;
+so flannel-only is no east-west security at all, indefensible for a multi-tenant platform. Between the two real options,
+Cilium wins on **breadth**: the controls it adds (data-tier segmentation, egress/metadata-SSRF control) map onto the
+highest-frequency, highest-impact cluster attacks — lateral movement to Postgres, metadata-endpoint credential theft
+(the Capital One shape). The controls Linkerd would add over Cilium (cert identity, fine L7) are depth *behind* those,
+and the L7 layer is already covered by Oathkeeper at the edge and OpenFGA in-app. Linkerd would also leak the data tier
+unless CNPG/MinIO/OpenFGA are meshed — the fiddly sidecar-vs-Job work our Job-heavy bootstrap makes painful. Cilium
+mutual-auth / SPIFFE can add cert identity later with no sidecars, if wanted.
+
+**Cilium covers CNI + mesh as one component.** Its sidecarless eBPF mode provides transparent WireGuard encryption,
+L7 network policies, and per-flow observability (Hubble) without an injected proxy or a second component. A sidecar mesh
+would add 100+ proxy containers on the hot path at 100 services, against ADR-0000's per-service cost principle. **Hubble UI is deployed as the cluster's network / service-map dashboard** — live service-to-service flows,
 dropped connections, and L7 traffic — and is the audit surface for the NetworkPolicy-based internal trust boundary
-([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)); it is exposed auth-gated at the `hubble.<host>` subdomain
+([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)); it is exposed auth-gated at the `network.ops.<host>` subdomain
 (its React Router is hardwired to basename `/`, so it must be served at a root origin, not under a path prefix). Cilium is
 installed
 from day one because CNI cannot be hot-swapped on a live cluster.
@@ -293,6 +323,13 @@ alongside the backup restore drill above.
 - Storage class is k3s `local-path` until the storage-scale trigger fires, then Longhorn.
 - CNI is Cilium from day one. k3s is installed with `--flannel-backend=none --disable-network-policy`. Cilium is
   bootstrapped by the Ansible `cilium` role (before ArgoCD) and adopted by ArgoCD for upgrades.
+- **Default-deny is enforced**, not assumed: the `platform-baseline` CiliumNetworkPolicy sets `enableDefaultDeny` for
+  ingress and egress across every platform pod; all allows are additive.
+- **WireGuard transparent encryption is on** for all east-west pod traffic (`encryption.type: wireguard` in the Cilium
+  values). Plaintext east-west is not shipped.
+- **Egress blocks the cloud metadata endpoint.** Default-deny egress already denies unrequested internet egress; a
+  clusterwide policy additionally denies `169.254.169.254/32` so no egress grant can become a metadata-SSRF path to
+  instance credentials.
 - A new cluster bootstraps with `ansible-playbook bootstrap` → `kubectl apply` of the ArgoCD root Application, preceded
   by `terraform apply` only when the project provisions its own infra. No further manual steps.
 - Growth from day-one topology happens only on a documented trigger firing, captured in a new ADR.
@@ -300,5 +337,5 @@ alongside the backup restore drill above.
   resource cost and component count. Cilium covers CNI + zero-trust + L7 policies + Hubble observability in a single
   component with no per-pod proxy overhead.
 - Cilium NetworkPolicy is the internal service-to-service trust boundary; the default is deny and each service declares
-  its allowed callers ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)). Hubble UI (auth-gated at `hubble.<host>`)
+  its allowed callers ([ADR-0009](0009-api-gateway.md), [ADR-0010](0010-auth.md)). Hubble UI (auth-gated at `network.ops.<host>`)
   is the dashboard and audit surface for cluster network flows.

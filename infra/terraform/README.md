@@ -3,7 +3,7 @@
 The template's day-one path is **Ansible-first** (ADR-0003): `infra/ansible/bootstrap.yml`
 runs against a committed inventory of pre-provided hosts
 (`infra/ansible/inventory/<env>/hosts.yml`). There is **no default Terraform run**, and
-no bucket is Terraform-created — Loki/Mimir/Tempo durability and CNPG backups point at an
+no bucket is Terraform-created — Loki/Tempo durability and CNPG backups point at an
 existing S3-compatible bucket by endpoint + credentials (via SOPS-decrypted Secrets,
 ADR-0005).
 

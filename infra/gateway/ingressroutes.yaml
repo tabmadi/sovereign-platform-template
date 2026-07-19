@@ -3,9 +3,9 @@
 # on the product apex. These are the cross-cutting OPS-TIER routes.
 #
 # Trust-tier split (ADR-0017): every operator dashboard lives on its own origin
-# `{tool}.ops.<host>`, never on a product path. HostRegexp keeps the manifests
-# host-agnostic (env parity, ADR-0016) — `^{tool}\.ops\..+` matches
-# {tool}.ops.dev.localtest.me locally and {tool}.ops.<apex> in every deployed env.
+# `{concept}.ops.<host>`, never on a product path. HostRegexp keeps the manifests
+# host-agnostic (env parity, ADR-0016) — `^{concept}\.ops\..+` matches
+# {concept}.ops.dev.localtest.me locally and {concept}.ops.<apex> in every deployed env.
 # The `*.ops.<host>` wildcard cert (secret wildcard-ops-tls) covers all of them.
 #
 # Each route is behind the ops forward-auth (Oathkeeper validates an AAL2 operator
@@ -22,7 +22,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^hubble\.ops\..+`)
+      match: HostRegexp(`^network\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -44,7 +44,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^grafana\.ops\..+`)
+      match: HostRegexp(`^o11y\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -55,19 +55,18 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Lowdefy internal-admin console (ADR-0012). Named `console` to disambiguate from
-# the product `/admin` route group. Oathkeeper injects X-User-Email, which Lowdefy
-# keys off (see access-rules console rule).
+# Lowdefy internal-admin console (ADR-0012). Oathkeeper injects X-User-Email,
+# which Lowdefy keys off (see access-rules ops-admin rule).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: ops-console
+  name: ops-admin
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^console\.ops\..+`)
+      match: HostRegexp(`^admin\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -78,8 +77,11 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Argo CD (ADR-0004) — deployed envs only (not in the local profile). server.insecure
-# is on, so TLS terminates at Traefik and argocd-server serves http on :80.
+# Argo CD (ADR-0004). server.insecure is on, so TLS terminates at Traefik and
+# argocd-server serves http on :80. Argo is installed into its own `argocd`
+# namespace (not `platform`), so the service ref is cross-namespace — the same
+# pattern as Hubble in kube-system. This needs Traefik allowCrossNamespace, on
+# locally via infra/local/traefik-config.yaml; prod's own Traefik must enable it.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -89,13 +91,14 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^argo\.ops\..+`)
+      match: HostRegexp(`^deploy\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
         - name: security-headers
       services:
         - name: argocd-server
+          namespace: argocd
           port: 80
   tls:
     secretName: wildcard-ops-tls
@@ -110,7 +113,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^temporal\.ops\..+`)
+      match: HostRegexp(`^workflows\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -131,7 +134,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^minio\.ops\..+`)
+      match: HostRegexp(`^s3\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -139,5 +142,50 @@ spec:
       services:
         - name: minio-console
           port: 9001
+  tls:
+    secretName: wildcard-ops-tls
+---
+# Headlamp — k8s debug UI (ADR-0024, ADR-0017). Core: the backend Service exists
+# in every env; if a project sets headlamp.enabled=false the route resolves to no
+# endpoints.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ops-k8s
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^k8s\.ops\..+`)
+      middlewares:
+        - name: strip-identity-headers
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: headlamp
+          port: 80
+  tls:
+    secretName: wildcard-ops-tls
+---
+# pgweb — read-only DB inspector (ADR-0012, ADR-0017). Core: the backend Service
+# exists in every env; setting pgweb.enabled=false leaves the route with no endpoints.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ops-db
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^db\.ops\..+`)
+      middlewares:
+        - name: strip-identity-headers
+        - name: oathkeeper-forward-auth
+        - name: security-headers
+      services:
+        - name: pgweb
+          port: 80
   tls:
     secretName: wildcard-ops-tls

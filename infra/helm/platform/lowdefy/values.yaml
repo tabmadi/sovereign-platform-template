@@ -1,13 +1,17 @@
-image:
-  repository: ""        # ghcr.io/.../admin
-  tag: ""               # git SHA
-  pullPolicy: IfNotPresent
+# Values namespaced under `lowdefy:` (not top-level) so this chart can share the
+# platform ApplicationSet's single per-env values overlay without its `image` key
+# colliding with the openfga chart, which also reads a top-level `.Values.image`.
+lowdefy:
+  image:
+    repository: ""        # per-env overlay: local → k3d registry, prod → ghcr
+    tag: ""               # local → "local"; prod → git SHA
+    pullPolicy: IfNotPresent
 
-replicas: 2
-service:
-  port: 3000
+  replicas: 2
+  service:
+    port: 3000
 
-env:
-  LOWDEFY_BUILD_OUT_DIR: /app/build
-  # The gateway forwards an authenticated identity header (ADR-0012).
-  LOWDEFY_REQ_HEADER_USER: x-user-email
+  env:
+    LOWDEFY_BUILD_OUT_DIR: /app/build
+    # The gateway forwards an authenticated identity header (ADR-0012).
+    LOWDEFY_REQ_HEADER_USER: x-user-email

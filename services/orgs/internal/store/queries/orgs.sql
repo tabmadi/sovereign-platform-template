@@ -1,3 +1,10 @@
+-- name: ListOrgs :many
+select
+  id,
+  name
+from orgs
+order by created_at desc limit 100;
+
 -- name: CreateOrg :one
 insert into orgs (name) values ($1) returning id, name;
 
@@ -7,6 +14,14 @@ select
   name
 from orgs
 where id = $1;
+
+-- name: UpdateOrg :one
+update orgs set name = $2
+where id = $1
+returning id, name;
+
+-- name: DeleteOrg :exec
+delete from orgs where id = $1;
 
 -- name: AddMember :exec
 insert into org_members (org_id, user_id, role) values ($1, $2, $3)

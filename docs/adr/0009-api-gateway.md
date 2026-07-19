@@ -1,9 +1,9 @@
 # ADR-0009: Edge Authentication & Traffic Policy
 
 - **Status:** Accepted
-- **Date:** 2026-05-19
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0003](0003-cluster-topology.md), [ADR-0008](0008-api-contracts.md), [ADR-0010](0010-auth.md)
+- **Related:** [ADR-0003](0003-cluster-topology.md), [ADR-0008](0008-api-contracts.md), [ADR-0010](0010-auth.md), [ADR-0017](0017-url-and-domain-structure.md), [ADR-0022](0022-api-lifecycle.md)
 
 ## Context
 
@@ -101,20 +101,53 @@ here, complementing the per-request CSP nonce the frontend sets ([ADR-0014](0014
   `infra/helm/platform/ory/` alongside Kratos and Hydra.
 - Traefik routing and rate-limit middleware live in `infra/gateway/` as Traefik CRDs (`Middleware`, `IngressRoute`),
   committed per [ADR-0002](0002-monorepo.md).
+- **Flat resource routing.** The API is a flat namespace (`<host>/api/<resource>`, [ADR-0017](0017-url-and-domain-structure.md)):
+  the edge routes each resource prefix (`/api/products`, `/api/orders`, …) to its backing service via a per-resource
+  `PathPrefix` rule, so the service topology is hidden and a resource can move between services without a URL change. The
+  route table is the **single registry of resource ownership** — a CI lint fails if two `x-audience`-exposed specs claim
+  the same prefix ([ADR-0008](0008-api-contracts.md)). Oathkeeper matches one rule on the whole `/api/` prefix (session or
+  JWT → identity headers); it does not enumerate services.
 - There is **no gateway-specific API-definition codegen.** The OpenAPI spec drives service codegen
   ([ADR-0008](0008-api-contracts.md)); the edge does not consume it.
 
-### Developer portal
+### Developer portals
 
-The developer portal is a route group in the frontend application: `apps/frontend/src/app/(devportal)/`. It renders
-OpenAPI specs (Scalar or Redoc) and, when a public API exists, calls Hydra to issue and rotate third-party OAuth2 client
-credentials. Until the first third-party consumer, it serves a "documentation coming soon" placeholder — no separate
-component to operate.
+The portals render the OpenAPI specs ([ADR-0008](0008-api-contracts.md)) as **filtered projections** on the `x-audience`
+ladder — never separately maintained documents. Both render the **edge `/api` surface**; `cluster` (east-west) operations
+are in neither — they bypass the edge and are documented in the service READMEs.
+
+- **Dev portal** — a route group in the frontend at `apps/frontend/src/app/(devportal)/`, on the product origin
+  ([ADR-0017](0017-url-and-domain-structure.md)). It renders **every edge operation** — audience `>= internal`, so
+  first-party `internal` ops and `public` ops alike — for our own frontend/admin developers. It sits behind the app session
+  and is page-gated by the OpenFGA `Checker` ([ADR-0010](0010-auth.md)), like any product surface — not a bare session check.
+- **Public docs portal** — **anonymous, no login**, the norm for public API documentation. It renders only `public`
+  operations (`internal` ones dropped). It ships only when a public API does; until then the dev portal is the only portal
+  and there is no public placeholder to operate.
+
+Both projections are rendered by **Scalar** (`@scalar/api-reference-react`), an MIT-licensed OpenAPI renderer embedded as a
+client island in the route group — **not** a separate service, keeping the "route group, not a component" decision intact.
+The two service specs are **merged into one document per projection** so the portal is a single unified reference grouped by
+resource tag, not a per-service document switcher (which would re-leak the service topology the flat namespace hides,
+[ADR-0017](0017-url-and-domain-structure.md)). Each portal is handed a **pre-filtered spec** produced by the build — a
+threshold on the ladder (dev portal `>= internal`, public docs `== public`) — so audience filtering stays *ours*
+([ADR-0008](0008-api-contracts.md)) rather than a renderer feature. Scalar's built-in request console is exactly why the
+dev portal is same-origin with `/api` ([ADR-0017](0017-url-and-domain-structure.md)): "try it" hits the real edge with the
+caller's session and needs no CORS. It is self-hosted and self-contained (web fonts disabled — no CDN); its own theme makes
+the portal a deliberate visual island, not an Untitled UI surface ([ADR-0014](0014-frontend.md)).
+
+Redoc was rejected because its request console is paywalled (Redocly Reference) — a read-only renderer would negate the
+same-origin "try it" the URL layout was built for; Stoplight Elements is the free fallback if Scalar's release churn ever
+outweighs its momentum. A docs *platform* (Fern, Mintlify) is out: it is a separate stateful service and duplicates the
+SDK codegen already pinned in [ADR-0008](0008-api-contracts.md).
+
+Credential management is a **separate, authenticated surface**, not part of either docs portal. When a public API exists,
+issuing and rotating third-party OAuth2 client credentials via Hydra lives behind login on its own dashboard origin
+([ADR-0017](0017-url-and-domain-structure.md)): viewing docs never requires an account, only managing keys does.
 
 ### Hydra is a public-API flag
 
 Hydra ([ADR-0010](0010-auth.md)) issues OAuth2 tokens for third-party / external machine clients. **Internal-only
-projects do not deploy it:** Kratos (login) + Oathkeeper (edge) + SpiceDB (authz) is the internal stack. A project
+projects do not deploy it:** Kratos (login) + Oathkeeper (edge) + OpenFGA (authz) is the internal stack. A project
 exposing a public API or external machine clients sets `hydra_thirdparty: on`; Oathkeeper then validates those JWTs at
 the edge and converts them to the same identity headers, so the internal request shape is unchanged.
 
@@ -156,7 +189,8 @@ Settled here and inherited by [ADR-0010](0010-auth.md):
 - `infra/auth/oathkeeper/` access rules (validate session/JWT → strip → inject identity headers).
 - `infra/gateway/` Traefik `Middleware` + `IngressRoute` for `/api` routing, rate limiting, and static security headers.
 - `infra/auth/oathkeeper/` CSRF Origin-check rule for cookie-authenticated state-changing requests.
-- `apps/frontend/src/app/(devportal)/` placeholder route group.
+- `apps/frontend/src/app/(devportal)/` route group rendering the specs via Scalar (`@scalar/api-reference-react`), fed the
+  pre-filtered projection (`mise run gen:openapi-public`, [ADR-0008](0008-api-contracts.md)).
 - `docs/gateway/runbook.md` covering edge rules, rate-limit changes, and the public-API gateway add-on.
 
 ## Rules
@@ -173,7 +207,12 @@ Settled here and inherited by [ADR-0010](0010-auth.md):
 - Static browser-security headers (`frame-ancestors`, `nosniff`, `Referrer-Policy`, HSTS) are a Traefik middleware applied to all responses; the per-request CSP nonce is set by the frontend ([ADR-0014](0014-frontend.md)).
 - Cookie-authenticated state-changing requests are Origin-checked by an Oathkeeper rule. Bearer-token traffic is exempt.
 - Hydra is deployed only for projects exposing a public API or external machine clients (`hydra_thirdparty` flag).
-  Internal-only projects run Kratos + Oathkeeper + SpiceDB.
-- The developer portal is a route group in `apps/frontend/`, not a separate application or a gateway feature.
+  Internal-only projects run Kratos + Oathkeeper + OpenFGA.
+- The dev portal is a `Checker`-gated route group in `apps/frontend/` rendering every edge operation (audience
+  `>= internal`); the public docs portal is anonymous and renders only `public` operations
+  ([ADR-0008](0008-api-contracts.md)), shipping only with a public API. Both are filtered projections of the specs — a
+  threshold on the `x-audience` ladder — not a gateway feature, rendered by Scalar embedded in the frontend route group
+  ([ADR-0014](0014-frontend.md)) as one merged document per projection; `cluster` (east-west) operations appear in neither.
+  Credential management is a separate authenticated surface ([ADR-0017](0017-url-and-domain-structure.md)) and never gates the docs.
 - A project that needs tiered per-API-key quotas adds a full gateway (Tyk/Kong) for its own routes via its own decision;
   it is not the platform default.

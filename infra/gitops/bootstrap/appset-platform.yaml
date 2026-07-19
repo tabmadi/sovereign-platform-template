@@ -1,8 +1,43 @@
-# Platform ApplicationSet (ADR-0004). One Application per platform component
-# per environment. Sync waves order CRDs → operators → instances.
+# Platform ApplicationSets (ADR-0004). The platform tier is split into three
+# dependency layers, each its own ApplicationSet so ArgoCD can order them:
+#
+#   base (wave 0)  — sops-operator, cert-manager, network-policies, cilium, argocd
+#                    Foundational, dependency-free. sops-operator must run before
+#                    any SopsSecret CR can be decrypted into Secrets (ADR-0005).
+#   data (wave 2)  — postgres, minio. The storage layer everything else sits on;
+#                    needs the Secrets produced by the base + secrets tiers.
+#   core (wave 3)  — observability, ory, temporal, openfga, pgweb, headlamp,
+#                    lowdefy. Consumers of the data layer (Postgres DSNs, the
+#                    MinIO trace/log buckets).
+#
+# WHY THREE SETS AND NOT PER-CHART SYNC-WAVES: sync-waves on the Applications a
+# single ApplicationSet generates are INERT — those Applications are created by
+# the ApplicationSet controller, not synced as resources of a parent, so ArgoCD
+# never sequences them (it applies them all concurrently). Real ordering exists
+# only at the granularity of a root-app-of-apps child. Each set here is such a
+# child; its own sync-wave (the metadata annotation below, NOT the template one)
+# is what root honours. The gate is made real by the custom ApplicationSet health
+# check (infra/helm/platform/argocd/values.yaml), which reports a set Healthy
+# only once every Application it generated is Synced+Healthy — so wave 2 waits for
+# every wave-0/1 component to actually be up, and so on. Charts WITHIN a tier are
+# still applied concurrently and must tolerate that.
+#
+# Wave ladder (root children): -10 projects · 0 base · 1 secrets · 2 data ·
+# 3 core · 4 gateway · 5 services.
+#
+# The three sets share an identical template body (the same auth valueFiles /
+# fileParameters wiring as before; non-Ory/OpenFGA charts ignore the extra keys).
+# Only the generator's directory list and the set's own sync-wave differ.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
-metadata: { name: platform, namespace: argocd }
+metadata:
+  name: platform-base
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: base
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -18,31 +53,38 @@ spec:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
               revision: master
               directories:
-                - { path: "infra/helm/platform/*" }
+                - { path: "infra/helm/platform/sops-operator" }
+                - { path: "infra/helm/platform/cert-manager" }
+                - { path: "infra/helm/platform/network-policies" }
+                # Prod manages the CNI + ArgoCD itself through GitOps (the local
+                # tier excludes these — cluster:full installs them imperatively
+                # because a CNI must exist before any pod, and Argo cannot install
+                # itself). They belong in the earliest tier.
+                - { path: "infra/helm/platform/cilium" }
+                - { path: "infra/helm/platform/argocd" }
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
-      annotations:
-        argocd.argoproj.io/sync-wave: "10"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
     spec:
-      project: default
+      project: "{{ .env }}"
       source:
         repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
         targetRevision: master
         path: "{{ .path.path }}"
         helm:
-          # Stable Helm release name = chart basename, so resources are named
-          # the same under ArgoCD as under a direct `helm install <chart>` (a
-          # bare release name would prefix every resource with the app name and
-          # break in-cluster DNS / cross-component refs).
+          # Stable Helm release name = chart basename, so resources are named the
+          # same under ArgoCD as under a direct `helm install <chart>` (a bare
+          # release name would prefix every resource with the app name and break
+          # in-cluster DNS / cross-component refs).
           releaseName: "{{ .path.basename }}"
-          # Auth config single source (Phase 0.4): the Ory app pulls its kratos/
-          # oathkeeper config from the canonical infra/auth tree — map configs as
-          # valueFiles, the identity-schema + access-rules strings as fileParameters.
-          # Paths are relative to each chart dir (infra/helm/platform/<component>);
-          # non-Ory components ignore the extra keys.
-          # Auth overlays first; the per-env file layers last so its host/dsn/secret
-          # overrides win (later valueFiles take precedence in Helm).
+          # Auth single-source (Phase 0.4): the Ory app pulls kratos/oathkeeper
+          # config from the canonical infra/auth tree; OpenFGA pulls its schema.
+          # Non-Ory/OpenFGA charts ignore these extra keys. The per-env file layers
+          # last so its host/dsn/secret overrides win (later valueFiles precede).
           valueFiles:
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
@@ -52,11 +94,143 @@ spec:
               path: "../../../auth/kratos/identity-schemas/user.v1.json"
             - name: oathkeeper.oathkeeper.accessRules
               path: "../../../auth/oathkeeper/access-rules.json"
-            # SpiceDB schema for the seed Job (ADR-0007); only the spicedb chart
-            # reads it, the rest ignore the extra value.
-            - name: seed.schema
-              path: "../../../auth/spicedb/schema.zed"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }
         syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-data
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: data
+  annotations:
+    # Wave 2: after base (operator up) and the secrets tier (wave 1, local) so
+    # Postgres finds its superuser Secret instead of CreateContainerConfigError.
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: staging, server: "https://kubernetes.default.svc" }
+                - { env: prod,    server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                - { path: "infra/helm/platform/postgres" }
+                - { path: "infra/helm/platform/minio" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-core
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: core
+  annotations:
+    # Wave 3: after the data tier is Healthy, so Tempo/Loki find MinIO + their
+    # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: staging, server: "https://kubernetes.default.svc" }
+                - { env: prod,    server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              revision: master
+              directories:
+                - { path: "infra/helm/platform/observability" }
+                - { path: "infra/helm/platform/ory" }
+                - { path: "infra/helm/platform/temporal" }
+                - { path: "infra/helm/platform/openfga" }
+                - { path: "infra/helm/platform/pgweb" }
+                - { path: "infra/helm/platform/headlamp" }
+                - { path: "infra/helm/platform/lowdefy" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

@@ -17,6 +17,9 @@ func New(db *pgxpool.Pool) *Activities { return &Activities{DB: db} }
 // SettleActivity is the placeholder PSP call. Replace with the real integration.
 func (a *Activities) SettleActivity(_ context.Context, _ workflows.ChargeInput) error { return nil }
 
+// RefundActivity is the placeholder PSP refund call. Replace with the real integration.
+func (a *Activities) RefundActivity(_ context.Context, _ workflows.RefundInput) error { return nil }
+
 // MarkChargeStatusActivity writes the terminal status of a charge.
 func (a *Activities) MarkChargeStatusActivity(ctx context.Context, chargeID, status string) error {
 	_, err := a.DB.Exec(ctx, `update charges set status = $2 where id = $1`, chargeID, status)

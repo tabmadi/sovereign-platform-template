@@ -8,6 +8,12 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// CancelOrder implements cancelOrder operation.
+	//
+	// Cancel an order. Starts the CancelOrder workflow (ADR-0006).
+	//
+	// POST /orders/{id}/cancel
+	CancelOrder(ctx context.Context, params CancelOrderParams) (*WorkflowHandle, error)
 	// Checkout implements checkout operation.
 	//
 	// Starts the Checkout Temporal saga (ADR-0006).
@@ -20,6 +26,12 @@ type Handler interface {
 	//
 	// GET /orders/{id}
 	GetOrder(ctx context.Context, params GetOrderParams) (*Order, error)
+	// ListOrders implements listOrders operation.
+	//
+	// List all orders.
+	//
+	// GET /orders
+	ListOrders(ctx context.Context) ([]Order, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

@@ -1,0 +1,44 @@
+# Local root App-of-Apps (ADR-0004, ADR-0016). Applied imperatively ONCE by
+# `mise run cluster:full` (scripts/cluster-full.sh's replacement). It is the local
+# counterpart to bootstrap/root-application.yaml.
+#
+# It lives in a SIBLING directory to bootstrap/ on purpose: the prod root-app
+# recurses infra/gitops/bootstrap, so any local-only appset placed there would be
+# picked up by prod ArgoCD and create local-* apps in deployed clusters. Keeping it
+# under local-bootstrap/ (which the prod root-app does NOT recurse) isolates it.
+#
+# targetRevision defaults to master (choice a: sync committed code, CI-built
+# images). For the rare GitOps-wiring test, override it to a pushed branch.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-root
+  namespace: argocd
+  labels:
+    env: local
+    app.kubernetes.io/part-of: bootstrap
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  # The hand-applied bootstrap seed stays in `default`: it is what creates the
+  # per-env AppProject (appproject.yaml), so it cannot live in one of them.
+  project: default
+  source:
+    repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+    targetRevision: master
+    path: infra/gitops/local-bootstrap
+    directory:
+      recurse: true
+      exclude: root-application.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+    # Retry the sync operation on failure: automated+selfHeal does NOT re-run a
+    # sync that errored on the same commit, so a transient repo-server/network
+    # blip during bootstrap would otherwise park this keystone app until a manual
+    # `argocd app sync`. Backoff caps at 2m (ADR-0004).
+    retry:
+      limit: 20
+      backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

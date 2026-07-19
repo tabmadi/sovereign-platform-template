@@ -24,7 +24,7 @@ tags. Use `scripts/new-service.sh <name>` to do this automatically.
 ## Standard tasks
 
 ```sh
-mise run run        # HTTP server
+mise run server     # HTTP server
 mise run worker     # Temporal worker
 mise run test
 mise run lint

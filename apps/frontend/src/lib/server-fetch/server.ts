@@ -6,21 +6,17 @@ import "server-only";
 import { headers } from "next/headers";
 import createClient, { type Client } from "openapi-fetch";
 
-type CreateOpts = {
-  service: string;
-};
-
 const API_BASE = process.env.INTERNAL_API_BASE ?? "http://gateway.platform.svc.cluster.local";
 
-export async function createServerClient<Paths extends object>({
-  service,
-}: CreateOpts): Promise<Client<Paths>> {
+// Flat API (ADR-0017): server components call the in-cluster edge under the shared
+// /api prefix; the typed resource path selects the endpoint, service topology hidden.
+export async function createServerClient<Paths extends object>(): Promise<Client<Paths>> {
   const h = await headers();
   const cookie = h.get("cookie") ?? "";
   const traceparent = h.get("traceparent") ?? "";
 
   return createClient<Paths>({
-    baseUrl: `${API_BASE}/api/${service}`,
+    baseUrl: `${API_BASE}/api`,
     headers: {
       ...(cookie && { cookie }),
       ...(traceparent && { traceparent }),

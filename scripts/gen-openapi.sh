@@ -19,7 +19,11 @@ for spec in services/*/openapi.yaml; do
   pkg=$(printf '%s' "$service" | tr -cd '[:alnum:]')
 
   echo "→ $service: Go SDK (ogen)"
-  rm -rf "$go_out"
+  # Regenerate in place: `ogen --clean` overwrites the generated files and prunes
+  # orphans itself, so no `rm -rf` is needed. Skipping it keeps the package dir
+  # populated throughout — a concurrent `go`/lint pass never observes an empty
+  # dir mid-run (which fails as "no Go files"/"package not found"). Use `gen:clean`
+  # to wipe and repopulate from scratch (e.g. after deleting a service).
   mkdir -p "$go_out"
   ogen --target "$go_out" --package "$pkg" --clean "$spec"
 

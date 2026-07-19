@@ -1,0 +1,47 @@
+# OpenFGA authorization model for the platform (ADR-0010).
+# Kept minimal — extend per service as authz needs grow. This DSL is the ONE
+# source of truth; model.json is generated from it (`mise run gen:authz-model`)
+# and CI (`lint:authz`) asserts they stay in sync. `fga model test` runs the
+# assertions in fga.yaml against this model.
+
+model
+  schema 1.1
+
+type user
+
+type org
+  relations
+    define member: [user]
+    define admin: [user]
+    define read: member or admin
+    define write: admin
+    define manage: admin
+
+type product
+  relations
+    define org: [org]
+    define read: read from org
+    define write: write from org
+
+type order
+  relations
+    define org: [org]
+    define owner: [user]
+    define read: owner or write from org
+    define write: owner or write from org
+
+# Ops-tier authorization (ADR-0017). A `group` models coarse cohorts; the
+# `operator` group (group:operator) gates the whole ops tier. Each operator
+# dashboard (Hubble, Grafana, Argo, Temporal, console, MinIO, OpenFGA) is a
+# `dashboard` resource; the ops-tier Oathkeeper checks `dashboard:<tool>#view`
+# via the remote_json authorizer. Coarse-then-fine: the authz endpoint requires
+# group:operator membership AND the per-tool view grant, so a non-operator gets
+# nothing and per-dashboard grants refine within the tier.
+type group
+  relations
+    define member: [user]
+
+type dashboard
+  relations
+    define viewer: [user, group#member]
+    define view: viewer

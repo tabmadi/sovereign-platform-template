@@ -49,3 +49,26 @@ rules:
     then:
       field: tags
       function: truthy
+
+  # admin-gen markers (ADR-0012). The generator reads two `x-admin` markers: `crud`
+  # on a tag (the resource group) and `action` on an operation. A value in the wrong
+  # place — `crud` on an operation, or `action`/typo on a tag — is silently ignored
+  # (no admin page), so pin each to its valid value.
+  x-admin-operation-value:
+    description: "operation-level x-admin must be `action` (resource CRUD is marked with x-admin: crud on the tag)"
+    given: $.paths.*[*]['x-admin']
+    severity: error
+    then:
+      function: enumeration
+      functionOptions:
+        values:
+          - action
+  x-admin-tag-value:
+    description: "tag-level x-admin must be `crud` (per-operation actions use x-admin: action on the operation)"
+    given: $.tags[*]['x-admin']
+    severity: error
+    then:
+      function: enumeration
+      functionOptions:
+        values:
+          - crud

@@ -5,8 +5,12 @@ kind: Application
 metadata:
   name: root
   namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: bootstrap
   finalizers: [resources-finalizer.argocd.argoproj.io]
 spec:
+  # The hand-applied bootstrap seed stays in `default`: it creates the per-env
+  # AppProjects (appproject.yaml), so it cannot live in one of them.
   project: default
   source:
     repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
@@ -21,3 +25,10 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true]
+    # Retry the sync operation on failure: automated+selfHeal does NOT re-run a
+    # sync that errored on the same commit, so a transient repo-server/network
+    # blip during bootstrap would otherwise park this keystone app until a manual
+    # `argocd app sync`. Backoff caps at 2m (ADR-0004).
+    retry:
+      limit: 20
+      backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

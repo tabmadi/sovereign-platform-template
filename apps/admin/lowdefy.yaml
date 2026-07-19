@@ -2,7 +2,12 @@
 # hand- or LLM-written; the OpenAPI-driven generator (tools/admin-gen, emitting
 # _generated/) is added only when the page count justifies it.
 name: platform-admin
-lowdefy: 5.4.0
+# `local` (not a pinned semver) skips Lowdefy's startup npm version check
+# (dist/utils/validateVersion.js short-circuits on 'local'), which otherwise makes a
+# raw axios GET to registry.npmjs.org and logs "Failed to check for latest Lowdefy
+# version." on every boot in an air-gapped/proxied cluster. The image pins the actual
+# version via LOWDEFY_VERSION (apps/admin/Dockerfile), so nothing is unpinned here.
+lowdefy: local
 
 # Lowdefy 5 requires every block/connection to be declared as a plugin, pinned to
 # the core version: antd UI blocks, basic layout, markdown, an AgGrid table, and
@@ -16,34 +21,58 @@ plugins:
 
 config:
   homePageId: dashboard
-  # Served at the root of its own ops origin console.ops.<host> (ADR-0017), not
+  # Served at the root of its own ops origin admin.ops.<host> (ADR-0017), not
   # under a product path. basePath is omitted: Lowdefy requires it to start with
   # "/" while Next.js rejects exactly "/", so the only root-valid setting is unset.
   # No Lowdefy auth/session store — access is gated upstream at the ops edge
-  # (Oathkeeper: AAL2 operator holding dashboard:console#view, ADR-0012/0017).
+  # (Oathkeeper: AAL2 operator holding dashboard:admin#view, ADR-0012/0017).
   # Pages are public to Lowdefy; only authorized operators ever reach this origin.
 
+# One REST connection per service, id == service name so the generated pages
+# (tools/admin-gen, ADR-0012) resolve their connectionId directly. Pages call the
+# service in-cluster, bypassing the /api edge; auth is enforced upstream (ADR-0012).
+#
+# Identity for writes: a service's write handlers gate on an operator identity
+# (authmw X-User-Id → OpenFGA group:operator, ADR-0009/0010). Lowdefy has no
+# server operator to relay the operator's inbound X-User-Id, so the console asserts
+# a fixed service-account identity `user:admin-console`, which the OpenFGA seed
+# grants group:operator#member (infra/helm/platform/openfga). This is the ADR-0009
+# header-trust model: only the console can reach these server ports (NetworkPolicy
+# allowFrom: [lowdefy]), so only it can assert this header. Reads ignore identity.
 connections:
   - id: catalog
     type: AxiosHttp
     properties:
       baseURL: http://catalog-server.platform.svc.cluster.local
+      headers: { X-User-Id: admin-console }
   - id: orders
     type: AxiosHttp
     properties:
       baseURL: http://orders-server.platform.svc.cluster.local
+      headers: { X-User-Id: admin-console }
+  - id: orgs
+    type: AxiosHttp
+    properties:
+      baseURL: http://orgs-server.platform.svc.cluster.local
+      headers: { X-User-Id: admin-console }
   - id: payment
     type: AxiosHttp
     properties:
       baseURL: http://payment-server.platform.svc.cluster.local
-  - id: authz-admin
+      headers: { X-User-Id: admin-console }
+  - id: authz
     type: AxiosHttp
     properties:
       baseURL: http://authz-server.platform.svc.cluster.local
+      headers: { X-User-Id: admin-console }
 
+# The nav is generated: _generated/menu.yaml is one `default` menu grouping every
+# resource and action page by service, rendered in the PageSiderMenu left sider
+# across the whole console (tools/admin-gen, ADR-0012).
+menus:
+  _ref: _generated/menu.yaml
+
+# The page index is generated: _generated/pages.yaml lists the hand-written pages
+# (pages/, custom/) first, then every page tools/admin-gen scaffolds from the specs.
 pages:
-  - _ref: pages/dashboard.yaml
-  - _ref: custom/catalog/products.yaml
-  - _ref: custom/orders/orders.yaml
-  - _ref: custom/refund-tool.yaml
-  - _ref: custom/operators.yaml
+  _ref: _generated/pages.yaml

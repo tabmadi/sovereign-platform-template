@@ -11,7 +11,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** @description List all orders. */
+        get: operations["listOrders"];
         put?: never;
         /** @description Starts the Checkout Temporal saga (ADR-0006). */
         post: operations["checkout"];
@@ -32,6 +33,23 @@ export interface paths {
         get: operations["getOrder"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Cancel an order. Starts the CancelOrder workflow (ADR-0006). */
+        post: operations["cancelOrder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -77,7 +95,7 @@ export interface components {
             quantity: number;
             total_cents: number;
             /** @enum {string} */
-            status: "pending" | "confirmed" | "failed";
+            status: "pending" | "confirmed" | "failed" | "cancelled";
         };
     };
     responses: {
@@ -98,6 +116,27 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listOrders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The order list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Order"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     checkout: {
         parameters: {
             query?: never;
@@ -143,6 +182,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Order"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    cancelOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the order to cancel. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancellation accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkflowHandle"];
                 };
             };
             default: components["responses"]["Error"];

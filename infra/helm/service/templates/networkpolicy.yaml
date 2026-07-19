@@ -38,7 +38,7 @@ spec:
       ports:
         - { port: {{ .Values.server.adminPort }}, protocol: TCP }
   egress:
-    # Platform deps: Postgres, Temporal, OTel, SpiceDB, Kratos/Oathkeeper, and
+    # Platform deps: Postgres, Temporal, OTel, OpenFGA, Kratos/Oathkeeper, and
     # in-namespace service-to-service calls.
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }

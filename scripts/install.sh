@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
+source "$(dirname "$0")/lib/log.sh"
 
-# Installing mise https://mise.jdx.dev
+step "installing mise (https://mise.jdx.dev)"
 curl https://mise.run | sh
 
-# Activate mise for current shell session
+step "activating mise for this shell"
 eval "$(~/.local/bin/mise activate bash)"
 
-# Installing all tools defined in mise.toml
+step "installing tools pinned in .mise.toml"
 mise install
 
-# Running the setup task
+step "running the setup task"
 mise run setup
+
+ok "install complete"

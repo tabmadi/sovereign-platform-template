@@ -2,7 +2,7 @@ minio:
   enabled: true   # umbrella gate (Chart.yaml condition); prod sets this false
   # Stable service name `minio` regardless of the Helm release name. Under ArgoCD
   # the release is `<env>-platform-minio`, so without this the Service would be
-  # `<env>-platform-minio` and the loki/tempo/mimir endpoints (which target
+  # `<env>-platform-minio` and the loki/tempo endpoints (which target
   # `minio.platform.svc`) would not resolve.
   fullnameOverride: minio
   mode: standalone
@@ -13,7 +13,7 @@ minio:
   resources:
     requests: { memory: "256Mi" }
   rootUser: minio
-  rootPassword: minio-dev-password
+  rootPassword: minio-password
   # One bucket per backend consumer (platform/observability charts), matching
   # the names each chart's own values.yaml expects.
   buckets:
@@ -21,7 +21,4 @@ minio:
     - { name: loki-chunks,           policy: none, purge: false }
     - { name: loki-ruler,            policy: none, purge: false }
     - { name: loki-admin,            policy: none, purge: false }
-    - { name: mimir-blocks,          policy: none, purge: false }
-    - { name: mimir-ruler,           policy: none, purge: false }
-    - { name: mimir-alertmanager,    policy: none, purge: false }
     - { name: tempo-traces,          policy: none, purge: false }

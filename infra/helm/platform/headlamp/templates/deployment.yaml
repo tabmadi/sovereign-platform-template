@@ -1,0 +1,62 @@
+{{- if .Values.headlamp.enabled }}
+# Read-only ClusterRole binding (ADR-0024): the Headlamp pod's ServiceAccount is
+# bound to the built-in `view` role, so the UI can list/get/watch and tail logs
+# but never mutate reconciled state — desired state changes go through Git/ArgoCD.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headlamp
+  namespace: platform
+  labels: { app.kubernetes.io/name: headlamp }
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: headlamp-view
+  labels: { app.kubernetes.io/name: headlamp }
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.headlamp.clusterRole }}
+subjects:
+  - kind: ServiceAccount
+    name: headlamp
+    namespace: platform
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headlamp
+  namespace: platform
+  labels: { app.kubernetes.io/name: headlamp }
+spec:
+  replicas: {{ .Values.headlamp.replicas }}
+  selector: { matchLabels: { app.kubernetes.io/name: headlamp } }
+  template:
+    metadata: { labels: { app.kubernetes.io/name: headlamp } }
+    spec:
+      serviceAccountName: headlamp
+      containers:
+        - name: headlamp
+          image: "{{ .Values.headlamp.image.repository }}:{{ .Values.headlamp.image.tag }}"
+          imagePullPolicy: {{ .Values.headlamp.image.pullPolicy }}
+          # -in-cluster uses the pod ServiceAccount; served at the origin root, so
+          # no base-url prefix (its router can't run under a path — like Hubble).
+          # -unsafe-use-service-account-token authenticates to the API as the pod's
+          # own `view`-bound ServiceAccount instead of prompting each user for a
+          # bearer token — the ops edge already authenticates operators via the
+          # oathkeeper coarse gate (ADR-0017), so a second Headlamp login is
+          # redundant. Read-only either way; the flag is the intended mode for
+          # Headlamp behind an external auth proxy.
+          args: ["-in-cluster", "-unsafe-use-service-account-token"]
+          ports: [{ name: http, containerPort: 4466 }]
+          readinessProbe: { httpGet: { path: /, port: http } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: headlamp, namespace: platform }
+spec:
+  type: ClusterIP
+  selector: { app.kubernetes.io/name: headlamp }
+  ports: [{ name: http, port: {{ .Values.headlamp.service.port }}, targetPort: http }]
+{{- end }}

@@ -8,8 +8,8 @@
       {
         "name": "service",
         "type": "query",
-        "datasource": "Mimir",
-        "query": "label_values(http_server_duration_milliseconds_count, service_name)"
+        "datasource": "Prometheus",
+        "query": "label_values(http_server_duration_seconds_count, service_name)"
       }
     ]
   },
@@ -17,30 +17,36 @@
     {
       "type": "timeseries",
       "title": "Request rate",
-      "datasource": "Mimir",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
       "targets": [
         {
-          "expr": "sum by (service_name) (rate(http_server_duration_milliseconds_count{service_name=\"$service\"}[1m]))"
+          "expr": "sum by (service_name) (rate(http_server_duration_seconds_count{service_name=\"$service\"}[5m]))"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Error rate",
-      "datasource": "Mimir",
+      "title": "Error rate (5xx)",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
+      "fieldConfig": { "defaults": { "unit": "reqps" } },
       "targets": [
         {
-          "expr": "sum by (service_name) (rate(http_server_duration_milliseconds_count{service_name=\"$service\",http_response_status_code=~\"5..\"}[1m]))"
+          "expr": "sum by (service_name) (rate(http_server_duration_seconds_count{service_name=\"$service\",http_status_code=~\"5..\"}[5m]))"
         }
       ]
     },
     {
       "type": "timeseries",
       "title": "p99 duration",
-      "datasource": "Mimir",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=\"$service\"}[1m])))"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_seconds_bucket{service_name=\"$service\"}[5m])))"
         }
       ]
     }

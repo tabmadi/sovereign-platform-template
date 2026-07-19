@@ -1,4 +1,4 @@
-# Sample alert (ADR-0011). Mimir PrometheusRule format.
+# Sample alert (ADR-0011). Prometheus PrometheusRule format.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata: { name: service-availability, namespace: platform }

@@ -6,6 +6,10 @@ commit-msg:
       run: cog verify --ignore-merge-commits --file {1}
 
 pre-commit:
+  # Mirrors `mise run lint` (plus the formatters), glob-gated so each check only
+  # runs when a file it cares about is staged. Keep this in step with the lint/
+  # format umbrellas in .mise.toml — a check that lives only in CI is a gate a
+  # commit can slip past locally (that is how a lint:gostyle break reached CI).
   parallel: true
   commands:
     go-fmt:
@@ -20,12 +24,20 @@ pre-commit:
       # arguments that span more than one directory. --new-from-rev still scopes
       # reporting to issues introduced by the staged changes.
       run: golangci-lint run --new-from-rev HEAD ./...
+    gostyle:
+      # Custom Go layout analyzers (lint:gostyle). Package-scoped like golangci-lint.
+      glob: "*.go"
+      run: go run ./tools/gostyle ./...
     sqruff:
       glob: "{services/**/migrations/*.sql,services/**/internal/store/queries/*.sql}"
       run: sqruff lint {staged_files}
     vacuum:
       glob: "services/**/openapi.yaml"
       run: vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error {staged_files}
+    api-audience:
+      # Audience↔exposure gate (lint:api-audience) — derives from the specs + routes.
+      glob: "services/**/openapi.yaml"
+      run: go run ./tools/lint-api-audience
     floating-tags:
       run: bash scripts/lint-floating-tags.sh
     gen-drift:
@@ -39,6 +51,39 @@ pre-commit:
       glob: "*.md"
       run: rumdl check --fix {staged_files}
       stage_fixed: true
+    shfmt:
+      # Shell formatter (format:shell). -i 2 matches the repo's 2-space scripts.
+      glob: "*.sh"
+      run: shfmt -w -i 2 {staged_files}
+      stage_fixed: true
+    shellcheck:
+      # Shell lint (lint:shell). Runs the repo-wide script; catches cross-file too.
+      glob: "*.sh"
+      run: bash scripts/lint-shell.sh
+    log-vocab:
+      # Human-output vocabulary gate (lint:log-vocab).
+      glob: "scripts/**/*.sh"
+      run: bash scripts/lint-log-vocab.sh
+    node-scope:
+      # Node confinement guard (lint:node-scope) — trips when a lockfile leaks.
+      glob: "{**/package.json,**/package-lock.json,**/bun.lock}"
+      run: bash scripts/lint-node-scope.sh
+    auth-inline:
+      # Auth config single-source guard (lint:auth-inline).
+      glob: "infra/{auth/**,helm/platform/ory/values.yaml}"
+      run: bash scripts/lint-auth-inline.sh
+    openfga:
+      # OpenFGA model + assertions (part of lint:authz).
+      glob: "infra/auth/openfga/**"
+      run: bash scripts/validate-openfga.sh
+    authorizer:
+      # Ops dashboards authorize via remote_json, never `allow` (part of lint:authz).
+      glob: "infra/auth/oathkeeper/access-rules.json"
+      run: bash scripts/lint-authorizer.sh
+    strip-headers:
+      # Forward-auth routes strip client identity headers first (part of lint:authz).
+      glob: "infra/{gateway/**,helm/service/**}"
+      run: bash scripts/lint-strip-headers.sh
 
 pre-push:
   commands:

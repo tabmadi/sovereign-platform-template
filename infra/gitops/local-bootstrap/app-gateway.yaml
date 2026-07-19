@@ -1,0 +1,37 @@
+# Local Gateway Application (ADR-0009). Same env-agnostic edge config (Traefik
+# middlewares + cross-cutting IngressRoutes from infra/gateway) the prod
+# app-gateway.yaml applies, synced locally by the local root-app. The host-specific
+# local edge glue (infra/local/traefik-config.yaml, edge-auth.yaml, and the
+# frontend-dev EndpointSlice pointing at the docker-bridge gateway IP) is NOT here —
+# it depends on per-machine state and stays in the imperative tail of cluster:full.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-gateway
+  namespace: argocd
+  labels:
+    env: local
+    app.kubernetes.io/part-of: gateway
+  annotations:
+    # CRDs (middlewares) before the per-service IngressRoutes that reference them.
+    # Wave 4: after the whole platform tier (base 0 · data 2 · core 3), before
+    # services (5). See infra/gitops/local-bootstrap/appset-platform.yaml.
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+    targetRevision: master
+    path: infra/gateway
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    # Retry on failure — automated+selfHeal won't re-run a sync that errored on
+    # the same commit, so a transient blip would otherwise leave the edge
+    # unrouted until a manual sync. Backoff caps at 2m (ADR-0004).
+    retry:
+      limit: 20
+      backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

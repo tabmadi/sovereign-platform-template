@@ -1,0 +1,82 @@
+# OpenFGA store test (ADR-0010). Run with `fga model test --tests fga.yaml`
+# (via `mise run lint:authz`): sample tuples + check assertions that pin the
+# model's behaviour.
+#
+# Dashboard names are the LOGICAL ops-tool names Oathkeeper sends to the authz
+# service (infra/auth/oathkeeper/access-rules.json → dashboard:<tool>#view):
+# admin, network, o11y, deploy, workflows, s3, k8s, and db. They must match the
+# seed grants in the chart values.
+name: platform-authz
+model_file: ./model.fga
+
+tuples:
+  # Business sample: acme org, two orders.
+  - { user: user:alice, relation: member, object: org:acme }
+  - { user: org:acme,   relation: org,    object: order:o1 }
+  - { user: user:alice, relation: owner,  object: order:o1 }
+  - { user: org:acme,   relation: org,    object: order:o2 }
+  - { user: user:bob,   relation: owner,  object: order:o2 }
+  # Ops tier (ADR-0017): alice is an operator; the admin console is a direct
+  # grant, every other dashboard is granted to the operator group.
+  - { user: user:alice,            relation: member, object: group:operator }
+  - { user: user:alice,            relation: viewer, object: dashboard:admin }
+  - { user: group:operator#member, relation: viewer, object: dashboard:network }
+  - { user: group:operator#member, relation: viewer, object: dashboard:o11y }
+  - { user: group:operator#member, relation: viewer, object: dashboard:deploy }
+  - { user: group:operator#member, relation: viewer, object: dashboard:workflows }
+  - { user: group:operator#member, relation: viewer, object: dashboard:s3 }
+  - { user: group:operator#member, relation: viewer, object: dashboard:k8s }
+  - { user: group:operator#member, relation: viewer, object: dashboard:db }
+
+tests:
+  - name: business-and-ops-authz
+    check:
+      # alice: org membership + derived read; not admin/write.
+      - user: user:alice
+        object: org:acme
+        assertions: { member: true, read: true, admin: false, write: false }
+      # alice owns o1 (read); o2 is bob's (no write for alice).
+      - user: user:alice
+        object: order:o1
+        assertions: { read: true }
+      - user: user:alice
+        object: order:o2
+        assertions: { write: false }
+      # alice is an operator → views admin + every group-granted dashboard.
+      - user: user:alice
+        object: group:operator
+        assertions: { member: true }
+      - user: user:alice
+        object: dashboard:admin
+        assertions: { view: true }
+      - user: user:alice
+        object: dashboard:o11y
+        assertions: { view: true }
+      - user: user:alice
+        object: dashboard:network
+        assertions: { view: true }
+      - user: user:alice
+        object: dashboard:workflows
+        assertions: { view: true }
+      - user: user:alice
+        object: dashboard:s3
+        assertions: { view: true }
+      - user: user:alice
+        object: dashboard:deploy
+        assertions: { view: true }
+      - user: user:alice
+        object: dashboard:k8s
+        assertions: { view: true }
+      - user: user:alice
+        object: dashboard:db
+        assertions: { view: true }
+      # bob is not an operator → reaches no ops dashboard.
+      - user: user:bob
+        object: group:operator
+        assertions: { member: false }
+      - user: user:bob
+        object: dashboard:admin
+        assertions: { view: false }
+      - user: user:bob
+        object: dashboard:o11y
+        assertions: { view: false }

@@ -1,5 +1,5 @@
 id: dashboard
-type: PageHeaderMenu
+type: PageSiderMenu
 properties:
   title: Platform admin
 blocks:
@@ -9,7 +9,23 @@ blocks:
       content: |
         # Platform admin
 
-        - [Products](/products)
-        - [Orders](/orders)
-        - [Refund tool](/refund-tool)
-        - [Operators](/operators)
+        Use the left navigation to manage each service's resources. Every resource
+        opens a Django-admin-style **changelist**: a table of records with an **Add**
+        button, and rows you click to open a dedicated **edit** page (save or delete).
+
+        The pages under each service are generated from the service OpenAPI specs by
+        `tools/admin-gen` (ADR-0012). This landing page is hand-written — the kind of
+        cross-service view the generator does not produce.
+
+        **Resources**
+
+        - [Products](/products) — full CRUD
+        - [Organizations](/orgs) — full CRUD
+        - [Orders](/orders) — list only (checkout is an async workflow)
+        - [Charges](/charges) — list only (charging is an async workflow)
+
+        **Actions**
+
+        - [Refund charge](/refundCharge)
+        - [Cancel order](/cancelOrder)
+        - [Create operator](/createOperator)

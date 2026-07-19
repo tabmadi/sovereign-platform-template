@@ -12,19 +12,19 @@ import { OPERATOR_STATE, OPERATOR_TOTP_FILE, opsURL } from "../fixtures/env";
 import { OPERATOR } from "../fixtures/identities";
 import { operatorLogin } from "../fixtures/kratos";
 
-const GRAFANA = `${opsURL("grafana")}/`;
+const GRAFANA = `${opsURL("o11y")}/`;
 
-test.describe("grafana ops dashboard", () => {
+test.describe("o11y ops dashboard", () => {
   test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("grafana");
+    await expectUnauthenticatedDenied("o11y");
   });
 
   test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("grafana");
+    await expectAal1Forbidden("o11y");
   });
 
-  test("gated: AAL2 operator passes the dashboard:grafana#view grant", async () => {
-    await expectOperatorAllowed("grafana");
+  test("gated: AAL2 operator passes the dashboard:o11y#view grant", async () => {
+    await expectOperatorAllowed("o11y");
   });
 
   // The real end-to-end auth flow from a fresh context (not a pre-seeded session).

@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// POST /products
 	CreateProduct(ctx context.Context, req *ProductInput) (*Product, error)
+	// DeleteProduct implements deleteProduct operation.
+	//
+	// Delete a product.
+	//
+	// DELETE /products/{id}
+	DeleteProduct(ctx context.Context, params DeleteProductParams) error
 	// GetProduct implements getProduct operation.
 	//
 	// Fetch a product by id.
@@ -26,6 +32,12 @@ type Handler interface {
 	//
 	// GET /products
 	ListProducts(ctx context.Context) ([]Product, error)
+	// UpdateProduct implements updateProduct operation.
+	//
+	// Update a product.
+	//
+	// PUT /products/{id}
+	UpdateProduct(ctx context.Context, req *ProductInput, params UpdateProductParams) (*Product, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

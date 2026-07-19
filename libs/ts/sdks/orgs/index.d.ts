@@ -11,7 +11,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** @description List all organizations. */
+        get: operations["listOrgs"];
         put?: never;
         /** @description Create an organization. */
         post: operations["createOrg"];
@@ -30,15 +31,17 @@ export interface paths {
         };
         /** @description Fetch an organization by id. */
         get: operations["getOrg"];
-        put?: never;
+        /** @description Rename an organization. */
+        put: operations["updateOrg"];
         post?: never;
-        delete?: never;
+        /** @description Delete an organization. */
+        delete: operations["deleteOrg"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/internal/identity-created": {
+    "/identity-created": {
         parameters: {
             query?: never;
             header?: never;
@@ -96,6 +99,27 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listOrgs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The organization list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Org"][];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     createOrg: {
         parameters: {
             query?: never;
@@ -142,6 +166,57 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Org"];
                 };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    updateOrg: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the organization to update. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The new organization fields. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrgInput"];
+            };
+        };
+        responses: {
+            /** @description The updated organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Org"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    deleteOrg: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Id of the organization to delete. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Error"];
         };

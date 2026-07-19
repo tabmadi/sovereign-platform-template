@@ -47,7 +47,7 @@ export async function whoami(): Promise<Session | null> {
 }
 
 // hasRole reports whether the session carries the given product role. (Service
-// APIs make the authoritative SpiceDB check via libs/go/authz; this gates UI.)
+// APIs make the authoritative OpenFGA check via libs/go/authz; this gates UI.)
 export function hasRole(session: Session | null, role: string): boolean {
   if (session === null) {
     return false;

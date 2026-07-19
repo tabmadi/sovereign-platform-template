@@ -1,0 +1,142 @@
+openapi: 3.1.0
+info: { title: authz, version: 0.1.0, description: Ops-tier edge authorizer and operator admin (ADR-0010/0012/0017)., x-audience: cluster }
+servers: [{ url: / }]   # east-west control-plane service; no /api edge route (ADR-0009)
+tags: [{ name: authorize }, { name: operators }, { name: identities, x-admin: crud }]
+paths:
+  /authorize:
+    post:
+      operationId: authorize
+      # Ops-tier decision for Oathkeeper's remote_json authorizer: 200 = allow,
+      # 403 = deny. The request shape mirrors the remote_json payload in
+      # infra/auth/oathkeeper/access-rules.json (that config remains the caller's
+      # contract; this spec is authz's own view of the same shape).
+      description: Ops-tier authorization decision for Oathkeeper's remote_json authorizer.
+      tags: [authorize]
+      requestBody:
+        required: true
+        description: The decision request forwarded by Oathkeeper.
+        content: { application/json: { schema: { $ref: "#/components/schemas/AuthorizeRequest" } } }
+      responses:
+        "200": { description: Allowed. }
+        "403":
+          description: Denied.
+          content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /identities:
+    get:
+      operationId: listIdentities
+      # Changelist target (ADR-0012): the console's Users page. The list is served from
+      # Kratos admin (GET /admin/identities), which only authz may reach
+      # (network-policies/30-ory.yaml) — the console fetches it through here, never
+      # directly. Adding a create op here would scaffold an "add user" page; we don't
+      # want that (operator creation stays the dedicated createOperator action), so the
+      # tag exposes list + get + update only → admin-gen emits a changelist + an edit
+      # page, no add page.
+      description: List identities (product users and operators) from Kratos, paginated.
+      tags: [identities]
+      # per_page caps the Kratos admin page (page_size); the generated changelist
+      # paginates client-side in the grid within that window. No page offset: this
+      # Kratos uses keyset pagination where `page` is an opaque page-token, not a
+      # 1-based number, so forwarding a numeric page returns an empty set. For counts
+      # beyond one page, raise per_page (or wire the grid to keyset page_token).
+      parameters:
+        - { name: per_page, in: query, required: false, description: Page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 250 } }
+      responses:
+        "200":
+          description: The identities.
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Identity" } } } }
+        default: { $ref: "#/components/responses/Error" }
+  /identities/{id}:
+    get:
+      operationId: getIdentity
+      # Prefills the console's edit form (admin-gen loads GET /{id} on mount).
+      description: Fetch one identity by id.
+      tags: [identities]
+      parameters:
+        - { name: id, in: path, required: true, description: The id of the identity to fetch., schema: { type: string } }
+      responses:
+        "200": { description: The identity., content: { application/json: { schema: { $ref: "#/components/schemas/Identity" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    put:
+      operationId: updateIdentity
+      # Edit target (ADR-0012): the console's per-row change page. Updates the editable
+      # traits only; email is the login identifier and is intentionally not editable.
+      description: Update an identity's editable traits.
+      tags: [identities]
+      parameters:
+        - { name: id, in: path, required: true, description: The id of the identity to update., schema: { type: string } }
+      requestBody:
+        required: true
+        description: The traits to change.
+        content: { application/json: { schema: { $ref: "#/components/schemas/IdentityUpdate" } } }
+      responses:
+        "200": { description: The updated identity., content: { application/json: { schema: { $ref: "#/components/schemas/Identity" } } } }
+        default: { $ref: "#/components/responses/Error" }
+  /operators:
+    post:
+      operationId: createOperator
+      # Generated admin page target (ADR-0012): a control-plane action, not CRUD.
+      x-admin: action
+      description: Create an operator identity and grant the operator role.
+      tags: [operators]
+      requestBody:
+        required: true
+        description: The operator to create.
+        content: { application/json: { schema: { $ref: "#/components/schemas/OperatorInput" } } }
+      responses:
+        "200": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Operator" } } } }
+        default: { $ref: "#/components/responses/Error" }
+components:
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    Problem:
+      type: object
+      description: RFC 7807 problem document.
+      required: [code, message]
+      properties:
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+    AuthorizeRequest:
+      type: object
+      description: The remote_json payload Oathkeeper POSTs per ops-dashboard request.
+      required: [subject, tool, aal, operator]
+      properties:
+        subject:  { type: string, description: Kratos identity id; empty for anonymous. }
+        tool:     { type: string, description: Ops dashboard slug such as o11y or network. }
+        aal:      { type: string, description: authenticator_assurance_level from the session. }
+        operator: { type: string, description: The operator identity trait; "true" when set. }
+    OperatorInput:
+      type: object
+      description: Request body to create an operator.
+      required: [email, password]
+      properties:
+        email:    { type: string, minLength: 1 }
+        password: { type: string, minLength: 1 }
+    Operator:
+      type: object
+      description: A created operator.
+      required: [id, email]
+      properties:
+        id:    { type: string }
+        email: { type: string }
+    Identity:
+      type: object
+      description: A Kratos identity, flattened from its traits for the admin changelist.
+      required: [id, email]
+      properties:
+        id:       { type: string }
+        email:    { type: string }
+        name:     { type: string }
+        operator: { type: boolean }
+    IdentityUpdate:
+      type: object
+      description: The editable traits of an identity. Email is the login identifier and is not editable here.
+      properties:
+        name:     { type: string }
+        operator: { type: boolean }

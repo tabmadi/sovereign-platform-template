@@ -6,7 +6,7 @@
 #
 #   mise run cluster:lite      # once: cluster + lightweight deps
 #   mise run dev:forward     # this script, in its own terminal
-#   DATABASE_URL=... TEMPORAL_HOST_PORT=localhost:7233 SPICEDB_ENDPOINT=localhost:50051 \
+#   DATABASE_URL=... TEMPORAL_HOST_PORT=localhost:7233 OPENFGA_API_URL=http://localhost:18080 \
 #     go run ./services/orders/cmd/server   # run the service natively
 set -euo pipefail
 
@@ -19,16 +19,25 @@ pids=()
 cleanup() { kill "${pids[@]}" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 
-k port-forward svc/postgres 5432:5432 &  pids+=($!)
-k port-forward svc/temporal 7233:7233 &  pids+=($!)
-k port-forward svc/temporal 8233:8233 &  pids+=($!)
-k port-forward svc/spicedb  50051:50051 & pids+=($!)
+k port-forward svc/postgres 5432:5432 &
+pids+=($!)
+k port-forward svc/temporal 7233:7233 &
+pids+=($!)
+k port-forward svc/temporal 8233:8233 &
+pids+=($!)
+# Local 18080, not 8080: the service under test serves on 8080 and k3d maps host
+# 8080 to the edge — so the OpenFGA forward uses 18080 (matches OPENFGA_API_URL in
+# services/*/.env.example).
+k port-forward svc/openfga 18080:8080 &
+pids+=($!)
 
 # If observability is up (full tier / obs profile), forward Grafana + Faro too.
 if k get svc otel-lgtm >/dev/null 2>&1; then
   echo "→ observability detected: grafana 3001, faro 12347"
-  k port-forward svc/otel-lgtm 3001:3000 & pids+=($!)
-  k port-forward svc/faro 12347:12347 &     pids+=($!)
+  k port-forward svc/otel-lgtm 3001:3000 &
+  pids+=($!)
+  k port-forward svc/faro 12347:12347 &
+  pids+=($!)
 fi
 
 wait

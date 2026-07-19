@@ -4,7 +4,9 @@
 # pinned in .mise.toml. CI workflows source this before invoking `mise run …`.
 
 set -euo pipefail
+source "$(dirname "$0")/lib/log.sh"
 
+step "installing mise"
 curl https://mise.run | sh
 
 MISE_BIN="${HOME}/.local/bin/mise"
@@ -16,4 +18,6 @@ fi
 
 eval "$("${MISE_BIN}" activate bash)"
 
+step "installing the toolchain pinned in .mise.toml"
 "${MISE_BIN}" install
+ok "CI toolchain ready"

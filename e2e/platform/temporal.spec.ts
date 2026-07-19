@@ -1,5 +1,5 @@
-// Temporal Web UI operator dashboard (ADR-0017) — gated at temporal.ops.<host>
-// (dashboard:temporal#view) and the namespace view renders behind a real AAL2
+// Temporal Web UI operator dashboard (ADR-0017) — gated at workflows.ops.<host>
+// (dashboard:workflows#view) and the namespace view renders behind a real AAL2
 // operator session.
 import { expect, test } from "@playwright/test";
 import {
@@ -9,19 +9,19 @@ import {
 } from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 
-const TEMPORAL = `${opsURL("temporal")}/`;
+const TEMPORAL = `${opsURL("workflows")}/`;
 
-test.describe("temporal ops dashboard", () => {
+test.describe("workflows ops dashboard", () => {
   test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("temporal");
+    await expectUnauthenticatedDenied("workflows");
   });
 
   test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("temporal");
+    await expectAal1Forbidden("workflows");
   });
 
-  test("gated: AAL2 operator passes the dashboard:temporal#view grant", async () => {
-    await expectOperatorAllowed("temporal");
+  test("gated: AAL2 operator passes the dashboard:workflows#view grant", async () => {
+    await expectOperatorAllowed("workflows");
   });
 
   test.describe("renders behind AAL2", () => {

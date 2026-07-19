@@ -1,7 +1,7 @@
 # ADR-0018: Testing Strategy & End-to-End
 
 - **Status:** Accepted
-- **Date:** 2026-06-26
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0001](0001-language-and-runtime.md), [ADR-0002](0002-monorepo.md), [ADR-0008](0008-api-contracts.md), [ADR-0014](0014-frontend.md), [ADR-0016](0016-environment-parity.md), [ADR-0017](0017-url-and-domain-structure.md)
 
@@ -75,7 +75,7 @@ scoped to the e2e/visual runner alone.
 | Layer | Tool | Environment | Role |
 |-------|------|-------------|------|
 | **Unit / component** | `go test`, `bun test` ([ADR-0014](0014-frontend.md)) | none / `happy-dom` | logic & component shape in isolation |
-| **Service integration** | `go test` + generated SDK clients ([ADR-0008](0008-api-contracts.md)) | `cluster:lite` (deps only) | a service against real Postgres/Temporal/SpiceDB |
+| **Service integration** | `go test` + generated SDK clients ([ADR-0008](0008-api-contracts.md)) | `cluster:lite` (deps only) | a service against real Postgres/Temporal/OpenFGA |
 | **Preflight readiness** | Go / shell | `cluster:full` | fast failure **localiser** — pods ready, ports open, Postgres/Oathkeeper reachable; runs before the browser suite so a red e2e instantly reads "infra down" vs "app broken" |
 | **Browser acceptance e2e** | **Playwright (TS)** | `cluster:full` | **the gauge** — product journeys + operator dashboards rendered behind a real AAL2 session |
 | **Visual regression** | **Playwright `toHaveScreenshot`** | `cluster:full` / static render | component shape vs committed baselines |
@@ -91,7 +91,7 @@ one runner):
 - `e2e/platform/` — cross-service product journeys (register → catalog → order → pay) and the
   operator-dashboard journeys (Grafana, Hubble, Temporal, MinIO rendered behind an AAL2 session
   per [ADR-0017](0017-url-and-domain-structure.md)).
-- `e2e/frontend/(landing|panel|admin|devportal)/` — per-route-group frontend feature suites.
+- `e2e/frontend/(landing|panel|devportal)/` — per-route-group frontend feature suites.
 - `e2e/visual/` — component visual regression against committed baselines.
 
 ### Cadence
@@ -136,8 +136,11 @@ measurable trigger: adopt when built-in baseline diffing no longer scales.
 ### Negative / Risks
 
 - **Node returns** as a sanctioned runtime. Mitigated by hard scoping ([ADR-0001](0001-language-and-runtime.md)):
-  it appears only in the `e2e/` runner and CI, never in a service, image, shipped artifact, or
-  app/lib code. Frontend dev and unit tests stay on Bun.
+  for testing it appears only in the `e2e/` runner and CI, never in a service, app/lib code, or an
+  image built from our own source. It is pinned in `e2e/.mise.toml`, not the root toolchain, so it
+  installs only for a dev who runs the suite. Frontend dev and unit tests stay on Bun. (ADR-0001
+  sanctions one other Node island for the same vendored-tool reason: the Lowdefy admin console,
+  [ADR-0012](0012-internal-admin.md).)
 - **Label-gated smoke means an unlabeled PR gets no full-platform signal until nightly**, so an
   edge/auth/cross-service break can sit in `master` up to ~24h. Accepted as the cost of not paying
   a full bring-up per PR; the mitigation is to label risky PRs.
@@ -166,4 +169,4 @@ measurable trigger: adopt when built-in baseline diffing no longer scales.
 - The full e2e + visual suite runs nightly and pre-release. The smoke suite runs per-PR only when labeled. Neither is part of `ci:affected`.
 - Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-vs-Figma diffing is not a CI gate.
 - E2e provisions a committed deterministic test identity (AAL1 user + AAL2 operator); no test relies on hand-created state.
-- Node is permitted solely as the Playwright e2e/visual runner ([ADR-0001](0001-language-and-runtime.md)); it appears in no service, container image, shipped artifact, or app/library code.
+- Within testing, Node is permitted solely as the Playwright e2e/visual runner ([ADR-0001](0001-language-and-runtime.md)); it appears in no service, app/library code, or image built from our own source. It is pinned in `e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain.

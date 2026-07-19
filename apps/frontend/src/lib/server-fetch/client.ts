@@ -4,6 +4,9 @@
 
 import createClient, { type Client } from "openapi-fetch";
 
-export function createBrowserClient<Paths extends object>(service: string): Client<Paths> {
-  return createClient<Paths>({ baseUrl: `/api/${service}` });
+// Flat API (ADR-0017): every service is reached under the shared /api prefix on
+// the same origin. The typed resource path (e.g. /products) selects the endpoint;
+// which service serves it is hidden behind the edge, so no service name is passed.
+export function createBrowserClient<Paths extends object>(): Client<Paths> {
+  return createClient<Paths>({ baseUrl: "/api" });
 }

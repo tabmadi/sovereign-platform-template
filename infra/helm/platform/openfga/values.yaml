@@ -1,0 +1,46 @@
+# Direct OpenFGA deployment (ADR-0010): a plain Deployment + Service, with an
+# `openfga migrate` initContainer that runs before serve. No operator/CRD — the
+# rare phased datastore migration is handled manually per OpenFGA release notes.
+image:
+  repository: openfga/openfga
+  tag: "v1.14.2"
+
+replicas: 2
+logLevel: info
+
+# Secret holding the API preshared key + Postgres connection URI (SOPS-managed in
+# prod). Expected keys: preshared_key, datastore_uri
+existingSecret: openfga-creds
+
+migrate:
+  enabled: true              # run `openfga migrate` as an initContainer
+
+# Model + ops-policy seed (ADR-0007, ADR-0017). After OpenFGA is Ready, the seed
+# Job ensures the `platform` store exists (idempotent: list → find-by-name → else
+# create), writes the model, and applies the static group→dashboard grants and the
+# service-operator memberships. Same Job in every env; safe to re-run on every sync
+# (store find-or-create + model version + duplicate-tolerant tuple writes).
+seed:
+  enabled: true
+  # curl + jq for the HTTP-API seed (no fga CLI at runtime — its image is
+  # distroless and can't script a find-or-create flow).
+  image: alpine/k8s:1.31.1
+  # Each ops dashboard (ADR-0017) granted to group:operator members. These are the
+  # LOGICAL ops-tool names Oathkeeper checks (dashboard:<tool>#view, see
+  # infra/auth/oathkeeper/access-rules.json), NOT the component names — admin
+  # (console), network (Hubble), o11y (Grafana), deploy (Argo), workflows
+  # (Temporal), s3 (MinIO), k8s (Headlamp), and db (pgweb).
+  dashboards: [admin, network, o11y, deploy, workflows, s3, k8s, db]
+  # Service-account identities granted group:operator#member. The Lowdefy admin
+  # console (ADR-0012) calls services east-west asserting X-User-Id: admin-console;
+  # this grant lets that identity pass the services' operator write-gate.
+  serviceOperators: [admin-console]
+  # Canonical authorization model, injected by the platform ApplicationSet
+  # fileParameter `seed.model` from infra/auth/openfga/model.json (generated from
+  # the model.fga DSL — the one source of truth). Empty when rendered without that
+  # fileParameter, which disables the seed Job.
+  model: ""
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits:   { memory: 256Mi }

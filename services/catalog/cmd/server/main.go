@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
@@ -44,7 +45,14 @@ func run() error {
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
-	api, err := catalog.NewServer(handlers.New(db))
+	// Authz plane (ADR-0010): the shared OpenFGA Checker for write authorization.
+	// Lazily dialed — OPENFGA_PRESHARED_KEY (envFrom openfga-creds) must be set.
+	checker, err := authz.New()
+	if err != nil {
+		return fmt.Errorf("authz: %w", err)
+	}
+
+	api, err := catalog.NewServer(handlers.New(db, checker))
 	if err != nil {
 		return fmt.Errorf("ogen server: %w", err)
 	}

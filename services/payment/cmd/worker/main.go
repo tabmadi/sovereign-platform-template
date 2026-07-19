@@ -47,9 +47,11 @@ func run() error {
 
 	w := temporalmw.NewWorker(tc, serviceName+"-queue")
 	w.RegisterWorkflow(workflows.Charge)
+	w.RegisterWorkflow(workflows.Refund)
 
 	acts := activities.New(db)
 	w.RegisterActivity(acts.SettleActivity)
+	w.RegisterActivity(acts.RefundActivity)
 	w.RegisterActivity(acts.MarkChargeStatusActivity)
 
 	interrupt := make(chan any, 1)

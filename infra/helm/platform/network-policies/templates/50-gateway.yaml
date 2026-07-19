@@ -1,0 +1,67 @@
+## Edge gateway (Traefik, in kube-system) → the remaining ops UIs it fronts.
+## Grafana, MinIO console, Kratos and Oathkeeper get their gateway ingress in
+## their own templates; the demo app services get theirs from the service chart.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: temporal-web
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: temporal
+      app.kubernetes.io/component: web
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "8080", protocol: TCP }]
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: lowdefy
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: lowdefy
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        # Cilium enforces L4 on the pod's real port (containerPort 3000), not the
+        # Service port 80 that fronts it — the edge connects to targetPort http=3000.
+        - ports: [{ port: "3000", protocol: TCP }]
+---
+## Headlamp — k8s debug UI (ADR-0024), reached only through the edge (4466).
+## A no-op selector when the chart is disabled (no headlamp pods exist).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: headlamp
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: headlamp
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        # Enforced on the pod's real containerPort 4466, not the Service port 80.
+        - ports: [{ port: "4466", protocol: TCP }]
+---
+## pgweb — DB inspector (ADR-0012), reached only through the edge (8081).
+## A no-op selector when the chart is disabled (no pgweb pods exist).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: pgweb
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: pgweb
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        # Enforced on the pod's real containerPort 8081, not the Service port 80.
+        - ports: [{ port: "8081", protocol: TCP }]

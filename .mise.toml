@@ -2,10 +2,9 @@
 # Languages & runtimes
 go = "1.26.4"
 bun = "1.3.14"
-# Test-only escape hatch (ADR-0001/ADR-0018): Node runs the Playwright e2e/visual
-# runner ONLY — Bun cannot drive a browser test runner reliably. Confined to the
-# repo-root e2e/ workspace + CI by `lint:node-scope`; never in a service or app.
-node = "22"
+# node is NOT pinned here — it is an island tool (ADR-0001/ADR-0018). Its consumers
+# are e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
+# loop), so each pins it in its own config against NODE_VERSION below. See [env].
 
 # Database tooling
 dbmate = "2.33.0"
@@ -22,11 +21,17 @@ biome = "2.5.0"
 # Kubernetes & infra
 helm = "4.2.2"
 kubectl = "1.36.2"
+# CLI pinned to the server appVersion (infra/helm/platform/argocd). cluster:full
+# drives convergence with `argocd app wait --core` (talks to the Application CRDs
+# via kubeconfig, no argocd-server login).
+argocd = "3.4.4"
 cilium-cli = "0.19.4"
 kustomize = "5.8.1"
 terraform = "1.15.6"
 k3d = "5.9.0"
-ansible = "14.0.0"
+# ansible is NOT pinned here — it is an operator-only island, scoped to
+# infra/ansible/.mise.toml so the prod bootstrap tool (and the Python it drags in)
+# never installs for a dev running lint/test/cluster:full. See that file.
 
 # Secrets
 age = "1.3.1"
@@ -35,9 +40,12 @@ sops = "3.13.1"
 # JSON wrangling for runtime glue scripts (ops:grant). Static policy checks use
 # Go tools/ instead; this is the one reproducible binary for shell-side JSON.
 jq = "1.8.1"
+# YAML counterpart of jq, for the prod-promotion glue (promote-on-release writes
+# image digests into the prod values files — ADR-0013). Same rationale as jq.
+"aqua:mikefarah/yq" = "4.47.1"
 
-# Authorization (SpiceDB schema validation)
-"github:authzed/zed" = "1.1.1"
+# Authorization (OpenFGA model validation + ops-grant tuple writes)
+"github:openfga/cli" = "0.7.13"
 
 # Repo hygiene
 lefthook = "2.1.9"
@@ -45,10 +53,19 @@ cocogitto = "7.0.0"
 act = "0.2.89"
 golangci-lint = "2.12.2"
 rumdl = "0.2.18"
+# Shell scripts are first-class here (all glue is bash, ADR-0002) — shellcheck
+# lints, shfmt (mvdan/sh) formats. Wired into lint:shell / format:shell and the
+# pre-commit hook so a scripts/ edit gets the same gate as Go/TS/Markdown.
+"aqua:koalaman/shellcheck" = "0.11.0"
+"aqua:mvdan/sh" = "3.13.1"
 
 [env]
 GOFLAGS = "-mod=readonly"
 CGO_ENABLED = "0"
+# Single source for the island Node version. Islands pin `node = "{{env.NODE_VERSION}}"`
+# in their own config rather than repeating the number — root [env] resolves into a
+# nested config's [tools], so there is exactly one place to bump.
+NODE_VERSION = "22"
 
 # Task naming: `group:member`, group = the axis you list/run together (ADR-0002).
 # `activity:target` for fan-out families with an umbrella (gen, lint, format);
@@ -72,7 +89,7 @@ run = "bash scripts/cilium-install.sh"
 
 [tasks."cluster:lite"]
 # Inner loop (ADR-0016): cluster + CNI + lightweight deps (Postgres/Temporal/
-# SpiceDB), then run the service you are changing NATIVELY (no Skaffold, no watch).
+# OpenFGA), then run the service you are changing NATIVELY (no Skaffold, no watch).
 # Ordering is the dependency graph: cluster:ensure → cluster:cilium → this apply.
 # Next steps (dev:forward, db:migrate, go run …) are in docs/dev-loop.md.
 depends = ["cluster:cilium"]
@@ -83,6 +100,13 @@ run = "kubectl --context k3d-${CLUSTER:-platform} apply -f infra/local/deps.yaml
 # Ordering/waits/secrets are Argo's job (sync-waves). See docs/dev-loop.md.
 run = "bash scripts/cluster-full.sh"
 
+[tasks."cluster:edge"]
+# Re-apply the host-only frontend edge glue (catch-all `/` → host `next dev` :3000,
+# Kratos public API, and the docker-bridge EndpointSlice). Not GitOps-managed, so a
+# stop/start or reboot loses it → Traefik 404 at /. cluster:ensure/heal/full run this
+# automatically; invoke it directly to re-stamp without a full restart.
+run = "bash scripts/cluster-edge.sh"
+
 [tasks."cluster:stop"]
 # Stops the cluster but KEEPS it (image cache + volumes survive) so the next
 # bring-up resumes without re-pulling.
@@ -91,6 +115,43 @@ run = "bash scripts/cluster-stop.sh"
 [tasks."cluster:delete"]
 # Deletes the cluster and wipes its image cache (reclaims disk, clean rebuild).
 run = "k3d cluster delete ${CLUSTER:-platform}"
+
+[tasks."cluster:heal"]
+# Recover a cluster wedged after a host reboot: Docker's raw restart of the node
+# skips k3d's host.k3d.internal injection, so pulls fail and Cilium/pods hang. This
+# stop+starts to re-inject it. Run it when everything is stuck ContainerCreating
+# after a reboot.
+run = "bash scripts/cluster-heal.sh"
+
+[tasks."cluster:unwedge"]
+# OPT-IN, proxied networks only: host-pull + k3d-import any image the node's
+# containerd is failing to pull through an HTTP proxy (ImagePullBackOff), then
+# restart the stuck pods. Not part of any bring-up — clean networks never need it.
+run = "bash scripts/cluster-unwedge-images.sh"
+
+[tasks."cluster:preload"]
+# OPT-IN, proxied networks only: PROACTIVELY host-pull + k3d-import the
+# bootstrap-critical images (Cilium, ArgoCD) before cluster:full's imperative
+# `helm --wait` head can wedge on them — the gap cluster:unwedge (reactive, pods
+# only) cannot cover. Image list is derived from the charts, not hardcoded.
+# `PRELOAD_ALL=1` also warms the Argo-synced platform apps. cluster:full runs this
+# automatically only when CLUSTER_PRELOAD=1.
+run = "bash scripts/cluster-preload-images.sh"
+
+[tasks."argo:pause"]
+# Open a live-patch window: ArgoCD selfHeal reverts any direct edit to a synced
+# resource within seconds, so scale the application-controller to 0 before
+# kubectl-patching / helm-upgrading the cluster by hand (e.g. validating a values
+# or NetworkPolicy fix before it lands on master). The cluster keeps running —
+# only reconciliation stops. ALWAYS pair with argo:resume; a paused controller
+# means the cluster silently stops tracking master.
+run = "kubectl --context k3d-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=0"
+
+[tasks."argo:resume"]
+# Close the live-patch window and hand the cluster back to GitOps. Anything patched
+# live that is not committed to master is reverted on the next sync — that is the
+# point: push first, then resume, or lose the change.
+run = "kubectl --context k3d-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=1"
 
 [tasks."dev:forward"]
 # Port-forward the inner-loop deps so a natively-run service can reach them.
@@ -103,11 +164,28 @@ run = "bash scripts/db-migrate.sh"
 # ── Code generation ───────────────────────────────────────────────────────────
 [tasks.gen]
 # No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
-# OpenAPI spec; ogen + sqlc are the only generators (ADR-0008, ADR-0009).
-depends = ["gen:openapi", "gen:sqlc"]
+# OpenAPI spec (ADR-0009). Generators: ogen + openapi-typescript (SDKs), sqlc
+# (queries), and the devportal spec projections rendered by Scalar (ADR-0008).
+depends = ["gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin"]
 
 [tasks."gen:openapi"]
 run = "bash scripts/gen-openapi.sh"
+
+[tasks."gen:admin"]
+# Scaffold the Lowdefy admin pages from the OpenAPI specs (ADR-0012). Depends on
+# gen:openapi so it reads specs that have already passed a generation cycle.
+depends = ["gen:openapi"]
+run = "bash scripts/gen-admin.sh"
+
+[tasks."gen:openapi-public"]
+# Filtered OpenAPI projections for the Scalar developer portals (ADR-0008/0009/0014).
+run = "bash scripts/gen-openapi-public.sh"
+
+[tasks."gen:authz-model"]
+# Regenerate infra/auth/openfga/model.json from the canonical model.fga DSL
+# (ADR-0010). The seed Job posts this JSON to the OpenFGA API; lint:authz asserts
+# it stays in sync with the DSL.
+run = "fga model transform --file infra/auth/openfga/model.fga --output-format json | jq -S . > infra/auth/openfga/model.json"
 
 [tasks."gen:sqlc"]
 run = "bash scripts/gen-sqlc.sh"
@@ -121,7 +199,7 @@ mise run gen
 
 # ── Format ────────────────────────────────────────────────────────────────────
 [tasks.format]
-depends = ["format:go", "format:ts", "format:md"]
+depends = ["format:go", "format:ts", "format:md", "format:shell"]
 
 [tasks."format:go"]
 run = "golangci-lint fmt ./..."
@@ -133,9 +211,14 @@ run = "biome format --write ."
 # rumdl is the only Markdown formatter — never the IDE's.
 run = "rumdl fmt ."
 
+[tasks."format:shell"]
+# shfmt (mvdan/sh) is the shell formatter. -i 2 matches the repo's 2-space scripts;
+# no arg list = format every tracked *.sh in place.
+run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
+
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:floating-tags", "lint:md", "lint:node-scope", "lint:auth-inline", "lint:authz"]
+depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -153,11 +236,27 @@ run = "bash scripts/lint-sql.sh"
 [tasks."lint:openapi"]
 run = "bash scripts/lint-openapi.sh"
 
+[tasks."lint:api-audience"]
+# Audience↔exposure gate (ADR-0008): a spec's info.x-audience must match whether the
+# service is edge-exposed (public ⇔ has an /api route). Spec-less control-plane
+# services (authz) are exempt. Prevents the finding-D omission from recurring.
+run = "go run ./tools/lint-api-audience"
+
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"
 
 [tasks."lint:md"]
 run = "rumdl check ."
+
+[tasks."lint:shell"]
+# shellcheck over every tracked *.sh (ADR-0002). All glue here is bash, so it gets
+# the same static analysis Go/TS do.
+run = "bash scripts/lint-shell.sh"
+
+[tasks."lint:log-vocab"]
+# Human-output vocabulary gate (ADR-0019): scripts use →/✓/✗/⚠ via scripts/lib/log.sh,
+# not bare WARN/ERROR/FAIL prose.
+run = "bash scripts/lint-log-vocab.sh"
 
 [tasks."lint:node-scope"]
 # Node confinement guard (ADR-0001/ADR-0018): Node/npm may appear ONLY in the
@@ -172,12 +271,14 @@ run = "bash scripts/lint-auth-inline.sh"
 
 [tasks."lint:authz"]
 # Edge-auth policy gates (ADR-0009/0010/0017):
-#   - SpiceDB schema + assertions (zed validate)
+#   - OpenFGA model + assertions (fga model test) + model.json in-sync check
 #   - ops dashboards authorize via remote_json → Checker, never `allow`
+#   - the product /api rule enumerates resources, never a bare /api wildcard
 #   - every forward-auth route strips client identity headers first (anti-spoofing)
 run = """
-bash scripts/validate-spicedb.sh
+bash scripts/validate-openfga.sh
 bash scripts/lint-authorizer.sh
+bash scripts/lint-api-wildcard.sh
 bash scripts/lint-strip-headers.sh
 """
 
@@ -224,7 +325,9 @@ run = "helm --kube-context k3d-${CLUSTER:-platform} uninstall -n platform"
 
 [tasks."platform:deploy"]
 # One-shot working-tree overlay of a platform chart (rare infra iteration).
-#   mise run platform:deploy -- <chart>
+#   mise run platform:deploy -- <chart>     # e.g. ory, observability, lowdefy
+# For lowdefy (the admin console) this also rebuilds the baked image, since its
+# YAML pages are compiled in at build time.
 run = "bash scripts/platform-deploy.sh"
 
 # ── Auth, ops & secrets ───────────────────────────────────────────────────────
@@ -243,26 +346,18 @@ run = "bash scripts/ops-grant.sh"
 run = "bash scripts/secrets-age.sh"
 
 # ── End-to-end tests ──────────────────────────────────────────────────────────
+# Thin delegates into the Node island. The real tasks (and the node pin) live in
+# e2e/.mise.toml, because mise tools flow down a config tree and never up: a task
+# defined here cannot see a tool pinned there. `-C` runs them in e2e/ and
+# auto-installs node on first use, so these stay the entrypoint for humans and CI.
 [tasks."e2e:install"]
-# One-time (and CI) setup: install the e2e workspace deps and the Chromium binary.
-# Node-only island (ADR-0018); npm is bundled with the Node tool above.
-run = """
-npm --prefix e2e ci || npm --prefix e2e install
-npm --prefix e2e run install:browsers
-"""
+run = "mise run -C e2e install"
 
-# The edge (*.localtest.me) must be hit directly, never through a dev HTTPS_PROXY;
-# the in-cluster port-forwards are loopback. Belt-and-suspenders for both cases.
 [tasks.e2e]
-# Full browser acceptance + visual suite against a running cluster:full (ADR-0018).
-# Nightly + pre-release in CI; never part of ci:affected.
-env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
-run = "npm --prefix e2e run test"
+run = "mise run -C e2e test"
 
 [tasks."e2e:smoke"]
-# Label-gated per-PR subset: one product golden path + a key dashboard render.
-env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
-run = "npm --prefix e2e run test:smoke"
+run = "mise run -C e2e test:smoke"
 
 # ── Maintenance ───────────────────────────────────────────────────────────────
 [tasks.upgrade]

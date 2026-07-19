@@ -1,4 +1,7 @@
-[tasks.run]
+[env]
+_.file = ".env"
+
+[tasks.server]
 run = "go run ./cmd/server"
 
 [tasks.test]

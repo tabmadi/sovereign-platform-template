@@ -1,6 +1,6 @@
 // Minimal kubectl port-forward helper for the bootstrap. The Kratos admin API and
-// SpiceDB are cluster-internal (never exposed at the edge); the e2e setup reaches
-// them through a short-lived port-forward. kubectl/zed are on PATH via mise.
+// OpenFGA are cluster-internal (never exposed at the edge); the e2e setup reaches
+// them through a short-lived port-forward. kubectl/fga are on PATH via mise.
 import { type ChildProcess, spawn } from "node:child_process";
 import net from "node:net";
 

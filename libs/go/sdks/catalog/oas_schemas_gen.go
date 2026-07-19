@@ -13,6 +13,9 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
+// DeleteProductNoContent is response for DeleteProduct operation.
+type DeleteProductNoContent struct{}
+
 // ErrorStatusCode wraps Problem with StatusCode.
 type ErrorStatusCode struct {
 	StatusCode int

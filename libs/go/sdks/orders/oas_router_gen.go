@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	rn1AllowedHeaders = map[string]string{
+	rn4AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -65,12 +65,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if len(elem) == 0 {
 				switch r.Method {
+				case "GET":
+					s.handleListOrdersRequest([0]string{}, elemIsEscaped, w, r)
 				case "POST":
 					s.handleCheckoutRequest([0]string{}, elemIsEscaped, w, r)
 				default:
 					s.notAllowed(w, r, notAllowedParams{
-						allowedMethods: "POST",
-						allowedHeaders: rn1AllowedHeaders,
+						allowedMethods: "GET,POST",
+						allowedHeaders: rn4AllowedHeaders,
 						acceptPost:     "application/json",
 						acceptPatch:    "",
 					})
@@ -88,16 +90,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 
 				// Param: "id"
-				// Leaf parameter, slashes are prohibited
+				// Match until "/"
 				idx := strings.IndexByte(elem, '/')
-				if idx >= 0 {
-					break
+				if idx < 0 {
+					idx = len(elem)
 				}
-				args[0] = elem
-				elem = ""
+				args[0] = elem[:idx]
+				elem = elem[idx:]
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch r.Method {
 					case "GET":
 						s.handleGetOrderRequest([1]string{
@@ -113,6 +114,35 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					}
 
 					return
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/cancel"
+
+					if l := len("/cancel"); len(elem) >= l && elem[0:l] == "/cancel" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleCancelOrderRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "POST",
+								allowedHeaders: nil,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
 				}
 
 			}
@@ -213,6 +243,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 			if len(elem) == 0 {
 				switch method {
+				case "GET":
+					r.name = ListOrdersOperation
+					r.summary = ""
+					r.operationID = "listOrders"
+					r.operationGroup = ""
+					r.pathPattern = "/orders"
+					r.args = args
+					r.count = 0
+					return r, true
 				case "POST":
 					r.name = CheckoutOperation
 					r.summary = ""
@@ -236,16 +275,15 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				}
 
 				// Param: "id"
-				// Leaf parameter, slashes are prohibited
+				// Match until "/"
 				idx := strings.IndexByte(elem, '/')
-				if idx >= 0 {
-					break
+				if idx < 0 {
+					idx = len(elem)
 				}
-				args[0] = elem
-				elem = ""
+				args[0] = elem[:idx]
+				elem = elem[idx:]
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch method {
 					case "GET":
 						r.name = GetOrderOperation
@@ -259,6 +297,33 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 					default:
 						return
 					}
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/cancel"
+
+					if l := len("/cancel"); len(elem) >= l && elem[0:l] == "/cancel" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = CancelOrderOperation
+							r.summary = ""
+							r.operationID = "cancelOrder"
+							r.operationGroup = ""
+							r.pathPattern = "/orders/{id}/cancel"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			}

@@ -1,7 +1,7 @@
 # ADR-0000: Platform Foundations
 
 - **Status:** Accepted
-- **Date:** 2026-05-19
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Supersedes:** —
 
@@ -23,7 +23,7 @@ We build a **template** for microservice platforms targeting roughly **100 servi
 This shapes every later trade-off:
 
 - **Per-service cost dominates.** A choice that adds 100 MB of RAM, 30 s of CI, or a half-day of onboarding per service pays 100× the cost.
-- **Operational surface dominates over feature breadth.** A simpler tool that covers 90% of needs beats a richer tool that needs a dedicated operator.
+- **Operational surface dominates over feature breadth.** A simpler tool that covers 90% of needs beats a richer tool that needs a dedicated operator. Platform components carry a **running budget**, tracked in [`docs/operational-surface.md`](../operational-surface.md) as three tiers — Core (always on), Scale (documented swap-in on a measured signal), Opt-in (flag-gated). A component joins the always-on floor only when no existing floor component covers its concern.
 - **One way to do things.** When a tool or pattern is picked, it is picked for everyone. Per-service deviation requires a new ADR.
 
 ## Principles
@@ -31,11 +31,11 @@ This shapes every later trade-off:
 Every later ADR is checked against these. If a decision violates a principle, the principle wins or the principle is changed in this document — never silently waived.
 
 1. **Single primary language, single primary stack.** Polyglot is allowed only via explicitly sanctioned escape hatches with per-service justification.
-2. **Self-host by default.** Managed services are not assumed. Cost predictability and data control win over operational convenience at the target scale. *Soft exit:* this is the principle most sensitive to team size, not service count — the self-host cost-benefit holds while the team can absorb the operational surface of the platform components. If a project adopts this template with a materially smaller team, or operating the platform stack consistently crowds out feature work, reconsider per-component (managed K8s/Postgres/Temporal/auth/observability) in a new ADR. This is a judgement call, not a measured trigger; the default stays self-host.
+2. **Self-host by default.** Managed services are not assumed. Cost predictability and data control win over operational convenience at the target scale. The always-on component floor is bounded by a running budget in [`docs/operational-surface.md`](../operational-surface.md): a component joins Core only when no existing floor component covers its concern, and a Scale variant is preferred over the Core floor only when a measured signal demands it. *Soft exit:* this is the principle most sensitive to team size, not service count — the self-host cost-benefit holds while the team can absorb the operational surface of the Core floor. If a project adopts this template with a materially smaller team, or operating the platform stack consistently crowds out feature work, reconsider per-component (managed K8s/Postgres/Temporal/auth/observability) in a new ADR. This is a judgement call, not a measured trigger; the default stays self-host.
 3. **Configuration as files in this repo.** GitOps-able, code-reviewed, testable in CI. No clicking in UIs to persist state.
 4. **Local–prod parity at the manifest and API layer.** Topology may differ; charts, code, and commands do not.
 5. **Generated code is committed.** Drift is caught in CI, not at runtime.
-6. **One reliability primitive per concern.** No parallel mechanisms for the same problem (one workflow engine, one job runner, one queue model).
+6. **One reliability primitive per concern.** No parallel mechanisms for the same problem: one workflow engine ([Temporal](0006-temporal.md)), one queue model. Durable, multi-step, or cross-service async is a Temporal workflow; a trivial best-effort job may use the sanctioned transactional-outbox path instead — that is the same concern served by one lighter primitive, not a competing engine.
 7. **Service boundaries are HTTP/OpenAPI.** Services compose through generated clients, not through shared code, shared databases, or direct workflow calls.
 8. **Decisions are unambiguous.** When an ADR says "do X," there is no "or Y in some cases." Conditional behaviour is expressed as measurable triggers, not judgement calls.
 9. **No "temporary."** Anything described as temporary becomes permanent. Either commit to a solution or defer the decision behind a hard trigger.
@@ -120,6 +120,7 @@ None — this ADR is the root.
 - An ADR follows the structure: Context → Decision drivers → Considered options → Decision → Consequences → Rules.
 - Rejected options in an ADR are 2–4 lines each; deeper rationale lives in the PR.
 - An accepted ADR is binding on every service. Per-service deviation requires a new ADR.
+- Platform components are tiered Core / Scale / Opt-in in [`docs/operational-surface.md`](../operational-surface.md). A component joins Core only when no existing floor component covers its concern; a Scale variant replaces its Core counterpart only on the measured trigger documented there.
 - A decision is unambiguous: no "or Y in some cases" without a measurable trigger.
 - Nothing in the platform is "temporary." Either commit, or defer behind a hard trigger.
 - Configuration is files in this repo. UI-only state is not allowed for anything reconciled into a cluster.

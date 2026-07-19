@@ -1,7 +1,7 @@
 # ADR-0001: Language & Runtime
 
 - **Status:** Accepted
-- **Date:** 2026-05-19
+- **Date:** 2026-07-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md)
 
@@ -37,11 +37,13 @@ In priority order:
 ## Decision
 
 - **Primary backend language: Go.** Latest stable major version, tracked in `.mise.toml`.
-- **Frontend language: TypeScript** via Next.js, latest stable. **Bun is the sole JS runtime** — install, dev, build, and the production `server.js` all run under Bun. Node.js is not installed anywhere.
+- **Frontend language: TypeScript** via Next.js, latest stable. **Bun is the sole JS runtime for code we author** — install, dev, build, and the production `server.js` all run under Bun. Node.js appears only to run the vendored third-party tools listed below.
 - **Sanctioned escape hatches:**
   - **Rust** for services with measured CPU/latency requirements Go cannot meet, or for blockchain components whose canonical libraries are Rust-native.
   - **Python** for ML/data services where the Python scientific ecosystem is the reason the service exists. Never permitted for general API services.
-  - **Node.js** solely as the Playwright end-to-end / visual test runner ([ADR-0018](0018-testing-strategy.md)). Bun cannot reliably run a browser test runner (extra-fd pipe transport + worker IPC are the corners of `child_process` Bun has not matched), and this is a Node-ecosystem-wide gap, not a tool we can swap to avoid it. Scoped to the `e2e/` runner and CI only — never in a service, container image, shipped artifact, or app/library code.
+  - **Node.js** solely to run vendored third-party tools that ship as Node programs — never for code we author, and never as a backend runtime. There are exactly two, each pinning Node in its own island config rather than the root toolchain, so a developer who touches neither never installs it:
+    - The **Playwright end-to-end / visual test runner** ([ADR-0018](0018-testing-strategy.md)). Bun cannot reliably run a browser test runner (extra-fd pipe transport + worker IPC are the corners of `child_process` Bun has not matched), and this is a Node-ecosystem-wide gap, not a tool we can swap to avoid it. Scoped to the `e2e/` runner and CI.
+    - The **Lowdefy admin console** ([ADR-0012](0012-internal-admin.md)), which we install and run rather than build — the runtime is upstream's choice, not ours. Its CLI aborts unless `pnpm` is on PATH, and `lowdefy start` shells out to `pnpm run start` → `next start`, whose bin is `#!/usr/bin/env node`; Bun cannot displace that without aliasing `node` and still needing pnpm anyway. Confined to the `apps/admin` image and that app's optional local dev tasks. No repo runtime code is Node.
 - Every escape-hatch service requires its own ADR documenting the measured need.
 
 **Rejected as primary:** Rust (velocity), JVM (footprint), Node.js backend (concurrency, type-safety), .NET (ecosystem gap), Python (wrong tool).
@@ -73,7 +75,8 @@ In priority order:
 - Every backend service is written in Go unless an ADR sanctions an escape hatch.
 - Go version is pinned by `.mise.toml`; services do not override it.
 - The frontend is TypeScript on Next.js, single app per [ADR-0002](0002-monorepo.md).
-- Bun is the only JS runtime — Node.js is not installed in any container image, service, or shipped artifact. The sole exception is the Playwright e2e/visual test runner ([ADR-0018](0018-testing-strategy.md)), where Node is sanctioned for the runner and CI only.
+- Bun is the only JS runtime for code we author — no Go service image, the frontend image, or any artifact built from our own source installs Node. The two exceptions are vendored third-party tools rather than our code: the Playwright e2e/visual test runner ([ADR-0018](0018-testing-strategy.md)), runner and CI only; and the Lowdefy admin console image ([ADR-0012](0012-internal-admin.md)).
+- Node is never pinned in the root `.mise.toml`. Each exception pins it in its own island config (`e2e/.mise.toml`, `apps/admin/.mise.toml`) against the root `[env] NODE_VERSION`, so there is one version to bump and no dev installs Node for an island they do not touch. A third Node exception requires amending this ADR.
 - A Rust service requires its own ADR demonstrating measured Go inadequacy or Rust-native ecosystem need.
 - A Python service requires its own ADR; it is permitted only for ML/data workloads.
 - JVM, .NET, and Node.js backends are not permitted, with or without an ADR.

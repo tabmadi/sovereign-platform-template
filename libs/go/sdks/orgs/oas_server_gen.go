@@ -14,18 +14,36 @@ type Handler interface {
 	//
 	// POST /orgs
 	CreateOrg(ctx context.Context, req *OrgInput) (*Org, error)
+	// DeleteOrg implements deleteOrg operation.
+	//
+	// Delete an organization.
+	//
+	// DELETE /orgs/{id}
+	DeleteOrg(ctx context.Context, params DeleteOrgParams) error
 	// GetOrg implements getOrg operation.
 	//
 	// Fetch an organization by id.
 	//
 	// GET /orgs/{id}
 	GetOrg(ctx context.Context, params GetOrgParams) (*Org, error)
+	// ListOrgs implements listOrgs operation.
+	//
+	// List all organizations.
+	//
+	// GET /orgs
+	ListOrgs(ctx context.Context) ([]Org, error)
 	// OnIdentityCreated implements onIdentityCreated operation.
 	//
 	// Kratos post-registration webhook. Creates a personal org for the new identity.
 	//
-	// POST /internal/identity-created
+	// POST /identity-created
 	OnIdentityCreated(ctx context.Context, req *OnIdentityCreatedReq) error
+	// UpdateOrg implements updateOrg operation.
+	//
+	// Rename an organization.
+	//
+	// PUT /orgs/{id}
+	UpdateOrg(ctx context.Context, req *OrgInput, params UpdateOrgParams) (*Org, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

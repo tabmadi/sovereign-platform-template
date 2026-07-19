@@ -1,6 +1,6 @@
 // Command lint-authorizer enforces the ops-tier authorizer policy (ADR-0017):
 // every operator-dashboard access rule must authorize per-tool via the
-// remote_json authorizer (→ SpiceDB Checker), never `allow`. A re-introduced
+// remote_json authorizer (→ OpenFGA Checker), never `allow`. A re-introduced
 // `"authorizer": {"handler": "allow"}` on an ops route is exactly the gap this
 // guard closes, so it fails non-zero on it.
 //

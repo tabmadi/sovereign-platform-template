@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ops-tier authorizer policy (ADR-0017, Phase 8). Every operator-dashboard access
-# rule must authorize per-tool via the remote_json authorizer (→ SpiceDB Checker),
+# rule must authorize per-tool via the remote_json authorizer (→ OpenFGA Checker),
 # never `allow`. A re-introduced `"authorizer": {"handler": "allow"}` on an ops
 # route is exactly the gap this whole effort closes, so CI fails on it.
 #
