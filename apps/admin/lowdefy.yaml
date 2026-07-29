@@ -21,11 +21,11 @@ plugins:
 
 config:
   homePageId: dashboard
-  # Served at the root of its own ops origin admin.ops.<host> (ADR-0017), not
+  # Served at the root of its own ops origin lowdefy.ops.<host> (ADR-0017), not
   # under a product path. basePath is omitted: Lowdefy requires it to start with
   # "/" while Next.js rejects exactly "/", so the only root-valid setting is unset.
   # No Lowdefy auth/session store — access is gated upstream at the ops edge
-  # (Oathkeeper: AAL2 operator holding dashboard:admin#view, ADR-0012/0017).
+  # (Oathkeeper: AAL2 operator holding dashboard:lowdefy#view, ADR-0012/0017).
   # Pages are public to Lowdefy; only authorized operators ever reach this origin.
 
 # One REST connection per service, id == service name so the generated pages

@@ -9,33 +9,26 @@ import (
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo"
 )
 
-// Chain wraps h with tracing, RED metrics, and access logging. The metric
-// instruments are created here (not in init) so they bind to the MeterProvider
-// that obs.Init installs before any service calls Chain.
+// Chain wraps h with tracing, RED metrics, and access logging. RED is owned by
+// otelhttp: its stable http.server.request.duration histogram (correct second-scale
+// buckets) plus request counters are the RED signal the dashboards read. This
+// package used to emit hand-rolled http.server.requests / http.server.duration_seconds
+// instruments too, but they duplicated otelhttp and — worse — recorded seconds into
+// OTel's default millisecond-scale bucket boundaries, so every latency percentile
+// collapsed into the first bucket and read as nonsense. They were removed; the
+// dashboards and the availability alert now key off the stable otelhttp metric.
+//
+// otelhttp must wrap access, not the other way round: it creates the server span and
+// injects it into the request context it passes inward. The access log reads that
+// context, so keeping it INSIDE the span is what stamps trace_id/span_id onto every
+// access log line (→ Loki structured metadata), giving logs↔traces correlation. With
+// access outside otelhttp the log had no span and every line landed in Loki untraceable.
 func Chain(h http.Handler, serviceName string) http.Handler {
-	meter := otel.Meter("http.server")
-	requestCount, err := meter.Int64Counter("http.server.requests")
-	if err != nil {
-		panic(err)
-	}
-	requestDur, err := meter.Float64Histogram("http.server.duration_seconds")
-	if err != nil {
-		panic(err)
-	}
-	// otelhttp must wrap red+access, not the other way round: it creates the server
-	// span and injects it into the request context it passes inward. The access log
-	// reads that context, so keeping it INSIDE the span is what stamps trace_id/
-	// span_id onto every access log line (→ Loki structured metadata), giving
-	// logs↔traces correlation. With access outside otelhttp the log had no span and
-	// every line landed in Loki untraceable.
-	traced := otelhttp.NewHandler(red(requestCount, requestDur, access(h)), "http", otelhttp.WithServerName(serviceName))
+	traced := otelhttp.NewHandler(access(h), "http", otelhttp.WithServerName(serviceName))
 	return version(traced)
 }
 
@@ -59,24 +52,6 @@ type statusWriter struct {
 }
 
 func (s *statusWriter) WriteHeader(c int) { s.status = c; s.ResponseWriter.WriteHeader(c) }
-
-func red(requestCount metric.Int64Counter, requestDur metric.Float64Histogram, next http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
-			start := time.Now()
-			next.ServeHTTP(sw, r)
-			dur := time.Since(start).Seconds()
-			attrs := metric.WithAttributes(
-				attribute.String("http.method", r.Method),
-				attribute.String("http.route", r.URL.Path),
-				attribute.Int("http.status_code", sw.status),
-			)
-			requestCount.Add(r.Context(), 1, attrs)
-			requestDur.Record(r.Context(), dur, attrs)
-		},
-	)
-}
 
 func access(next http.Handler) http.Handler {
 	return http.HandlerFunc(

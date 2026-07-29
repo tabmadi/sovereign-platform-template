@@ -2,7 +2,7 @@ apiVersion: v2
 name: pgweb
 description: |
   pgweb read-only database inspector (ADR-0012), one more ops-tier origin at
-  db.ops.<host>. Single stateless Go binary. Core: on in every environment; set
+  pgweb.ops.<host>. Single stateless Go binary. Core: on in every environment; set
   pgweb.enabled=false in an env overlay to drop it. Runs with pgweb's own
   --readonly flag — read-only is the documented, break-glass intent.
 type: application

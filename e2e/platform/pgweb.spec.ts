@@ -1,5 +1,5 @@
-// pgweb DB inspector operator dashboard (ADR-0012) — opt-in, gated at db.ops.<host>
-// (dashboard:db#view) and the SPA renders behind a real AAL2 operator session.
+// pgweb DB inspector operator dashboard (ADR-0012) — opt-in, gated at pgweb.ops.<host>
+// (dashboard:pgweb#view) and the SPA renders behind a real AAL2 operator session.
 // Runs with pgweb's --readonly flag against the in-cluster CNPG dev role.
 import { expect, test } from "@playwright/test";
 import {
@@ -9,19 +9,19 @@ import {
 } from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 
-const PGWEB = `${opsURL("db")}/`;
+const PGWEB = `${opsURL("pgweb")}/`;
 
-test.describe("db ops dashboard", () => {
+test.describe("pgweb ops dashboard", () => {
   test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("db");
+    await expectUnauthenticatedDenied("pgweb");
   });
 
   test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("db");
+    await expectAal1Forbidden("pgweb");
   });
 
-  test("gated: AAL2 operator passes the dashboard:db#view grant", async () => {
-    await expectOperatorAllowed("db");
+  test("gated: AAL2 operator passes the dashboard:pgweb#view grant", async () => {
+    await expectOperatorAllowed("pgweb");
   });
 
   test.describe("renders behind AAL2", () => {

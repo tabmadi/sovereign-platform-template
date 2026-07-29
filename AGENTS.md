@@ -25,7 +25,8 @@ a single tool needs lives in that tool's own dotfile.
 
 - **`Rules`** at the bottom of each ADR are normative and greppable. Each is annotated with its enforcement:
   `(CI: <lint>)` = enforced by a linter, `(review-only)` = human-reviewed, `(ref: <standard>)` = an adopted external
-  standard. Treat a `(CI: …)` rule as a hard invariant.
+  standard. Treat a `(CI: …)` rule as a hard invariant. To check a convention, grep the Rules sections first; read the
+  full ADR only when you need the rationale behind a rule.
 - **House style** (prose, logging, CLI output, comments) is [ADR-0019](docs/adr/0019-prose-logging-output-conventions.md):
   it adopts Google developer-docs prose, OpenTelemetry semantic conventions for logs, and clig.dev for CLI output, and
   lists only the project-specific deltas. Follow the standards, not a bespoke rulebook.
@@ -43,3 +44,5 @@ a single tool needs lives in that tool's own dotfile.
   [ADR-0008](docs/adr/0008-api-contracts.md)); regenerate with `mise run gen`, do not hand-edit generated files.
 - ArgoCD reconciles the cluster from `master`; a working-tree change is invisible in-cluster until pushed
   ([ADR-0004](docs/adr/0004-gitops.md)).
+- Before finishing a change, run `mise run check` (or `mise run pre-commit`) to lint, test, and format;
+  `mise run test` / `lint` / `format` run each individually.

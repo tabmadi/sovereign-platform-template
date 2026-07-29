@@ -44,7 +44,13 @@ pre-commit:
       glob: "{services/**/openapi.yaml,services/**/internal/store/queries/*.sql,services/**/migrations/*.sql,sqlc.yaml}"
       run: mise run ci:gen
     biome:
-      glob: "{apps/**/*.{ts,tsx,js,jsx,json},libs/ts/**/*.{ts,tsx,js,jsx,json}}"
+      # Mirror biome.jsonc's repo-wide scope (files.includes = "**" minus a few
+      # generated/vendored dirs): Biome checks these extensions ANYWHERE, including
+      # infra/ JSON like the Grafana dashboards. The old apps/**+libs/ts/** glob let
+      # a misformatted infra/ file slip past this hook and fail CI's repo-wide
+      # `biome ci .` (lint.yml) and the `mise run format` drift check (ci-drift.yml) —
+      # exactly the "gate a commit can slip past locally" this file warns about.
+      glob: "**/*.{ts,tsx,js,jsx,json,jsonc,css}"
       run: biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
     rumdl:

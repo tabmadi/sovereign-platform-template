@@ -4,7 +4,7 @@
 # edge, https://dev.localtest.me:8443, is what keeps the ory_kratos_session cookie
 # on the host Oathkeeper checks for the gated routes. The cookie is domain-scoped
 # to dev.localtest.me (set in the kratos values), so it also covers subdomains
-# like hubble.dev.localtest.me. Applied by scripts/cluster-full.sh
+# like hubble.ops.dev.localtest.me. Applied by scripts/cluster-full.sh
 # (NOT infra/gateway, which ArgoCD syncs to prod).
 ---
 # Kratos serves its endpoints at root; serve.public.base_url only advertises the
@@ -57,7 +57,7 @@ spec:
     secretName: wildcard-tls
 ---
 # Catch-all → host `next dev`. The routes above and the flat /api/<resource>
-# and /internal routes are longer prefixes, and the hubble.<host> route matches
+# and /internal routes are longer prefixes, and the *.ops.<host> routes match
 # by Host, so Traefik matches them first; everything else (landing, /auth/login,
 # /panel …) is served by the app.
 apiVersion: traefik.io/v1alpha1

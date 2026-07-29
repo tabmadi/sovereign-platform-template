@@ -1,5 +1,6 @@
-// Hubble UI operator dashboard (ADR-0017) — gated at network.ops.<host>
-// (dashboard:network#view) and the flow-map renders behind a real AAL2 session.
+// Hubble UI operator dashboard (ADR-0017, ADR-0025) — the Cilium service-map
+// surface. Gated at hubble.ops.<host> (dashboard:hubble#view) and the flow-map
+// renders behind a real AAL2 session.
 // Hubble's React Router only runs at an origin ROOT (ADR-0003), which the
 // {tool}.ops.<host> topology gives it.
 import { expect, test } from "@playwright/test";
@@ -10,19 +11,19 @@ import {
 } from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 
-const HUBBLE = `${opsURL("network")}/`;
+const HUBBLE = `${opsURL("hubble")}/`;
 
-test.describe("network ops dashboard", () => {
+test.describe("hubble ops dashboard", () => {
   test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("network");
+    await expectUnauthenticatedDenied("hubble");
   });
 
   test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("network");
+    await expectAal1Forbidden("hubble");
   });
 
-  test("gated: AAL2 operator passes the dashboard:network#view grant", async () => {
-    await expectOperatorAllowed("network");
+  test("gated: AAL2 operator passes the dashboard:hubble#view grant", async () => {
+    await expectOperatorAllowed("hubble");
   });
 
   // The "operator but missing this tool's grant" fine gate is unit-tested in

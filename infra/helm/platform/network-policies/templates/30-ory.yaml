@@ -24,6 +24,48 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: authz }
       toPorts:
         - ports: [{ port: "4434", protocol: TCP }]
+  # No egress rules: the baseline (00-baseline.yaml) already grants Kratos DNS,
+  # intra-namespace reach (Postgres, the orgs registration webhook) and the API
+  # server, which is everything it needs. Kratos has no world egress.
+  #
+  # It used to have one. The password method ran the HaveIBeenPwned breach check,
+  # which does a k-anonymity range lookup against api.pwnedpasswords.com on every
+  # registration, password login and password change, and that needed a toFQDNs
+  # allow on 443 plus an L7 DNS rule (toFQDNs only works if Cilium proxies the DNS
+  # answer). ADR-0010 turned the check off by default — a platform on a closed
+  # company network cannot reach HIBP, and Kratos' `ignore_network_errors` default
+  # makes an unreachable check accept the password silently rather than fail.
+  #
+  # To re-enable it in an env that does have the egress, set
+  # `haveibeenpwned_enabled: true` + `max_breaches: 0` in
+  # infra/auth/kratos/values.yaml and restore both rules here:
+  #
+  #   egress:
+  #     # The wildcard DNS rule is REQUIRED and is not a second hole: toFQDNs only
+  #     # works if Cilium sees the DNS answer, and matching `*` keeps every other
+  #     # in-cluster name resolvable (an L7 DNS rule scoped to just the HIBP name
+  #     # makes Cilium proxy kratos' DNS and drop every service lookup).
+  #     - toEndpoints:
+  #         - matchLabels:
+  #             k8s:io.kubernetes.pod.namespace: kube-system
+  #             k8s-app: kube-dns
+  #       toPorts:
+  #         - ports:
+  #             - { port: "53", protocol: UDP }
+  #             - { port: "53", protocol: TCP }
+  #           rules:
+  #             dns:
+  #               - matchPattern: "*"
+  #     # toFQDNs, not `toEntities: world` — one hostname on one port, pinned by
+  #     # Cilium's DNS proxy to whatever IPs HIBP's CDN answers with.
+  #     - toFQDNs:
+  #         - matchName: "api.pwnedpasswords.com"
+  #       toPorts:
+  #         - ports: [{ port: "443", protocol: TCP }]
+  #
+  # Note the CDN answers with a 30s TTL and `tofqdns-idle-connection-grace-period`
+  # is 0s, so an IP leaves the allow set the moment its TTL expires: expect
+  # occasional POLICY_DENIED bursts on reused connections if you do re-enable it.
 ---
 ## Oathkeeper — the edge auth gate. Traefik forwards through the proxy (4455) and
 ## queries the decision API (4456).

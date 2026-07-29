@@ -1,6 +1,6 @@
 // Lowdefy admin console ops dashboard (ADR-0012, ADR-0017). Same staged gauge as
 // the other ops tools: gated at the edge (unauthenticated / AAL1 / AAL2 operator
-// holding dashboard:admin#view), then the Lowdefy app paints behind a real AAL2
+// holding dashboard:lowdefy#view), then the Lowdefy app paints behind a real AAL2
 // session.
 //
 // Beyond "paints", the products suite drives a full create → list → edit → delete
@@ -20,21 +20,21 @@ import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { OPERATOR, USER } from "../fixtures/identities";
 import { portForward } from "../fixtures/kube";
 
-const CONSOLE = `${opsURL("admin")}/`;
-const CONSOLE_CREATE_OPERATOR = `${opsURL("admin")}/createOperator`;
+const CONSOLE = `${opsURL("lowdefy")}/`;
+const CONSOLE_CREATE_OPERATOR = `${opsURL("lowdefy")}/createOperator`;
 const TEST_OPERATOR_EMAIL = "new-op@e2e.localtest.me";
 
-test.describe("admin ops dashboard", () => {
+test.describe("lowdefy ops dashboard", () => {
   test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("admin");
+    await expectUnauthenticatedDenied("lowdefy");
   });
 
   test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("admin");
+    await expectAal1Forbidden("lowdefy");
   });
 
-  test("gated: AAL2 operator passes the dashboard:admin#view grant", async () => {
-    await expectOperatorAllowed("admin");
+  test("gated: AAL2 operator passes the dashboard:lowdefy#view grant", async () => {
+    await expectOperatorAllowed("lowdefy");
   });
 
   // The gauge: reusing the saved AAL2 session, the Lowdefy admin renders.
@@ -60,7 +60,7 @@ test.describe("admin ops dashboard", () => {
     test("create, list, edit and delete a product @smoke", async ({ page }) => {
       const name = `e2e-widget-${Date.now()}`;
       const renamed = `${name}-v2`;
-      const admin = opsURL("admin");
+      const admin = opsURL("lowdefy");
 
       // Add: the standalone create page (Django "add" form). On success it redirects
       // to the changelist, where the new row is the confirmation — the assertion an
@@ -108,7 +108,7 @@ test.describe("admin ops dashboard", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test("list shows seeded identities and an edit round-trips @smoke", async ({ page }) => {
-      const admin = opsURL("admin");
+      const admin = opsURL("lowdefy");
 
       // Changelist: the seeded operator and product user must both appear. An empty
       // grid — a stale authz image without /identities, a blocked Kratos admin call,
@@ -207,7 +207,7 @@ test.describe("admin ops dashboard", () => {
 
     for (const p of pages) {
       test(`${p.path} paints @smoke`, async ({ page }) => {
-        await page.goto(`${opsURL("admin")}${p.path}`);
+        await page.goto(`${opsURL("lowdefy")}${p.path}`);
         await expect(page).not.toHaveURL(/\/auth\/login/);
         const control =
           p.role === "button"

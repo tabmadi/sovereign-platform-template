@@ -1,6 +1,6 @@
 # Break-glass & ops recovery
 
-How an operator reaches the debugging surfaces (Grafana, Hubble, Argo CD, the admin console) when the auth plane that
+How an operator reaches the debugging surfaces (Grafana, Hubble UI, Argo CD, the admin console) when the auth plane that
 normally gates them is itself down. Companion to [ADR-0017](../adr/0017-url-and-domain-structure.md) and
 [ADR-0010](../adr/0010-auth.md).
 
@@ -33,7 +33,7 @@ Right-sized for a 3–8 engineer team — no separate operator IdP or PKI, which
 
    ```sh
    kubectl -n platform port-forward svc/grafana 3000:80       # then http://localhost:3000
-   kubectl -n platform port-forward svc/hubble-ui 8080:80
+   kubectl -n kube-system port-forward svc/hubble-ui 8080:80
    kubectl -n argocd   port-forward svc/argocd-server 8081:80
    ```
 

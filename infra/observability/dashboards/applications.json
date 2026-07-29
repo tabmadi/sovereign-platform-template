@@ -1,0 +1,243 @@
+{
+  "title": "Applications",
+  "uid": "applications",
+  "schemaVersion": 39,
+  "tags": ["service", "applications", "overview", "poc"],
+  "description": "POC (ADR-0025): Applications — the full workload directory, one click below the Overview landing page (ADR-0026). One row per workload in the selected namespace, driven by kubeletstats so EVERY pod is listed — not just the traced ones. CPU, memory and network come from the kubelet; Req/s, Errors/s and p95 latency come from the stable OTel http.server.request.duration histogram and fill in for any service currently serving HTTP traffic (idle HTTP servers show blank RED — the counters have no recent samples, not a missing-instrumentation gap). Up/Desired replicas, memory limits and the %-of-limit gauges come from the otel-cluster singleton (k8s_cluster receiver) + kubeletstats limit_utilization; blank means no Deployment / no limit set, not zero. Live pod status and events live in Headlamp — this page answers 'is something wrong?', Headlamp answers 'what exactly'. Click a workload to open its detail page.",
+  "links": [
+    {
+      "title": "Load test ▶",
+      "type": "link",
+      "url": "/d/load-test/load-test?${__url_time_range}",
+      "icon": "external link",
+      "tooltip": "Results of a deliberate k6 load run (ADR-0027): throughput and latency against what each workload cost. Empty unless the time range covers a run. Not linked from Overview by design — ADR-0026 reserves the landing page for incident triage, and this is a planned experiment."
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(k8s_pod_cpu_usage, service_namespace)",
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "platform", "value": "platform" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "table",
+      "title": "Workloads — click a name to open its detail page",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 24, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (service_name) (k8s_pod_cpu_usage{service_namespace=~\"$namespace\"}) / sum by (service_name) (k8s_container_cpu_limit{service_namespace=~\"$namespace\"})"
+        },
+        {
+          "refId": "B",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (service_name) (k8s_pod_memory_working_set_bytes{service_namespace=~\"$namespace\"}) / sum by (service_name) (k8s_container_memory_limit_bytes{service_namespace=~\"$namespace\"})"
+        },
+        {
+          "refId": "C",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (service_name) (rate(k8s_pod_network_io_bytes_total{service_namespace=~\"$namespace\"}[$__range]))"
+        },
+        {
+          "refId": "D",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_namespace=~\"$namespace\"}[$__range]))"
+        },
+        {
+          "refId": "E",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_namespace=~\"$namespace\",http_response_status_code=~\"5..\"}[$__range]))"
+        },
+        {
+          "refId": "F",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_namespace=~\"$namespace\"}[$__range])))"
+        },
+        {
+          "refId": "G",
+          "expr": "count by (service_name) (k8s_pod_phase{service_namespace=~\"$namespace\"} == 2) / count by (service_name) (k8s_pod_phase{service_namespace=~\"$namespace\"} != 3)",
+          "format": "table",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "transformations": [
+        { "id": "joinByField", "options": { "byField": "service_name", "mode": "outer" } },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Time 6": true,
+              "Time 7": true,
+              "Time": true
+            },
+            "renameByName": {
+              "service_name": "Workload",
+              "Value #A": "CPU (of limit)",
+              "Value #B": "Memory (of limit)",
+              "Value #C": "Net I/O",
+              "Value #D": "Req/s",
+              "Value #E": "Errors/s",
+              "Value #F": "p95 latency",
+              "Value #G": "Pods ready"
+            },
+            "indexByName": {
+              "service_name": 0,
+              "Value #G": 1,
+              "Value #A": 2,
+              "Value #B": 3,
+              "Value #C": 4,
+              "Value #D": 5,
+              "Value #E": 6,
+              "Value #F": 7
+            }
+          }
+        }
+      ],
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Workload", "desc": false }] },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Workload" },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open service detail",
+                    "url": "/d/service-detail/service-detail?var-service=${__data.fields.Workload}&${__url_time_range}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Pods ready" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 1 },
+              { "id": "decimals", "value": 0 },
+              { "id": "custom.width", "value": 110 },
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "color-background", "mode": "basic" }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "yellow", "value": 0.99 },
+                    { "color": "green", "value": 1 }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "CPU (of limit)" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 1 },
+              { "id": "decimals", "value": 0 },
+              { "id": "noValue", "value": "no limit" },
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "gauge", "mode": "basic", "valueDisplayMode": "text" }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.8 },
+                    { "color": "red", "value": 0.9 }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Memory (of limit)" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              { "id": "min", "value": 0 },
+              { "id": "max", "value": 1 },
+              { "id": "decimals", "value": 0 },
+              { "id": "noValue", "value": "no limit" },
+              {
+                "id": "custom.cellOptions",
+                "value": { "type": "gauge", "mode": "basic", "valueDisplayMode": "text" }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.8 },
+                    { "color": "red", "value": 0.9 }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Net I/O" },
+            "properties": [{ "id": "unit", "value": "Bps" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Req/s" },
+            "properties": [{ "id": "unit", "value": "reqps" }, { "id": "decimals", "value": 2 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Errors/s" },
+            "properties": [
+              { "id": "unit", "value": "reqps" },
+              { "id": "decimals", "value": 2 },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p95 latency" },
+            "properties": [{ "id": "unit", "value": "s" }, { "id": "decimals", "value": 3 }]
+          }
+        ]
+      }
+    }
+  ]
+}

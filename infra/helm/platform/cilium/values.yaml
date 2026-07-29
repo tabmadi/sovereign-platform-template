@@ -15,19 +15,61 @@ cilium:
     type: wireguard
 
   # Hubble gives per-flow network visibility without a sidecar (ADR-0003). It is
-  # the audit surface for internal header-trust (ADR-0009). The UI is deployed
-  # and exposed auth-gated at the hubble.<host> subdomain via the gateway
-  # IngressRoute (infra/gateway).
+  # the audit surface for internal header-trust (ADR-0009) and the source for the
+  # network-flow metrics scraped into Grafana. The flow engine (agent) + relay
+  # (aggregation API, used by the `hubble` CLI) stay ON.
+  #
+  # The standalone hubble-UI is ON (ADR-0025): it owns the interactive service
+  # map + live drop investigation, exposed auth-gated at hubble.ops.<host>
+  # (infra/gateway). Grafana owns everything else (RED/SLO/logs/traces/profiling).
+  # Known, accepted trade-offs (ADR-0025): upstream is in maintenance mode (last
+  # release v0.13.5, Apr 2024) and it collapses workloads sharing
+  # `app.kubernetes.io/name` into one card (all Temporal roles → "temporal").
+  # A full eBPF APM suite (Coroot) was evaluated for this slot and rejected —
+  # too much footprint (ClickHouse, node-agents, tracepoint shims) for a map.
   hubble:
     enabled: true
     relay:
       enabled: true
     ui:
       enabled: true
-      # Served at the ROOT of the `hubble.<host>` subdomain (gateway IngressRoute
-      # matches HostRegexp `^hubble\.`), not under a path prefix. hubble-ui's
-      # React Router is hardwired to basename `/` and never reads the `<base>`
-      # tag for routing, so a `/hubble` sub-path breaks client routing (404 on
-      # every route). Root-on-a-subdomain is the only layout it supports, so keep
+      # Served at the ROOT of the `hubble.ops.<host>` subdomain (gateway
+      # IngressRoute matches HostRegexp `^hubble\.ops\.`), not under a path prefix.
+      # hubble-ui's React Router is hardwired to basename `/` and never reads the
+      # `<base>` tag for routing, so a sub-path breaks client routing (404 on every
+      # route). Root-on-a-subdomain is the only layout it supports, so keep
       # baseUrl at `/`.
       baseUrl: /
+    # Flow metrics on the agent at :9965, scraped by the node-local OTel collector
+    # and surfaced in Grafana (ADR-0011, ADR-0025).
+    #
+    # `drop` — Cilium policy verdicts. Hubble UI shows live drops interactively;
+    # this metric exists for what the UI can't do — history and alerting
+    # (PolicyDropsDetected, infra/observability/alerts). This repo has been bitten
+    # by silent policy drops — the clusterwide metadata-deny regression, four
+    # default-deny bootstrap gaps, and a catalog/payment netpol block that silently
+    # broke every checkout.
+    #
+    # `flow` (every processed connection, the eBPF connection graph) stays OFF —
+    # evaluated for a Grafana Node-Graph service map and rejected (ADR-0025): with
+    # workload context the client side of most intra-cluster connections resolves to
+    # an empty label, so the map collapses into a single unnamed hub with no usable
+    # service-to-service edges (measured — 82/391 series with an empty source, zero
+    # platform→platform edges). Hubble UI resolves flows from the live relay stream (not these
+    # aggregated metrics) and does not suffer that collapse, which is why it keeps
+    # the service map while Grafana keeps everything else. `tcp` and especially
+    # `http` (per-request L7 cardinality on every agent) also stay OFF — real cost
+    # for detail the RED/trace signals already give.
+    #
+    # `drop` uses workload context so series name the Deployment (temporal-frontend vs
+    # temporal-history) rather than the shared app.kubernetes.io/name. It renders as a
+    # single combined `source`/`destination` label of the form "<namespace>/<workload>",
+    # NOT as separate source_workload/destination_workload labels — verified against a
+    # live agent; the drops dashboard PromQL depends on this.
+    #
+    # `dns` also stays OFF: Cilium only observes DNS at L7, so dns metrics never
+    # register without a DNS visibility/L7 policy on every pod. That is real scope
+    # and real cost for a low-value signal.
+    metrics:
+      enabled:
+        - "drop:sourceContext=workload;destinationContext=workload"

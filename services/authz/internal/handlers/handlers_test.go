@@ -14,8 +14,8 @@ import (
 const (
 	subjectAlice = "alice"
 	subjectBob   = "bob"
-	toolO11y     = "o11y"
-	toolNetwork  = "network"
+	toolGrafana  = "grafana"
+	toolHubble   = "hubble"
 
 	traitEmail    = "email"
 	traitName     = "name"
@@ -73,12 +73,12 @@ func TestCoarseClaimGate(t *testing.T) {
 		req  *authzsdk.AuthorizeRequest
 		want int
 	}{
-		{"operator + aal2", req(subjectAlice, toolO11y, aalLevel2, operatorTraitTrue), 200},
-		{"operator + aal2, any tool", req(subjectAlice, toolNetwork, aalLevel2, operatorTraitTrue), 200},
-		{"operator but aal1", req(subjectAlice, toolO11y, "aal1", operatorTraitTrue), 403},
-		{"aal2 but not operator", req(subjectBob, toolO11y, aalLevel2, "false"), 403},
-		{"operator trait empty", req(subjectBob, toolO11y, aalLevel2, ""), 403},
-		{"anonymous", req("", toolO11y, aalLevel2, operatorTraitTrue), 403},
+		{"operator + aal2", req(subjectAlice, toolGrafana, aalLevel2, operatorTraitTrue), 200},
+		{"operator + aal2, any tool", req(subjectAlice, toolHubble, aalLevel2, operatorTraitTrue), 200},
+		{"operator but aal1", req(subjectAlice, toolGrafana, "aal1", operatorTraitTrue), 403},
+		{"aal2 but not operator", req(subjectBob, toolGrafana, aalLevel2, "false"), 403},
+		{"operator trait empty", req(subjectBob, toolGrafana, aalLevel2, ""), 403},
+		{"anonymous", req("", toolGrafana, aalLevel2, operatorTraitTrue), 403},
 	}
 	for _, tc := range cases {
 		t.Run(
@@ -101,19 +101,19 @@ func TestCoarseClaimGate(t *testing.T) {
 // The optional fine gate adds a per-tool OpenFGA check on top of the coarse gate.
 func TestFineGrainedGate(t *testing.T) {
 	t.Parallel()
-	// alice holds o11y but not network.
-	h := New(&fakeChecker{answers: map[string]bool{"view dashboard:o11y": true}}, nil, true, nil)
+	// alice holds o11y but not map.
+	h := New(&fakeChecker{answers: map[string]bool{"view dashboard:grafana": true}}, nil, true, nil)
 
-	granted := decideStatus(t, h, req(subjectAlice, toolO11y, aalLevel2, operatorTraitTrue))
+	granted := decideStatus(t, h, req(subjectAlice, toolGrafana, aalLevel2, operatorTraitTrue))
 	if granted != 200 {
 		t.Fatalf("granted tool status = %d, want 200", granted)
 	}
-	ungranted := decideStatus(t, h, req(subjectAlice, toolNetwork, aalLevel2, operatorTraitTrue))
+	ungranted := decideStatus(t, h, req(subjectAlice, toolHubble, aalLevel2, operatorTraitTrue))
 	if ungranted != 403 {
 		t.Fatalf("ungranted tool status = %d, want 403", ungranted)
 	}
 	// The coarse gate still applies first: a non-operator is denied before the fine check.
-	nonOperator := decideStatus(t, h, req(subjectBob, toolO11y, aalLevel2, "false"))
+	nonOperator := decideStatus(t, h, req(subjectBob, toolGrafana, aalLevel2, "false"))
 	if nonOperator != 403 {
 		t.Fatalf("non-operator status = %d, want 403", nonOperator)
 	}

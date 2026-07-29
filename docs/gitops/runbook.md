@@ -15,7 +15,7 @@ reconcile from Git) is [ADR-0004](../adr/0004-gitops.md); this is the operationa
 ## Deploy a change
 
 1. Merge the change to `master`.
-2. ArgoCD detects and syncs it. Watch: `deploy.ops.<host>` ([ADR-0017](../adr/0017-url-and-domain-structure.md))
+2. ArgoCD detects and syncs it. Watch: `argocd.ops.<host>` ([ADR-0017](../adr/0017-url-and-domain-structure.md))
    or `kubectl get applications -n argocd`.
 
 ## Local full platform

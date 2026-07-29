@@ -41,7 +41,7 @@ spec:
           image: "{{ .Values.headlamp.image.repository }}:{{ .Values.headlamp.image.tag }}"
           imagePullPolicy: {{ .Values.headlamp.image.pullPolicy }}
           # -in-cluster uses the pod ServiceAccount; served at the origin root, so
-          # no base-url prefix (its router can't run under a path — like Hubble).
+          # no base-url prefix (its router can't run under a path — like Hubble UI).
           # -unsafe-use-service-account-token authenticates to the API as the pod's
           # own `view`-bound ServiceAccount instead of prompting each user for a
           # bearer token — the ops edge already authenticates operators via the

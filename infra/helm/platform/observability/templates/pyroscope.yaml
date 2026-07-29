@@ -1,0 +1,75 @@
+# Pyroscope (ADR-0025 POC — continuous profiling). Single-binary monolith
+# (-target=all), filesystem storage on an emptyDir (POC; a real deployment uses the
+# off-cluster bucket like Loki/Tempo). Profiles are PUSHED here by the Alloy agent
+# (templates/alloy.yaml); Grafana queries it as the Pyroscope datasource. Ingress is
+# granted by the pyroscope CiliumNetworkPolicy in the network-policies chart.
+{{- $py := .Values.pyroscope }}
+{{/* Config in a define so the Deployment stamps checksum/config and rolls on
+     config edits (same pattern as prometheus.yaml / otel-cluster.yaml). Without
+     it the analytics opt-out below sat in the ConfigMap while the running pod
+     kept the old config and kept phoning home — PolicyDropsDetected stayed red. */}}
+{{- define "observability.pyroscope.config" }}
+    server:
+      http_listen_port: 4040
+    # No phone-home (same stance as grafana.ini analytics): without this
+    # Pyroscope dials Grafana Labs' usage-stats endpoint on 443, which the
+    # default-deny egress correctly drops — pure PolicyDropsDetected noise.
+    analytics:
+      reporting_enabled: false
+    # Local profile store. emptyDir at /data (POC); swap for a bucket to persist.
+    pyroscopedb:
+      data_path: /data
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pyroscope
+  labels: { app.kubernetes.io/name: pyroscope, app.kubernetes.io/part-of: observability }
+data:
+  config.yaml: |
+    {{- include "observability.pyroscope.config" . }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pyroscope
+  labels: { app.kubernetes.io/name: pyroscope, app.kubernetes.io/part-of: observability }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: pyroscope }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: pyroscope }
+      # Roll the pod whenever the config changes — Pyroscope only reads its
+      # config at startup.
+      annotations:
+        checksum/config: {{ include "observability.pyroscope.config" . | sha256sum }}
+    spec:
+      containers:
+        - name: pyroscope
+          image: {{ $py.image }}
+          args: ["-config.file=/etc/pyroscope/config.yaml"]
+          ports:
+            - { name: http, containerPort: 4040 }
+          readinessProbe: { httpGet: { path: /ready, port: http }, initialDelaySeconds: 15 }
+          livenessProbe:  { httpGet: { path: /ready, port: http }, initialDelaySeconds: 30, periodSeconds: 30 }
+          resources: {{- toYaml $py.resources | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/pyroscope }
+            - { name: data,   mountPath: /data }
+      volumes:
+        - name: config
+          configMap: { name: pyroscope }
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pyroscope
+  labels: { app.kubernetes.io/name: pyroscope, app.kubernetes.io/part-of: observability }
+spec:
+  selector: { app.kubernetes.io/name: pyroscope }
+  ports:
+    - { name: http, port: 4040, targetPort: http }

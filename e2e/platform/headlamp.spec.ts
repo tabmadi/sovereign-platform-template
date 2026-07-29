@@ -1,5 +1,5 @@
 // Headlamp k8s debug UI operator dashboard (ADR-0024) — opt-in, gated at
-// k8s.ops.<host> (dashboard:k8s#view) and the SPA renders behind a real AAL2
+// headlamp.ops.<host> (dashboard:headlamp#view) and the SPA renders behind a real AAL2
 // operator session. Read-only via the built-in `view` ClusterRole; the gauge
 // asserts the shell paints, not any post-connect view.
 import { expect, test } from "@playwright/test";
@@ -10,19 +10,19 @@ import {
 } from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 
-const HEADLAMP = `${opsURL("k8s")}/`;
+const HEADLAMP = `${opsURL("headlamp")}/`;
 
-test.describe("k8s ops dashboard", () => {
+test.describe("headlamp ops dashboard", () => {
   test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("k8s");
+    await expectUnauthenticatedDenied("headlamp");
   });
 
   test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("k8s");
+    await expectAal1Forbidden("headlamp");
   });
 
-  test("gated: AAL2 operator passes the dashboard:k8s#view grant", async () => {
-    await expectOperatorAllowed("k8s");
+  test("gated: AAL2 operator passes the dashboard:headlamp#view grant", async () => {
+    await expectOperatorAllowed("headlamp");
   });
 
   test.describe("renders behind AAL2", () => {

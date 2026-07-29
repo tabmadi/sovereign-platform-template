@@ -31,12 +31,14 @@ pids+=($!)
 k port-forward svc/openfga 18080:8080 &
 pids+=($!)
 
-# If observability is up (full tier / obs profile), forward Grafana + Faro too.
-if k get svc otel-lgtm >/dev/null 2>&1; then
+# If observability is up (full tier / obs profile), forward Grafana + the OTel
+# Collector's Faro receiver too. The frontend's dev RUM shim forwards beacons to
+# FARO_COLLECT_URL=http://localhost:12347/collect (apps/frontend/src/app/api/rum).
+if k get svc otel-collector >/dev/null 2>&1; then
   echo "→ observability detected: grafana 3001, faro 12347"
-  k port-forward svc/otel-lgtm 3001:3000 &
+  k port-forward svc/grafana 3001:80 &
   pids+=($!)
-  k port-forward svc/faro 12347:12347 &
+  k port-forward svc/otel-collector 12347:8027 &
   pids+=($!)
 fi
 

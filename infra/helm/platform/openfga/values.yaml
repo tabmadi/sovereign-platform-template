@@ -26,11 +26,11 @@ seed:
   # distroless and can't script a find-or-create flow).
   image: alpine/k8s:1.31.1
   # Each ops dashboard (ADR-0017) granted to group:operator members. These are the
-  # LOGICAL ops-tool names Oathkeeper checks (dashboard:<tool>#view, see
-  # infra/auth/oathkeeper/access-rules.json), NOT the component names — admin
-  # (console), network (Hubble), o11y (Grafana), deploy (Argo), workflows
-  # (Temporal), s3 (MinIO), k8s (Headlamp), and db (pgweb).
-  dashboards: [admin, network, o11y, deploy, workflows, s3, k8s, db]
+  # ops-tool names Oathkeeper checks (dashboard:<tool>#view, see
+  # infra/auth/oathkeeper/access-rules.json) and they match the ops hostnames
+  # one-for-one: ADR-0017 names every origin after its tool, so `grafana.ops.<host>`
+  # is gated by `dashboard:grafana`. One vocabulary, no translation table.
+  dashboards: [lowdefy, hubble, grafana, argocd, temporal, minio, headlamp, pgweb]
   # Service-account identities granted group:operator#member. The Lowdefy admin
   # console (ADR-0012) calls services east-west asserting X-User-Id: admin-console;
   # this grant lets that identity pass the services' operator write-gate.

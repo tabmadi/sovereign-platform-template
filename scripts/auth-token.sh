@@ -16,7 +16,8 @@ k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
 email="${1:?usage: mise run auth:token -- <email>}"
 password="${KRATOS_PASSWORD:-}"
 if [ -z "$password" ]; then
-  read -rsp "password for ${email}: " password; echo
+  read -rsp "password for ${email}: " password
+  echo
 fi
 
 k port-forward svc/ory-kratos-public 4433:80 >/dev/null &
@@ -30,7 +31,7 @@ action="$(printf '%s' "$flow" | jq -r '.ui.action')"
 resp="$(curl -fsS -H 'Accept: application/json' -H 'Content-Type: application/json' \
   -X POST "$action" \
   -d "$(jq -n --arg id "$email" --arg pw "$password" \
-        '{method:"password", identifier:$id, password:$pw}')")"
+    '{method:"password", identifier:$id, password:$pw}')")"
 
 token="$(printf '%s' "$resp" | jq -r '.session_token // empty')"
 if [ -z "$token" ]; then

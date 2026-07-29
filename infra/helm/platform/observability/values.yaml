@@ -14,13 +14,51 @@ opentelemetry-collector:
   # directly to Loki/Prometheus/Tempo. There is no separate gateway deployment.
   mode: daemonset
   fullnameOverride: otel-collector
+  # Measured 2026-07-26: 345Mi working set, 110m CPU — the third-heaviest pod in
+  # the cluster, because every service's OTLP, the Faro browser beacons, the Hubble
+  # scrape and the kubeletstats receiver all land in this one process.
+  #
+  # NOTE its `memory_limiter` processor is configured with limit_percentage: 80
+  # (see config below), which reads the CONTAINER limit. So this limit is not just
+  # an OOM guard, it is an input to the collector's own backpressure: at 768Mi the
+  # limiter starts refusing batches around 614Mi. Changing the limit changes when
+  # telemetry starts being dropped, which is why it is set explicitly here rather
+  # than inherited from the namespace LimitRange default.
+  resources:
+    requests: { cpu: "100m", memory: "384Mi" }
+    limits:   { memory: "768Mi" }
   # contrib distro: required by the kubernetesAttributes preset (k8sattributes
   # processor) and the `faro` receiver below (faroreceiver landed in contrib 0.128.0).
   # The chart's default image is the core collector, so the repo is overridden; the
   # tag is pinned to the chart's appVersion (0.154.0) to keep config schema + binary
   # aligned — see the chart dependency version in Chart.yaml.
   image: { repository: otel/opentelemetry-collector-contrib, tag: "0.154.0" }
-  presets: { kubernetesAttributes: { enabled: true } }
+  # logsCollection is the ADR-0011 filelog path: the agent tails /var/log/pods
+  # via the chart's filelog receiver (container parser, collector's own logs
+  # excluded) so PLATFORM workloads that only write stdout — postgres, temporal,
+  # grafana, lowdefy, … — land in Loki too. Repo services push logs over OTLP
+  # from the SDK (libs/go/observability) and write no stdout in-cluster, so the
+  # two paths never double-ingest. k8sattributes stamps service.name from
+  # app.kubernetes.io/name, so these logs match {service_name="…"} on the
+  # service-detail dashboard like everything else.
+  presets:
+    kubernetesAttributes: { enabled: true }
+    logsCollection: { enabled: true }
+  # RBAC for the kubeletstats receiver (added to the metrics pipeline below): the
+  # kubelet's /stats/summary endpoint authorizes against the nodes/stats subresource.
+  # The kubernetesAttributes preset creates the ClusterRole (pods/namespaces/nodes);
+  # these rules are APPENDED to it, so no separate binding is needed.
+  clusterRole:
+    rules:
+      - apiGroups: [""]
+        resources: ["nodes/stats", "nodes/proxy"]
+        verbs: ["get", "list", "watch"]
+      # PVC/PV reads for the kubeletstats `volume` metric group's k8s_api_config,
+      # which turns per-volume series keyed by the in-pod name ("data", shared by
+      # every StatefulSet) into series keyed by the actual claim.
+      - apiGroups: [""]
+        resources: ["persistentvolumeclaims", "persistentvolumes"]
+        verbs: ["get", "list", "watch"]
   # Browser beacons reach the collector through a ClusterIP Service (Traefik →
   # otel-collector:8027). Services still emit to localhost:4317, not this Service.
   # In daemonset mode the chart omits the Service unless explicitly enabled.
@@ -36,6 +74,56 @@ opentelemetry-collector:
       # web traces and RUM logs/events; fed into the traces + logs pipelines
       # below so browser signals land in the same Tempo/Loki as services.
       faro: { endpoint: 0.0.0.0:8027 }
+      # Hubble flow metrics off the cilium-agent (ADR-0011) — the ONE scrape in this
+      # repo. Prometheus itself ships `scrape_configs: []` with no ServiceAccount and
+      # no RBAC, because the invariant is "everything reaches Prometheus as an OTLP
+      # push from this collector". Teaching Prometheus kubernetes_sd would mean
+      # inventing RBAC for it and breaking that invariant, so the collector scrapes
+      # and re-exports instead.
+      #
+      # Node-local static target, not service discovery: this collector is a DaemonSet
+      # and so is cilium-agent (hostNetwork), so each pod scrapes the agent on its OWN
+      # node via the chart-injected K8S_NODE_IP. No RBAC, no cross-node traffic, and no
+      # scraping every agent from every collector.
+      prometheus/hubble:
+        config:
+          scrape_configs:
+            - job_name: hubble
+              scrape_interval: 30s
+              static_configs:
+                - targets: ["${env:K8S_NODE_IP}:9965"]
+      # Per-pod/container/node CPU & memory from the local kubelet's Summary API
+      # (ADR-0025 POC — the resource panels on the service-detail dashboard). Same
+      # node-local pattern as the hubble scrape: this DaemonSet pod reads ONLY its
+      # own node's kubelet via the chart-injected K8S_NODE_IP, authenticating with
+      # the pod ServiceAccount token (clusterRole.rules below grant nodes/stats).
+      # insecure_skip_verify: the kubelet serving cert is not signed for the bare
+      # node IP, and this is node-local traffic that never leaves the host.
+      kubeletstats:
+        collection_interval: 20s
+        auth_type: serviceAccount
+        endpoint: "https://${env:K8S_NODE_IP}:10250"
+        insecure_skip_verify: true
+        # `volume` is the one that protects the data tier. Postgres, Loki, Tempo,
+        # Prometheus and MinIO all write to PVCs, and a full PVC does not evict a
+        # pod or fail a probe — Postgres simply starts refusing writes. Nothing
+        # else in this stack reports PVC free space: kubelet knows it, and this is
+        # the only receiver that asks.
+        metric_groups: [pod, container, node, volume]
+        # Resolve volumes to their PersistentVolumeClaim / PV names. Without this
+        # the volume series are keyed by the in-pod volume name ("data"), which is
+        # the same string on every StatefulSet and therefore useless for alerting
+        # on a specific claim. Needs the PVC/PV read grants in clusterRole.rules.
+        k8s_api_config:
+          auth_type: serviceAccount
+        # Usage-vs-limit ratios (off by default). Computed from the pod spec the
+        # receiver reads via the kubelet's /pods endpoint (nodes/proxy, granted
+        # above). Pod-level limit_utilization is only emitted when EVERY
+        # container in the pod declares that limit — pods without limits simply
+        # show a blank cell on the Applications dashboard, not a zero.
+        metrics:
+          k8s.pod.memory_limit_utilization: { enabled: true }
+          k8s.pod.cpu_limit_utilization: { enabled: true }
     processors:
       memory_limiter:
         check_interval: 1s
@@ -59,13 +147,18 @@ opentelemetry-collector:
     service:
       pipelines:
         traces:  { receivers: [otlp, faro], processors: [memory_limiter, probabilistic_sampler, batch], exporters: [otlphttp/tempo] }
-        metrics: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
+        metrics: { receivers: [otlp, prometheus/hubble, kubeletstats], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
         logs:    { receivers: [otlp, faro], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
 
 grafana:
   fullnameOverride: grafana
   adminPassword: ""                # supplied via SOPS-decrypted Secret in prod
-  # Served at the ROOT of its own ops origin o11y.ops.<host> (ADR-0017), not
+  # Measured 2026-07-26: 157Mi working set, 138m CPU (rendering the dashboards is
+  # the CPU cost, and it is bursty per page load — hence no cpu limit, ADR-0020).
+  resources:
+    requests: { cpu: "100m", memory: "192Mi" }
+    limits:   { memory: "512Mi" }
+  # Served at the ROOT of its own ops origin grafana.ops.<host> (ADR-0017), not
   # under a /grafana path — so serve_from_sub_path is off. Each env overrides
   # root_url with its external origin (the local overlay sets the :8443 edge).
   grafana.ini:
@@ -73,7 +166,7 @@ grafana:
       serve_from_sub_path: false
       root_url: "%(protocol)s://%(domain)s/"
     # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator holding
-    # dashboard:o11y#view, ADR-0017). Grafana trusts it and serves anonymously
+    # dashboard:grafana#view, ADR-0017). Grafana trusts it and serves anonymously
     # instead of running a second, redundant login that would redirect to /login and
     # never render. Only AAL2 operators ever reach this origin.
     auth:
@@ -83,9 +176,13 @@ grafana:
       org_role: Admin
     # Skip the "Welcome to Grafana" home page and land operators on a real
     # dashboard. dashboardsConfigMaps.default (grafana-dashboards) mounts at
-    # /var/lib/grafana/dashboards/default, so service-red.json is served there.
+    # /var/lib/grafana/dashboards/default, so overview.json is served there.
+    # Overview is the L1 landing page (ADR-0026): firing alerts, cluster-wide
+    # golden signals, per-service SLO status, and platform-dependency one-liners —
+    # every panel either turns red or links down to Applications / Service detail /
+    # Platform components / policy-denials.
     dashboards:
-      default_home_dashboard_path: /var/lib/grafana/dashboards/default/service-red.json
+      default_home_dashboard_path: /var/lib/grafana/dashboards/default/overview.json
     # No phone-home: version/plugin update checks and usage analytics are the only
     # reason Grafana reaches the internet (seen in Hubble as grafana -> <gcp-ip>:443).
     analytics:
@@ -106,10 +203,37 @@ grafana:
   datasources:
     datasources.yaml:
       apiVersion: 1
+      # Fixed uids: a provisioned datasource without an explicit uid gets a random
+      # one, and dashboard data-links reference datasources by uid — so pin them
+      # all. Dashboards still reference these by NAME ("Prometheus"/"Loki"/
+      # "Tempo"), which keeps working alongside the uids.
       datasources:
-        - { name: Prometheus, type: prometheus, url: http://prometheus.platform.svc.cluster.local:9090 }
-        - { name: Loki,       type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
-        - { name: Tempo,      type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
+        - { name: Prometheus, uid: prometheus, type: prometheus, url: http://prometheus.platform.svc.cluster.local:9090 }
+        - { name: Loki,       uid: loki,       type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
+        - { name: Tempo,      uid: tempo,      type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
+        # Pyroscope (ADR-0025 POC — continuous profiling). Backs the flame-graph
+        # panel on the service-detail dashboard; profiles are pushed here by the
+        # Alloy agent (templates/alloy.yaml).
+        - { name: Pyroscope, uid: pyroscope, type: grafana-pyroscope-datasource, url: http://pyroscope.platform.svc.cluster.local:4040 }
+  # BOTH halves are required. `dashboardsConfigMaps` only MOUNTS the JSON files;
+  # without a matching `dashboardProviders` entry Grafana never scans that directory,
+  # so the dashboards exist on disk and are invisible in the UI — `/api/search`
+  # returns []. That was the state until 2026-07-20: `service-red.json` appeared to
+  # work only because grafana.ini points `default_home_dashboard_path` straight at
+  # the file, which bypasses provisioning entirely. The provider name must match the
+  # dashboardsConfigMaps key (`default`), which is also the mount subdirectory.
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: false      # dashboards are git artifacts (ADR-0011): PRs, not UI edits
+          options:
+            path: /var/lib/grafana/dashboards/default
   dashboardsConfigMaps:
     default: grafana-dashboards     # populated from infra/observability/dashboards/
 
@@ -149,6 +273,12 @@ loki:
     replicas: 1
     extraEnvFrom:
       - secretRef: { name: observability-bucket }
+    # Measured 2026-07-26 under the ADR-0027 load suite: 453Mi working set, 63m CPU.
+    # Explicit rather than left to the namespace LimitRange default (512Mi), which it
+    # sits at 88% of — one busier day and the default would OOM-kill log ingest.
+    resources:
+      requests: { cpu: "100m", memory: "512Mi" }
+      limits:   { memory: "1Gi" }
   # Disable the microservices read/write/backend topology.
   read: { replicas: 0 }
   write: { replicas: 0 }
@@ -179,7 +309,27 @@ tempo:
   fullnameOverride: tempo
   replicas: 1
   tempo:
+    # THE HEAVIEST POD IN THE CLUSTER, and the reason this chart cannot rely on the
+    # namespace LimitRange default. Measured 2026-07-26: 1858Mi working set during
+    # the ADR-0027 load suite, against ~400Mi at rest — trace ingest from ~17k
+    # requests. The 512Mi default would have OOM-killed it repeatedly, silently
+    # losing traces during exactly the runs you are trying to observe.
+    #
+    # Tempo's memory scales with trace INGEST RATE, not with retention, so this is
+    # the component to re-measure after any change in traffic or sampling. If it
+    # needs more than this, the answer is tail sampling (the collector gateway tier,
+    # docs/operational-surface.md), not a bigger limit.
+    resources:
+      requests: { cpu: "100m", memory: "1Gi" }
+      limits:   { memory: "3Gi" }
     reportingEnabled: false
+    # Metrics-generator stays OFF (chart default). Its service_graphs processor was
+    # evaluated for a Grafana Node-Graph service map and rejected (ADR-0025):
+    # pairing is traffic-dependent (only CLIENT/SERVER span pairs processed in one
+    # instance produce edges) and it yields ~1 edge here. The service map is Hubble
+    # UI's job. Enabling it would also need Prometheus's
+    # --web.enable-remote-write-receiver flag and a tempo→prometheus:9090
+    # NetworkPolicy rule, neither of which is deployed.
     # S3 creds (AWS_ACCESS_KEY_ID/SECRET) from the observability-bucket Secret;
     # access_key/secret_key under s3 are left empty for the AWS SDK env fallback.
     extraEnvFrom:
@@ -203,6 +353,52 @@ prometheus:
   httpPort: 9090
   # Local-TSDB retention. A project needing long retention takes the Mimir swap.
   retention: 15d
+  # Measured 2026-07-26 under the ADR-0027 load suite: 230Mi working set, 37m CPU.
+  # No cpu limit (ADR-0020) — a TSDB compaction is exactly the bursty, latency-
+  # sensitive work CFS throttling ruins.
   resources:
-    requests: { cpu: "100m", memory: "256Mi" }
-    limits:   { cpu: "1",    memory: "1Gi" }
+    requests: { cpu: "100m", memory: "384Mi" }
+    limits:   { memory: "1Gi" }
+
+# Pyroscope (ADR-0025 POC — continuous profiling, the fourth signal). Rendered by
+# templates/pyroscope.yaml as a single-binary monolith (-target=all) with
+# filesystem storage on an emptyDir — the POC minimum. A real deployment points its
+# storage at the off-cluster bucket like Loki/Tempo and raises retention. Profiles
+# are PUSHED here by the Alloy agent (below), which pulls each Go service's pprof.
+pyroscope:
+  image: grafana/pyroscope:1.14.0
+  # Measured: 322Mi working set, 22m CPU. Request tracks the working set because
+  # memory is not compressible; the limit is ~3x for ingest spikes.
+  resources:
+    requests: { cpu: "100m", memory: "384Mi" }
+    limits:   { memory: "1Gi" }
+
+# Grafana Alloy (ADR-0025 POC) — the pprof-scraping agent the withdrawn profiling
+# flag always implied. Rendered by templates/alloy.yaml. It discovers platform pods,
+# keeps those exposing the `admin` port (the pprof endpoint obs.Init serves, ADR-0011),
+# scrapes CPU/heap/goroutine profiles, and pushes them to Pyroscope. No service change
+# and no new ingress rule: services already allow platform-namespace ingress to the
+# admin port, and the baseline NetworkPolicy already allows intra-namespace egress.
+alloy:
+  image: grafana/alloy:v1.11.0
+  # Measured: 258Mi working set — DOUBLE the old 128Mi request, which is the
+  # classic under-request that lets the scheduler overcommit a node and then evict
+  # the agent. Request raised to match reality; cpu limit dropped (ADR-0020).
+  resources:
+    requests: { cpu: "100m", memory: "320Mi" }
+    limits:   { memory: "768Mi" }
+
+# Cluster-state metrics singleton (templates/otel-cluster.yaml): k8s_cluster
+# receiver → desired/available replicas, restart counts, resource limits as
+# series. Image matches the DaemonSet collector's contrib distro + tag so both
+# collectors upgrade in lockstep.
+otelCluster:
+  image: otel/opentelemetry-collector-contrib:0.154.0
+  # Measured: 154Mi working set against the old 256Mi limit = 58%. NOTE the
+  # kubeletstats `k8s_pod_memory_limit_utilization_ratio` metric reports ~98% for
+  # this pod, because it divides memory.USAGE (which counts reclaimable page cache)
+  # by the limit. The OOM killer acts on the working set, so 58% is the real
+  # headroom — but 128Mi was still under-requested, and the limit gets more room.
+  resources:
+    requests: { cpu: "50m", memory: "192Mi" }
+    limits:   { memory: "512Mi" }

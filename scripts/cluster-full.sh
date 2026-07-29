@@ -56,15 +56,13 @@ k -n "$NS" create secret generic sops-age-key \
   --from-file=keys.txt=infra/gitops/platform/local/age.key \
   --dry-run=client -o yaml | k apply -f -
 
-# 3b. Grafana mounts the `grafana-dashboards` ConfigMap (observability chart values
-#     dashboardsConfigMaps.default) built from the committed dashboards at
-#     infra/observability/dashboards/ (ADR-0011, kept outside the chart). The chart
-#     does not create it, so materialise it before Argo starts Grafana; untracked by
-#     Argo, so selfHeal/prune leave it alone.
-echo "→ materialising grafana-dashboards ConfigMap"
-k -n "$NS" create configmap grafana-dashboards \
-  --from-file=infra/observability/dashboards/ \
-  --dry-run=client -o yaml | k apply -f -
+# 3b. Grafana's `grafana-dashboards` ConfigMap (observability chart values
+#     dashboardsConfigMaps.default) is now GitOps-managed, not materialised here:
+#     the local root-app syncs infra/gitops/local-bootstrap/app-grafana-dashboards.yaml,
+#     a Kustomize app that generates it from infra/observability/dashboards/*.json at
+#     sync-wave 2 — before the core tier (wave 3) starts Grafana, which mounts it
+#     (ADR-0011). A PR that adds or edits a dashboard now reaches the cluster on the
+#     next Argo pass, instead of needing an imperative `kubectl create configmap`.
 
 # 3c. Build + push repo images to the local registry — the local stand-in for CI.
 #     Argo then deploys services + lowdefy from the registry exactly as prod pulls
@@ -178,14 +176,14 @@ cat <<EOF
 ✓ cluster:full up (ArgoCD-driven from master).
   Product (Traefik):  https://${DOMAIN}:8443/api/<resource>/   (flat namespace, self-signed TLS)
   Ops tier (ADR-0017; coarse gate = operator claim + AAL2, no OpenFGA call):
-    Grafana:          https://o11y.ops.${DOMAIN}:8443/
-    Hubble UI:        https://network.ops.${DOMAIN}:8443/
-    Temporal UI:      https://workflows.ops.${DOMAIN}:8443/
-    MinIO console:    https://s3.ops.${DOMAIN}:8443/  (login: minio / minio-password)
-    Lowdefy console:  https://admin.ops.${DOMAIN}:8443/
-    ArgoCD:           https://deploy.ops.${DOMAIN}:8443/
-    Headlamp (k8s):   https://k8s.ops.${DOMAIN}:8443/   (read-only debug UI)
-    pgweb (DB):       https://db.ops.${DOMAIN}:8443/    (read-only DB inspector)
+    Grafana:          https://grafana.ops.${DOMAIN}:8443/
+    Hubble UI (map):  https://hubble.ops.${DOMAIN}:8443/
+    Temporal UI:      https://temporal.ops.${DOMAIN}:8443/
+    MinIO console:    https://minio.ops.${DOMAIN}:8443/  (login: minio / minio-password)
+    Lowdefy console:  https://lowdefy.ops.${DOMAIN}:8443/
+    ArgoCD:           https://argocd.ops.${DOMAIN}:8443/
+    Headlamp (k8s):   https://headlamp.ops.${DOMAIN}:8443/   (read-only debug UI)
+    pgweb (DB):       https://pgweb.ops.${DOMAIN}:8443/    (read-only DB inspector)
   Frontend:           run it natively on :3000 (the frontend-dev EndpointSlice
                       routes /auth + landing to the host).
   Diagnose:           argocd --core --kube-context k3d-${CLUSTER} app get <app>

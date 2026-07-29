@@ -49,21 +49,45 @@ if k -n argocd get application.argoproj.io "$APP" >/dev/null 2>&1; then
     -p '{"spec":{"syncPolicy":{"automated":null}}}'
 fi
 
-# OpenFGA's authorization model is injected the same way the platform
-# ApplicationSet does it — a fileParameter from the canonical model.json (ADR-0010).
-# Without it seed.model is empty and the seed Job is disabled (no store is created).
-extra_args=()
-if [ "$CHART" = "openfga" ]; then
+# Mirror what the platform ApplicationSet supplies, or the working-tree overlay
+# installs a chart missing config ArgoCD would have provided. Keep in sync with the
+# `valueFiles` + `fileParameters` blocks in
+# infra/gitops/{bootstrap,local-bootstrap}/appset-platform.yaml.
+#
+# The appset applies the two auth value files to EVERY chart in the tier (charts
+# that don't consume them ignore the extra keys), so do the same rather than
+# special-casing: the failure mode of omitting them is silent and severe. Ory is
+# the chart that actually needs them — without kratos.config.identity.schemas
+# Kratos CrashLoops on `missing properties: "schemas"`, and an Oathkeeper with
+# empty accessRules stops gating every ops origin while still reporting Ready.
+extra_args=(
+  -f infra/auth/kratos/values.yaml
+  -f infra/auth/oathkeeper/values.yaml
+)
+case "$CHART" in
+openfga)
+  # Without this seed.model is empty and the seed Job is disabled (no store is
+  # created) — ADR-0010.
   extra_args+=(--set-file "seed.model=infra/auth/openfga/model.json")
-fi
+  ;;
+ory)
+  extra_args+=(
+    --set-file 'kratos.kratos.identitySchemas.user\.v1\.json=infra/auth/kratos/identity-schemas/user.v1.json'
+    --set-file 'oathkeeper.oathkeeper.accessRules=infra/auth/oathkeeper/access-rules.json'
+  )
+  ;;
+esac
 
 echo "→ helm upgrade ${CHART} from the working tree"
 h dependency update "$CHART_DIR" >/dev/null
 # --take-ownership: platform charts are normally owned by ArgoCD (Server-Side
 # Apply), not a Helm release; Helm 4 refuses to adopt them without this flag. Sync
 # is paused above, so this is safe for the local override; cluster:full restores it.
+# Value-file order matches the ApplicationSet: the auth overlays first, the
+# per-env overlay last so it wins. extra_args therefore precedes the local values.
 h upgrade --install "$CHART" "$CHART_DIR" -n "$NS" \
-  --take-ownership --force-conflicts -f infra/gitops/platform/local/values.yaml "${extra_args[@]}" --timeout 8m
+  --take-ownership --force-conflicts "${extra_args[@]}" \
+  -f infra/gitops/platform/local/values.yaml --timeout 8m
 
 # lowdefy's image tag is stable (:local), so helm sees no change to trigger a
 # rollout; restart explicitly to re-pull the image just rebuilt above.

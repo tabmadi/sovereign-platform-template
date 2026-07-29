@@ -1,0 +1,38 @@
+# Local Grafana dashboards Application (ADR-0011, ADR-0016). Local counterpart to
+# bootstrap/app-grafana-dashboards.yaml: a Kustomize app that generates the
+# `grafana-dashboards` ConfigMap from infra/observability/dashboards/*.json for the
+# observability chart to mount (dashboardsConfigMaps.default). Makes dashboards-as-
+# code flow through GitOps locally too, replacing the imperative `kubectl create
+# configmap` that scripts/cluster-full.sh used to run at bootstrap. Synced by the
+# local root-app, which recurses infra/gitops/local-bootstrap.
+#
+# Grouped by the `local` AppProject (appproject.yaml), like every other local app.
+#
+# Sync-wave 2 (data-tier slot): the ConfigMap must exist BEFORE the core tier
+# (wave 3) starts Grafana, which mounts it as a volume. A plain ConfigMap is Healthy
+# the moment it applies, so wave 3 is not delayed.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: local-grafana-dashboards
+  namespace: argocd
+  labels:
+    env: local
+    app.kubernetes.io/part-of: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+    targetRevision: master
+    path: infra/observability/dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    retry:
+      limit: 20
+      backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

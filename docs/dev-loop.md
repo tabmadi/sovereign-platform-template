@@ -91,11 +91,32 @@ mise run e2e                  # full suite: every journey, every dashboard, all 
 ```
 
 The browser test is the acceptance gauge — a rendered, authenticated dashboard (Grafana,
-Hubble, Temporal) is the proof the whole stack underneath is wired. A Go/shell **preflight
+Hubble UI, Temporal) is the proof the whole stack underneath is wired. A Go/shell **preflight
 readiness** check runs first so a red e2e reads "infra down" vs "app broken". The suite ships a
 committed deterministic test identity (an AAL1 user + an AAL2 operator); there is nothing to seed
 by hand. Playwright's runner is Node — the **one** sanctioned Node tool in the repo
 ([ADR-0001](adr/0001-language-and-runtime.md)), scoped to `e2e/` and CI; everything else stays on Bun.
+
+## Load & performance tests
+
+E2e answers *is it correct* at a load of about one user. *What does it cost and where does it
+break* is [ADR-0027](adr/0027-load-and-performance-testing.md): **k6** driving the edge from the
+repo-root `perf/` workspace, against the same `cluster:full`.
+
+```sh
+mise run perf:seed            # bulk catalog rows, so the read path has a realistic table
+mise run perf:smoke           # ~30s — are the scenarios still wired to the API?
+mise run perf                 # the steady baseline (~7min), nightly + pre-release
+mise run perf:stress          # ramp to saturation; thresholds are meant to break here
+```
+
+Metrics leave k6 over OTLP into the cluster's collector, so a run shows up in Grafana on the
+**`Load test`** dashboard next to the pod CPU/memory it caused — that correlation is the point.
+k6 runs its own embedded JS engine, so `perf/` adds **no** Node and no npm; the sanctioned Node
+island stays `e2e/` alone. Full guidance, including how to read the shapes, is
+[docs/perf/runbook.md](perf/runbook.md).
+
+These suites are not part of `mise run test` or `check`, and never implicitly gate a merge.
 
 ## Formatting & linting
 
@@ -194,16 +215,24 @@ optional per-tool `dashboard:<tool>#view` fine layer is off by default. Every ro
 below is defined in `infra/gateway/ingressroutes.yaml` (the opt-in tools' routes
 resolve to a backend only once their chart is enabled).
 
+**Which observability panel?** They are a sequence, not a choice ([ADR-0025](adr/0025-service-map-apm-ui.md)):
+start at **Grafana** for *"is something wrong, and where?"* (Applications overview → service detail:
+SLOs, RED, resources, logs, traces, profiling), then escalate to **Hubble UI** for *"what talks to
+what, and is the network denying something right now?"* (live service map, flows, drop verdicts).
+Drop *history* and the `PolicyDropsDetected` alert stay in Grafana — the UI keeps no history.
+
+Ops hostnames are named after the tool, always ([ADR-0017](adr/0017-url-and-domain-structure.md)).
+
 | Ops URL                                        | Tool                                                                                   | Auth                                             |
 |------------------------------------------------|----------------------------------------------------------------------------------------|--------------------------------------------------|
-| `https://o11y.ops.dev.localtest.me:8443/`      | **Grafana** — metrics/logs/traces                                                      | operator + AAL2                                  |
-| `https://network.ops.dev.localtest.me:8443/`   | Cilium **Hubble UI** — network-flow map                                                | operator + AAL2                                  |
-| `https://workflows.ops.dev.localtest.me:8443/` | **Temporal Web UI**                                                                    | operator + AAL2                                  |
-| `https://s3.ops.dev.localtest.me:8443/`        | **MinIO console** (non-prod)                                                           | operator + AAL2, then `minio` / `minio-password` |
-| `https://admin.ops.dev.localtest.me:8443/`     | **Lowdefy** admin console                                                              | operator + AAL2                                  |
-| `https://deploy.ops.dev.localtest.me:8443/`    | **Argo CD**                                                                            | operator + AAL2                                  |
-| `https://k8s.ops.dev.localtest.me:8443/`       | **Headlamp** — k8s debug UI (r/o, [ADR-0024](adr/0024-kubernetes-debug-ui.md))         | operator + AAL2                                  |
-| `https://db.ops.dev.localtest.me:8443/`        | **pgweb** — read-only DB inspector ([ADR-0012](adr/0012-internal-admin.md))            | operator + AAL2                                  |
+| `https://grafana.ops.dev.localtest.me:8443/`      | **Grafana** — metrics/logs/traces, RUM, policy drops                                   | operator + AAL2                                  |
+| `https://hubble.ops.dev.localtest.me:8443/`       | **Hubble UI** — live service map, network flows, drop verdicts                          | operator + AAL2                                  |
+| `https://temporal.ops.dev.localtest.me:8443/` | **Temporal Web UI**                                                                    | operator + AAL2                                  |
+| `https://minio.ops.dev.localtest.me:8443/`        | **MinIO console** (non-prod)                                                           | operator + AAL2, then `minio` / `minio-password` |
+| `https://lowdefy.ops.dev.localtest.me:8443/`     | **Lowdefy** admin console                                                              | operator + AAL2                                  |
+| `https://argocd.ops.dev.localtest.me:8443/`    | **Argo CD**                                                                            | operator + AAL2                                  |
+| `https://headlamp.ops.dev.localtest.me:8443/`       | **Headlamp** — k8s debug UI (r/o, [ADR-0024](adr/0024-kubernetes-debug-ui.md))         | operator + AAL2                                  |
+| `https://pgweb.ops.dev.localtest.me:8443/`        | **pgweb** — read-only DB inspector ([ADR-0012](adr/0012-internal-admin.md))            | operator + AAL2                                  |
 
 Grafana trusts the Oathkeeper edge and serves anonymously (its login form is
 disabled, `auth.anonymous` Admin) — an operator who clears the edge lands straight
@@ -218,37 +247,52 @@ credentials — the pre-seeded root user `minio` / `minio-password`.
 
 `cluster:full` brings up the whole platform (edge, services, observability,
 console); Argo CD itself is installed imperatively for the local full tier and is
-reachable at `deploy.ops.<host>` like the other dashboards. Headlamp (`k8s.ops`)
-and pgweb (`db.ops`) are Core ops tools, on in every environment
+reachable at `argocd.ops.<host>` like the other dashboards. Headlamp (`headlamp.ops`)
+and pgweb (`pgweb.ops`) are Core ops tools, on in every environment
 ([docs/operational-surface.md](operational-surface.md)); a project that does not
 want one drops it with `enabled: false` in its env values overlay.
 
 ### Login flow
 
 The edge serves `*.dev.localtest.me` on `:8443` (real DNS → 127.0.0.1, no
-`/etc/hosts` edits). Auth-gated routes (e.g. the Hubble UI at
-`https://hubble.dev.localtest.me:8443/`) redirect an unauthenticated browser to
+`/etc/hosts` edits). Auth-gated routes (e.g. the Hubble UI service map at
+`https://hubble.ops.dev.localtest.me:8443/`) redirect an unauthenticated browser to
 Kratos at `…/auth/login`; register/login there and the redirect returns you to the
 gated page. The Kratos session cookie is scoped to `dev.localtest.me` (parent
 domain), so one login covers the edge and every `*.dev.localtest.me` subdomain. The landing page and `/auth` UI are
 served by a host-run `next dev`
-(run `next dev -H 0.0.0.0` on the host — the dev server is not in-cluster), wired
+(run `mise run dev:frontend` on the host — the dev server is not in-cluster), wired
 through `infra/local/edge-auth.yaml`.
 
 **There is no seeded user** — Kratos starts with an empty identity store. Create
 one at <https://dev.localtest.me:8443/auth/register> with any email and a password
-that clears Kratos' defaults (≥ 8 chars and not a known-breached password — it runs
-a HaveIBeenPwned check, so `password123` is rejected); then log in with it. Email
+that clears the policy (≥ 12 chars and not similar to the email, so `password123`
+is rejected); then log in with it. Email
 verification is configured but the local SMTP sink isn't wired up, so verification
 mail isn't delivered — login doesn't require it.
 
-Start the host `next dev` with **`APP_ORIGIN=dev.localtest.me`** so the login and
-registration **server actions** pass Next's Origin/CSRF check (it feeds
-`serverActions.allowedOrigins` in `next.config.mjs`). Without it, form submits from
-the edge origin are rejected as cross-origin:
+Start the host dev server with **`mise run dev:frontend`**, which is `next dev -H
+0.0.0.0` plus the two env vars a host process needs to behave like the in-cluster
+frontend:
+
+| Env var                            | Why                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EDGE_ORIGIN=https://dev.localtest.me:8443` | The environment's edge origin. **Server components** fetch through it (`src/lib/server-fetch/server.ts`) — it is the edge, not a service: the `/api/<resource>` IngressRoutes match on `Host(dev.localtest.me)` and Oathkeeper injects identity there. `next.config.mjs` also derives the **server-action** CSRF allowlist from it. Unset, `/panel/products` throws at the first fetch. |
+| `NODE_TLS_REJECT_UNAUTHORIZED=0`   | The local wildcard cert is signed by the SelfSigned `ClusterIssuer` — a self-signed leaf, not a CA — so Node cannot be taught to trust it via `NODE_EXTRA_CA_CERTS`. Local only; deployed envs have Let's Encrypt certs and set neither var.                                                                     |
+
+Starting the dev server another way — an IDE run config, a debugger — needs the
+same env: copy `apps/frontend/.env.example` to `.env.local`, which Next loads
+before evaluating `next.config.mjs`.
+
+Browser-side calls need no such variable: `client.ts` uses a relative `/api`, which
+is the same origin by construction ([ADR-0017](adr/0017-url-and-domain-structure.md)).
+A server-side `fetch` has no document to resolve a relative URL against, so the
+origin has to be named once — and it must be configuration, not the request's
+`Host` header, because that header is client-controlled and this fetcher forwards
+the user's session cookie.
 
 ```sh
-APP_ORIGIN=dev.localtest.me next dev -H 0.0.0.0
+mise run dev:frontend
 ```
 
 The full Kratos self-service set is served under `/auth/` — `login`, `register`,

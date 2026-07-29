@@ -14,8 +14,8 @@ k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
 h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 
 # Already up? (helm release present and node Ready) → nothing to do.
-if h -n kube-system status cilium >/dev/null 2>&1 \
-   && k get node -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q True; then
+if h -n kube-system status cilium >/dev/null 2>&1 &&
+  k get node -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q True; then
   echo "✓ Cilium already installed and node Ready"
   exit 0
 fi

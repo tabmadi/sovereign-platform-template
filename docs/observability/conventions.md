@@ -27,6 +27,18 @@ Decisions live in [ADR-0011](../adr/0011-observability.md).
   (e.g. `payment_settlement_duration_seconds`).
 - Metrics are stored in Prometheus (Core); Mimir is the documented Scale swap
   ([docs/operational-surface.md](../operational-surface.md)).
+- HTTP RED reads otelhttp's stable semantic-convention histogram
+  (`http_server_request_duration_seconds*`, `http_response_status_code` label, second-scale
+  buckets). Do not record a parallel custom HTTP duration metric; dashboards and alerts query
+  the stable name only.
+- Workload CPU/memory come from the Collector's `kubeletstats` receiver (`k8s_pod_cpu_usage`,
+  `k8s_pod_memory_working_set_bytes`) and are always present; pushed signals (RED/traces/app
+  logs) only exist under live traffic — an idle service showing blank RED next to live CPU/mem
+  is expected, not broken.
+- Alert rules are native Prometheus rule files at `infra/observability/alerts/*.yaml`, shipped
+  to Prometheus by the `prometheus-alerts` ArgoCD app (add new files to that directory's
+  `kustomization.yaml`). Firing alerts appear on Prometheus `/alerts` and as the `ALERTS`
+  series; there is no Alertmanager in the default stack.
 
 ## Traces
 

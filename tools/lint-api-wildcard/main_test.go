@@ -13,7 +13,7 @@ func TestBareAPIWildcard(t *testing.T) {
 		"<{http,https}>://<**>/api/<{products,orders}><**>": false,
 		"http://example.com/api/products":                   false,
 		// Wildcards elsewhere in the path are unrelated.
-		"<{http,https}>://admin.ops.<**>/<**>": false,
+		"<{http,https}>://lowdefy.ops.<**>/<**>": false,
 	}
 	for url, want := range cases {
 		if got := bareAPIWildcard.MatchString(url); got != want {

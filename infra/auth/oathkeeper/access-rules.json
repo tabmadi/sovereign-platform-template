@@ -8,66 +8,66 @@
     "errors": [{ "handler": "json" }]
   },
   {
-    "id": "ops-admin",
-    "match": { "url": "<{http,https}>://admin.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "id": "ops-lowdefy",
+    "match": { "url": "<{http,https}>://lowdefy.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"admin\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"lowdefy\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "header", "config": { "headers": { "X-User-Id": "{{ print .Subject }}", "X-User-Email": "{{ print .Extra.identity.traits.email }}" } } }],
     "errors": [{ "handler": "redirect" }]
   },
   {
-    "id": "ops-network",
-    "match": { "url": "<{http,https}>://network.ops.<**>/<**>", "methods": ["GET", "POST"] },
+    "id": "ops-hubble",
+    "match": { "url": "<{http,https}>://hubble.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"network\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"hubble\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
   },
   {
-    "id": "ops-o11y",
-    "match": { "url": "<{http,https}>://o11y.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "id": "ops-grafana",
+    "match": { "url": "<{http,https}>://grafana.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"o11y\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"grafana\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
   },
   {
-    "id": "ops-deploy",
-    "match": { "url": "<{http,https}>://deploy.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "id": "ops-argocd",
+    "match": { "url": "<{http,https}>://argocd.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"deploy\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"argocd\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
   },
   {
-    "id": "ops-workflows",
-    "match": { "url": "<{http,https}>://workflows.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "id": "ops-temporal",
+    "match": { "url": "<{http,https}>://temporal.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"workflows\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"temporal\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
   },
   {
-    "id": "ops-s3",
-    "match": { "url": "<{http,https}>://s3.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "id": "ops-minio",
+    "match": { "url": "<{http,https}>://minio.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"s3\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"minio\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
   },
   {
-    "id": "ops-k8s",
-    "match": { "url": "<{http,https}>://k8s.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "id": "ops-headlamp",
+    "match": { "url": "<{http,https}>://headlamp.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"k8s\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"headlamp\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
   },
   {
-    "id": "ops-db",
-    "match": { "url": "<{http,https}>://db.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "id": "ops-pgweb",
+    "match": { "url": "<{http,https}>://pgweb.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }],
-    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"db\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"pgweb\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.traits.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
   }

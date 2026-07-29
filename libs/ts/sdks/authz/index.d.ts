@@ -89,7 +89,7 @@ export interface components {
         AuthorizeRequest: {
             /** @description Kratos identity id; empty for anonymous. */
             subject: string;
-            /** @description Ops dashboard slug such as o11y or network. */
+            /** @description Ops dashboard slug such as grafana or hubble. */
             tool: string;
             /** @description authenticator_assurance_level from the session. */
             aal: string;

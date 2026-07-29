@@ -8,7 +8,7 @@ argo-cd:
       kustomize.buildOptions: "--enable-helm"
       timeout.reconciliation: "60s"
       # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator
-      # holding dashboard:deploy#view, ADR-0017). Argo trusts it and serves
+      # holding dashboard:argocd#view, ADR-0017). Argo trusts it and serves
       # anonymously instead of running a second, redundant login — the same stance
       # Grafana takes (infra/helm/platform/observability/values.yaml). Only AAL2
       # operators ever reach this origin; the anonymous role is set by rbac
@@ -70,7 +70,7 @@ argo-cd:
     rbac:
       # Anonymous (edge-authenticated operator, see users.anonymous above) gets
       # admin — mirroring Grafana's anonymous org_role:Admin. The edge already
-      # proved AAL2 + the dashboard:deploy grant; full UI access is the point.
+      # proved AAL2 + the dashboard:argocd grant; full UI access is the point.
       policy.default: role:admin
   server:
     service: { type: ClusterIP }

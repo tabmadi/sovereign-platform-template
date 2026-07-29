@@ -1,0 +1,37 @@
+# Prometheus alerts Application (ADR-0011). Makes alerts-as-code actually flow
+# through GitOps: a Kustomize app that generates the `prometheus-alerts` ConfigMap
+# from infra/observability/alerts/*.yaml, which the observability Helm chart
+# mounts into Prometheus (rule_files: /etc/prometheus/rules/*.yaml). The exact
+# counterpart of app-grafana-dashboards.yaml for the alert rules. Picked up by the
+# root app-of-apps, which recurses infra/gitops/bootstrap.
+#
+# Env-agnostic (the same rules in every env), like the shared gateway app,
+# so it has no single-env AppProject and stays in `default`.
+#
+# Sync-wave 2 (the data-tier slot): the ConfigMap must exist BEFORE the core tier
+# (wave 3) starts Prometheus, which mounts it as a volume. A plain ConfigMap is
+# Healthy the moment it applies, so wave 3 is not delayed.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-alerts
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+    targetRevision: master
+    path: infra/observability/alerts
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    retry:
+      limit: 20
+      backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

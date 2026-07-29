@@ -69,7 +69,7 @@ kratos:
                 id: dev.localtest.me
                 display_name: Platform (local)
                 origins: ["https://dev.localtest.me:8443"]
-      # Share the session cookie with subdomains (hubble.dev.localtest.me is
+      # Share the session cookie with subdomains (hubble.ops.dev.localtest.me is
       # served at its own origin); overrides the chart's dev.example.com default.
       session:
         cookie:
@@ -136,7 +136,7 @@ grafana:
   adminPassword: "admin"
   grafana.ini:
     server:
-      root_url: "https://o11y.ops.dev.localtest.me:8443/"
+      root_url: "https://grafana.ops.dev.localtest.me:8443/"
 
 # --- Lowdefy admin console (ADR-0012) -------------------------------------
 # Repo-built image: pulled from the local registry (the CI stand-in) at the
@@ -151,7 +151,7 @@ lowdefy:
     pullPolicy: Always
 
 # --- Core ops tools: local wiring -----------------------------------------
-# Headlamp (ADR-0024) at k8s.ops and pgweb (ADR-0012) at db.ops are Core, on in
+# Headlamp (ADR-0024) at headlamp.ops and pgweb (ADR-0012) at pgweb.ops are Core, on in
 # every env from their chart defaults. Only pgweb's local DSN is overlay-specific:
 # it points read-only at the in-cluster CNPG dev role (same dev:dev creds Kratos
 # uses locally). Headlamp needs no local override.

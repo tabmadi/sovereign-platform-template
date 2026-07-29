@@ -108,7 +108,7 @@ components:
       required: [subject, tool, aal, operator]
       properties:
         subject:  { type: string, description: Kratos identity id; empty for anonymous. }
-        tool:     { type: string, description: Ops dashboard slug such as o11y or network. }
+        tool:     { type: string, description: Ops dashboard slug such as grafana or hubble. }
         aal:      { type: string, description: authenticator_assurance_level from the session. }
         operator: { type: string, description: The operator identity trait; "true" when set. }
     OperatorInput:

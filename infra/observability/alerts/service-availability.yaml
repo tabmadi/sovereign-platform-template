@@ -1,17 +1,16 @@
-# Sample alert (ADR-0011). Prometheus PrometheusRule format.
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata: { name: service-availability, namespace: platform }
-spec:
-  groups:
-    - name: service.availability
-      rules:
-        - alert: ServiceHigh5xx
-          expr: |
-            sum by (service_name) (rate(http_server_duration_milliseconds_count{http_response_status_code=~"5.."}[5m]))
-              / sum by (service_name) (rate(http_server_duration_milliseconds_count[5m]))
-              > 0.05
-          for: 10m
-          labels: { severity: page }
-          annotations:
-            summary: "{{ $labels.service_name }} has >5% 5xx rate for 10m"
+# Service-availability alert (ADR-0011). Native Prometheus rule-file format —
+# this directory is mounted into Prometheus (rule_files, observability chart) via
+# the `prometheus-alerts` ConfigMap the prometheus-alerts ArgoCD Application
+# generates (infra/gitops/{bootstrap,local-bootstrap}/app-prometheus-alerts.yaml).
+groups:
+  - name: service.availability
+    rules:
+      - alert: ServiceHigh5xx
+        expr: |
+          sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            / sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))
+            > 0.05
+        for: 10m
+        labels: { severity: page }
+        annotations:
+          summary: "{{ $labels.service_name }} has >5% 5xx rate for 10m"

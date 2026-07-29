@@ -11,15 +11,15 @@ YES=false
 
 for arg in "$@"; do
   case "$arg" in
-    -n|--dry-run) DRY_RUN=true ;;
-    -y|--yes)     YES=true ;;
-    -h|--help)
-      echo "Usage: $(basename "$0") [-n|--dry-run] [-y|--yes]"
-      echo ""
-      echo "  -n, --dry-run   Show what would change without upgrading"
-      echo "  -y, --yes       Skip confirmation prompt"
-      exit 0
-      ;;
+  -n | --dry-run) DRY_RUN=true ;;
+  -y | --yes) YES=true ;;
+  -h | --help)
+    echo "Usage: $(basename "$0") [-n|--dry-run] [-y|--yes]"
+    echo ""
+    echo "  -n, --dry-run   Show what would change without upgrading"
+    echo "  -y, --yes       Skip confirmation prompt"
+    exit 0
+    ;;
   esac
 done
 
@@ -60,7 +60,10 @@ fi
 # Only prompt when interactive; otherwise the explicit task invocation is consent.
 if ! $YES && [[ -t 0 ]]; then
   read -rp "Upgrade all outdated tools and update .mise.toml? [y/N] " confirm
-  [[ "$confirm" =~ ^[Yy]$ ]] || { ok "aborted"; exit 0; }
+  [[ "$confirm" =~ ^[Yy]$ ]] || {
+    ok "aborted"
+    exit 0
+  }
 fi
 
 step "upgrading tools and updating .mise.toml"

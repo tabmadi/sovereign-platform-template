@@ -1,5 +1,5 @@
 // MinIO console operator dashboard (ADR-0011, ADR-0016) — non-prod object store,
-// gated at s3.ops.<host> (dashboard:s3#view) and rendering behind a real
+// gated at minio.ops.<host> (dashboard:minio#view) and rendering behind a real
 // AAL2 operator session. Like Grafana, the console keeps its own login behind the
 // Kratos gate, so the gauge asserts its shell paints, not a post-login view.
 import { expect, test } from "@playwright/test";
@@ -10,19 +10,19 @@ import {
 } from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 
-const MINIO = `${opsURL("s3")}/`;
+const MINIO = `${opsURL("minio")}/`;
 
-test.describe("s3 ops dashboard", () => {
+test.describe("minio ops dashboard", () => {
   test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("s3");
+    await expectUnauthenticatedDenied("minio");
   });
 
   test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("s3");
+    await expectAal1Forbidden("minio");
   });
 
-  test("gated: AAL2 operator passes the dashboard:s3#view grant", async () => {
-    await expectOperatorAllowed("s3");
+  test("gated: AAL2 operator passes the dashboard:minio#view grant", async () => {
+    await expectOperatorAllowed("minio");
   });
 
   test.describe("renders behind AAL2", () => {

@@ -2,7 +2,7 @@
 // gauge no single-service test covers: two humans, two apps, the checkout saga and
 // the observability plane, all exercised in one path.
 //
-//   1. an OPERATOR adds a product in the Lowdefy admin console (admin.ops);
+//   1. an OPERATOR adds a product in the Lowdefy admin console (lowdefy.ops);
 //   2. a fresh SHOPPER self-service registers on the storefront and logs in;
 //   3. the shopper checks out that product on /panel/checkout — POST /orders starts
 //      the Checkout saga (catalog lookup → payment charge → confirm, ADR-0006) and
@@ -79,11 +79,17 @@ test.describe("full purchase scenario", () => {
   // Step 1: the operator authors the product through the admin console. Reuses the
   // saved AAL2 operator session; the generated "add product" page writes to catalog
   // east-west (the same path admin.spec's CRUD covers).
+  //
+  // Tagged @smoke because step 2 is, and step 2 cannot run without it: it hands
+  // over `productId` through the closure below. `test:smoke` selects by --grep,
+  // which filters at the individual-test level and does not follow that
+  // dependency — so tagging only step 2 made the smoke lane fail on a bare
+  // `expect(productId).toBeTruthy()` while the full run stayed green.
   test.describe("operator adds a product", () => {
     test.use({ storageState: OPERATOR_STATE });
 
-    test("via the admin console add-product page", async ({ page }) => {
-      await page.goto(`${opsURL("admin")}/products_new`);
+    test("via the admin console add-product page @smoke", async ({ page }) => {
+      await page.goto(`${opsURL("lowdefy")}/products_new`);
       await page.getByLabel(/^name$/i).fill(PRODUCT_NAME);
       await page.getByLabel(/price/i).fill("4200");
       await page.getByRole("button", { name: "Create", exact: true }).click();

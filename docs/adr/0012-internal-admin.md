@@ -109,7 +109,7 @@ Lowdefy runs in-cluster:
 
 Auth is enforced at the edge:
 
-- The Lowdefy console is an ops-tier surface at `admin.ops.<host>` ([ADR-0017](0017-url-and-domain-structure.md)), its
+- The Lowdefy console is an ops-tier surface at `lowdefy.ops.<host>` ([ADR-0017](0017-url-and-domain-structure.md)), its
   own origin behind the ops-tier Oathkeeper forward-auth — not a product path.
 - The coarse ops gate is a **claim, not a `Checker` call**: the forward-auth requires `X-Roles` to contain `operator`
   plus an **AAL2** session ([ADR-0017](0017-url-and-domain-structure.md), [ADR-0010](0010-auth.md)). Unauthenticated or
@@ -228,10 +228,10 @@ Connection credentials are sourced from External Secrets ([ADR-0005](0005-secret
   a possible hardening, not yet added.
 - Postgres read-only role provisioning template in `infra/helm/platform/postgres/`, referenced by per-service
   Helm values.
-- Traefik `Host(admin.ops.<host>)` IngressRoute in `infra/gateway/` plus the ops-tier Oathkeeper forward-auth
+- Traefik `Host(lowdefy.ops.<host>)` IngressRoute in `infra/gateway/` plus the ops-tier Oathkeeper forward-auth
   (`operator` claim + AAL2), including identity-header forwarding ([ADR-0017](0017-url-and-domain-structure.md)).
 - pgweb as a **Core** ops component (`docs/operational-surface.md`), read-only DB inspector at
-  `db.ops.<host>`, run with `--readonly` and wired to the per-service read-only Postgres roles — a
+  `pgweb.ops.<host>`, run with `--readonly` and wired to the per-service read-only Postgres roles — a
   break-glass viewer, never a write path.
 
 ## Rules
@@ -248,7 +248,7 @@ Connection credentials are sourced from External Secrets ([ADR-0005](0005-secret
   REST API cannot serve, and enforced read-only at the database-role level — not by convention. pgweb (Go single-binary,
   `--readonly`) is a Core break-glass inspector, never a mutation surface.
 - Lowdefy's built-in auth/sessions are not used. MongoDB is not deployed for Lowdefy.
-- The admin console is served at `admin.ops.<host>` behind the ops-tier forward-auth: coarse gate is the `operator`
+- The admin console is served at `lowdefy.ops.<host>` behind the ops-tier forward-auth: coarse gate is the `operator`
   claim + AAL2 (no OpenFGA call), fine-grained authorization is the OpenFGA `Checker` inside the service APIs the pages
   call ([ADR-0017](0017-url-and-domain-structure.md), [ADR-0010](0010-auth.md)).
 - The admin pages generated for a service are determined by its spec markers: a tag with

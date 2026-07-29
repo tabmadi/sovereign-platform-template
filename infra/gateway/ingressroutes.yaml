@@ -3,16 +3,20 @@
 # on the product apex. These are the cross-cutting OPS-TIER routes.
 #
 # Trust-tier split (ADR-0017): every operator dashboard lives on its own origin
-# `{concept}.ops.<host>`, never on a product path. HostRegexp keeps the manifests
-# host-agnostic (env parity, ADR-0016) — `^{concept}\.ops\..+` matches
-# {concept}.ops.dev.localtest.me locally and {concept}.ops.<apex> in every deployed env.
+# `{tool}.ops.<host>`, never on a product path. HostRegexp keeps the manifests
+# host-agnostic (env parity, ADR-0016) — `^{tool}\.ops\..+` matches
+# {tool}.ops.dev.localtest.me locally and {tool}.ops.<apex> in every deployed env.
 # The `*.ops.<host>` wildcard cert (secret wildcard-ops-tls) covers all of them.
 #
 # Each route is behind the ops forward-auth (Oathkeeper validates an AAL2 operator
 # session and the per-tool `dashboard:<tool>#view` grant — ADR-0010/0017) and the
 # identity-header strip + security-headers middlewares.
 ---
-# Hubble UI (ADR-0003) — Cilium network-flow visibility (service in kube-system).
+# Hubble UI (ADR-0003, ADR-0025) — Cilium network-flow visibility / service map
+# (service in kube-system, cross-namespace ref like Argo). Grafana owns detail
+# (RED/SLO/logs/traces/profiling); Hubble UI owns the interactive map + drop
+# investigation. Known trade-off (ADR-0025): it collapses workloads sharing
+# `app.kubernetes.io/name` (all Temporal roles → "temporal").
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -22,7 +26,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^network\.ops\..+`)
+      match: HostRegexp(`^hubble\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -44,7 +48,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^o11y\.ops\..+`)
+      match: HostRegexp(`^grafana\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -56,17 +60,17 @@ spec:
     secretName: wildcard-ops-tls
 ---
 # Lowdefy internal-admin console (ADR-0012). Oathkeeper injects X-User-Email,
-# which Lowdefy keys off (see access-rules ops-admin rule).
+# which Lowdefy keys off (see access-rules ops-lowdefy rule).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: ops-admin
+  name: ops-lowdefy
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^admin\.ops\..+`)
+      match: HostRegexp(`^lowdefy\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -80,18 +84,18 @@ spec:
 # Argo CD (ADR-0004). server.insecure is on, so TLS terminates at Traefik and
 # argocd-server serves http on :80. Argo is installed into its own `argocd`
 # namespace (not `platform`), so the service ref is cross-namespace — the same
-# pattern as Hubble in kube-system. This needs Traefik allowCrossNamespace, on
+# pattern as Hubble UI in kube-system. This needs Traefik allowCrossNamespace, on
 # locally via infra/local/traefik-config.yaml; prod's own Traefik must enable it.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: ops-argo
+  name: ops-argocd
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^deploy\.ops\..+`)
+      match: HostRegexp(`^argocd\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -113,7 +117,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^workflows\.ops\..+`)
+      match: HostRegexp(`^temporal\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -134,7 +138,7 @@ spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^s3\.ops\..+`)
+      match: HostRegexp(`^minio\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -151,13 +155,13 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: ops-k8s
+  name: ops-headlamp
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^k8s\.ops\..+`)
+      match: HostRegexp(`^headlamp\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -173,13 +177,13 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: ops-db
+  name: ops-pgweb
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^db\.ops\..+`)
+      match: HostRegexp(`^pgweb\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth

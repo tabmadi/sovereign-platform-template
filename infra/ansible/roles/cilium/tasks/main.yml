@@ -24,8 +24,10 @@
       --set ipam.mode=kubernetes \
       --set hubble.enabled=true \
       --set hubble.relay.enabled=true \
-      --set hubble.ui.enabled=false \
+      --set hubble.ui.enabled=true \
       --wait --timeout=5m
+  # hubble.ui is ON (ADR-0025): it is the operator service-map surface, exposed
+  # auth-gated at hubble.ops.<host> via the gateway IngressRoute (infra/gateway).
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   when: inventory_hostname == groups['servers'][0]

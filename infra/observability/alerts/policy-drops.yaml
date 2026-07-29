@@ -1,0 +1,25 @@
+# Policy-drop alert (ADR-0011, ADR-0025). Native Prometheus rule-file format —
+# mounted into Prometheus via the `prometheus-alerts` ConfigMap (see
+# service-availability.yaml header for the delivery path).
+#
+# Hubble UI shows drops live but keeps no history and pages no one; the
+# hubble_drop_total metric (Cilium values, `drop` Hubble metric) exists exactly
+# for this alert + the hubble-drops dashboard. This repo has repeatedly been
+# bitten by silent NetworkPolicy drops (clusterwide metadata-deny regression,
+# default-deny bootstrap gaps, a catalog/payment netpol block that broke every
+# checkout), so any sustained POLICY_DENIED verdict is page-worthy.
+#
+# Labels: Hubble metrics carry a single combined `source`/`destination` label of
+# the form "<namespace>/<workload>" (workload = Deployment), not separate
+# source_workload/destination_workload labels.
+groups:
+  - name: network.policy-drops
+    rules:
+      - alert: PolicyDropsDetected
+        expr: |
+          sum by (source, destination, reason) (rate(hubble_drop_total{reason="POLICY_DENIED"}[5m])) > 0
+        for: 10m
+        labels: { severity: page }
+        annotations:
+          summary: "NetworkPolicy is dropping {{ $labels.source }} → {{ $labels.destination }} for 10m"
+          description: "Cilium reports sustained POLICY_DENIED drops. Investigate the live flows in Hubble UI and the history on the hubble-drops dashboard."

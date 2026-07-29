@@ -33,6 +33,7 @@ writing an ADR that shows the floor already covers its concern.
 | Kyverno | Admission policy (image signatures, digest pins) | [0021](adr/0021-supply-chain-security.md) |
 | OpenFGA | Authorization (ReBAC) | [0010](adr/0010-auth.md) |
 | Temporal | Durable execution | [0006](adr/0006-temporal.md) |
+| Temporal Worker Controller | Versioned (rainbow) worker deploys — one Deployment per Build ID, retained until drained | [0006](adr/0006-temporal.md) |
 | Loki | Log storage | [0011](adr/0011-observability.md) |
 | Tempo | Trace storage | [0011](adr/0011-observability.md) |
 | Prometheus | Metrics storage | [0011](adr/0011-observability.md) |
@@ -40,6 +41,7 @@ writing an ADR that shows the floor already covers its concern.
 | MinIO | Object storage (non-prod; a real bucket in prod) | [0016](adr/0016-environment-parity.md) |
 | Lowdefy admin | Internal ops CRUD over the Go API | [0012](adr/0012-internal-admin.md) |
 | Headlamp | Read-mostly Kubernetes debug UI | [0024](adr/0024-kubernetes-debug-ui.md) |
+| Hubble UI | Live service map, network flows, drop verdicts (bundled with Cilium) | [0025](adr/0025-service-map-apm-ui.md) |
 | pgweb | Read-only break-glass DB inspector | [0012](adr/0012-internal-admin.md) |
 
 ### Scale — documented swap-in when a real signal demands it
@@ -54,6 +56,7 @@ swap is a values change, not a re-architecture.
 | **Temporal for trivial async** | Outbox + small worker | A best-effort job (thumbnail, fire-and-forget email) grows a multi-step, cross-service, or durable-retry requirement. Temporal is already Core; this seam only governs whether a *given* trivial job earns a workflow. See [ADR-0006](adr/0006-temporal.md). |
 | **OTel Collector gateway tier** | DaemonSet only | Trace volume justifies tail sampling (holding spans to promote slow traces after the fact). Additive: services always emit to `localhost:4317`, so the gateway is a deploy, not a code change. See [ADR-0011](adr/0011-observability.md). |
 | **LGTM microservices mode** | Monolithic single-binary | A single backend's ingest volume outgrows one Deployment. Object storage already holds the data, so the split is a values change, not a data migration. |
+| **k6-operator** | k6 binary on the developer/CI machine | The load generator itself becomes the bottleneck (`dropped_iterations` > 0 at the target rate), or absolute capacity figures are needed rather than relative regression signals — a co-hosted generator competes with the cluster for host CPU. Scenarios are unchanged; the swap is where the VUs run. See [ADR-0027](adr/0027-load-and-performance-testing.md). |
 
 ### Opt-in — flag-gated, off unless a project asks
 
@@ -63,7 +66,6 @@ same pattern as `hydra_thirdparty`.
 | Component | Concern | Flag / ADR |
 |---|---|---|
 | Hydra | OAuth2 provider for third-party API clients | [0010](adr/0010-auth.md) |
-| Pyroscope + eBPF profiler | Continuous profiling | `profiling` flag, [0011](adr/0011-observability.md) |
 
 ## Budget rule
 

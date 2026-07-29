@@ -1,4 +1,12 @@
-# Drift check (ADR-0002, ADR-0008). Regenerate everything and fail if anything changed.
+# Drift check (ADR-0002, ADR-0008). Regenerate AND reformat everything, then fail if
+# anything changed.
+#
+# Formatting is part of this check, not of `lint`: the linters are analysers
+# (shellcheck, golangci-lint run, biome lint, rumdl check) and none of them rewrite
+# code, so a correctly-analysed-but-misformatted file passes `mise run lint` cleanly.
+# Only the formatters (shfmt, golangci-lint fmt, biome format, rumdl fmt) can tell,
+# and they do it by rewriting — which is exactly the shape this drift job already
+# handles for generated code.
 name: ci-drift
 
 on:
@@ -26,12 +34,12 @@ jobs:
           install: true
           cache: true
 
-      - name: Regenerate
-        run: mise run gen
+      - name: Regenerate and reformat
+        run: mise run gen && mise run format
 
       - name: Fail on drift
         run: |
           if ! git diff --exit-code; then
-            echo "::error::Generated artifacts are out of date. Run 'mise run gen' and commit the result."
+            echo "::error::Generated or formatted artifacts are out of date. Run 'mise run gen && mise run format' and commit the result."
             exit 1
           fi

@@ -43,6 +43,12 @@ spec:
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
+                  # ADR-0020 guardrails (PriorityClass, LimitRange, ResourceQuota,
+                  # PDB). Base tier because a LimitRange only defaults pods created
+                  # AFTER it exists, and the PriorityClasses must exist before any
+                  # workload names one — a pod naming a missing class is rejected.
+                - { path: "infra/helm/platform/resource-governance" }
+                - { path: "infra/helm/platform/temporal-worker-controller-crds" }
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
@@ -168,6 +174,7 @@ spec:
                 - { path: "infra/helm/platform/observability" }
                 - { path: "infra/helm/platform/ory" }
                 - { path: "infra/helm/platform/temporal" }
+                - { path: "infra/helm/platform/temporal-worker-controller" }
                 - { path: "infra/helm/platform/openfga" }
                 - { path: "infra/helm/platform/pgweb" }
                 - { path: "infra/helm/platform/headlamp" }
