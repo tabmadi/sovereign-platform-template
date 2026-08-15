@@ -1,0 +1,40 @@
+# Shared activity gate for the nightly cluster:full suites (e2e.yml, perf.yml).
+#
+# Both nightlies cost a ~17min full-platform bring-up. Re-running them against a
+# commit that already passed last night buys nothing: the code is identical, so a
+# red is either flake or upstream drift, and a green is a result you already have.
+# On a project that pauses for a few weeks that is every single night.
+#
+# This IS a reusable `workflow_call` workflow rather than a composite action,
+# because it is a whole job with an output that two workflows gate on — the case
+# workflow_call is actually for. Toolchain setup, which must splice into a caller's
+# job, is a composite action instead (.github/actions/setup).
+name: nightly-gate
+
+on:
+  workflow_call:
+    outputs:
+      run:
+        description: "'true' when the nightly suite should proceed."
+        value: ${{ jobs.gate.outputs.run }}
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      # Full history: --since needs commits to look at, and a shallow clone has one.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+
+      - id: check
+        env:
+          EVENT: ${{ github.event_name }}
+        run: mise run ci:nightly-gate >> "$GITHUB_OUTPUT"

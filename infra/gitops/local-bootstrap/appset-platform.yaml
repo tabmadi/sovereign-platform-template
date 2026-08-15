@@ -1,11 +1,11 @@
-# Local Platform ApplicationSets (ADR-0004, ADR-0016). Identical to
+# Local Platform ApplicationSets (ADR-0201, ADR-0205). Identical to
 # bootstrap/appset-platform.yaml except each list generator carries a single
 # { env: local } element, and the base tier omits cilium + argocd — cluster:full
 # installs those imperatively before Argo can run (a CNI must exist before any pod
 # schedules; Argo cannot install itself), so Argo must not fight the imperative
 # releases.
 #
-# Naming: env-prefix throughout (ADR-0004). Every generated Application is
+# Naming: env-prefix throughout (ADR-0201). Every generated Application is
 # `local-platform-<chart>` regardless of which tier set produced it — grouping is
 # by the `local` AppProject + labels (appproject.yaml), not the ApplicationSet
 # name.
@@ -30,6 +30,16 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
   generators:
     - matrix:
         generators:
@@ -40,10 +50,19 @@ spec:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
               revision: master
               directories:
+                  # Namespaces + their Pod Security Admission profile (ADR-0200).
+                  # First in the base tier and sync-wave -1 inside it: a namespace
+                  # labelled after its pods are admitted governs nothing, because
+                  # PSA is an admission check.
+                - { path: "infra/helm/platform/namespaces" }
+                  # Admission control (ADR-0104). In the BASE tier because a
+                  # policy that arrives after the workloads it gates has already
+                  # missed them: admission is evaluated once, at creation.
+                - { path: "infra/helm/platform/kyverno" }
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
-                  # ADR-0020 guardrails (PriorityClass, LimitRange, ResourceQuota,
+                  # ADR-0204 guardrails (PriorityClass, LimitRange, ResourceQuota,
                   # PDB). Base tier because a LimitRange only defaults pods created
                   # AFTER it exists, and the PriorityClasses must exist before any
                   # workload names one — a pod naming a missing class is rejected.
@@ -65,6 +84,13 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
@@ -75,6 +101,10 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }
@@ -99,6 +129,16 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
   generators:
     - matrix:
         generators:
@@ -127,6 +167,13 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
@@ -137,6 +184,10 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }
@@ -161,6 +212,16 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
   generators:
     - matrix:
         generators:
@@ -172,6 +233,10 @@ spec:
               revision: master
               directories:
                 - { path: "infra/helm/platform/observability" }
+                  # The node-level collector, in a namespace of its own because it
+                  # is the one platform workload needing hostPath and hostPorts
+                  # (ADR-0200). Same tier as the backends it exports to.
+                - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
@@ -195,6 +260,13 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
             - "../../../gitops/platform/{{ .env }}/values.yaml"
@@ -205,6 +277,10 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }

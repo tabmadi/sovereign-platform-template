@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Ensure the single local k3d cluster exists and is running (ADR-0003, ADR-0016).
+# Ensure the single local k3d cluster exists and is running (ADR-0200, ADR-0205).
 # Convergent: create it if absent, start it if stopped (cluster:stop keeps the
 # image cache + volumes; cluster:delete deletes it). One cluster serves both local
 # tiers; what differs is what you bring up on it:
-#   mise run cluster:lite     → inner loop (lightweight deps, run services natively)
+#   mise run cluster:base     → the local floor (a service's own tasks bring it up)
 #   mise run cluster:full   → full platform via ArgoCD
 #
 # Flannel + the built-in network policy are disabled because Cilium is the CNI
-# (NetworkPolicy + Hubble, ADR-0003). Traefik stays (it provides the IngressRoute/
+# (NetworkPolicy + Hubble, ADR-0200). Traefik stays (it provides the IngressRoute/
 # Middleware CRDs the edge uses). Ports 8080/8443 map the loadbalancer.
 #
 # Proxy-free unless YOUR shell is proxied — no proxy value lives in the repo. The
@@ -15,7 +15,7 @@
 # create block below reads it from your exported HTTP(S)_PROXY and injects it, so a
 # clean shell makes a pristine cluster. See docs/dev-loop.md ("HTTP proxies").
 #
-# Local image registry (ADR-0016 parity): repo-built images (services, lowdefy) have
+# Local image registry (ADR-0205 parity): repo-built images (services, lowdefy) have
 # no CI/ghcr locally, so Argo has nothing to pull. k3d-registry.localhost:5000 is the
 # local stand-in for CI — cluster:full builds+pushes to it, the local values overlays
 # point at it, and Argo pulls exactly as prod pulls from ghcr. Wired via --registry-use
@@ -93,6 +93,6 @@ kubectl config use-context "k3d-${CLUSTER}"
 # so a stop/start otherwise comes back without the catch-all `frontend` route (404 at
 # /) or with a stale docker-bridge address. No-op on a brand-new cluster whose Traefik
 # CRDs aren't up yet — cluster:full re-runs it once the platform is synced.
-CLUSTER="$CLUSTER" bash scripts/cluster-edge.sh
+CLUSTER="$CLUSTER" bash scripts/cluster-edge-glue.sh
 
 echo "✓ cluster '$CLUSTER' ready (context k3d-${CLUSTER})"

@@ -9,6 +9,7 @@ import (
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
+	"github.com/ogen-go/ogen/ogenregex"
 	"github.com/ogen-go/ogen/otelogen"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,6 +17,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+var regexMap = map[string]ogenregex.Regexp{
+	"^-?[0-9]+(\\.[0-9]+)?$": ogenregex.MustCompile("^-?[0-9]+(\\.[0-9]+)?$"),
+	"^[0-9a-f]{32}$":         ogenregex.MustCompile("^[0-9a-f]{32}$"),
+	"^[A-Z]{3}$":             ogenregex.MustCompile("^[A-Z]{3}$"),
+	"^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$": ogenregex.MustCompile("^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"),
+	"^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$":  ogenregex.MustCompile("^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"),
+}
 var (
 	// Allocate option closure once.
 	clientSpanKind = trace.WithSpanKind(trace.SpanKindClient)

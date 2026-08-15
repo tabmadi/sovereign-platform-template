@@ -28,12 +28,6 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
-	// CreateOrg invokes createOrg operation.
-	//
-	// Create an organization.
-	//
-	// POST /orgs
-	CreateOrg(ctx context.Context, request *OrgInput) (*Org, error)
 	// DeleteOrg invokes deleteOrg operation.
 	//
 	// Delete an organization.
@@ -105,89 +99,6 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 	return u
 }
 
-// CreateOrg invokes createOrg operation.
-//
-// Create an organization.
-//
-// POST /orgs
-func (c *Client) CreateOrg(ctx context.Context, request *OrgInput) (*Org, error) {
-	res, err := c.sendCreateOrg(ctx, request)
-	return res, err
-}
-
-func (c *Client) sendCreateOrg(ctx context.Context, request *OrgInput) (res *Org, err error) {
-	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("createOrg"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.URLTemplateKey.String("/orgs"),
-	}
-	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
-
-	// Run stopwatch.
-	startTime := time.Now()
-	defer func() {
-		// Use floating point division here for higher precision (instead of Millisecond method).
-		elapsedDuration := time.Since(startTime)
-		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
-	}()
-
-	// Increment request counter.
-	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-
-	// Start a span for this request.
-	ctx, span := c.cfg.Tracer.Start(ctx, CreateOrgOperation,
-		trace.WithAttributes(otelAttrs...),
-		clientSpanKind,
-	)
-	// Track stage for error reporting.
-	var stage string
-	defer func() {
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, stage)
-			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
-		}
-		span.End()
-	}()
-
-	stage = "BuildURL"
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/orgs"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	stage = "EncodeRequest"
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeCreateOrgRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	stage = "SendRequest"
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	stage = "DecodeResponse"
-	result, err := decodeCreateOrgResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
 // DeleteOrg invokes deleteOrg operation.
 //
 // Delete an organization.
@@ -245,7 +156,10 @@ func (c *Client) sendDeleteOrg(ctx context.Context, params DeleteOrgParams) (res
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.UUIDToString(params.ID))
+			if unwrapped := string(params.ID); true {
+				return e.EncodeValue(conv.StringToString(unwrapped))
+			}
+			return nil
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -343,7 +257,10 @@ func (c *Client) sendGetOrg(ctx context.Context, params GetOrgParams) (res *Org,
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.UUIDToString(params.ID))
+			if unwrapped := string(params.ID); true {
+				return e.EncodeValue(conv.StringToString(unwrapped))
+			}
+			return nil
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -604,7 +521,10 @@ func (c *Client) sendUpdateOrg(ctx context.Context, request *OrgInput, params Up
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.UUIDToString(params.ID))
+			if unwrapped := string(params.ID); true {
+				return e.EncodeValue(conv.StringToString(unwrapped))
+			}
+			return nil
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}

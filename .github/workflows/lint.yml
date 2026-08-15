@@ -20,20 +20,54 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
-        with:
-          install: true
-          cache: true
+      - uses: ./.github/actions/setup
 
-      - name: Validate commits (cocogitto)
-        if: github.event_name == 'pull_request'
-        run: cog check --ignore-merge-commits "origin/${{ github.base_ref }}..HEAD"
-
-      - name: Affected manifest
-        id: affected
-        run: |
-          mise run ci:affected > /tmp/affected.json
-          cat /tmp/affected.json
-
+      # No affected-scoping here, deliberately. Every linter behind `ci:lint` is a
+      # whole-repo analyser over a single Go module (`golangci-lint run ./...`,
+      # `biome ci .`, the repo-wide scripts/*.sh gates) — there is no per-service
+      # subset to hand it, and Go's build cache already makes the repeat cost small.
+      # `ci:affected` scopes what gets BUILT and PROMOTED (publish.yml,
+      # promote-on-merge.yml), not what gets analysed.
       - name: Run linters
+        # BASE_REF is what `lint:commits` measures the commit range against. On a
+        # push it is empty and the task falls back to master.
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: mise run ci:lint
+
+  # Affected-detection decides what publish.yml builds and promotes, so a service it
+  # fails to name is a service nothing ran against — on a pull request that goes
+  # green (ADR-0101 calls it the most load-bearing tooling in the repo). Its unit
+  # tests check the classifier against the list of paths it was written from; this
+  # perturbs each service in a scratch worktree and asserts the real command names
+  # it. Its own job because it is a different question from linting, and because a
+  # red here means "CI's selection is wrong", not "the code is".
+  affected-detection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Full history: the probe commits onto a scratch worktree and diffs against it.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Adversarially test affected-detection
+        run: mise run ci:affected-adversarial
+
+  # The vulnerability merge gate (ADR-0104). A separate job, not a step of the one
+  # above, because it fails for a different reason: the linters answer "is this
+  # change well-formed", and this answers "does what we depend on have a published
+  # fix today". That second question can turn a previously-green PR red with no
+  # code change — the vulnerability database moved, not the branch — so it is worth
+  # being able to read the two verdicts apart at a glance.
+  #
+  # Neither the registry nor the cluster scans (ADR-0105), and a registry-side
+  # scanner would run after the push, which is after the merge this gates. Here is
+  # the only place it can be.
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Scan dependencies
+        run: mise run ci:scan

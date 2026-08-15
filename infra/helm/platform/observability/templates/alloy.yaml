@@ -1,6 +1,6 @@
-# Grafana Alloy (ADR-0025 POC) — the pprof-scraping agent that feeds Pyroscope.
+# Grafana Alloy (ADR-0501 POC) — the pprof-scraping agent that feeds Pyroscope.
 # It discovers pods in the platform namespace, keeps those exposing the `admin`
-# port (the pprof endpoint every Go service serves via obs.Init, ADR-0011), scrapes
+# port (the pprof endpoint every Go service serves via obs.Init, ADR-0500), scrapes
 # CPU/heap/goroutine profiles, and pushes them to Pyroscope. Runs as a single
 # Deployment (not a DaemonSet): pull-based profiling is node-agnostic, and one
 # replica keeps the POC footprint small.
@@ -107,8 +107,20 @@ spec:
       labels: { app.kubernetes.io/name: alloy }
     spec:
       serviceAccountName: alloy
+      # `restricted` (ADR-0200). The alloy image ships USER root, so runAsNonRoot
+      # alone would only turn admission into a kubelet refusal at start — the UID
+      # has to be named. 473 is the `alloy` user the image creates, and the one the
+      # upstream chart uses; the storage path below is an emptyDir, so fsGroup
+      # matches it rather than a volume's ownership.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 473
+        runAsGroup: 473
+        fsGroup: 473
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: alloy
+          securityContext: {{- include "observability.containerSecurityContext" . | nindent 12 }}
           image: {{ $al.image }}
           args:
             - run

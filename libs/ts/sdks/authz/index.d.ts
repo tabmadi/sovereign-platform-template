@@ -77,13 +77,62 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description RFC 7807 problem document. */
+        /**
+         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
+         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @example {
+         *       "type": "about:blank",
+         *       "title": "Not Found",
+         *       "status": 404,
+         *       "detail": "No product with that identifier.",
+         *       "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+         *     }
+         */
         Problem: {
-            code: string;
-            message: string;
-            details?: {
-                [key: string]: unknown;
-            };
+            /**
+             * @description `about:blank`, except where two errors share a status code and a client
+             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     the flat public URL namespace.
+             * @default about:blank
+             * @example about:blank
+             */
+            type: string;
+            /**
+             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @example Not Found
+             */
+            title: string;
+            /**
+             * @description The HTTP status, duplicated in the body.
+             * @example 404
+             */
+            status: number;
+            /**
+             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
+             *     an internal hostname.
+             * @example No product with that identifier.
+             */
+            detail?: string;
+            /**
+             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
+             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @example 4bf92f3577b34da6a3ce929d0e0e4736
+             */
+            trace_id?: string;
+            /**
+             * @description Field-level validation failures, populated from the generated validator.
+             *     Absent when the failure is not a validation failure.
+             */
+            errors?: {
+                /**
+                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @example /price/amount
+                 */
+                pointer: string;
+                /** @example must be a decimal amount */
+                message: string;
+            }[];
         };
         /** @description The remote_json payload Oathkeeper POSTs per ops-dashboard request. */
         AuthorizeRequest: {
@@ -101,12 +150,26 @@ export interface components {
             email: string;
             password: string;
         };
-        /** @description A created operator. */
+        /**
+         * @description A created operator.
+         * @example {
+         *       "id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0b001",
+         *       "email": "operator@e2e.localtest.me"
+         *     }
+         */
         Operator: {
             id: string;
             email: string;
         };
-        /** @description A Kratos identity, flattened from its traits for the admin changelist. */
+        /**
+         * @description A Kratos identity, flattened from its traits for the admin changelist.
+         * @example {
+         *       "id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0b002",
+         *       "email": "user@e2e.localtest.me",
+         *       "name": "Test User",
+         *       "operator": false
+         *     }
+         */
         Identity: {
             id: string;
             email: string;
@@ -120,7 +183,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Error response */
+        /** @description An error, as RFC 9457 problem details. */
         Error: {
             headers: {
                 [name: string]: unknown;

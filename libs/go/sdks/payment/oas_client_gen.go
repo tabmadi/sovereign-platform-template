@@ -31,7 +31,7 @@ type Invoker interface {
 	// CreateCharge invokes createCharge operation.
 	//
 	// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
-	// (ADR-0006).
+	// (ADR-0302).
 	//
 	// POST /charges
 	CreateCharge(ctx context.Context, request *ChargeInput, params CreateChargeParams) (*WorkflowHandle, error)
@@ -49,7 +49,7 @@ type Invoker interface {
 	ListCharges(ctx context.Context) ([]Charge, error)
 	// RefundCharge invokes refundCharge operation.
 	//
-	// Refund a settled charge. Starts the Refund workflow (ADR-0006).
+	// Refund a settled charge. Starts the Refund workflow (ADR-0302).
 	//
 	// POST /charges/{id}/refund
 	RefundCharge(ctx context.Context, request *RefundInput, params RefundChargeParams) (*WorkflowHandle, error)
@@ -97,7 +97,7 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 // CreateCharge invokes createCharge operation.
 //
 // Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
-// (ADR-0006).
+// (ADR-0302).
 //
 // POST /charges
 func (c *Client) CreateCharge(ctx context.Context, request *ChargeInput, params CreateChargeParams) (*WorkflowHandle, error) {
@@ -249,7 +249,10 @@ func (c *Client) sendGetCharge(ctx context.Context, params GetChargeParams) (res
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.ID))
+			if unwrapped := string(params.ID); true {
+				return e.EncodeValue(conv.StringToString(unwrapped))
+			}
+			return nil
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -372,7 +375,7 @@ func (c *Client) sendListCharges(ctx context.Context) (res []Charge, err error) 
 
 // RefundCharge invokes refundCharge operation.
 //
-// Refund a settled charge. Starts the Refund workflow (ADR-0006).
+// Refund a settled charge. Starts the Refund workflow (ADR-0302).
 //
 // POST /charges/{id}/refund
 func (c *Client) RefundCharge(ctx context.Context, request *RefundInput, params RefundChargeParams) (*WorkflowHandle, error) {
@@ -427,7 +430,10 @@ func (c *Client) sendRefundCharge(ctx context.Context, request *RefundInput, par
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.UUIDToString(params.ID))
+			if unwrapped := string(params.ID); true {
+				return e.EncodeValue(conv.StringToString(unwrapped))
+			}
+			return nil
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}

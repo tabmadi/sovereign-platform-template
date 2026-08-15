@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail on floating container image / tool tags (ADR-0002).
+# Fail on floating container image / tool tags (ADR-0101).
 # Looks at Dockerfiles, Helm values, GitHub workflows, and .mise.toml.
 
 set -euo pipefail
@@ -22,7 +22,11 @@ scan() {
   fi
 }
 
-paths=(Dockerfile infra/helm .github/workflows .mise.toml services apps)
+# infra/local is in the list because the inner loop is where a floating tag does
+# its quietest damage: nobody reviews a dev stand-in, and a version that moved
+# under one engineer and not another produces a bug neither can reproduce. The
+# Temporal stand-in sat on `latest` for exactly as long as this gate did not look.
+paths=(Dockerfile infra/helm infra/local .github/workflows .mise.toml services apps)
 
 # Floating image tags in Helm values / Dockerfiles / workflows.
 scan "floating image tags" \
@@ -36,7 +40,7 @@ scan "unpinned GitHub Action references" \
 
 if [[ "$FOUND" -ne 0 ]]; then
   echo
-  echo "Floating tags forbidden by ADR-0002. Pin to a concrete version/SHA."
+  echo "Floating tags forbidden by ADR-0101. Pin to a concrete version/SHA."
   exit 1
 fi
 

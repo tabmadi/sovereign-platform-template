@@ -1,8 +1,8 @@
 {{- if .Values.networkPolicy.enabled }}
-# Default-deny NetworkPolicy (ADR-0003, ADR-0010). Selecting the service's pods
+# Default-deny NetworkPolicy (ADR-0206, ADR-0304). Selecting the service's pods
 # with both policyTypes makes everything not explicitly allowed below denied.
 # Internal header-trust rests on this: only declared callers can reach a service
-# and spoof identity headers (ADR-0009). Each service declares its allowed
+# and spoof identity headers (ADR-0305). Each service declares its allowed
 # callers via .Values.networkPolicy.allowFrom.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -22,7 +22,7 @@ spec:
         - { port: {{ .Values.server.port }}, protocol: TCP }
     {{- end }}
     {{- with .Values.networkPolicy.allowFrom }}
-    # Service-to-service callers this service accepts (ADR-0006 internal calls
+    # Service-to-service callers this service accepts (ADR-0302 internal calls
     # bypass the edge and forward identity headers; reachability is gated here).
     - from:
         {{- range . }}
@@ -38,10 +38,20 @@ spec:
       ports:
         - { port: {{ .Values.server.adminPort }}, protocol: TCP }
   egress:
-    # Platform deps: Postgres, Temporal, OTel, OpenFGA, Kratos/Oathkeeper, and
+    # Platform deps: Postgres, Temporal, OpenFGA, Kratos/Oathkeeper, and
     # in-namespace service-to-service calls.
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
+    # Telemetry export. The collector is not in `platform` — it needs hostPath and
+    # hostPorts, and PSA's exception unit is the namespace (ADR-0200) — so the rule
+    # above does not cover it. Without this the SDK's OTLP export is denied and the
+    # service simply stops appearing in Loki, Tempo and Prometheus.
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.networkPolicy.otelAgentNamespace }} }
+      ports:
+        - { port: 4317, protocol: TCP }
+        - { port: 4318, protocol: TCP }
     {{- if .Values.networkPolicy.egressDNS }}
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }

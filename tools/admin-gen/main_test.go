@@ -65,7 +65,7 @@ func newOp(method, path string, respCodes []string, pathParams ...string) op {
 
 // TestClassify pins the role assignment, including the 201-vs-202 heuristic: a
 // synchronous create (201) becomes a form; an async workflow create (202) is left
-// unassigned so the resource stays list-only (ADR-0012).
+// unassigned so the resource stays list-only (ADR-0401).
 func TestClassify(t *testing.T) {
 	t.Parallel()
 
@@ -87,5 +87,32 @@ func TestClassify(t *testing.T) {
 	}
 	if async.create != nil {
 		t.Fatal("async 202 create should be left unassigned (list-only)")
+	}
+}
+
+// A Money property is an object, and the default path renders an object as one
+// TextInput that posts "[object Object]" and one grid column that shows it
+// (ADR-0300). This pins the split: two fields whose dotted ids reassemble into the
+// object the payload already reads, and two columns.
+func TestMoneyFields(t *testing.T) {
+	t.Parallel()
+
+	price := prop{Name: "price", Ref: "#/components/schemas/Money"}
+	blocks := inputsFor(price)
+	if len(blocks) != 2 {
+		t.Fatalf("money should render two inputs, got %d", len(blocks))
+	}
+	if blocks[0].ID != "price.amount" || blocks[1].ID != "price.currency" {
+		t.Fatalf("ids = %q, %q", blocks[0].ID, blocks[1].ID)
+	}
+	// A NumberInput would hand back a JavaScript double, which is exactly what the
+	// decimal string form exists to avoid.
+	if blocks[0].Type != typeText {
+		t.Fatalf("amount input = %q, want %q", blocks[0].Type, typeText)
+	}
+
+	plain := inputsFor(prop{Name: "name", Type: "string"})
+	if len(plain) != 1 || plain[0].ID != "name" {
+		t.Fatalf("a non-money property should render one input: %+v", plain)
 	}
 }

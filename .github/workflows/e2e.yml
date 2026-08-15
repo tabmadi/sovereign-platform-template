@@ -1,19 +1,26 @@
-# End-to-end + visual acceptance (ADR-0018). Every full-platform e2e shares one
+# End-to-end + visual acceptance (ADR-0601). Every full-platform e2e shares one
 # expensive prerequisite — a running cluster:full — so cadence is set per
 # environment to amortise the bring-up, and these jobs are NOT part of ci:affected
 # (every e2e crosses service boundaries by nature):
 #   - full  — nightly + pre-release (and manual). Every dashboard + visual baseline.
 #   - smoke — per-PR, opt-in via the `e2e-smoke` label, for risky changes only.
 #
-# NOTE: cluster:full is heavy (~16GB RAM). Run on a large self-hosted runner; the
-# default GitHub runner is undersized for the full platform.
+# The nightly is activity-gated (see the `gate` job): a dormant repo re-testing an
+# unchanged commit every night is noise, not signal.
+#
+# NOTE: cluster:full is heavy (~16GB RAM), which is the whole of a standard
+# GitHub-hosted runner (4 vCPU / 16GB). It does fit — the nightly perf lane brings
+# the full platform up on ubuntu-latest in ~17min — but with no headroom, so the
+# bring-up is the slowest and most fragile part of these jobs. A larger runner buys
+# margin, not capability; move to one if bring-up flakiness (not test failures)
+# becomes the common red.
 name: e2e
 
 on:
   schedule:
     - cron: "0 3 * * *" # nightly full suite
   push:
-    tags: ["v*", "services/*/v*"] # pre-release (ADR-0013)
+    tags: ["v*", "services/*/v*"] # pre-release (ADR-0103)
   pull_request:
     types: [labeled, synchronize, reopened]
   workflow_dispatch:
@@ -30,26 +37,31 @@ permissions:
   contents: read
 
 jobs:
+  # Is tonight's run worth a cluster bring-up? Only the cron asks — an explicit
+  # trigger (tag, dispatch) always means yes.
+  gate:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/_nightly-gate.yml
+
   full:
     # Nightly, pre-release tags, and manual full runs — never on a PR.
+    needs: gate
     if: >-
+      needs.gate.outputs.run == 'true' && (
       github.event_name == 'schedule' ||
       github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && inputs.suite == 'full')
+      (github.event_name == 'workflow_dispatch' && inputs.suite == 'full'))
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
-        with:
-          install: true
-          cache: true
+      - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
       - name: Bring up cluster:full
-        run: mise run cluster:full:up
+        run: mise run cluster:full
       - name: Install Playwright (Node island)
         run: mise run e2e:install
       - name: Run full e2e + visual suite
@@ -60,33 +72,50 @@ jobs:
         with:
           name: playwright-report-full
           path: |
-            e2e/playwright-report/
-            e2e/test-results/
+            test/e2e/playwright-report/
+            test/e2e/test-results/
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:full:purge
+        run: mise run cluster:delete
+
+  # Does this pull request pay for a bring-up? The `e2e-smoke` label says yes; so
+  # does a change that spans more than one service, which is the class no test below
+  # the e2e level can see (ADR-0601 §Cadence). The policy is a task, not an
+  # expression, because it reads the affected manifest (ADR-0102).
+  pr-gate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      # Full history: the affected manifest is a diff against the merge base.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - id: check
+        env:
+          LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'e2e-smoke') }}
+          BASE_REF: ${{ github.base_ref }}
+        run: mise run ci:e2e-gate >> "$GITHUB_OUTPUT"
 
   smoke:
-    # Label-gated per-PR: a golden path + a key dashboard render. Opt-in so an
-    # unlabeled PR never pays a full bring-up (ADR-0018 §Cadence).
-    if: >-
-      github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'e2e-smoke')
+    # A golden path + a key dashboard render, on the PRs that need it.
+    needs: pr-gate
+    if: needs.pr-gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
-        with:
-          install: true
-          cache: true
+      - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
       - name: Bring up cluster:full
-        run: mise run cluster:full:up
+        run: mise run cluster:full
       - name: Install Playwright (Node island)
         run: mise run e2e:install
       - name: Run smoke suite
@@ -97,9 +126,9 @@ jobs:
         with:
           name: playwright-report-smoke
           path: |
-            e2e/playwright-report/
-            e2e/test-results/
+            test/e2e/playwright-report/
+            test/e2e/test-results/
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:full:purge
+        run: mise run cluster:delete

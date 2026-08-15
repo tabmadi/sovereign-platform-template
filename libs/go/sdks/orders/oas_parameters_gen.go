@@ -7,7 +7,6 @@ import (
 	"net/url"
 
 	"github.com/go-faster/errors"
-	"github.com/google/uuid"
 	"github.com/ogen-go/ogen/conv"
 	"github.com/ogen-go/ogen/middleware"
 	"github.com/ogen-go/ogen/ogenerrors"
@@ -18,7 +17,7 @@ import (
 // CancelOrderParams is parameters of cancelOrder operation.
 type CancelOrderParams struct {
 	// Id of the order to cancel.
-	ID uuid.UUID
+	ID OrderId
 }
 
 func unpackCancelOrderParams(packed middleware.Parameters) (params CancelOrderParams) {
@@ -27,7 +26,7 @@ func unpackCancelOrderParams(packed middleware.Parameters) (params CancelOrderPa
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(OrderId)
 	}
 	return params
 }
@@ -52,17 +51,32 @@ func decodeCancelOrderParams(args [1]string, argsEscaped bool, r *http.Request) 
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = OrderId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err
@@ -81,10 +95,86 @@ func decodeCancelOrderParams(args [1]string, argsEscaped bool, r *http.Request) 
 	return params, nil
 }
 
+// CheckoutParams is parameters of checkout operation.
+type CheckoutParams struct {
+	// Client-generated key that makes the checkout idempotent.
+	IdempotencyKey string
+}
+
+func unpackCheckoutParams(packed middleware.Parameters) (params CheckoutParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "Idempotency-Key",
+			In:   "header",
+		}
+		params.IdempotencyKey = packed[key].(string)
+	}
+	return params
+}
+
+func decodeCheckoutParams(args [0]string, argsEscaped bool, r *http.Request) (params CheckoutParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: Idempotency-Key.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "Idempotency-Key",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.IdempotencyKey = c
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:     1,
+					MinLengthSet:  true,
+					MaxLength:     0,
+					MaxLengthSet:  false,
+					Email:         false,
+					Hostname:      false,
+					Regex:         nil,
+					MinNumeric:    0,
+					MinNumericSet: false,
+					MaxNumeric:    0,
+					MaxNumericSet: false,
+				}).Validate(string(params.IdempotencyKey)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "Idempotency-Key",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // GetOrderParams is parameters of getOrder operation.
 type GetOrderParams struct {
 	// Order id.
-	ID uuid.UUID
+	ID OrderId
 }
 
 func unpackGetOrderParams(packed middleware.Parameters) (params GetOrderParams) {
@@ -93,7 +183,7 @@ func unpackGetOrderParams(packed middleware.Parameters) (params GetOrderParams) 
 			Name: "id",
 			In:   "path",
 		}
-		params.ID = packed[key].(uuid.UUID)
+		params.ID = packed[key].(OrderId)
 	}
 	return params
 }
@@ -118,17 +208,32 @@ func decodeGetOrderParams(args [1]string, argsEscaped bool, r *http.Request) (pa
 			})
 
 			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
+				var paramsDotIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotIDVal = c
+					return nil
+				}(); err != nil {
 					return err
 				}
-
-				c, err := conv.ToUUID(val)
-				if err != nil {
+				params.ID = OrderId(paramsDotIDVal)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
 					return err
 				}
-
-				params.ID = c
 				return nil
 			}(); err != nil {
 				return err

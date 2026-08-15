@@ -1,4 +1,4 @@
-// Package handlers implement the ogen-generated payment.Handler interface (ADR-0008).
+// Package handlers implement the ogen-generated payment.Handler interface (ADR-0303).
 // Hand-written code imports the generated schema types and the sqlc store; it
 // never shadows them with parallel structs or inline SQL.
 package handlers
@@ -6,8 +6,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"math"
-	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -19,6 +17,8 @@ import (
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/payment"
 	"github.com/tabmadi/microservices-monorepo-template/services/payment/internal/store"
@@ -45,6 +45,51 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ payment.Handler = (*Handlers)(nil)
 
+// These four are the transport boundary (ADR-0003): the columns hold bare uuids and
+// the wire carries `charge_`/`order_` and the base32 form. An order id is minted by
+// orders and only carried here, so it is encoded under that service's prefix.
+//
+// The prefixes are literals, so encoding cannot fail on real input. Decoding cannot
+// either — every identifier reaching a handler has already matched the ChargeId or
+// OrderId pattern in the generated validator — and it still reports rather than
+// panics, because the validator and these calls are two places one spec edit can
+// separate.
+func chargeID(u pgtype.UUID) payment.ChargeId {
+	return payment.ChargeId(id.MustFrom("charge", uuid.UUID(u.Bytes)).String())
+}
+
+func orderID(u pgtype.UUID) payment.OrderId {
+	return payment.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
+}
+
+// mintChargeID is where an identifier enters the system (ADR-0003). The service
+// holds it before the insert rather than reading it back from a column default, so
+// a write that never lands still has an identifier to log and to name in the
+// failure.
+func mintChargeID() (pgtype.UUID, error) {
+	v, err := id.New("charge")
+	if err != nil {
+		return pgtype.UUID{}, apierr.Internal(err.Error())
+	}
+	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
+}
+
+func storedChargeID(v payment.ChargeId) (pgtype.UUID, error) {
+	parsed, err := id.Parse("charge", string(v))
+	if err != nil {
+		return pgtype.UUID{}, apierr.BadRequest("malformed charge id")
+	}
+	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
+}
+
+func storedOrderID(v payment.OrderId) (pgtype.UUID, error) {
+	parsed, err := id.Parse("order", string(v))
+	if err != nil {
+		return pgtype.UUID{}, apierr.BadRequest("malformed order id")
+	}
+	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
+}
+
 func (h *Handlers) CreateCharge(
 	ctx context.Context,
 	req *payment.ChargeInput,
@@ -56,51 +101,51 @@ func (h *Handlers) CreateCharge(
 	if params.IdempotencyKey == "" {
 		return nil, apierr.BadRequest("Idempotency-Key required")
 	}
-	if req.AmountCents < 0 || req.AmountCents > math.MaxInt32 {
-		return nil, apierr.BadRequest("amount_cents out of range")
+	// The amount is validated by the shared money type rather than by a range check:
+	// a `numeric(19,4)` column has no int32 ceiling to guard, and what can actually
+	// arrive wrong is the decimal form or the currency.
+	amount, err := money.Parse(req.Amount.Amount, req.Amount.Currency)
+	if err != nil {
+		return nil, apierr.BadRequest(err.Error())
+	}
+	if amount.Sign() <= 0 {
+		return nil, apierr.BadRequest("amount must be positive")
 	}
 
-	// Idempotency lookup before anything else (ADR-0006).
+	// Idempotency lookup before anything else (ADR-0302).
 	existing, err := h.q.GetByIdempotencyKey(ctx, params.IdempotencyKey)
 	if err == nil {
-		id := uuid.UUID(existing.ID.Bytes).String()
-		return handle("charge-"+id, id), nil
+		cid := string(chargeID(existing.ID))
+		return handle("charge-"+cid, cid), nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.Internal(err.Error())
 	}
 
-	created, err := h.q.CreateCharge(
-		ctx,
-		store.CreateChargeParams{
-			OrderID:        pgtype.UUID{Bytes: req.OrderID, Valid: true},
-			AmountCents:    int32(req.AmountCents),
-			IdempotencyKey: params.IdempotencyKey,
-		},
-	)
+	created, err := h.insertCharge(ctx, req.OrderID, amount, params.IdempotencyKey)
 	if err != nil {
-		return nil, apierr.Internal(err.Error())
+		return nil, err
 	}
-	id := uuid.UUID(created.ID.Bytes).String()
+	cid := string(chargeID(created.ID))
 
 	_, err = h.tc.ExecuteWorkflow(
 		ctx,
 		client.StartWorkflowOptions{
-			ID:        "charge-" + id,
+			ID:        "charge-" + cid,
 			TaskQueue: serviceName + "-queue",
 		},
 		workflows.Charge,
 		workflows.ChargeInput{
-			ChargeID:    id,
-			OrderID:     uuid.UUID(created.OrderID.Bytes).String(),
-			AmountCents: created.AmountCents,
+			ChargeID: cid,
+			OrderID:  string(orderID(created.OrderID)),
+			Amount:   amount,
 		},
 	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
 	h.chargesCreated.Add(ctx, 1)
-	return handle("charge-"+id, id), nil
+	return handle("charge-"+cid, cid), nil
 }
 
 func (h *Handlers) RefundCharge(
@@ -115,7 +160,11 @@ func (h *Handlers) RefundCharge(
 	if err != nil {
 		return nil, err
 	}
-	row, err := h.q.GetCharge(ctx, pgtype.UUID{Bytes: params.ID, Valid: true})
+	key, err := storedChargeID(params.ID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.GetCharge(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.NotFound("charge")
 	}
@@ -126,34 +175,44 @@ func (h *Handlers) RefundCharge(
 		return nil, apierr.Conflict("only settled charges can be refunded")
 	}
 
-	id := params.ID.String()
+	cid := string(params.ID)
 	_, err = h.tc.ExecuteWorkflow(
 		ctx,
 		client.StartWorkflowOptions{
-			ID:        "refund-" + id,
+			ID:        "refund-" + cid,
 			TaskQueue: serviceName + "-queue",
 		},
 		workflows.Refund,
-		workflows.RefundInput{ChargeID: id, Reason: req.Reason},
+		workflows.RefundInput{ChargeID: cid, Reason: req.Reason},
 	)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	return handle("refund-"+id, id), nil
+	return handle("refund-"+cid, cid), nil
 }
 
 func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
+	// Every charge, not the caller's — a back-office view (`x-audience: internal`),
+	// so it is operator-gated rather than scoped.
+	err := h.requireOperator(ctx, "listing every charge")
+	if err != nil {
+		return nil, err
+	}
 	rows, err := h.q.ListCharges(ctx)
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
 	out := make([]payment.Charge, 0, len(rows))
 	for _, r := range rows {
+		wire, err := wireAmount(r.Amount, r.Currency)
+		if err != nil {
+			return nil, err
+		}
 		c := payment.Charge{
-			ID:          r.ID.Bytes,
-			OrderID:     r.OrderID.Bytes,
-			AmountCents: int(r.AmountCents),
-			Status:      payment.ChargeStatus(r.Status),
+			ID:      chargeID(r.ID),
+			OrderID: orderID(r.OrderID),
+			Amount:  wire,
+			Status:  payment.ChargeStatus(r.Status),
 		}
 		out = append(out, c)
 	}
@@ -161,22 +220,30 @@ func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
 }
 
 func (h *Handlers) GetCharge(ctx context.Context, params payment.GetChargeParams) (*payment.Charge, error) {
-	id, err := uuid.Parse(params.ID)
+	key, err := storedChargeID(params.ID)
 	if err != nil {
-		return nil, apierr.BadRequest("invalid id")
+		return nil, err
 	}
-	row, err := h.q.GetCharge(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	err = h.requireReader(ctx, "charge:"+string(params.ID))
+	if err != nil {
+		return nil, err
+	}
+	row, err := h.q.GetCharge(ctx, key)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apierr.NotFound("charge")
 	}
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
+	wire, err := wireAmount(row.Amount, row.Currency)
+	if err != nil {
+		return nil, err
+	}
 	return &payment.Charge{
-		ID:          row.ID.Bytes,
-		OrderID:     row.OrderID.Bytes,
-		AmountCents: int(row.AmountCents),
-		Status:      payment.ChargeStatus(row.Status),
+		ID:      chargeID(row.ID),
+		OrderID: orderID(row.OrderID),
+		Amount:  wire,
+		Status:  payment.ChargeStatus(row.Status),
 	}, nil
 }
 
@@ -185,20 +252,112 @@ func handle(workflowID, chargeID string) *payment.WorkflowHandle {
 		ID:        workflowID,
 		RunID:     chargeID,
 		Status:    payment.WorkflowHandleStatusRunning,
-		ResultURL: payment.NewOptURI(url.URL{Path: "/api/charges/" + chargeID}),
+		ResultURL: payment.NewOptString("/api/charges/" + chargeID),
 	}
 }
 
-// NewError maps a handler error onto the generated RFC 7807 response.
-func (h *Handlers) NewError(_ context.Context, err error) *payment.ErrorStatusCode {
+// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// The trace-id is stamped here rather than in each handler: a handler that forgets
+// it produces an error nobody can correlate, and nothing signals the omission.
+func (h *Handlers) NewError(ctx context.Context, err error) *payment.ErrorStatusCode {
 	e, ok := apierr.As(err)
-	if ok {
-		return &payment.ErrorStatusCode{StatusCode: e.Status, Response: payment.Problem{Code: e.Code, Message: e.Message}}
+	if !ok {
+		e = apierr.Internal(err.Error())
 	}
-	return &payment.ErrorStatusCode{StatusCode: 500, Response: payment.Problem{Code: "internal", Message: err.Error()}}
+	e = e.WithTrace(ctx)
+
+	problem := payment.Problem{Type: e.Type, Title: e.Title, Status: e.Status}
+	if e.Detail != "" {
+		problem.Detail = payment.NewOptString(e.Detail)
+	}
+	if e.TraceID != "" {
+		problem.TraceID = payment.NewOptString(e.TraceID)
+	}
+	for _, v := range e.Errors {
+		problem.Errors = append(problem.Errors, payment.ProblemErrorsItem{Pointer: v.Pointer, Message: v.Message})
+	}
+	return &payment.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
-// requireOperator gates a write on the shared OpenFGA Checker (ADR-0010): the
+// wireAmount renders the stored amount for the wire (ADR-0300): the column is
+// `numeric` and the wire is a decimal STRING with its currency. It goes through
+// money.Amount so the value matches what the shared type would produce anywhere
+// else, rather than whatever the driver formats a numeric as.
+func wireAmount(amount pgtype.Numeric, currency string) (payment.Money, error) {
+	raw, err := amount.Value()
+	if err != nil {
+		return payment.Money{}, apierr.Internal(err.Error())
+	}
+	text, ok := raw.(string)
+	if !ok {
+		return payment.Money{}, apierr.Internal("amount is not a numeric")
+	}
+	parsed, err := money.Parse(text, currency)
+	if err != nil {
+		return payment.Money{}, apierr.Internal(err.Error())
+	}
+	return payment.Money{Amount: parsed.String(), Currency: parsed.Currency()}, nil
+}
+
+// insertCharge puts the row on the two identifiers it needs: the order's, decoded
+// from the wire, and its own, minted here (ADR-0003). The amount arrives already
+// parsed, so the validation stays with the request it belongs to.
+func (h *Handlers) insertCharge(
+	ctx context.Context,
+	order payment.OrderId,
+	amount money.Amount,
+	idempotencyKey string,
+) (store.CreateChargeRow, error) {
+	orderKey, err := storedOrderID(order)
+	if err != nil {
+		return store.CreateChargeRow{}, err
+	}
+	key, err := mintChargeID()
+	if err != nil {
+		return store.CreateChargeRow{}, err
+	}
+	var stored pgtype.Numeric
+	err = stored.Scan(amount.String())
+	if err != nil {
+		return store.CreateChargeRow{}, apierr.Internal(err.Error())
+	}
+	created, err := h.q.CreateCharge(
+		ctx,
+		store.CreateChargeParams{
+			ID:             key,
+			OrderID:        orderKey,
+			Amount:         stored,
+			Currency:       amount.Currency(),
+			IdempotencyKey: idempotencyKey,
+		},
+	)
+	if err != nil {
+		return store.CreateChargeRow{}, apierr.Internal(err.Error())
+	}
+	return created, nil
+}
+
+// requireReader authorises a single-charge read (ADR-0003): an unguessable
+// identifier is not an access control, so holding one grants nothing. `charge#read`
+// in model.fga resolves through the charge's order, so the buyer and the owning
+// org's admins reach it; an operator reaches every charge through the same
+// back-office grant the list uses. Both are Checker calls.
+func (h *Handlers) requireReader(ctx context.Context, object string) error {
+	principal, _ := authmw.FromContext(ctx)
+	if !principal.Authenticated() {
+		return apierr.Unauthorized()
+	}
+	allowed, err := h.checker.Allowed(ctx, principal.Subject(), "read", object)
+	if err != nil {
+		return apierr.Internal(err.Error())
+	}
+	if allowed {
+		return nil
+	}
+	return h.requireOperator(ctx, "reading a charge against someone else's order")
+}
+
+// requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the
 // caller must be an authenticated operator. Reads (List/Get) and creating a
 // charge stay open; only the destructive refund is gated, matching catalog's
 // operator-write policy.

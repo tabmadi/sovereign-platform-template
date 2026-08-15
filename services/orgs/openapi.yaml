@@ -1,37 +1,44 @@
 openapi: 3.1.0
 info: { title: orgs, version: 0.1.0, description: Organization and membership service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0017); paths are globally unique
-# `x-admin: crud` marks the resource group the admin generator (ADR-0012, tools/admin-gen)
+servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
+# `x-admin: crud` marks the resource group the admin generator (ADR-0401, tools/admin-gen)
 # scaffolds list/detail/create/edit pages for, from the operations present below.
 tags: [{ name: orgs, x-admin: crud }, { name: cluster }]
 paths:
   /orgs:
     get:
       operationId: listOrgs
-      # Listing every org is a back-office view, kept out of public docs (ADR-0008).
+      # Listing every org is a back-office view, kept out of public docs (ADR-0303).
       x-audience: internal
       description: List all organizations.
       tags: [orgs]
       responses:
-        "200": { description: The organization list, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Org" } } } } }
+        "200":
+          description: The organization list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Org" }
+                # Served verbatim by the API mock (ADR-0600).
+                example:
+                  - { id: org_01kztn9tsrea7b1597q3yjdeav, name: Northwind Trading }
+                  - { id: org_01kztne0k0e96sgmrw4bd27ydx, name: Contoso Rail }
         default: { $ref: "#/components/responses/Error" }
-    post:
-      operationId: createOrg
-      description: Create an organization.
-      tags: [orgs]
-      requestBody:
-        required: true
-        description: The organization to create.
-        content: { application/json: { schema: { $ref: "#/components/schemas/OrgInput" } } }
-      responses:
-        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
-        default: { $ref: "#/components/responses/Error" }
+    # There is no POST. An org is created by the registration flow — Kratos's
+    # post-registration webhook runs RegisterUser, which writes the org, the
+    # membership and the OpenFGA admin tuple as one dual write (ADR-0304). An
+    # endpoint that inserted a row without that tuple produced an org with no admin
+    # and no member: visible in the console, usable by nobody. The endpoint is not
+    # coming back until there is a second way to be in an org — invitations, which
+    # ADR-0304 gates behind its own trigger — and then it is a workflow returning a
+    # handle, like every other authz-relevant mutation here.
   /orgs/{id}:
     get:
       operationId: getOrg
       description: Fetch an organization by id.
       tags: [orgs]
-      parameters: [{ name: id, in: path, required: true, description: Organization id., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Organization id., schema: { $ref: "#/components/schemas/OrgId" } }]
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Org" } } } }
         default: { $ref: "#/components/responses/Error" }
@@ -40,7 +47,7 @@ paths:
       x-audience: internal
       description: Rename an organization.
       tags: [orgs]
-      parameters: [{ name: id, in: path, required: true, description: Id of the organization to update., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Id of the organization to update., schema: { $ref: "#/components/schemas/OrgId" } }]
       requestBody:
         required: true
         description: The new organization fields.
@@ -53,7 +60,7 @@ paths:
       x-audience: internal
       description: Delete an organization.
       tags: [orgs]
-      parameters: [{ name: id, in: path, required: true, description: Id of the organization to delete., schema: { type: string, format: uuid } }]
+      parameters: [{ name: id, in: path, required: true, description: Id of the organization to delete., schema: { $ref: "#/components/schemas/OrgId" } }]
       responses:
         "204": { description: Deleted }
         default: { $ref: "#/components/responses/Error" }
@@ -61,7 +68,7 @@ paths:
     post:
       operationId: onIdentityCreated
       # East-west webhook (Kratos → orgs, in-cluster): bypasses the edge, gated by
-      # NetworkPolicy. `x-audience: cluster` keeps it off both docs portals (ADR-0008).
+      # NetworkPolicy. `x-audience: cluster` keeps it off both docs portals (ADR-0303).
       x-audience: cluster
       tags: [cluster]
       description: Kratos post-registration webhook. Creates a personal org for the new identity.
@@ -81,27 +88,98 @@ paths:
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
+    # >>> shared-components: responses — generated from tools/codegen/shared-components.yaml, do not edit
     Error:
-      description: Error response
+      description: An error, as RFC 9457 problem details.
       content:
         application/problem+json:
-          schema: { $ref: "#/components/schemas/Problem" }
+          schema: {$ref: "#/components/schemas/Problem"}
+    # <<< shared-components
   schemas:
+    # >>> shared-components: schemas — generated from tools/codegen/shared-components.yaml, do not edit
+    # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
+    # identifies the occurrence, and it reaches the trace where an instance URL
+    # reaches nothing.
     Problem:
       type: object
-      description: RFC 7807 problem document.
-      required: [code, message]
+      description: |
+        RFC 9457 problem details. Served as `application/problem+json` by services and
+        by the edge alike, so a generated client has one error branch rather than two.
+      required: [type, title, status]
       properties:
-        code:    { type: string }
-        message: { type: string }
-        details: { type: object, additionalProperties: true }
+        type:
+          type: string
+          description: |
+            `about:blank`, except where two errors share a status code and a client
+            handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+            URN — never a dereferenceable URL, which would put an error taxonomy into
+            the flat public URL namespace.
+          default: "about:blank"
+          example: "about:blank"
+        title:
+          type: string
+          description: A stable, human-readable summary. Does not vary with the instance.
+          example: Not Found
+        status:
+          type: integer
+          description: The HTTP status, duplicated in the body.
+          minimum: 100
+          maximum: 599
+          example: 404
+        detail:
+          type: string
+          description: |
+            Instance-specific and safe to show a user. Never a stack trace, a query, or
+            an internal hostname.
+          example: No product with that identifier.
+        trace_id:
+          type: string
+          description: |
+            The W3C Trace Context trace-id of the failing request, so a user-reported
+            error reaches its trace. Supplied from the active span, not by the handler.
+          pattern: "^[0-9a-f]{32}$"
+          example: 4bf92f3577b34da6a3ce929d0e0e4736
+        errors:
+          type: array
+          description: |
+            Field-level validation failures, populated from the generated validator.
+            Absent when the failure is not a validation failure.
+          items:
+            type: object
+            required: [pointer, message]
+            properties:
+              pointer:
+                type: string
+                description: RFC 6901 JSON Pointer to the offending member.
+                example: /price/amount
+              message:
+                type: string
+                example: must be a decimal amount
+      example:
+        type: "about:blank"
+        title: Not Found
+        status: 404
+        detail: No product with that identifier.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+    # <<< shared-components
+    # A wire identifier (ADR-0003). The stored column stays a bare `uuid`; this form
+    # exists so a value in a log line, a ticket, or a URL says what it is.
+    OrgId:
+      type: string
+      description: |
+        An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford
+        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^org_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: org_01kztn9tsrea7b1597q3yjdeav
     Org:
       type: object
       description: An organization.
       required: [id, name]
       properties:
-        id:   { type: string, format: uuid }
+        id:   { $ref: "#/components/schemas/OrgId" }
         name: { type: string }
+      example: { id: org_01kztn9tsrea7b1597q3yjdeav, name: Northwind Trading }
     OrgInput:
       type: object
       description: Request body to create an organization.

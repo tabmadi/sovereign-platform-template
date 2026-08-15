@@ -45,29 +45,116 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description RFC 7807 problem document. */
+        /**
+         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
+         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @example {
+         *       "type": "about:blank",
+         *       "title": "Not Found",
+         *       "status": 404,
+         *       "detail": "No product with that identifier.",
+         *       "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+         *     }
+         */
         Problem: {
-            code: string;
-            message: string;
-            details?: {
-                [key: string]: unknown;
-            };
+            /**
+             * @description `about:blank`, except where two errors share a status code and a client
+             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     the flat public URL namespace.
+             * @default about:blank
+             * @example about:blank
+             */
+            type: string;
+            /**
+             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @example Not Found
+             */
+            title: string;
+            /**
+             * @description The HTTP status, duplicated in the body.
+             * @example 404
+             */
+            status: number;
+            /**
+             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
+             *     an internal hostname.
+             * @example No product with that identifier.
+             */
+            detail?: string;
+            /**
+             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
+             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @example 4bf92f3577b34da6a3ce929d0e0e4736
+             */
+            trace_id?: string;
+            /**
+             * @description Field-level validation failures, populated from the generated validator.
+             *     Absent when the failure is not a validation failure.
+             */
+            errors?: {
+                /**
+                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @example /price/amount
+                 */
+                pointer: string;
+                /** @example must be a decimal amount */
+                message: string;
+            }[];
         };
-        /** @description A catalog product. */
+        /**
+         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+         *     double in the TypeScript client, and a double cannot hold a decimal amount
+         *     exactly. Currency travels with the amount, because an amount without one is
+         *     not a quantity of anything.
+         * @example {
+         *       "amount": "1299.00",
+         *       "currency": "EUR"
+         *     }
+         */
+        Money: {
+            /**
+             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
+             * @example 1299.00
+             */
+            amount: string;
+            /**
+             * @description ISO 4217 alphabetic code, uppercase.
+             * @example EUR
+             */
+            currency: string;
+        };
+        /**
+         * @description A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example product_01kztmx9e0fq1r13w5d1aerqw6
+         */
+        ProductId: string;
+        /**
+         * @description A catalog product.
+         * @example {
+         *       "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
+         *       "name": "Aeron chair",
+         *       "price": {
+         *         "amount": "1299.00",
+         *         "currency": "EUR"
+         *       }
+         *     }
+         */
         Product: {
-            /** Format: uuid */
-            id: string;
+            id: components["schemas"]["ProductId"];
             name: string;
-            price_cents: number;
+            price: components["schemas"]["Money"];
         };
         /** @description Request body to create a product. */
         ProductInput: {
             name: string;
-            price_cents: number;
+            price: components["schemas"]["Money"];
         };
     };
     responses: {
-        /** @description Error response */
+        /** @description An error, as RFC 9457 problem details. */
         Error: {
             headers: {
                 [name: string]: unknown;
@@ -137,7 +224,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Product id. */
-                id: string;
+                id: components["schemas"]["ProductId"];
             };
             cookie?: never;
         };
@@ -161,7 +248,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the product to update. */
-                id: string;
+                id: components["schemas"]["ProductId"];
             };
             cookie?: never;
         };
@@ -190,7 +277,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the product to delete. */
-                id: string;
+                id: components["schemas"]["ProductId"];
             };
             cookie?: never;
         };

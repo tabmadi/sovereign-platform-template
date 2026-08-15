@@ -1,6 +1,6 @@
 // Package handlers implements the ogen-generated authz.Handler interface
-// (ADR-0008): authz is a spec-first service like every other HTTP service, even
-// though it owns no database and sits east-west behind Oathkeeper (ADR-0017).
+// (ADR-0303): authz is a spec-first service like every other HTTP service, even
+// though it owns no database and sits east-west behind Oathkeeper (ADR-0306).
 //
 // Two operations:
 //
@@ -9,7 +9,7 @@
 //	                so it returns the 403 response variant with nil error; only real
 //	                infrastructure failures return an error (→ NewError → 5xx).
 //	CreateOperator — mints a Kratos identity with the `operator` trait and grants
-//	                group:operator#member in OpenFGA (ADR-0012), the generated admin
+//	                group:operator#member in OpenFGA (ADR-0401), the generated admin
 //	                page target (x-admin: action).
 package handlers
 
@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	aalLevel2         = "aal2"    // operator MFA assurance level (ADR-0010)
+	aalLevel2         = "aal2"    // operator MFA assurance level (ADR-0304)
 	operatorTraitTrue = "true"    // the `operator` identity trait, when set
 	schemaUserV1      = "user_v1" // the Kratos identity schema id (user.v1.json)
 )
@@ -57,7 +57,7 @@ func New(checker authz.Checker, granter authz.Granter, fineGrained bool, log *sl
 
 var _ authzsdk.Handler = (*Handlers)(nil)
 
-// Authorize is the ops-tier edge authorizer (ADR-0017). It answers in two layers:
+// Authorize is the ops-tier edge authorizer (ADR-0306). It answers in two layers:
 //
 //	coarse (mandatory) — a CLAIM check: the `operator` trait and AAL2. It makes NO
 //	    OpenFGA call, so a product-authz outage cannot lock operators out of the
@@ -71,7 +71,7 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	// Auth audit event (ADR-0017): who reached which tool, and the outcome.
+	// Auth audit event (ADR-0306): who reached which tool, and the outcome.
 	h.log.LogAttrs(
 		ctx,
 		slog.LevelInfo,
@@ -82,14 +82,23 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 		slog.String("reason", reason),
 	)
 	if !allowed {
-		return &authzsdk.Problem{Code: "forbidden", Message: reason}, nil
+		// A deny is the expected answer here, not a failure: Oathkeeper reads the
+		// body. It still carries the platform error shape (ADR-0303) so a client
+		// parses one thing whatever produced it.
+		denied := apierr.Forbidden(reason).WithTrace(ctx)
+		return &authzsdk.Problem{
+			Type:   denied.Type,
+			Title:  denied.Title,
+			Status: denied.Status,
+			Detail: authzsdk.NewOptString(denied.Detail),
+		}, nil
 	}
 	return &authzsdk.AuthorizeOK{}, nil
 }
 
 // CreateOperator mints a Kratos identity carrying the `operator` trait — the coarse
 // ops-tier claim gate — and grants group:operator#member in OpenFGA to seed the
-// optional fine per-tool layer (ADR-0012).
+// optional fine per-tool layer (ADR-0401).
 func (h *Handlers) CreateOperator(ctx context.Context, req *authzsdk.OperatorInput) (*authzsdk.Operator, error) {
 	id, err := h.createKratosIdentity(ctx, req.Email, req.Password)
 	if err != nil {
@@ -105,7 +114,7 @@ func (h *Handlers) CreateOperator(ctx context.Context, req *authzsdk.OperatorInp
 }
 
 // ListIdentities returns Kratos identities (product users and operators), flattened
-// from traits — the console's Users changelist (ADR-0012). Only authz may reach the
+// from traits — the console's Users changelist (ADR-0401). Only authz may reach the
 // Kratos admin API (network-policies/30-ory.yaml), so the console fetches through
 // here rather than talking to Kratos directly. Pagination is forwarded to Kratos.
 func (h *Handlers) ListIdentities(
@@ -119,7 +128,7 @@ func (h *Handlers) ListIdentities(
 	return ids, nil
 }
 
-// GetIdentity returns one identity by id — the console's edit-form prefill (ADR-0012).
+// GetIdentity returns one identity by id — the console's edit-form prefill (ADR-0401).
 func (h *Handlers) GetIdentity(ctx context.Context, params authzsdk.GetIdentityParams) (*authzsdk.Identity, error) {
 	full, err := h.getKratosIdentity(ctx, params.ID)
 	if err != nil {
@@ -158,13 +167,27 @@ func (h *Handlers) UpdateIdentity(
 	return &id, nil
 }
 
-// NewError maps a handler error onto the generated RFC 7807 default response.
-func (h *Handlers) NewError(_ context.Context, err error) *authzsdk.ErrorStatusCode {
+// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// The trace-id is stamped here rather than in each handler: a handler that forgets
+// it produces an error nobody can correlate, and nothing signals the omission.
+func (h *Handlers) NewError(ctx context.Context, err error) *authzsdk.ErrorStatusCode {
 	e, ok := apierr.As(err)
-	if ok {
-		return &authzsdk.ErrorStatusCode{StatusCode: e.Status, Response: authzsdk.Problem{Code: e.Code, Message: e.Message}}
+	if !ok {
+		e = apierr.Internal(err.Error())
 	}
-	return &authzsdk.ErrorStatusCode{StatusCode: 500, Response: authzsdk.Problem{Code: "internal", Message: err.Error()}}
+	e = e.WithTrace(ctx)
+
+	problem := authzsdk.Problem{Type: e.Type, Title: e.Title, Status: e.Status}
+	if e.Detail != "" {
+		problem.Detail = authzsdk.NewOptString(e.Detail)
+	}
+	if e.TraceID != "" {
+		problem.TraceID = authzsdk.NewOptString(e.TraceID)
+	}
+	for _, v := range e.Errors {
+		problem.Errors = append(problem.Errors, authzsdk.ProblemErrorsItem{Pointer: v.Pointer, Message: v.Message})
+	}
+	return &authzsdk.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
 // decide returns the allow/deny decision and its reason. The error is non-nil only
@@ -229,12 +252,16 @@ type kratosAddress struct {
 
 // kratosIdentity is the subset of a Kratos admin identity this service reads and
 // writes. schema_id and state are carried through unmodified on update — Kratos PUT
-// replaces the whole record, so dropping them would reset the identity.
+// replaces the whole record, so dropping them would reset the identity. So is
+// metadata_public, which this service never edits and must not erase: the edge
+// builds X-Org-Id and X-Roles out of it (ADR-0304), so writing the record back
+// without it would silently unassign an operator's org on the next name change.
 type kratosIdentity struct {
-	ID       string `json:"id,omitempty"`
-	SchemaID string `json:"schema_id,omitempty"`
-	State    string `json:"state,omitempty"`
-	Traits   struct {
+	ID             string          `json:"id,omitempty"`
+	SchemaID       string          `json:"schema_id,omitempty"`
+	State          string          `json:"state,omitempty"`
+	MetadataPublic json.RawMessage `json:"metadata_public,omitempty"`
+	Traits         struct {
 		Email    string `json:"email"`
 		Name     string `json:"name,omitempty"`
 		Operator bool   `json:"operator"`

@@ -1,4 +1,4 @@
-# Cluster-state metrics collector (ADR-0025 follow-up) — a 1-replica Deployment
+# Cluster-state metrics collector (ADR-0501 follow-up) — a 1-replica Deployment
 # running ONLY the k8s_cluster receiver, which watches the Kubernetes API and
 # emits desired/observed state as OTLP metrics: deployment desired vs available
 # replicas, container restart counts, and container CPU/memory limits in real
@@ -95,13 +95,13 @@ subjects:
         # 2% (scripts/cluster-ensure.sh), which means kubelet gives almost no
         # warning of its own.
         allocatable_types_to_report: [cpu, memory, ephemeral-storage, storage, pods]
-      # Platform-component exporters (ADR-0025 follow-up): postgres (the CNPG
+      # Platform-component exporters (ADR-0501 follow-up): postgres (the CNPG
       # instance manager's built-in exporter on :9187) and the Temporal server
       # roles (:9090) already publish Prometheus metrics — this scrapes what
       # exists rather than instrumenting anything. Lives HERE and not in the
       # DaemonSet for the same reason k8s_cluster does: these are cluster-scoped
       # targets, and N node agents would scrape N duplicate copies. Prometheus
-      # itself still scrapes nothing (ADR-0011) — this re-exports over OTLP.
+      # itself still scrapes nothing (ADR-0500) — this re-exports over OTLP.
       # Discovery is label-selected pods, with a keep on the container port
       # NAMED `metrics` — that is what skips temporal-web/admintools (no such
       # port) and pins the exporter port on multi-port pods. The prometheus
@@ -135,6 +135,33 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: metrics
+            # Kyverno (ADR-0104), in its OWN namespace — it excludes the namespace
+            # it runs in from every policy, so it cannot share `platform`. That is
+            # why this job names the namespace explicitly where the two above
+            # inherit the release's.
+            #
+            # It is in the write path of every API write this cluster accepts, so
+            # "is it up" is not an operational nicety: a controller that is down
+            # either blocks every pod creation (the fail-closed webhook) or admits
+            # everything unverified (the fail-open one), and neither announces
+            # itself. The alert on these series is in
+            # infra/observability/alerts/admission.yaml.
+            #
+            # The port name differs by controller — `metrics-port` on the admission
+            # controller, `metrics` on the other three — so the keep regex accepts
+            # both rather than silently dropping the one that matters most.
+            - job_name: kyverno
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces: { names: [kyverno] }
+                  selectors:
+                    - role: pod
+                      label: "app.kubernetes.io/part-of=kyverno"
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  action: keep
+                  regex: "metrics(-port)?"
     processors:
       # Same workload-identity mapping the DaemonSet's kubernetesAttributes
       # preset applies: associate pod-scoped resources by k8s.pod.uid and derive
@@ -254,8 +281,17 @@ spec:
         checksum/config: {{ include "observability.otelCluster.config" . | sha256sum }}
     spec:
       serviceAccountName: otel-cluster
+      # `restricted` (ADR-0200). 10001 is the user the collector image ships with.
+      # This one reads the API server and writes nothing, so there is no fsGroup to
+      # match — the only mount is a read-only ConfigMap.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: otel-collector
+          securityContext: {{- include "observability.containerSecurityContext" . | nindent 12 }}
           image: {{ $oc.image }}
           args:
             - --config=/etc/otelcol/config.yaml

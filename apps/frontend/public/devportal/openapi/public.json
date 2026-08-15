@@ -40,7 +40,33 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Product"
-                  }
+                  },
+                  "example": [
+                    {
+                      "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
+                      "name": "Aeron chair",
+                      "price": {
+                        "amount": "1299.00",
+                        "currency": "EUR"
+                      }
+                    },
+                    {
+                      "id": "product_01kztn1f78evjtsk2gbgjk5hs3",
+                      "name": "Standing desk",
+                      "price": {
+                        "amount": "899.00",
+                        "currency": "EUR"
+                      }
+                    },
+                    {
+                      "id": "product_01kztn5n0gfphac1fsep3b64nj",
+                      "name": "Monitor arm",
+                      "price": {
+                        "amount": "149.00",
+                        "currency": "EUR"
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -65,8 +91,7 @@
             "required": true,
             "description": "Product id.",
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/ProductId"
             }
           }
         ],
@@ -93,7 +118,19 @@
         "tags": [
           "orders"
         ],
-        "description": "Starts the Checkout Temporal saga (ADR-0006).",
+        "description": "Starts the Checkout Temporal saga (ADR-0302). Idempotent on the\nIdempotency-Key header: a retry of the same request returns the order the\nfirst one created rather than placing a second.\n",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Client-generated key that makes the checkout idempotent.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "description": "The checkout to start.",
@@ -136,8 +173,7 @@
             "required": true,
             "description": "Order id.",
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/OrderId"
             }
           }
         ],
@@ -148,41 +184,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Order"
-                }
-              }
-            }
-          },
-          "default": {
-            "$ref": "#/components/responses/Error"
-          }
-        }
-      }
-    },
-    "/orgs": {
-      "post": {
-        "operationId": "createOrg",
-        "description": "Create an organization.",
-        "tags": [
-          "orgs"
-        ],
-        "requestBody": {
-          "required": true,
-          "description": "The organization to create.",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OrgInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Org"
                 }
               }
             }
@@ -207,8 +208,7 @@
             "required": true,
             "description": "Organization id.",
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "$ref": "#/components/schemas/OrgId"
             }
           }
         ],
@@ -235,7 +235,7 @@
         "tags": [
           "charges"
         ],
-        "description": "Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.\nReturns a workflow handle (ADR-0006).\n",
+        "description": "Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.\nReturns a workflow handle (ADR-0302).\n",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -289,7 +289,7 @@
             "required": true,
             "description": "Charge id.",
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/ChargeId"
             }
           }
         ],
@@ -314,7 +314,7 @@
   "components": {
     "responses": {
       "Error": {
-        "description": "Error response",
+        "description": "An error, as RFC 9457 problem details.",
         "content": {
           "application/problem+json": {
             "schema": {
@@ -327,23 +327,104 @@
     "schemas": {
       "Problem": {
         "type": "object",
-        "description": "RFC 7807 problem document.",
+        "description": "RFC 9457 problem details. Served as `application/problem+json` by services and\nby the edge alike, so a generated client has one error branch rather than two.\n",
         "required": [
-          "code",
-          "message"
+          "type",
+          "title",
+          "status"
         ],
         "properties": {
-          "code": {
-            "type": "string"
+          "type": {
+            "type": "string",
+            "description": "`about:blank`, except where two errors share a status code and a client\nhandles them differently. That case takes a `urn:problem-type:<service>:<slug>`\nURN — never a dereferenceable URL, which would put an error taxonomy into\nthe flat public URL namespace.\n",
+            "default": "about:blank",
+            "example": "about:blank"
           },
-          "message": {
-            "type": "string"
+          "title": {
+            "type": "string",
+            "description": "A stable, human-readable summary. Does not vary with the instance.",
+            "example": "Not Found"
           },
-          "details": {
-            "type": "object",
-            "additionalProperties": true
+          "status": {
+            "type": "integer",
+            "description": "The HTTP status, duplicated in the body.",
+            "minimum": 100,
+            "maximum": 599,
+            "example": 404
+          },
+          "detail": {
+            "type": "string",
+            "description": "Instance-specific and safe to show a user. Never a stack trace, a query, or\nan internal hostname.\n",
+            "example": "No product with that identifier."
+          },
+          "trace_id": {
+            "type": "string",
+            "description": "The W3C Trace Context trace-id of the failing request, so a user-reported\nerror reaches its trace. Supplied from the active span, not by the handler.\n",
+            "pattern": "^[0-9a-f]{32}$",
+            "example": "4bf92f3577b34da6a3ce929d0e0e4736"
+          },
+          "errors": {
+            "type": "array",
+            "description": "Field-level validation failures, populated from the generated validator.\nAbsent when the failure is not a validation failure.\n",
+            "items": {
+              "type": "object",
+              "required": [
+                "pointer",
+                "message"
+              ],
+              "properties": {
+                "pointer": {
+                  "type": "string",
+                  "description": "RFC 6901 JSON Pointer to the offending member.",
+                  "example": "/price/amount"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "must be a decimal amount"
+                }
+              }
+            }
           }
+        },
+        "example": {
+          "type": "about:blank",
+          "title": "Not Found",
+          "status": 404,
+          "detail": "No product with that identifier.",
+          "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
         }
+      },
+      "Money": {
+        "type": "object",
+        "description": "A monetary amount. The amount is a decimal STRING — a JSON number becomes a\ndouble in the TypeScript client, and a double cannot hold a decimal amount\nexactly. Currency travels with the amount, because an amount without one is\nnot a quantity of anything.\n",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "Decimal amount, sign-prefixed when negative. No thousands separators.",
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "example": "1299.00"
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 alphabetic code, uppercase.",
+            "pattern": "^[A-Z]{3}$",
+            "example": "EUR"
+          }
+        },
+        "example": {
+          "amount": "1299.00",
+          "currency": "EUR"
+        }
+      },
+      "ProductId": {
+        "type": "string",
+        "description": "A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford\nbase32. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "pattern": "^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
+        "example": "product_01kztmx9e0fq1r13w5d1aerqw6"
       },
       "Product": {
         "type": "object",
@@ -351,21 +432,33 @@
         "required": [
           "id",
           "name",
-          "price_cents"
+          "price"
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/ProductId"
           },
           "name": {
             "type": "string"
           },
-          "price_cents": {
-            "type": "integer",
-            "minimum": 0
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "example": {
+          "id": "product_01kztmx9e0fq1r13w5d1aerqw6",
+          "name": "Aeron chair",
+          "price": {
+            "amount": "1299.00",
+            "currency": "EUR"
           }
         }
+      },
+      "OrderId": {
+        "type": "string",
+        "description": "An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford\nbase32. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "pattern": "^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
+        "example": "order_01kztnj6c8e0jt7vzw0cn1wxvd"
       },
       "WorkflowHandle": {
         "type": "object",
@@ -393,9 +486,15 @@
           },
           "result_url": {
             "type": "string",
-            "format": "uri",
+            "format": "uri-reference",
             "description": "GET to fetch terminal status + result"
           }
+        },
+        "example": {
+          "id": "charge-charge_01kztnyqr0f13shqqnx8028xx5",
+          "run_id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0e002",
+          "status": "running",
+          "result_url": "/api/charges/charge_01kztnyqr0f13shqqnx8028xx5"
         }
       },
       "CheckoutInput": {
@@ -407,8 +506,7 @@
         ],
         "properties": {
           "product_id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/ProductId"
           },
           "quantity": {
             "type": "integer",
@@ -423,23 +521,21 @@
           "id",
           "product_id",
           "quantity",
-          "total_cents",
+          "total",
           "status"
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/OrderId"
           },
           "product_id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/ProductId"
           },
           "quantity": {
             "type": "integer"
           },
-          "total_cents": {
-            "type": "integer"
+          "total": {
+            "$ref": "#/components/schemas/Money"
           },
           "status": {
             "type": "string",
@@ -450,7 +546,23 @@
               "cancelled"
             ]
           }
+        },
+        "example": {
+          "id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
+          "product_id": "product_01kztmx9e0fq1r13w5d1aerqw6",
+          "quantity": 2,
+          "total": {
+            "amount": "2598.00",
+            "currency": "EUR"
+          },
+          "status": "confirmed"
         }
+      },
+      "OrgId": {
+        "type": "string",
+        "description": "An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford\nbase32. The leading character is capped at 7 — 26 characters hold 130 bits and\na UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "pattern": "^org_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
+        "example": "org_01kztn9tsrea7b1597q3yjdeav"
       },
       "Org": {
         "type": "object",
@@ -461,42 +573,36 @@
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/OrgId"
           },
           "name": {
             "type": "string"
           }
+        },
+        "example": {
+          "id": "org_01kztn9tsrea7b1597q3yjdeav",
+          "name": "Northwind Trading"
         }
       },
-      "OrgInput": {
-        "type": "object",
-        "description": "Request body to create an organization.",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
+      "ChargeId": {
+        "type": "string",
+        "description": "A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford\nbase32. The leading character is capped at 7 — 26 characters hold 130 bits and\na UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "pattern": "^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
+        "example": "charge_01kztnyqr0f13shqqnx8028xx5"
       },
       "ChargeInput": {
         "type": "object",
         "description": "Request body to create a charge.",
         "required": [
           "order_id",
-          "amount_cents"
+          "amount"
         ],
         "properties": {
           "order_id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/OrderId"
           },
-          "amount_cents": {
-            "type": "integer",
-            "minimum": 1
+          "amount": {
+            "$ref": "#/components/schemas/Money"
           }
         }
       },
@@ -506,20 +612,18 @@
         "required": [
           "id",
           "order_id",
-          "amount_cents",
+          "amount",
           "status"
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/ChargeId"
           },
           "order_id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/OrderId"
           },
-          "amount_cents": {
-            "type": "integer"
+          "amount": {
+            "$ref": "#/components/schemas/Money"
           },
           "status": {
             "type": "string",
@@ -530,6 +634,15 @@
               "refunded"
             ]
           }
+        },
+        "example": {
+          "id": "charge_01kztnyqr0f13shqqnx8028xx5",
+          "order_id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
+          "amount": {
+            "amount": "2598.00",
+            "currency": "EUR"
+          },
+          "status": "settled"
         }
       }
     }

@@ -1,9 +1,9 @@
 openapi: 3.1.0
-info: { title: catalog, version: 0.1.0, description: Product catalog service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0017); paths are globally unique
-# `x-admin: crud` marks the resource group the admin generator (ADR-0012, tools/admin-gen)
+info: {title: catalog, version: 0.1.0, description: Product catalog service., x-audience: public}
+servers: [{url: /api}] # flat resource namespace (ADR-0306); paths are globally unique
+# `x-admin: crud` marks the resource group the admin generator (ADR-0401, tools/admin-gen)
 # scaffolds list/detail/create/edit pages for, from the operations present below.
-tags: [{ name: products, x-admin: crud }]
+tags: [{name: products, x-admin: crud}]
 paths:
   /products:
     get:
@@ -11,83 +11,198 @@ paths:
       description: List all products.
       tags: [products]
       responses:
-        "200": { description: The product list, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Product" } } } } }
-        default: { $ref: "#/components/responses/Error" }
+        "200":
+          description: The product list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/Product"}
+                # List examples are load-bearing (ADR-0600): the API mock serves them
+                # verbatim, and an unconstrained array schema generates an empty list —
+                # a UI built against that has no rows, no pagination, and no truncation.
+                example:
+                  - {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price: {amount: "1299.00", currency: EUR}}
+                  - {id: product_01kztn1f78evjtsk2gbgjk5hs3, name: Standing desk, price: {amount: "899.00", currency: EUR}}
+                  - {id: product_01kztn5n0gfphac1fsep3b64nj, name: Monitor arm, price: {amount: "149.00", currency: EUR}}
+        default: {$ref: "#/components/responses/Error"}
     post:
       operationId: createProduct
       # First-party edge op: writing the catalog is an internal/admin action, so it
       # is edge-reachable but kept out of the public docs (overrides the service's
-      # `public` default — ADR-0008 audience ladder). The public catalog is read-only.
+      # `public` default — ADR-0303 audience ladder). The public catalog is read-only.
       x-audience: internal
       description: Create a product.
       tags: [products]
       requestBody:
         required: true
         description: The product to create.
-        content: { application/json: { schema: { $ref: "#/components/schemas/ProductInput" } } }
+        content: {application/json: {schema: {$ref: "#/components/schemas/ProductInput"}}}
       responses:
-        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
-        default: { $ref: "#/components/responses/Error" }
+        "201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}
+        default: {$ref: "#/components/responses/Error"}
   /products/{id}:
     get:
       operationId: getProduct
       description: Fetch a product by id.
       tags: [products]
-      parameters: [{ name: id, in: path, required: true, description: Product id., schema: { type: string, format: uuid } }]
+      parameters: [{name: id, in: path, required: true, description: Product id., schema: {$ref: "#/components/schemas/ProductId"}}]
       responses:
-        "200": { description: The requested product, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
-        default: { $ref: "#/components/responses/Error" }
+        "200": {description: The requested product, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}
+        default: {$ref: "#/components/responses/Error"}
     put:
       operationId: updateProduct
-      # First-party edit action, kept out of public docs (ADR-0008 audience ladder).
+      # First-party edit action, kept out of public docs (ADR-0303 audience ladder).
       x-audience: internal
       description: Update a product.
       tags: [products]
-      parameters: [{ name: id, in: path, required: true, description: Id of the product to update., schema: { type: string, format: uuid } }]
+      parameters: [{name: id, in: path, required: true, description: Id of the product to update., schema: {$ref: "#/components/schemas/ProductId"}}]
       requestBody:
         required: true
         description: The new product fields.
-        content: { application/json: { schema: { $ref: "#/components/schemas/ProductInput" } } }
+        content: {application/json: {schema: {$ref: "#/components/schemas/ProductInput"}}}
       responses:
-        "200": { description: The updated product, content: { application/json: { schema: { $ref: "#/components/schemas/Product" } } } }
-        default: { $ref: "#/components/responses/Error" }
+        "200": {description: The updated product, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}
+        default: {$ref: "#/components/responses/Error"}
     delete:
       operationId: deleteProduct
       x-audience: internal
       description: Delete a product.
       tags: [products]
-      parameters: [{ name: id, in: path, required: true, description: Id of the product to delete., schema: { type: string, format: uuid } }]
+      parameters: [{name: id, in: path, required: true, description: Id of the product to delete., schema: {$ref: "#/components/schemas/ProductId"}}]
       responses:
-        "204": { description: Deleted }
-        default: { $ref: "#/components/responses/Error" }
+        "204": {description: Deleted}
+        default: {$ref: "#/components/responses/Error"}
 components:
   responses:
+    # >>> shared-components: responses — generated from tools/codegen/shared-components.yaml, do not edit
     Error:
-      description: Error response
+      description: An error, as RFC 9457 problem details.
       content:
         application/problem+json:
-          schema: { $ref: "#/components/schemas/Problem" }
+          schema: {$ref: "#/components/schemas/Problem"}
+          # <<< shared-components
   schemas:
+    # >>> shared-components: schemas — generated from tools/codegen/shared-components.yaml, do not edit
+    # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
+    # identifies the occurrence, and it reaches the trace where an instance URL
+    # reaches nothing.
     Problem:
       type: object
-      description: RFC 7807 problem document.
-      required: [code, message]
+      description: |
+        RFC 9457 problem details. Served as `application/problem+json` by services and
+        by the edge alike, so a generated client has one error branch rather than two.
+      required: [type, title, status]
       properties:
-        code:    { type: string }
-        message: { type: string }
-        details: { type: object, additionalProperties: true }
+        type:
+          type: string
+          description: |
+            `about:blank`, except where two errors share a status code and a client
+            handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+            URN — never a dereferenceable URL, which would put an error taxonomy into
+            the flat public URL namespace.
+          default: "about:blank"
+          example: "about:blank"
+        title:
+          type: string
+          description: A stable, human-readable summary. Does not vary with the instance.
+          example: Not Found
+        status:
+          type: integer
+          description: The HTTP status, duplicated in the body.
+          minimum: 100
+          maximum: 599
+          example: 404
+        detail:
+          type: string
+          description: |
+            Instance-specific and safe to show a user. Never a stack trace, a query, or
+            an internal hostname.
+          example: No product with that identifier.
+        trace_id:
+          type: string
+          description: |
+            The W3C Trace Context trace-id of the failing request, so a user-reported
+            error reaches its trace. Supplied from the active span, not by the handler.
+          pattern: "^[0-9a-f]{32}$"
+          example: 4bf92f3577b34da6a3ce929d0e0e4736
+        errors:
+          type: array
+          description: |
+            Field-level validation failures, populated from the generated validator.
+            Absent when the failure is not a validation failure.
+          items:
+            type: object
+            required: [pointer, message]
+            properties:
+              pointer:
+                type: string
+                description: RFC 6901 JSON Pointer to the offending member.
+                example: /price/amount
+              message:
+                type: string
+                example: must be a decimal amount
+      example:
+        type: "about:blank"
+        title: Not Found
+        status: 404
+        detail: No product with that identifier.
+        trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
+    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
+    # IEEE-754 double by every TypeScript client, and a double cannot represent a
+    # decimal amount exactly. A `type: number` monetary field is a contract defect.
+    Money:
+      type: object
+      description: |
+        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+        double in the TypeScript client, and a double cannot hold a decimal amount
+        exactly. Currency travels with the amount, because an amount without one is
+        not a quantity of anything.
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          description: Decimal amount, sign-prefixed when negative. No thousands separators.
+          pattern: '^-?[0-9]+(\.[0-9]+)?$'
+          example: "1299.00"
+        currency:
+          type: string
+          description: ISO 4217 alphabetic code, uppercase.
+          pattern: "^[A-Z]{3}$"
+          example: EUR
+      example:
+        amount: "1299.00"
+        currency: EUR
+    # <<< shared-components
+    # A wire identifier (ADR-0003). The stored column stays a bare `uuid`; this form
+    # exists so a value in a log line, a ticket, or a URL says what it is.
+    ProductId:
+      type: string
+      description: |
+        A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
+        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+      pattern: '^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      example: product_01kztmx9e0fq1r13w5d1aerqw6
     Product:
       type: object
       description: A catalog product.
-      required: [id, name, price_cents]
+      required: [id, name, price]
       properties:
-        id:          { type: string, format: uuid }
-        name:        { type: string }
-        price_cents: { type: integer, minimum: 0 }
+        id: {$ref: "#/components/schemas/ProductId"}
+        name: {type: string}
+        # The shared money type (ADR-0300): a decimal STRING with its currency, never
+        # a JSON number — a double cannot hold a decimal amount exactly — and never
+        # an integer of minor units, which pushes the scale into every reader.
+        price: {$ref: "#/components/schemas/Money"}
+      # One example on the schema serves every response that references it — the
+      # detail page, the create/update echo, the developer portal, and the API mock
+      # (ADR-0303, ADR-0600). It is code-reviewed data, not generated noise.
+      example: {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price: {amount: "1299.00", currency: EUR}}
     ProductInput:
       type: object
       description: Request body to create a product.
-      required: [name, price_cents]
+      required: [name, price]
       properties:
-        name:        { type: string, minLength: 1 }
-        price_cents: { type: integer, minimum: 0 }
+        name: {type: string, minLength: 1}
+        price: {$ref: "#/components/schemas/Money"}

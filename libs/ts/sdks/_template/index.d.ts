@@ -26,19 +26,89 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description RFC 7807 problem document. */
+        /**
+         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
+         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @example {
+         *       "type": "about:blank",
+         *       "title": "Not Found",
+         *       "status": 404,
+         *       "detail": "No product with that identifier.",
+         *       "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+         *     }
+         */
         Problem: {
-            code: string;
-            message: string;
-            details?: {
-                [key: string]: unknown;
-            };
+            /**
+             * @description `about:blank`, except where two errors share a status code and a client
+             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     the flat public URL namespace.
+             * @default about:blank
+             * @example about:blank
+             */
+            type: string;
+            /**
+             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @example Not Found
+             */
+            title: string;
+            /**
+             * @description The HTTP status, duplicated in the body.
+             * @example 404
+             */
+            status: number;
+            /**
+             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
+             *     an internal hostname.
+             * @example No product with that identifier.
+             */
+            detail?: string;
+            /**
+             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
+             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @example 4bf92f3577b34da6a3ce929d0e0e4736
+             */
+            trace_id?: string;
+            /**
+             * @description Field-level validation failures, populated from the generated validator.
+             *     Absent when the failure is not a validation failure.
+             */
+            errors?: {
+                /**
+                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @example /price/amount
+                 */
+                pointer: string;
+                /** @example must be a decimal amount */
+                message: string;
+            }[];
         };
-        /** @description A template item. */
+        /**
+         * Format: date-time
+         * @description RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
+         *     rejected rather than converted. Columns behind these are Postgres `timestamptz`.
+         * @example 2026-08-12T09:30:00Z
+         */
+        Timestamp: string;
+        /**
+         * @description An item identifier: `item_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example item_01kztpb93repgs8w9k8cj837vr
+         */
+        ItemId: string;
+        /**
+         * @description A template item.
+         * @example {
+         *       "id": "item_01kztpb93repgs8w9k8cj837vr",
+         *       "name": "First item",
+         *       "created_at": "2026-08-12T09:30:00Z"
+         *     }
+         */
         Item: {
-            /** Format: uuid */
-            id: string;
+            id: components["schemas"]["ItemId"];
             name: string;
+            created_at: components["schemas"]["Timestamp"];
         };
         /** @description Request body to create an item. */
         ItemInput: {
@@ -46,7 +116,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Error response */
+        /** @description An error, as RFC 9457 problem details. */
         Error: {
             headers: {
                 [name: string]: unknown;

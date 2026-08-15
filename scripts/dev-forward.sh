@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Port-forward the inner-loop dependencies (ADR-0003, ADR-0016) so a service run
+# Port-forward the inner-loop dependencies (ADR-0200, ADR-0205) so a service run
 # NATIVELY on the host (in any editor/IDE, or `go run ./services/<svc>/...`) can
 # reach them. Replaces the Skaffold `platform` module's port-forwards. Long-running
 # — run it in a separate terminal (or background) and leave it up while you iterate.
 #
-#   mise run cluster:lite      # once: cluster + lightweight deps
+#   mise run cluster:base      # once: the local floor (a service's tasks do this for you)
 #   mise run dev:forward     # this script, in its own terminal
 #   DATABASE_URL=... TEMPORAL_HOST_PORT=localhost:7233 OPENFGA_API_URL=http://localhost:18080 \
 #     go run ./services/orders/cmd/server   # run the service natively
@@ -25,20 +25,23 @@ k port-forward svc/temporal 7233:7233 &
 pids+=($!)
 k port-forward svc/temporal 8233:8233 &
 pids+=($!)
-# Local 18080, not 8080: the service under test serves on 8080 and k3d maps host
-# 8080 to the edge — so the OpenFGA forward uses 18080 (matches OPENFGA_API_URL in
-# services/*/.env.example).
+# Local 18080, not 8080: k3d maps host 8080 to the edge, so the OpenFGA forward uses
+# 18080 (matches OPENFGA_API_URL in services/*/.env.example). Services themselves
+# bind their own registered ports (scripts/lib/ports.sh) and never collide here.
 k port-forward svc/openfga 18080:8080 &
 pids+=($!)
 
 # If observability is up (full tier / obs profile), forward Grafana + the OTel
 # Collector's Faro receiver too. The frontend's dev RUM shim forwards beacons to
 # FARO_COLLECT_URL=http://localhost:12347/collect (apps/frontend/src/app/api/rum).
-if k get svc otel-collector >/dev/null 2>&1; then
+# The collector is in its own namespace (ADR-0200 — hostPath and hostPorts), so it
+# takes its own kubectl invocation rather than the `k` helper's.
+agent() { kubectl --context "k3d-${CLUSTER}" -n otel-agent "$@"; }
+if agent get svc otel-collector >/dev/null 2>&1; then
   echo "→ observability detected: grafana 3001, faro 12347"
   k port-forward svc/grafana 3001:80 &
   pids+=($!)
-  k port-forward svc/otel-collector 12347:8027 &
+  agent port-forward svc/otel-collector 12347:8027 &
   pids+=($!)
 fi
 

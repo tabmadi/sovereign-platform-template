@@ -14,8 +14,7 @@ export interface paths {
         /** @description List all organizations. */
         get: operations["listOrgs"];
         put?: never;
-        /** @description Create an organization. */
-        post: operations["createOrg"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -62,18 +61,79 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description RFC 7807 problem document. */
+        /**
+         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
+         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @example {
+         *       "type": "about:blank",
+         *       "title": "Not Found",
+         *       "status": 404,
+         *       "detail": "No product with that identifier.",
+         *       "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+         *     }
+         */
         Problem: {
-            code: string;
-            message: string;
-            details?: {
-                [key: string]: unknown;
-            };
+            /**
+             * @description `about:blank`, except where two errors share a status code and a client
+             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     the flat public URL namespace.
+             * @default about:blank
+             * @example about:blank
+             */
+            type: string;
+            /**
+             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @example Not Found
+             */
+            title: string;
+            /**
+             * @description The HTTP status, duplicated in the body.
+             * @example 404
+             */
+            status: number;
+            /**
+             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
+             *     an internal hostname.
+             * @example No product with that identifier.
+             */
+            detail?: string;
+            /**
+             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
+             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @example 4bf92f3577b34da6a3ce929d0e0e4736
+             */
+            trace_id?: string;
+            /**
+             * @description Field-level validation failures, populated from the generated validator.
+             *     Absent when the failure is not a validation failure.
+             */
+            errors?: {
+                /**
+                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @example /price/amount
+                 */
+                pointer: string;
+                /** @example must be a decimal amount */
+                message: string;
+            }[];
         };
-        /** @description An organization. */
+        /**
+         * @description An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example org_01kztn9tsrea7b1597q3yjdeav
+         */
+        OrgId: string;
+        /**
+         * @description An organization.
+         * @example {
+         *       "id": "org_01kztn9tsrea7b1597q3yjdeav",
+         *       "name": "Northwind Trading"
+         *     }
+         */
         Org: {
-            /** Format: uuid */
-            id: string;
+            id: components["schemas"]["OrgId"];
             name: string;
         };
         /** @description Request body to create an organization. */
@@ -82,7 +142,7 @@ export interface components {
         };
     };
     responses: {
-        /** @description Error response */
+        /** @description An error, as RFC 9457 problem details. */
         Error: {
             headers: {
                 [name: string]: unknown;
@@ -120,39 +180,13 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
-    createOrg: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description The organization to create. */
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OrgInput"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Org"];
-                };
-            };
-            default: components["responses"]["Error"];
-        };
-    };
     getOrg: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 /** @description Organization id. */
-                id: string;
+                id: components["schemas"]["OrgId"];
             };
             cookie?: never;
         };
@@ -176,7 +210,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the organization to update. */
-                id: string;
+                id: components["schemas"]["OrgId"];
             };
             cookie?: never;
         };
@@ -205,7 +239,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the organization to delete. */
-                id: string;
+                id: components["schemas"]["OrgId"];
             };
             cookie?: never;
         };

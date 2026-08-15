@@ -14,7 +14,11 @@ export interface paths {
         /** @description List all orders. */
         get: operations["listOrders"];
         put?: never;
-        /** @description Starts the Checkout Temporal saga (ADR-0006). */
+        /**
+         * @description Starts the Checkout Temporal saga (ADR-0302). Idempotent on the
+         *     Idempotency-Key header: a retry of the same request returns the order the
+         *     first one created rather than placing a second.
+         */
         post: operations["checkout"];
         delete?: never;
         options?: never;
@@ -48,7 +52,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Cancel an order. Starts the CancelOrder workflow (ADR-0006). */
+        /** @description Cancel an order. Starts the CancelOrder workflow (ADR-0302). */
         post: operations["cancelOrder"];
         delete?: never;
         options?: never;
@@ -60,46 +64,147 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description RFC 7807 problem document. */
+        /**
+         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
+         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @example {
+         *       "type": "about:blank",
+         *       "title": "Not Found",
+         *       "status": 404,
+         *       "detail": "No product with that identifier.",
+         *       "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+         *     }
+         */
         Problem: {
-            code: string;
-            message: string;
-            details?: {
-                [key: string]: unknown;
-            };
+            /**
+             * @description `about:blank`, except where two errors share a status code and a client
+             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
+             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     the flat public URL namespace.
+             * @default about:blank
+             * @example about:blank
+             */
+            type: string;
+            /**
+             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @example Not Found
+             */
+            title: string;
+            /**
+             * @description The HTTP status, duplicated in the body.
+             * @example 404
+             */
+            status: number;
+            /**
+             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
+             *     an internal hostname.
+             * @example No product with that identifier.
+             */
+            detail?: string;
+            /**
+             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
+             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @example 4bf92f3577b34da6a3ce929d0e0e4736
+             */
+            trace_id?: string;
+            /**
+             * @description Field-level validation failures, populated from the generated validator.
+             *     Absent when the failure is not a validation failure.
+             */
+            errors?: {
+                /**
+                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @example /price/amount
+                 */
+                pointer: string;
+                /** @example must be a decimal amount */
+                message: string;
+            }[];
         };
-        /** @description Handle to an async Temporal workflow run. */
+        /**
+         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
+         *     double in the TypeScript client, and a double cannot hold a decimal amount
+         *     exactly. Currency travels with the amount, because an amount without one is
+         *     not a quantity of anything.
+         * @example {
+         *       "amount": "1299.00",
+         *       "currency": "EUR"
+         *     }
+         */
+        Money: {
+            /**
+             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
+             * @example 1299.00
+             */
+            amount: string;
+            /**
+             * @description ISO 4217 alphabetic code, uppercase.
+             * @example EUR
+             */
+            currency: string;
+        };
+        /**
+         * @description An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
+         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example order_01kztnj6c8e0jt7vzw0cn1wxvd
+         */
+        OrderId: string;
+        /**
+         * @description A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
+         *     base32. Opaque to a consumer: nothing parses, orders, or constructs one.
+         * @example product_01kztmx9e0fq1r13w5d1aerqw6
+         */
+        ProductId: string;
+        /**
+         * @description Handle to an async Temporal workflow run.
+         * @example {
+         *       "id": "checkout-order_01kztnj6c8e0jt7vzw0cn1wxvd",
+         *       "run_id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0e001",
+         *       "status": "running",
+         *       "result_url": "/api/orders/order_01kztnj6c8e0jt7vzw0cn1wxvd"
+         *     }
+         */
         WorkflowHandle: {
             id: string;
             run_id: string;
             /** @enum {string} */
             status: "running" | "completed" | "failed" | "cancelled";
             /**
-             * Format: uri
+             * Format: uri-reference
              * @description GET to fetch terminal status + result
              */
             result_url?: string;
         };
         /** @description Request body to start a checkout. */
         CheckoutInput: {
-            /** Format: uuid */
-            product_id: string;
+            product_id: components["schemas"]["ProductId"];
             quantity: number;
         };
-        /** @description A customer order. */
+        /**
+         * @description A customer order.
+         * @example {
+         *       "id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
+         *       "product_id": "product_01kztmx9e0fq1r13w5d1aerqw6",
+         *       "quantity": 2,
+         *       "total": {
+         *         "amount": "2598.00",
+         *         "currency": "EUR"
+         *       },
+         *       "status": "confirmed"
+         *     }
+         */
         Order: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            product_id: string;
+            id: components["schemas"]["OrderId"];
+            product_id: components["schemas"]["ProductId"];
             quantity: number;
-            total_cents: number;
+            total: components["schemas"]["Money"];
             /** @enum {string} */
             status: "pending" | "confirmed" | "failed" | "cancelled";
         };
     };
     responses: {
-        /** @description Error response */
+        /** @description An error, as RFC 9457 problem details. */
         Error: {
             headers: {
                 [name: string]: unknown;
@@ -140,7 +245,10 @@ export interface operations {
     checkout: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Client-generated key that makes the checkout idempotent. */
+                "Idempotency-Key": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -169,7 +277,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Order id. */
-                id: string;
+                id: components["schemas"]["OrderId"];
             };
             cookie?: never;
         };
@@ -193,7 +301,7 @@ export interface operations {
             header?: never;
             path: {
                 /** @description Id of the order to cancel. */
-                id: string;
+                id: components["schemas"]["OrderId"];
             };
             cookie?: never;
         };

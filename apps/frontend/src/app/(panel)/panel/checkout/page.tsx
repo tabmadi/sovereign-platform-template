@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-// Cross-service mutation (ADR-0006, ADR-0014). The orders service returns
+import { isId } from "@libs/id";
+// Cross-service mutation (ADR-0302, ADR-0400). The orders service returns
 // 202 + a workflow handle; we poll it with the shared helper instead of
 // hand-rolling fetch loops.
 import { useState } from "react";
@@ -21,7 +22,11 @@ import { pollWorkflow, type WorkflowHandle } from "@/lib/server-fetch/workflow-h
 import { panel } from "@/strings/panel";
 
 const schema = z.object({
-  product_id: z.string().uuid(),
+  // A wire identifier, not a bare UUID (ADR-0003): the field takes the form the API
+  // hands back, so what a user pastes is what they were shown. `isId` is the shared
+  // codec both languages check against, so the accepted shape cannot drift from the
+  // one the services mint.
+  product_id: z.string().refine((v) => isId(v, "product"), panel.checkout.productIdInvalid),
   quantity: z.number().int().positive(),
 });
 
@@ -69,7 +74,12 @@ export default function Checkout() {
 
   const onSubmit = handleSubmit(async (values) => {
     setStatus({ text: panel.checkout.starting, tone: "blue" });
-    const { data, error } = await orders.POST("/orders", { body: values });
+    // One key per submit, so the browser retrying a request that already reached
+    // the service gets the order it created rather than a second one (ADR-0003).
+    const { data, error } = await orders.POST("/orders", {
+      body: values,
+      headers: { "Idempotency-Key": crypto.randomUUID() },
+    });
     if (error || !data) {
       setStatus({ text: panel.checkout.error, tone: "error" });
       return;
@@ -77,7 +87,7 @@ export default function Checkout() {
     setStatus({ text: panel.checkout.running(data.id), tone: "blue" });
     try {
       // Poll the order (handle.result_url) until it reaches a terminal status; the
-      // saga confirms it once catalog + payment succeed (ADR-0006).
+      // saga confirms it once catalog + payment succeed (ADR-0302).
       const order = await pollWorkflow<{ id: string; status: string }>(data);
       setStatus({
         text: order.status,

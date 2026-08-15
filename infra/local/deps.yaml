@@ -1,33 +1,64 @@
-# Lightweight local dependencies for the inner dev loop (ADR-0003).
+# Lightweight local dependencies for the inner dev loop (ADR-0200).
+#
+# The `platform` namespace is NOT here. It is declared by
+# infra/helm/platform/namespaces along with its Pod Security Admission profile,
+# because the profile and the namespace are one decision (ADR-0200) — and because
+# a selector that creates the namespace is a selector that DELETES it when the same
+# label list is handed to `kubectl delete`.
 # NOT the production components — these are throwaway, in-memory/ephemeral stand-ins
 # so a service (run natively on the host) has Postgres, Temporal and OpenFGA to talk to.
 # The production-grade versions (CNPG, the Temporal Helm chart, operator-backed
 # OpenFGA) are exercised by ArgoCD in staging/prod, not here.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: platform
----
+#
+# Every resource carries `local.platform/component`, so a caller applies a SLICE of
+# this file rather than forking it — `kubectl apply -f` honours `--selector`. That
+# is what makes a component a SELECTION (ADR-0205): there is one manifest, and
+# nothing can drift from it.
+#
+# cluster:base takes `postgres` — Kratos needs a store, so every base has one.
+# Everything else is opt-in, added by scripts/dep-apply.sh when a service
+# declares it (`dep:temporal`, `dep:openfga`, `dep:db-secrets` in the service's own
+# .mise.toml). There are no named profiles: what is up is base ∪ the declared
+# dependencies of whatever you are running.
 # --- Postgres (plain image, ephemeral) -------------------------------------
+# `kratos` is here because cluster:base runs the real Kratos against this stand-in
+# instead of CNPG (ADR-0600). Free either way — the pod has no volume, so initdb
+# re-runs on every start.
 apiVersion: v1
 kind: ConfigMap
-metadata: { name: postgres-initdb, namespace: platform }
+metadata:
+  name: postgres-initdb
+  namespace: platform
+  labels: { local.platform/component: postgres }
 data:
   init.sql: |
     CREATE DATABASE orders;
     CREATE DATABASE catalog;
     CREATE DATABASE orgs;
     CREATE DATABASE payment;
+    CREATE DATABASE kratos;
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: postgres, namespace: platform }
+metadata:
+  name: postgres
+  namespace: platform
+  labels: { local.platform/component: postgres }
 spec:
   replicas: 1
   selector: { matchLabels: { app: postgres } }
   template:
     metadata: { labels: { app: postgres } }
     spec:
+      # `restricted` (ADR-0200), so the one namespace-wide warning the inner loop
+      # emits is not one of ours. uid 70 is `postgres` in the alpine image (it is
+      # 999 in the Debian variants — the number is the image's, not a convention).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: postgres
           image: postgres:17-alpine
@@ -35,19 +66,38 @@ spec:
             - { name: POSTGRES_USER,     value: dev }
             - { name: POSTGRES_PASSWORD, value: dev }
             - { name: POSTGRES_DB,       value: dev }
+            # A SUBDIRECTORY of the mount, which is what makes a non-root Postgres
+            # work on a volume at all: the entrypoint chmods PGDATA, and chmod needs
+            # ownership rather than the group write bit fsGroup grants. initdb
+            # creates this subdirectory itself, so it owns it.
+            - { name: PGDATA,            value: /var/lib/postgresql/data/pgdata }
           ports: [{ containerPort: 5432 }]
           readinessProbe:
             exec: { command: ["pg_isready", "-U", "dev"] }
             initialDelaySeconds: 3
+          # readOnlyRootFilesystem is false: initdb writes its socket and the
+          # cluster under /var/lib/postgresql. Both are emptyDir mounts rather
+          # than the image's own layers, which is the shape ADR-0200 asks for.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: false
           volumeMounts:
             - { name: initdb, mountPath: /docker-entrypoint-initdb.d }
+            - { name: data,   mountPath: /var/lib/postgresql/data }
+            - { name: run,    mountPath: /var/run/postgresql }
       volumes:
         - name: initdb
           configMap: { name: postgres-initdb }
+        - { name: data, emptyDir: {} }
+        - { name: run,  emptyDir: {} }
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: postgres, namespace: platform }
+metadata:
+  name: postgres
+  namespace: platform
+  labels: { local.platform/component: postgres }
 spec:
   selector: { app: postgres }
   ports: [{ port: 5432, targetPort: 5432 }]
@@ -55,27 +105,54 @@ spec:
 # --- Temporal dev server (in-memory, includes Web UI on 8233) ---------------
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: temporal, namespace: platform }
+metadata:
+  name: temporal
+  namespace: platform
+  labels: { local.platform/component: temporal }
 spec:
   replicas: 1
   selector: { matchLabels: { app: temporal } }
   template:
     metadata: { labels: { app: temporal } }
     spec:
+      # `restricted` (ADR-0200). The dev server image runs as uid 1000.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: temporal
-          image: temporalio/temporal:latest
+          # A concrete tag, not `latest`: this is the version an inner-loop run gets,
+          # and a moving one means two engineers debug different Temporals
+          # (ADR-0101). Renovate bumps it with the other local stand-ins.
+          image: temporalio/temporal:1.8.2
           args: ["server", "start-dev", "--ip", "0.0.0.0"]
           ports:
             - { name: grpc, containerPort: 7233 }
             - { name: ui,   containerPort: 8233 }
+          # readOnlyRootFilesystem holds because `start-dev` with no --db-filename
+          # keeps its SQLite in memory; the only thing it writes to disk is scratch
+          # under /tmp, which is the emptyDir below rather than the image layer.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
           readinessProbe:
             tcpSocket: { port: 7233 }
             initialDelaySeconds: 3
+      volumes:
+        - { name: tmp, emptyDir: {} }
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: temporal, namespace: platform }
+metadata:
+  name: temporal
+  namespace: platform
+  labels: { local.platform/component: temporal }
 spec:
   selector: { app: temporal }
   ports:
@@ -85,25 +162,42 @@ spec:
 # --- OpenFGA (in-memory datastore, fixed dev preshared key) -----------------
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: openfga, namespace: platform }
+metadata:
+  name: openfga
+  namespace: platform
+  labels: { local.platform/component: openfga }
 spec:
   replicas: 1
   selector: { matchLabels: { app: openfga } }
   template:
     metadata: { labels: { app: openfga } }
     spec:
+      # `restricted` (ADR-0200). The image is distroless and already non-root; this
+      # states it rather than inheriting it from whatever the tag ships next.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: openfga
           image: openfga/openfga:v1.14.2
           args: ["run", "--datastore-engine", "memory", "--authn-method", "preshared", "--authn-preshared-keys", "dev"]
           ports: [{ name: http, containerPort: 8080 }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
           readinessProbe:
             httpGet: { path: /healthz, port: 8080 }
             initialDelaySeconds: 3
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: openfga, namespace: platform }
+metadata:
+  name: openfga
+  namespace: platform
+  labels: { local.platform/component: openfga }
 spec:
   selector: { app: openfga }
   ports: [{ port: 8080, targetPort: 8080 }]
@@ -111,20 +205,32 @@ spec:
 # --- Per-service DATABASE_URL secrets (consumed via secrets.envFrom) --------
 apiVersion: v1
 kind: Secret
-metadata: { name: orders-db, namespace: platform }
+metadata:
+  name: orders-db
+  namespace: platform
+  labels: { local.platform/component: db-secrets }
 stringData: { DATABASE_URL: "postgres://dev:dev@postgres:5432/orders?sslmode=disable" }
 ---
 apiVersion: v1
 kind: Secret
-metadata: { name: catalog-db, namespace: platform }
+metadata:
+  name: catalog-db
+  namespace: platform
+  labels: { local.platform/component: db-secrets }
 stringData: { DATABASE_URL: "postgres://dev:dev@postgres:5432/catalog?sslmode=disable" }
 ---
 apiVersion: v1
 kind: Secret
-metadata: { name: orgs-db, namespace: platform }
+metadata:
+  name: orgs-db
+  namespace: platform
+  labels: { local.platform/component: db-secrets }
 stringData: { DATABASE_URL: "postgres://dev:dev@postgres:5432/orgs?sslmode=disable" }
 ---
 apiVersion: v1
 kind: Secret
-metadata: { name: payment-db, namespace: platform }
+metadata:
+  name: payment-db
+  namespace: platform
+  labels: { local.platform/component: db-secrets }
 stringData: { DATABASE_URL: "postgres://dev:dev@postgres:5432/payment?sslmode=disable" }

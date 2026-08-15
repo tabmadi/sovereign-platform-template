@@ -1,91 +1,90 @@
 # Operational Surface & Component Tiers
 
-This document is the running inventory of every platform component the template
-operates, sorted into three tiers, plus the budget rule that governs adding to
-the always-on floor. It makes [ADR-0000](adr/0000-platform-foundations.md)'s
-"operational surface dominates over feature breadth" principle checkable rather
-than aspirational.
+This document is the running inventory of every platform component the template operates, sorted into three tiers, plus the budget rule that governs adding to the always-on floor. [`adoption-path.md`](adoption-path.md) runs the other way, and governs *removing* from it. It makes [ADR-0000](adr/0000-platform-foundations.md)'s *thinnest viable platform* principle (2) checkable rather than aspirational.
 
-The unit that matters at the target scale (~100 services, 3–8 engineers) is not
-the raw component count — most of these components are the honest production
-floor for a multi-tenant application at meaningful load. The unit that matters is
-**operational surface a small team must understand at 3am**. Tiering makes that
-surface explicit and bounded.
+The unit that matters, given the platform-engineering budget in [ADR-0000](adr/0000-platform-foundations.md), is not the raw component count — most of these components are the honest production floor for a multi-tenant application at meaningful load. The unit that matters is **operational surface the platform team must understand at 3am**. Tiering makes that surface explicit and bounded.
 
 ## The three tiers
 
 ### Core — always on
 
-The real floor. Every environment runs these; a project removes one only by
-writing an ADR that shows the floor already covers its concern.
+The real floor. Every environment runs these; a project removes one only by writing an ADR that shows the floor already covers its concern, or by taking a row from [`adoption-path.md`](adoption-path.md) and recording the restore trigger it is watching.
 
-| Component | Concern | ADR |
-|---|---|---|
-| k3s | Kubernetes runtime | [0003](adr/0003-cluster-topology.md) |
-| Cilium (+ WireGuard, default-deny) | CNI, east-west encryption, network policy | [0003](adr/0003-cluster-topology.md) |
-| Traefik | Ingress / edge routing | [0009](adr/0009-api-gateway.md) |
-| cert-manager | TLS certificate lifecycle | [0003](adr/0003-cluster-topology.md) |
-| CloudNativePG (CNPG) | Postgres | [0007](adr/0007-data.md) |
-| ArgoCD | GitOps reconciliation | [0004](adr/0004-gitops.md) |
-| Kratos | Identity / authentication | [0010](adr/0010-auth.md) |
-| Oathkeeper | Edge authorization (forward-auth) | [0009](adr/0009-api-gateway.md), [0010](adr/0010-auth.md) |
-| sops-operator | Secret decryption | [0005](adr/0005-secrets.md) |
-| Kyverno | Admission policy (image signatures, digest pins) | [0021](adr/0021-supply-chain-security.md) |
-| OpenFGA | Authorization (ReBAC) | [0010](adr/0010-auth.md) |
-| Temporal | Durable execution | [0006](adr/0006-temporal.md) |
-| Temporal Worker Controller | Versioned (rainbow) worker deploys — one Deployment per Build ID, retained until drained | [0006](adr/0006-temporal.md) |
-| Loki | Log storage | [0011](adr/0011-observability.md) |
-| Tempo | Trace storage | [0011](adr/0011-observability.md) |
-| Prometheus | Metrics storage | [0011](adr/0011-observability.md) |
-| OTel Collector | Telemetry collection (DaemonSet) | [0011](adr/0011-observability.md) |
-| MinIO | Object storage (non-prod; a real bucket in prod) | [0016](adr/0016-environment-parity.md) |
-| Lowdefy admin | Internal ops CRUD over the Go API | [0012](adr/0012-internal-admin.md) |
-| Headlamp | Read-mostly Kubernetes debug UI | [0024](adr/0024-kubernetes-debug-ui.md) |
-| Hubble UI | Live service map, network flows, drop verdicts (bundled with Cilium) | [0025](adr/0025-service-map-apm-ui.md) |
-| pgweb | Read-only break-glass DB inspector | [0012](adr/0012-internal-admin.md) |
+**What stops working** is the blast radius: which path the component sits on — deploy, request, diagnosis, or data — and what is still serving when it is down. It is the column to read down during an incident, and the column to read across when deciding whether a row can be deferred. **Recurring obligation** is the work that arrives whether or not anything is wrong — the work a busy quarter silently defers. **Failure needs** is what the responder must already have or already know when the component is the reason something is broken at 3am. Together they are the demand side of [ADR-0000](adr/0000-platform-foundations.md)'s capacity question, and no headcount is stated for them: a project sums this column against its own coverage obligations and reaches its own number.
+
+| Component | Concern | What stops working | Recurring obligation | Failure needs | ADR |
+| --- | --- | --- | --- | --- | --- |
+| Talos Linux | node OS and Kubernetes runtime, as one artefact | **every workload on that node**, and the cluster itself if it is a control-plane node | `talosctl upgrade` per node as an A/B image swap, and `talosctl upgrade-k8s` on its own cadence | the machine-config document, node API access, and a rebuild path that has been walked before | [0200](adr/0200-cluster-topology.md) |
+| Cilium (+ WireGuard, default-deny) | CNI, east-west encryption, network policy | **all pod networking.** Existing policy stays programmed in eBPF; new pods get none until the agent returns | chart upgrades once Argo CD adopts the bootstrap release; policy review as services are added | eBPF-level debugging — `cilium status`, the Hubble CLI. Harder than flannel, and the ADR says so. **Cannot be hot-swapped on a live cluster** | [0200](adr/0200-cluster-topology.md) |
+| Traefik | Ingress / edge routing | **all inbound traffic**, product and ops tiers together | chart upgrades; route and middleware review as the edge surface grows | reading the edge config together with the Oathkeeper filter behind it | [0305](adr/0305-edge-auth-and-traffic-policy.md) |
+| cert-manager | TLS certificate lifecycle | nothing until the next renewal, then **all inbound TLS**. The slowest-arriving failure on the floor | one wildcard certificate per environment renewing over ACME DNS-01, and the provider API credential behind it | DNS provider access, and the ability to tell a renewal failure from a propagation delay | [0200](adr/0200-cluster-topology.md) |
+| CloudNativePG (CNPG) | Postgres | **every service and every platform tenant** — Kratos, Temporal, OpenFGA, and the forge share this cluster | minor upgrades; backup verification; a restore rehearsed **quarterly**; a major-version upgrade once per Postgres release cadence in a planned window | someone who has performed a failover and a PITR before, not read about one. The single highest-stakes row here | [0300](adr/0300-data.md) |
+| ArgoCD | GitOps reconciliation | **the deploy path.** Running workloads are untouched; nothing new lands, and drift stops being corrected | chart upgrades; triage of drift notifications, since the production platform runs `selfHeal=false` and reverts nothing on its own | knowing that a manual sync is the break-glass once retries exhaust, and that a cluster rebuild is never the remedy | [0201](adr/0201-gitops.md) |
+| Forgejo | Source control, review, and pipelines | **delivery and review together**, since the forge is also where CI runs. Running workloads are untouched | upgrades, runner capacity, and its tenancy on the Postgres cluster | knowing the forge is also where CI runs, so its outage stops delivery as well as review | [0102](adr/0102-source-control-and-ci.md) |
+| zot | Image registry, and the store for signatures and attestations | **every pod start for an uncached image** — scale-ups, node replacements, and deploys | retention as a committed config file; upgrades | knowing that pods pull from it, so an outage is a cluster-wide inability to start new workloads | [0105](adr/0105-image-registry.md) |
+| Kratos | Identity / authentication | **login, registration, and recovery.** Established sessions keep validating until they expire | config and schema migrations on upgrade; the identity data is the most painful in the platform to migrate | reading the self-service flows, AAL levels, and session semantics under pressure | [0304](adr/0304-identity-and-authorization.md) |
+| Oathkeeper | Edge authorization (forward-auth) | **every authenticated request**, since it is the only thing that mints the identity headers services read | keeping the rule set in step with routes as services are added | JWKS, session-cookie validation, and the header contract every service downstream trusts | [0305](adr/0305-edge-auth-and-traffic-policy.md), [0304](adr/0304-identity-and-authorization.md) |
+| sops-operator | Secret decryption | **the deploy path for anything with a new or rotated secret.** Decrypted secrets already in the cluster keep working | recipient churn on every onboarding and offboarding — `sops updatekeys` across every encrypted file, plus rotation of every secret a departing engineer could read; cluster-key rotation with an overlap window | the ops-recovery key, held offline on more than one person's hardware token | [0202](adr/0202-secrets.md) |
+| Kyverno | Admission policy (image signatures, digest pins) | **the deploy path, cluster-wide** — a failing webhook blocks admission for everything it matches, including the fix ([ADR-0203](adr/0203-policy-enforcement.md)) | policy upkeep; carrying current and previous public keys through a signing-key rotation window | recognising that a failing admission webhook blocks deploys cluster-wide, and knowing the intended break-glass | [0104](adr/0104-supply-chain-security.md) |
+| OpenFGA | Authorization (ReBAC) | **every authorized call**, which is every protected route. The ops-tier gate deliberately does not consult it ([ADR-0304](adr/0304-identity-and-authorization.md)) | model changes shipped through the idempotent seeding Job; tuple data grows with the domain | reading the authorization model, and distinguishing a missing tuple from a wrong model | [0304](adr/0304-identity-and-authorization.md) |
+| Temporal | Durable execution | **the async path.** Workflows stall rather than fail; synchronous request handling is unaffected | server upgrades; namespace, retention, and archival configuration; it is another tenant on the Postgres cluster | workflow history, replay semantics, and telling a non-determinism error from an application fault | [0302](adr/0302-temporal.md) |
+| Loki | Log storage | **the diagnosis path** for logs. Nothing serving traffic notices | retention and compaction against the bucket; chart upgrades | LogQL, and where the bucket lifecycle rules are set | [0500](adr/0500-observability.md) |
+| Tempo | Trace storage | **the diagnosis path** for traces | retention against the bucket; chart upgrades | reading a trace across services, and knowing sampling is set at the collector | [0500](adr/0500-observability.md) |
+| Prometheus | Metrics storage | **the diagnosis path** for metrics, and alert evaluation with it — so this failure also removes the detection of other failures | local TSDB sizing as active series grow; alert-rule upkeep, since a rule without a `severity` label is a defect | PromQL, and the active-series threshold that signals the Mimir swap | [0500](adr/0500-observability.md) |
+| Alertmanager | Alert routing, grouping, and silences | **the detection path.** Rules keep evaluating and reach nobody | route and silence upkeep as rules change | knowing that **nothing pages anyone** — no escalation receiver is attached, so an overnight incident is found in the morning ([ADR-0502](adr/0502-alerting-and-on-call.md)) | [0502](adr/0502-alerting-and-on-call.md) |
+| maddy | Outbound mail submission and DKIM signing | **identity verification and recovery**, which is a request path a user is standing in, and the delivery leg of every alert route | **the heaviest recurring row on the floor**: IP warmup, DMARC aggregate-report review, and blocklist monitoring, none of which engineering effort retires | DNS access for SPF, DKIM, and DMARC, plus the understanding that a delivery fault shows up first as a drop in identity-flow completion | [0307](adr/0307-outbound-email.md) |
+| Pyroscope | Continuous profile storage | **the diagnosis path** for profiles | retention against the bucket; chart upgrades | reading a flame graph well enough to act on it | [0500](adr/0500-observability.md) |
+| Grafana | One UI for all four signals, with cross-signal navigation | **the diagnosis path, entire** — one UI for four signals means one outage hides all four. The data survives it | dashboards are committed JSON, so panels are maintained in the repository as services change | knowing it trusts the edge and serves anonymously — an edge fault takes the debugging surface with it | [0500](adr/0500-observability.md), [0501](adr/0501-operator-uis-and-dashboards.md) |
+| OTel Collector | Telemetry collection (DaemonSet) | **the diagnosis path for one node.** Services emit to `localhost:4317`, so a DaemonSet fault is a per-node telemetry blackout | pipeline configuration and version bumps across a fast-moving upstream | that every service emits to `localhost:4317`, so a DaemonSet fault is a per-node telemetry blackout | [0500](adr/0500-observability.md) |
+| Alloy | Scrapes `pprof` endpoints and pushes to Pyroscope | profiling collection only | scrape configuration as services are added | little — its failure degrades profiling only | [0500](adr/0500-observability.md) |
+| SeaweedFS | Object storage — one implementation in every environment, run outside the cluster in production | **backups, log, trace, and profile storage, and the registry's own store.** In production it is off-cluster, so a cluster failure does not reach it — which is the point | credentials and upgrades; Object Lock retention kept no shorter than backup retention; in production it is a stateful component the platform operates rather than a bucket it rents | knowing that production runs off-cluster, so a cluster rebuild does not touch it, and that the backups it holds are what the rebuild reads | [0200](adr/0200-cluster-topology.md), [0205](adr/0205-environment-parity.md) |
+| Lowdefy admin | Internal ops CRUD over the Go API | **the ops task path** for anyone who does not write API calls | page YAML tracks the API as it changes; a stale page is a broken ops task | reading the YAML, which is the point of choosing it | [0401](adr/0401-internal-admin.md) |
+| Headlamp | Read-mostly Kubernetes debug UI | **the diagnosis path** for cluster state, with `kubectl` as the standing replacement | chart upgrades | none beyond `kubectl`, which is also its replacement | [0501](adr/0501-operator-uis-and-dashboards.md) |
+| Hubble UI | Live service map, network flows, drop verdicts (bundled with Cilium) | **the diagnosis path** for flows, with the Hubble CLI as the standing replacement | none of its own — it upgrades with Cilium | none beyond the Hubble CLI, which is also its replacement | [0501](adr/0501-operator-uis-and-dashboards.md) |
+| pgweb | Read-only break-glass DB inspector | **the break-glass inspection path**, with `psql` over a port-forward as the standing replacement | chart upgrades; the read-only role is enforced at the database level and must stay that way | knowing it is read-only by database role, not by convention | [0401](adr/0401-internal-admin.md) |
+
+**Four of these rows exist because axis B is at maximum**, and each is a first-class decision here rather than a signup: the forge, the registry, outbound mail, and alert routing. Elsewhere they are accounts.
+
+**Outbound mail is the sharpest of the four.** It is the platform's **only** component whose principal cost — deliverability reputation — engineering effort cannot retire, which is why [`adoption-path.md`](adoption-path.md) ranks it first to concede on a move down axis B. It is simultaneously rank 1 in that document's managed-swap band and the heaviest recurring row on this one, so the platform ships as its default the component it advises nearly every adopter to hand over first. That is the correct reading of axis B at maximum, not a contradiction: the position is what makes self-hosting it the default, and the ranking is what makes conceding it the cheapest way back down.
 
 ### Scale — documented swap-in when a real signal demands it
 
-These are not shipped by default. Each is a variant the Core floor grows into
-when a measured signal appears. The seam and the trigger are documented so the
-swap is a values change, not a re-architecture.
+Not shipped by default. Each is a variant the Core floor grows into when a measured signal appears. **A Scale row is only legitimate if its seam already exists** — otherwise it is a bet, not a deferral ([ADR-0000](adr/0000-platform-foundations.md)).
 
-| Swap | From (Core) | Trigger |
-|---|---|---|
-| **Mimir** | Prometheus | Metrics need multi-tenant isolation, HA, or long-retention object-storage-backed durability. Prometheus local TSDB is the floor; Mimir is the horizontally-scalable Prometheus-compatible successor — same query API, same dashboards, same alert rules, so the swap touches storage config, not instrumentation. |
-| **Temporal for trivial async** | Outbox + small worker | A best-effort job (thumbnail, fire-and-forget email) grows a multi-step, cross-service, or durable-retry requirement. Temporal is already Core; this seam only governs whether a *given* trivial job earns a workflow. See [ADR-0006](adr/0006-temporal.md). |
-| **OTel Collector gateway tier** | DaemonSet only | Trace volume justifies tail sampling (holding spans to promote slow traces after the fact). Additive: services always emit to `localhost:4317`, so the gateway is a deploy, not a code change. See [ADR-0011](adr/0011-observability.md). |
-| **LGTM microservices mode** | Monolithic single-binary | A single backend's ingest volume outgrows one Deployment. Object storage already holds the data, so the split is a values change, not a data migration. |
-| **k6-operator** | k6 binary on the developer/CI machine | The load generator itself becomes the bottleneck (`dropped_iterations` > 0 at the target rate), or absolute capacity figures are needed rather than relative regression signals — a co-hosted generator competes with the cluster for host CPU. Scenarios are unchanged; the swap is where the VUs run. See [ADR-0027](adr/0027-load-and-performance-testing.md). |
+**The seam marker describes the forward direction only.** A swap that is cheap to adopt is not automatically cheap to abandon, and the two costs are recorded separately for the same reason [`adoption-path.md`](adoption-path.md) ranks reductions by cost-to-reverse rather than by saving. A row whose reversal is a data move is one-way once data exists: adopt it on the trigger, not in anticipation of it.
+
+| Swap | From (Core) | Trigger to adopt | Seam (forward) | Cost to reverse |
+| --- | --- | --- | --- | --- |
+| **Mimir** | Prometheus | metrics need multi-tenant isolation, HA, or long-retention object-storage durability | ✅ Prometheus-compatible: same query API, dashboards, and alert rules, so the swap touches storage config, not instrumentation ([ADR-0500](adr/0500-observability.md)) | **moderate, and asymmetric.** Dashboards and rules return untouched, but history written to the bucket does not come back into a local TSDB — either Mimir stays for reads or the retention obligation that justified it is dropped first |
+| **Temporal for a given trivial job** | outbox plus a small worker | a best-effort job grows a second step, a cross-service call, compensation, or a durability guarantee | ✅ Temporal is already Core; this seam governs only whether one job earns a workflow ([ADR-0302](adr/0302-temporal.md)) | **low**, and scoped to one job. Reversal is rare because the trigger is a step that was added, and steps are seldom removed |
+| **Temporal Worker Controller** | unversioned workers, a wall-clock budget, and `workflow.GetVersion` on divergent changes | a workflow's wall-clock legitimately exceeds a deploy cycle, or a non-determinism failure reaches production twice | ✅ the worker shape is a chart value: adopting renders `WorkerDeployment` CRs and installs the controller, and workflow code is unchanged because Pinned executions need no patching ([ADR-0302](adr/0302-temporal.md)) | **moderate.** Removing the controller is a values change, but a `WorkerDeployment` **blocks on a finalizer** while pollers remain, so the CR sits `Terminating` and Argo cannot recreate it — reversal means scaling versioned Deployments to zero and waiting out poller expiry first |
+| **Collector gateway tier** | DaemonSet only | trace volume justifies tail sampling | ✅ services always emit to `localhost:4317`, so the gateway is a deploy, not a code change ([ADR-0500](adr/0500-observability.md)) | **low.** Remove the deploy; sampling policy returns to the DaemonSet. Genuinely symmetric, because services never learned the gateway existed |
+| **Loki / Tempo microservices mode** | monolithic single binary | one backend's ingest volume outgrows a single Deployment | ✅ object storage already holds the data, so the split is a values change, not a data migration | **low.** Object storage holds the data in both shapes, so collapsing back is the same values change run the other way. The most reversible row here |
+| **k6-operator** | the k6 binary on a developer or CI machine | k6 reports `dropped_iterations` > 0 at the target rate, or absolute capacity figures are needed rather than relative regression signals | ✅ scenarios are unchanged; only where the VUs run changes ([ADR-0601](adr/0601-testing-strategy.md)) | **low.** Scenarios are the artefact and they do not change; only the runner does |
+| **ClickHouse** | the analytics service on the shared Postgres | funnel-query p95 above 2s against the declared rollup window, or the events table sustaining more than ~10M rows per month | ✅ collection, the routing connector, and the panel are unchanged; only the service's store and queries move ([ADR-0700](adr/0700-analytics.md)) | **high — one-way once the data exists.** The queries were rewritten for a column store, and the volume that triggered the move is the volume Postgres refused. Reversal means a data move backwards into the store that could not hold it |
+| **Dependency-Track** | Trivy as a merge gate, plus the SBOMs already attached as OCI referrers | a compliance obligation requiring demonstrable continuous vulnerability management, or fleet-wide CVE triage becoming monthly rather than annual | ✅ SBOMs are already produced, signed, and stored, and it backfills from them, so adopting costs the components rather than the data ([ADR-0104](adr/0104-supply-chain-security.md)) | **low.** Drop the chart and its Postgres tenancy; the SBOMs remain in the registry, which is where the evidence lives. What is lost is the accumulated triage state |
+| **Longhorn** | `local-path` volumes | any volume exceeding 50% of node disk | ⚠️ a **bet** — existing volumes migrate per workload, so this is a data move rather than a values change ([ADR-0200](adr/0200-cluster-topology.md)) | **high, in both directions.** A per-workload data move each way. The only row here that is expensive to adopt *and* expensive to abandon, which is why it is marked a bet rather than a deferral |
+| **GlitchTip** | `exception.*` records grouped by fingerprint in Loki and Grafana | fingerprint triage becomes routine work rather than incident work, or the novelty window misses a fault that reached a customer | ✅ it ingests the Sentry envelope protocol, so the collector gains an exporter and services are not re-instrumented ([ADR-0503](adr/0503-error-tracking.md)) | **low**, minus history. Drop the exporter and the chart; grouping returns to Loki, but the accumulated fingerprint history goes with the component ([ADR-0503](adr/0503-error-tracking.md)) |
+
+**Dependency-Track is the row the budget rule keeps out of Core.** It answers a question nothing on the floor answers — that a CVE published today affects an image built in March — and it costs a JVM heap in the gigabytes, a Postgres tenancy, and a mirrored vulnerability database to answer it. Trivy at the merge gate is push-shaped and catches what is being built; this is the pull-shaped half. The gap is real and is accepted until one of its triggers fires ([`reference/risk-register.md`](reference/risk-register.md)).
 
 ### Opt-in — flag-gated, off unless a project asks
 
-Real components that most instances never need. Gated behind a project flag, the
-same pattern as `hydra_thirdparty`.
+Real components that most instances never need. Gated behind a project flag, the same pattern as `hydra_thirdparty`.
 
 | Component | Concern | Flag / ADR |
-|---|---|---|
-| Hydra | OAuth2 provider for third-party API clients | [0010](adr/0010-auth.md) |
+| --- | --- | --- |
+| Hydra | OAuth2 provider for third-party API clients | [0304](adr/0304-identity-and-authorization.md) |
 
 ## Budget rule
 
-The floor is not free. Every Core component is a system a small team must be able
-to reason about during an incident. So:
+The floor is not free. Every Core component is a system the platform team must be able to reason about during an incident. So:
 
-- **Nothing joins Core without answering "does the floor already cover this?"**
-  A new always-on component must show that no existing Core part serves its
-  concern. If an existing part covers 90% of the need, that is the answer.
-- **Prefer the Core floor over a Scale variant until a measured signal appears.**
-  Picking the scale-tier variant of a component before scale exists is the
-  template's characteristic over-commitment. Ship the floor; document the seam.
-- **A Scale swap needs a written trigger**, not a preference. The trigger is a
-  measurable condition (ingest volume, tenant count, retention window), stated in
-  the table above and in the owning ADR.
-- **An Opt-in component ships off.** It carries no operational surface until a
-  project flips its flag, at which point that project owns its runbook.
+- **Nothing joins Core without answering "does the floor already cover this?"** A new always-on component must show that no existing Core part serves its concern. If an existing part covers 90% of the need, that is the answer.
+- **Prefer the Core floor over a Scale variant until a measured signal appears.** Picking the scale-tier variant of a component before scale exists is the template's characteristic over-commitment. Ship the floor; document the seam.
+- **A Scale swap needs a written trigger**, not a preference. The trigger is a measurable condition (ingest volume, tenant count, retention window), stated in the table above and in the owning ADR.
+- **An Opt-in component ships off.** It carries no operational surface until a project flips its flag, at which point that project owns its runbook.
 
-This budget is the operational form of [ADR-0000](adr/0000-platform-foundations.md)
-principle 2's soft-exit: the self-host cost-benefit holds while the team can
-absorb the Core floor. When operating the floor consistently crowds out feature
-work, the response is to reconsider a Core component per its ADR — not to keep
-adding.
+This budget is what makes [ADR-0000](adr/0000-platform-foundations.md) principle 3 (*operational sovereignty*) affordable. That principle is a **hard constraint** — self-hosting is not traded away to reclaim operational budget — so the floor is the only lever left: when operating it consistently crowds out feature work, the response is to *remove or consolidate* a Core component per [`adoption-path.md`](adoption-path.md), or to add capacity. It is never to keep adding.
+
+A project whose sovereignty requirement is weaker sits at a different point on axis B and says so in its own ADR ([ADR-0000](adr/0000-platform-foundations.md), *Moving down axis B*). That is a different position, not an escape hatch inside this one.

@@ -1,4 +1,4 @@
-// orders — checkout saga over catalog + payment (ADR-0006).
+// orders — checkout saga over catalog + payment (ADR-0302).
 package main
 
 import (
@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
@@ -51,20 +52,26 @@ func run() error {
 	}
 	defer tc.Close()
 
-	// Authz plane (ADR-0010): the shared OpenFGA Checker gates the operator-only
+	// Authz plane (ADR-0304): the shared OpenFGA Checker gates the operator-only
 	// cancel. Lazily dialed — OPENFGA_PRESHARED_KEY (envFrom openfga-creds) must be set.
 	checker, err := authz.New()
 	if err != nil {
 		return fmt.Errorf("authz: %w", err)
 	}
 
-	api, err := orders.NewServer(handlers.New(db, tc, checker))
+	api, err := orders.NewServer(
+		handlers.New(db, tc, checker),
+		// A request the generated server rejects before a handler runs — a malformed
+		// body, a bad parameter, a missing required header — still gets an RFC 9457
+		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).
+		orders.WithErrorHandler(apierr.ServeError),
+	)
 	if err != nil {
 		return fmt.Errorf("ogen server: %w", err)
 	}
 
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              httpmw.ListenAddr(),
 		Handler:           httpmw.Chain(authmw.Middleware()(api), serviceName),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

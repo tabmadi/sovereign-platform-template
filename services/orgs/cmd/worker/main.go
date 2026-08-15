@@ -1,5 +1,5 @@
-// Temporal worker for orgs.RegisterUser (ADR-0006): the post-registration
-// create-personal-org dual-write (ADR-0010).
+// Temporal worker for orgs.RegisterUser (ADR-0302): the post-registration
+// create-personal-org dual-write (ADR-0304).
 package main
 
 import (
@@ -58,6 +58,7 @@ func run() error {
 	acts := activities.New(db, granter)
 	w.RegisterActivity(acts.CreatePersonalOrgActivity)
 	w.RegisterActivity(acts.GrantOrgAdminActivity)
+	w.RegisterActivity(acts.SetIdentityOrgActivity)
 
 	interrupt := make(chan any, 1)
 	go func() { <-ctx.Done(); interrupt <- nil }()

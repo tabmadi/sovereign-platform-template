@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
@@ -45,20 +46,26 @@ func run() error {
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
-	// Authz plane (ADR-0010): the shared OpenFGA Checker for write authorization.
+	// Authz plane (ADR-0304): the shared OpenFGA Checker for write authorization.
 	// Lazily dialed — OPENFGA_PRESHARED_KEY (envFrom openfga-creds) must be set.
 	checker, err := authz.New()
 	if err != nil {
 		return fmt.Errorf("authz: %w", err)
 	}
 
-	api, err := catalog.NewServer(handlers.New(db, checker))
+	api, err := catalog.NewServer(
+		handlers.New(db, checker),
+		// A request the generated server rejects before a handler runs — a malformed
+		// body, a bad parameter, a missing required header — still gets an RFC 9457
+		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).
+		catalog.WithErrorHandler(apierr.ServeError),
+	)
 	if err != nil {
 		return fmt.Errorf("ogen server: %w", err)
 	}
 
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              httpmw.ListenAddr(),
 		Handler:           httpmw.Chain(authmw.Middleware()(api), serviceName),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

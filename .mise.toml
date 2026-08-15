@@ -2,8 +2,8 @@
 # Languages & runtimes
 go = "1.26.4"
 bun = "1.3.14"
-# node is NOT pinned here — it is an island tool (ADR-0001/ADR-0018). Its consumers
-# are e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
+# node is NOT pinned here — it is an island tool (ADR-0100/ADR-0601). Its consumers
+# are test/e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
 # loop), so each pins it in its own config against NODE_VERSION below. See [env].
 
 # Database tooling
@@ -11,9 +11,16 @@ dbmate = "2.33.0"
 sqlc = "1.31.1"
 "github:quarylabs/sqruff" = "0.38.0"
 
+# Workflow determinism (ADR-0302). Temporal's own analyzer: a workflow function
+# that reads the clock, the map iteration order, or the network replays into a
+# different history than it recorded, and the failure surfaces as a corrupt
+# workflow rather than as a test failure.
+"go:go.temporal.io/sdk/contrib/tools/workflowcheck" = "0.5.0"
+
 # API contracts & codegen
 "go:github.com/ogen-go/ogen/cmd/ogen" = "1.22.0"
 vacuum = "0.29.2"
+"ubi:oasdiff/oasdiff" = "1.28.0"
 
 # Frontend toolchain
 biome = "2.5.0"
@@ -33,15 +40,80 @@ k3d = "5.9.0"
 # infra/ansible/.mise.toml so the prod bootstrap tool (and the Python it drags in)
 # never installs for a dev running lint/test/cluster:full. See that file.
 
+# Dependency updates & template propagation (ADR-0106). Both run on a developer or
+# CI machine and never inside a cluster workload. renovate is an npm package, so it
+# resolves Node — that is the one place outside the three islands where Node appears,
+# and ADR-0106 asks for the pin here so the version lives in one file like every
+# other tool.
+"pipx:copier" = "9.17.1"
+# The exclude is a reviewed supply-chain exception, not a convenience bypass.
+# mise's npm backend refuses a "trust downgrade": @yarnpkg/libzip 3.2.0 and 3.2.1
+# were published by the yarnbot CI identity carrying SLSA provenance, and 3.2.2 —
+# still the `latest` tag, so no renovate bump avoids it — was published manually by
+# arcanis, Yarn's lead maintainer, on 2025-09-18 with a registry signature but no
+# provenance attestation. Checked against npmjs.org: publisher, signature and
+# integrity are consistent with a manual maintainer publish, which is one of the
+# benign causes mise's own message enumerates. Scoped to the exact package@version
+# so any other downgrade in this tree still fails the install.
+# Revisit when @yarnpkg/libzip publishes a provenance-carrying release above 3.2.2:
+# the exclude should then be deleted, not widened.
+# Reviewed 2026-08-15: the 2026-08-14 smithy release train switched publishers mid-
+# train. @smithy/core 3.33.0 and @smithy/node-http-handler 4.11.0 (both npm `latest`,
+# published 2026-08-14 by aws-sdk-bot — the established AWS automation identity
+# that publishes every @aws-sdk/* release) carry no trusted-publisher OIDC evidence,
+# where the immediately prior releases (core 3.24.6→3.32.0, node-http-handler up to
+# 4.10.0) were published by the GitHub Actions OIDC identity. The downgrade is
+# explained upstream, not tampering: smithy-lang/smithy-typescript commit
+# 6177d1483209 ("fix(release): drop publishConfig.directory", 2026-08-14) reworked
+# the release pipeline, and the publishes went out under the bot's registry token.
+# Verified: sha512 of each tarball matches the registry's declared integrity;
+# CHANGELOG and deps match the source repo at the release commit (only the standard
+# changesets `workspace:^`→range rewrite differs); no install hooks or binaries in
+# the tarballs; renovate's @aws-sdk deps (e.g. client-s3 ^3.29.8) select them
+# legitimately. Full @smithy closure of renovate 44.26.0 enumerated from the
+# registry: these two are the ONLY packages with a trust downgrade in the tree.
+# Scoped to the exact package@version so any other downgrade still fails the
+# install. Revisit when a provenance/OIDC-carrying release above these publishes:
+# the excludes should then be deleted, not widened.
+"npm:renovate" = { version = "44.26.0", trust_policy_excludes = [
+  "@yarnpkg/libzip@3.2.2",
+  "@smithy/core@3.33.0",
+  "@smithy/node-http-handler@4.11.0",
+] }
+
 # Secrets
 age = "1.3.1"
 sops = "3.13.1"
+gitleaks = "8.30.1"
+
+# Supply chain (ADR-0104). One binary covering OS packages, language dependencies
+# and infrastructure-as-code, so one gate covers surfaces that would otherwise be
+# three. Its secret scanner stays off: gitleaks above owns that question, and two
+# gates answering the same one is how a finding gets triaged twice and fixed never.
+trivy = "0.73.0"
+# Image signing and verification (ADR-0104). The key pair lives in SOPS and the
+# public half is committed; Kyverno verifies against it at admission. Pinned here
+# because CI signs with the same binary a developer verifies with.
+#
+# 2.x, deliberately, and this is a decision rather than lag. cosign 3 makes the
+# Sigstore BUNDLE format mandatory — `--new-bundle-format=false` is deprecated and
+# refused alongside a signing config, and so is `--tlog-upload=false` — and the only
+# Kyverno path that reads a bundle initialises the public Sigstore TUF root before
+# it looks at the key. Verification would then depend on reaching
+# tuf-repo-cdn.sigstore.dev, which is exactly the third-party trust root ADR-0104
+# refused when it chose a key pair over keyless. Measured: every pod rejected with
+# "failed to download 13.root.json" behind a proxy. Revisit when Kyverno can verify
+# a bundle against a bare public key with no trust-root fetch.
+cosign = "2.6.5"
+# The SBOM half of the same rule: an SPDX bill of materials attached to each image
+# as a cosign attestation, so it travels with the image rather than beside it.
+syft = "1.51.0"
 
 # JSON wrangling for runtime glue scripts (ops:grant). Static policy checks use
 # Go tools/ instead; this is the one reproducible binary for shell-side JSON.
 jq = "1.8.1"
 # YAML counterpart of jq, for the prod-promotion glue (promote-on-release writes
-# image digests into the prod values files — ADR-0013). Same rationale as jq.
+# image digests into the prod values files — ADR-0103). Same rationale as jq.
 "aqua:mikefarah/yq" = "4.47.1"
 
 # Authorization (OpenFGA model validation + ops-grant tuple writes)
@@ -53,7 +125,7 @@ cocogitto = "7.0.0"
 act = "0.2.89"
 golangci-lint = "2.12.2"
 rumdl = "0.2.18"
-# Shell scripts are first-class here (all glue is bash, ADR-0002) — shellcheck
+# Shell scripts are first-class here (all glue is bash, ADR-0101) — shellcheck
 # lints, shfmt (mvdan/sh) formats. Wired into lint:shell / format:shell and the
 # pre-commit hook so a scripts/ edit gets the same gate as Go/TS/Markdown.
 "aqua:koalaman/shellcheck" = "0.11.0"
@@ -67,13 +139,23 @@ CGO_ENABLED = "0"
 # nested config's [tools], so there is exactly one place to bump.
 NODE_VERSION = "22"
 
-# Task naming: `group:member`, group = the axis you list/run together (ADR-0002).
+# Task naming: `group:member`, group = the axis you list/run together (ADR-0101).
 # `activity:target` for fan-out families with an umbrella (gen, lint, format);
 # `resource:operation` for lifecycles (cluster, service, db).
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 [tasks.setup]
+depends = ["setup:node"]
 run = "lefthook install"
+
+[tasks."setup:node"]
+# The workspace's node_modules. `.mise.toml` pins bun; it does not pin what bun
+# fetches, and nothing installs it implicitly — so a gate that reads a package's
+# own files (lint:contrast reads Tailwind's theme.css) has to depend on this or it
+# passes on a developer machine, where node_modules is already there, and fails on
+# a cold runner. --frozen-lockfile so a bun.lock that has drifted from
+# package.json fails here rather than silently re-resolving to something else.
+run = "bun install --frozen-lockfile"
 
 # ── Local cluster & inner loop ────────────────────────────────────────────────
 [tasks."cluster:ensure"]
@@ -81,31 +163,93 @@ run = "lefthook install"
 run = "bash scripts/cluster-ensure.sh"
 
 [tasks."cluster:cilium"]
-# Install Cilium as the CNI (ADR-0003). Needs the cluster first. Internal plumbing
-# (a dependency node for cluster:lite), not a command you run directly — hence hidden.
+# Install Cilium as the CNI (ADR-0200). Needs the cluster first. Internal plumbing
+# (a dependency node for cluster:base), not a command you run directly — hence hidden.
 hide = true
 depends = ["cluster:ensure"]
 run = "bash scripts/cilium-install.sh"
 
-[tasks."cluster:lite"]
-# Inner loop (ADR-0016): cluster + CNI + lightweight deps (Postgres/Temporal/
-# OpenFGA), then run the service you are changing NATIVELY (no Skaffold, no watch).
-# Ordering is the dependency graph: cluster:ensure → cluster:cilium → this apply.
-# Next steps (dev:forward, db:migrate, go run …) are in docs/dev-loop.md.
-depends = ["cluster:cilium"]
-run = "kubectl --context k3d-${CLUSTER:-platform} apply -f infra/local/deps.yaml"
+[tasks."cluster:base"]
+# The local floor (ADR-0205, ADR-0600): Traefik + cert-manager + Postgres + Kratos
+# + Oathkeeper, plus the host edge glue and the seeded test identities. Everything
+# above it is opt-in and declared by the service that needs it — there are no named
+# profiles. You rarely run this by hand: a service's own tasks depend on it.
+run = "bash scripts/cluster-base.sh"
 
 [tasks."cluster:full"]
-# Full local platform via ArgoCD (ADR-0004, ADR-0016): syncs committed master.
+# Full local platform via ArgoCD (ADR-0201, ADR-0205): syncs committed master.
 # Ordering/waits/secrets are Argo's job (sync-waves). See docs/dev-loop.md.
 run = "bash scripts/cluster-full.sh"
 
-[tasks."cluster:edge"]
-# Re-apply the host-only frontend edge glue (catch-all `/` → host `next dev` :3000,
-# Kratos public API, and the docker-bridge EndpointSlice). Not GitOps-managed, so a
-# stop/start or reboot loses it → Traefik 404 at /. cluster:ensure/heal/full run this
-# automatically; invoke it directly to re-stamp without a full restart.
-run = "bash scripts/cluster-edge.sh"
+# ── Opt-in dependency components ──────────────────────────────────────────────
+# One task per label slice of infra/local/deps.yaml. Services declare these in
+# their own .mise.toml; mise dedupes the shared cluster:base edge, so a service
+# needing three components still brings the floor up once. Every one of them
+# fast-exits when already Ready — see the guard in scripts/dep-apply.sh, which is
+# what keeps the graph cheap to re-enter.
+[tasks."dep:postgres"]
+# In the floor already (Kratos needs a store); declared anyway so a service's
+# dependencies read as its own, not as something base happens to provide.
+depends = ["cluster:base"]
+run = "bash scripts/dep-apply.sh postgres"
+
+[tasks."dep:temporal"]
+depends = ["cluster:base"]
+run = "bash scripts/dep-apply.sh temporal"
+
+[tasks."dep:openfga"]
+depends = ["cluster:base"]
+run = "bash scripts/dep-apply.sh openfga"
+
+[tasks."dep:db-secrets"]
+# The per-service DB secrets the service chart mounts via envFrom. Needed by the
+# IN-CLUSTER path only: a natively-run service reads .env instead.
+depends = ["cluster:base"]
+run = "bash scripts/dep-apply.sh db-secrets"
+
+# ── Sibling services ──────────────────────────────────────────────────────────
+# `dep:*` covers the infrastructure a service needs; these cover the OTHER SERVICES
+# it calls. Same shape, same guard, same reason: the service knows its own callees
+# and a named profile never can (ADR-0205, ADR-0600).
+#
+# Each one makes the callee answer on its registered local port
+# (scripts/lib/ports.sh), which is what lets the caller's .env.example ship a
+# working CATALOG_URL instead of a commented-out suggestion. Deploying is the
+# DEFAULT because the usual case is working on the caller, where the callees should
+# be opaque; run a callee natively yourself and svc:* sees the port answered and
+# stays out of the way.
+[tasks."svc:authz"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh authz"
+
+[tasks."svc:catalog"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh catalog"
+
+[tasks."svc:orders"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh orders"
+
+[tasks."svc:orgs"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh orgs"
+
+[tasks."svc:payment"]
+depends = ["cluster:base"]
+run = "bash scripts/svc-apply.sh payment"
+
+[tasks."cluster:edge-glue"]
+# Re-stamp the host-only frontend edge glue: the last-resort catch-all `/` → host
+# `next dev` :3000 and the docker-bridge EndpointSlice behind it. Per-machine state
+# that cannot be GitOps-managed (the bridge IP is discovered at runtime and moves
+# across restarts), so a stop/start or reboot loses it → Traefik 404 at /.
+#
+# Internal plumbing: cluster:ensure (start), cluster:heal (reboot) and cluster:base
+# all run it automatically. Hidden for the same reason cluster:cilium is — invoke it
+# by hand only to self-heal a 404/502 at / without a full restart. To route a
+# NATIVE service (not the frontend) through the edge, use service:dev instead.
+hide = true
+run = "bash scripts/cluster-edge-glue.sh"
 
 [tasks."cluster:stop"]
 # Stops the cluster but KEEPS it (image cache + volumes survive) so the next
@@ -159,48 +303,82 @@ run = "kubectl --context k3d-${CLUSTER:-platform} -n argocd scale statefulset/ar
 run = "bash scripts/dev-forward.sh"
 
 [tasks."dev:frontend"]
-# The host-run `next dev` the local edge routes `/` to (ADR-0014/0016). Long-running
-# — use a separate terminal. Two env vars are what make a host process behave like
+# The host-run `next dev` the local edge routes `/` to (ADR-0400/0016). Long-running
+# — use a separate terminal. One env var is what makes a host process behave like
 # the in-cluster frontend; see docs/dev-loop.md:
-#   EDGE_ORIGIN                 where server components fetch — the edge, not a cluster
-#                               DNS name the host cannot resolve; the /api IngressRoutes
-#                               match on Host(dev.localtest.me), so it is the public
-#                               origin. next.config.mjs also derives the server-action
-#                               CSRF allowlist from it.
-#   NODE_TLS_REJECT_UNAUTHORIZED  the local wildcard cert is self-signed by the
-#                               SelfSigned ClusterIssuer (a leaf, not a CA), so it
-#                               cannot be trusted via NODE_EXTRA_CA_CERTS. Local only:
-#                               deployed envs get Let's Encrypt certs and set neither.
-dir = "apps/frontend"
-env = { EDGE_ORIGIN = "https://dev.localtest.me:8443", NODE_TLS_REJECT_UNAUTHORIZED = "0" }
-run = "bun run next dev -H 0.0.0.0"
+#   EDGE_PUBLIC_ORIGIN  where server components fetch — the edge, not a cluster DNS
+#                       name the host cannot resolve. The /api IngressRoutes match on
+#                       Host(dev.localtest.me), and next.config.mjs derives the
+#                       server-action CSRF allowlist from this. On the host the public
+#                       and internal origins are the same, so EDGE_INTERNAL_ORIGIN is
+#                       left unset and server-fetch falls back to this one.
+#
+# NODE_TLS_REJECT_UNAUTHORIZED is deliberately GONE. The local wildcard is now issued
+# by a real local CA, so the script extracts that CA and trusts exactly it — the same
+# mechanism the in-cluster image uses, with nothing unverified on either path.
+env = { EDGE_PUBLIC_ORIGIN = "https://dev.localtest.me:8443" }
+run = "bash scripts/dev-frontend.sh"
+
+[tasks."mock:start"]
+# The API mock for UI work (ADR-0600): Prism serving the committed `internal.json`
+# projection, behind the real edge and its real middleware chain. It takes over
+# /api at a priority no service route can reach, so it works whether or not the
+# full tier is running. Local tooling only — it is forbidden in `test`,
+# `ci:affected`, and the e2e and visual suites.
+run = "bash scripts/mock.sh start"
+
+[tasks."mock:stop"]
+run = "bash scripts/mock.sh stop"
+
+[tasks."mock:logs"]
+# The interesting output: a request that matched no operation, and a body that
+# failed the spec's own validation.
+run = "bash scripts/mock.sh logs"
 
 [tasks."db:migrate"]
 run = "bash scripts/db-migrate.sh"
 
+[tasks."auth:seed"]
+# Seed the committed deterministic test identities (ADR-0601) into a running Kratos.
+# cluster:base does this for you; run it alone after a Kratos reinstall.
+run = "bash scripts/identity-seed.sh"
+
 # ── Code generation ───────────────────────────────────────────────────────────
 [tasks.gen]
 # No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the
-# OpenAPI spec (ADR-0009). Generators: ogen + openapi-typescript (SDKs), sqlc
-# (queries), and the devportal spec projections rendered by Scalar (ADR-0008).
-depends = ["gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin"]
+# OpenAPI spec (ADR-0305). Generators: ogen + openapi-typescript (SDKs), sqlc
+# (queries), and the devportal spec projections rendered by Scalar (ADR-0303).
+depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:sqlc", "gen:admin", "gen:adr-rules", "gen:image-allowlist"]
+
+[tasks."gen:adr-rules"]
+# Two documents are views over the ADR set's Rules sections: the rules index and the
+# security baseline (ADR-0203). Both were hand-maintained copies of facts owned by the
+# ADRs, so both are generated and drift-checked like any other generated artefact.
+run = "go run ./tools/adr-rules"
+
+[tasks."gen:shared-components"]
+# Writes the canonical error envelope, money, and timestamp components into every
+# spec from tools/codegen/shared-components.yaml (ADR-0303). Runs BEFORE the SDK
+# generators, so they read specs that already carry the current shared shapes.
+run = "go run ./tools/shared-components"
 
 [tasks."gen:openapi"]
+depends = ["gen:shared-components"]
 run = "bash scripts/gen-openapi.sh"
 
 [tasks."gen:admin"]
-# Scaffold the Lowdefy admin pages from the OpenAPI specs (ADR-0012). Depends on
+# Scaffold the Lowdefy admin pages from the OpenAPI specs (ADR-0401). Depends on
 # gen:openapi so it reads specs that have already passed a generation cycle.
 depends = ["gen:openapi"]
 run = "bash scripts/gen-admin.sh"
 
 [tasks."gen:openapi-public"]
-# Filtered OpenAPI projections for the Scalar developer portals (ADR-0008/0009/0014).
+# Filtered OpenAPI projections for the Scalar developer portals (ADR-0303/0009/0014).
 run = "bash scripts/gen-openapi-public.sh"
 
 [tasks."gen:authz-model"]
 # Regenerate infra/auth/openfga/model.json from the canonical model.fga DSL
-# (ADR-0010). The seed Job posts this JSON to the OpenFGA API; lint:authz asserts
+# (ADR-0304). The seed Job posts this JSON to the OpenFGA API; lint:authz asserts
 # it stays in sync with the DSL.
 run = "fga model transform --file infra/auth/openfga/model.fga --output-format json | jq -S . > infra/auth/openfga/model.json"
 
@@ -235,7 +413,7 @@ run = "git ls-files -z '*.sh' | xargs -0 shfmt -w -i 2"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:ts", "lint:sql", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-contract", "lint:prose", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -247,20 +425,91 @@ run = "go run ./tools/gostyle ./..."
 [tasks."lint:ts"]
 run = "biome ci --error-on-warnings ."
 
+[tasks."lint:template-build"]
+# `go build ./...` cannot see services/_template: every hand-written file there
+# carries a //go:build _template constraint, which scripts/new-service.sh strips
+# when it copies the tree. Nothing else in the repo compiles it, so the template
+# rots against exactly the contract changes every real service just absorbed — and
+# the first person to feel it is whoever scaffolds the next service.
+#
+# The two sub-patterns are not a stylistic choice: the go tool ignores a directory
+# whose name begins with an underscore when expanding `...`, so the obvious
+# ./services/_template/... matches nothing at all and passes by matching nothing.
+run = "go vet -tags _template ./services/_template/cmd/... ./services/_template/internal/..."
+
+[tasks."lint:helm-deps"]
+# `helm dependency build` needs the repo registered in the caller's helm config;
+# `update` resolves it from Chart.yaml. The difference is invisible until a clean
+# runner hits it, which is how cluster:base reached CI broken.
+run = "bash scripts/lint-helm-deps.sh"
+
 [tasks."lint:sql"]
 run = "bash scripts/lint-sql.sh"
 
 [tasks."lint:openapi"]
 run = "bash scripts/lint-openapi.sh"
 
+[tasks."lint:service-contract"]
+# ADR-0205 gate: every service provides the same artifacts, because the platform
+# DISCOVERS services through those artifacts. Most sharply, the ApplicationSet
+# generates one Argo app per values file, so a missing values file means the service
+# is absent from that environment with nothing to notice — how authz ended up
+# undeployed in dev while Oathkeeper called it by DNS.
+run = "bash scripts/lint-service-contract.sh"
+
+[tasks."lint:ports"]
+# Local port registry gate (ADR-0205): ports unique, every service registered, and
+# each service's .mise.toml binding what the registry assigns it. A drift there
+# fails at runtime as a bare connection-refused, so it is caught at lint instead.
+run = "bash scripts/lint-ports.sh"
+
 [tasks."lint:api-audience"]
-# Audience↔exposure gate (ADR-0008): a spec's info.x-audience must match whether the
+# Audience↔exposure gate (ADR-0303): a spec's info.x-audience must match whether the
 # service is edge-exposed (public ⇔ has an /api route). Spec-less control-plane
 # services (authz) are exempt. Prevents the finding-D omission from recurring.
 run = "go run ./tools/lint-api-audience"
 
+[tasks."lint:service-deps"]
+# The inner loop's dependency graph, checked against the code (ADR-0600, ADR-0205).
+# Each service declares what `mise run server`/`worker` must bring up; this reads
+# the entrypoint's package closure and the base-URL environment names in it, and
+# reports drift both ways. ADR-0600 names the omitted edge as the most likely way
+# to regress the local loop: a worker whose saga dials payment with no
+# `svc:payment` starts cleanly and dies on the first checkout.
+run = "go run ./tools/lint-service-deps"
+
+[tasks."lint:activity-register"]
+# Temporal registration gate (ADR-0302): every activity a workflow names as a
+# string is registered on its service's worker. The string is what keeps the
+# workflow package from importing the activities package, and it is also what makes
+# a missing registration invisible until a real workflow fails with "unable to find
+# activityType" — in the workflow history, where nobody looks first.
+run = "go run ./tools/lint-activity-register"
+
+[tasks."lint:authz-dual-write"]
+# ADR-0304's dual-write rule, statically: a tuple is written from an activity, never
+# from a handler. There is no transaction across Postgres and OpenFGA, so the saga
+# is what makes "the row exists and the tuple exists" eventually true — a handler
+# that does both leaves a resource that exists and nobody can read.
+run = "go run ./tools/lint-authz-dual-write"
+
+[tasks."lint:money"]
+# The monetary-value gate (ADR-0100, ADR-0300): a money-ish OpenAPI property is the
+# shared `Money` component, no Go field or variable with a money-ish name is a
+# float, and no TypeScript money value is a number. Every violation of this rule
+# compiles and passes its own tests, which is why it is a gate rather than a review
+# note.
+run = "go run ./tools/lint-money"
+
+[tasks."lint:naming"]
+# The resource-name grammar (ADR-0003): `{project}-{env}-{role}[-{n}]` across the
+# Ansible inventory, the sops recipients, and the GitOps overlays, with the role
+# vocabulary read from the ADR's own table. Nothing in the cluster can check this —
+# a provider accepts any name it can encode.
+run = "go run ./tools/lint-naming"
+
 [tasks."lint:resource-governance"]
-# ADR-0020 gate: renders every chart (each service separately) and checks the
+# ADR-0204 gate: renders every chart (each service separately) and checks the
 # declared resources against the guardrails in infra/helm/platform/resource-governance
 # BEFORE they reach a cluster — LimitRange floors that would REJECT a pod, containers
 # with no requests/memory limit and no namespace default, unsanctioned CPU limits, and
@@ -272,46 +521,95 @@ run = "go run ./tools/lint-resource-governance"
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"
 
+[tasks."image:digest"]
+# Resolve a tag to the index digest a Dockerfile or values file pins to, so the
+# pin is read from the registry rather than copied by hand (ADR-0101, ADR-0104).
+#   mise run image:digest -- gcr.io/distroless/static-debian13:nonroot
+run = "bash scripts/image-digest.sh"
+
+[tasks."lint:prose"]
+# ADR-0001's banned-constructs table, enforced. The table is deliberately grep-shaped;
+# a house style that only review enforces is a house style that drifts.
+run = "go run ./tools/lint-prose"
+
+[tasks."lint:adr-xref"]
+# The ADR set's internal wiring: references resolve, Related names documents that exist,
+# every ADR carries a Decides line and an index row, the two adoption documents name the
+# same components, every deferral has a register row, and nothing under docs/ links to
+# the root README (ADR-0001).
+run = "go run ./tools/lint-adr-xref"
+
+[tasks."lint:readme-drift"]
+# Principle 9 applied to the one document that is not generated. The root README
+# duplicates selection guidance by design, and a duplicate with no check drifts —
+# a tool the ADRs rejected kept appearing on the first page a reader sees.
+run = "go run ./tools/lint-readme-drift"
+
+[tasks."gen:image-allowlist"]
+# The third-party image allow-list (ADR-0104), derived from the charts themselves:
+# every repository the platform's own charts pull from. A chart bump that adds a
+# sidecar from a new registry becomes a diff someone has to approve.
+run = "bash scripts/gen-image-allowlist.sh"
+
+[tasks."lint:image-allowlist"]
+# Drift check for it. `mise run gen:image-allowlist` writes it.
+run = "bash scripts/gen-image-allowlist.sh --check"
+
+[tasks."lint:rules-index"]
+# Drift check for the generated rule documents. `mise run gen` writes them.
+run = "go run ./tools/adr-rules -check"
+
 [tasks."lint:md"]
 run = "rumdl check ."
 
 [tasks."lint:shell"]
-# shellcheck over every tracked *.sh (ADR-0002). All glue here is bash, so it gets
+# shellcheck over every tracked *.sh (ADR-0101). All glue here is bash, so it gets
 # the same static analysis Go/TS do.
 run = "bash scripts/lint-shell.sh"
 
 [tasks."lint:log-vocab"]
-# Human-output vocabulary gate (ADR-0019): scripts use →/✓/✗/⚠ via scripts/lib/log.sh,
+# Human-output vocabulary gate (ADR-0001): scripts use →/✓/✗/⚠ via scripts/lib/log.sh,
 # not bare WARN/ERROR/FAIL prose.
 run = "bash scripts/lint-log-vocab.sh"
 
 [tasks."lint:node-scope"]
-# Node confinement guard (ADR-0001/ADR-0018): Node/npm may appear ONLY in the
-# repo-root e2e/ workspace. Fails if a package-lock.json or node_modules leaks
-# elsewhere, or if e2e/ is pulled into the Bun workspace.
+# Node confinement guard (ADR-0100/ADR-0601): Node/npm may appear ONLY in the
+# repo-root test/e2e/ workspace. Fails if a package-lock.json or node_modules leaks
+# elsewhere, or if test/e2e/ is pulled into the Bun workspace.
 run = "bash scripts/lint-node-scope.sh"
 
 [tasks."lint:auth-inline"]
-# Auth config single-source guard (ADR-0009/0010): fails if kratos/oathkeeper
-# config is re-inlined into the Ory chart values instead of living in infra/auth/*.
+# Auth single-source guard (ADR-0305/0010/0029): fails if kratos/oathkeeper config
+# is re-inlined into the Ory chart values instead of living in infra/auth/*, or if
+# the frontend grows development-only auth code (a session bypass in proxy.ts or
+# src/lib/auth/ — local UI work logs in for real via cluster:base).
 run = "bash scripts/lint-auth-inline.sh"
 
 [tasks."lint:authz"]
-# Edge-auth policy gates (ADR-0009/0010/0017):
+# Edge-auth policy gates (ADR-0304/0305/0306):
 #   - OpenFGA model + assertions (fga model test) + model.json in-sync check
 #   - ops dashboards authorize via remote_json → Checker, never `allow`
 #   - the product /api rule enumerates resources, never a bare /api wildcard
 #   - every forward-auth route strips client identity headers first (anti-spoofing)
 run = """
 bash scripts/validate-openfga.sh
-bash scripts/lint-authorizer.sh
-bash scripts/lint-api-wildcard.sh
+go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
+go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
 bash scripts/lint-strip-headers.sh
 """
 
 # ── Test & build ──────────────────────────────────────────────────────────────
 [tasks.test]
+depends = ["test:go", "test:ts"]
+
+[tasks."test:go"]
 run = "go test ./..."
+
+[tasks."test:ts"]
+# The shared TypeScript libraries under libs/ts/ — not the frontend, whose browser
+# behaviour is covered by the e2e suite (ADR-0601). Bun's runner, so this needs no
+# second toolchain and no Node.
+run = "bun test libs/ts/"
 
 [tasks.build]
 run = "go build ./..."
@@ -327,28 +625,224 @@ depends = ["format", "lint", "test"]
 [tasks."ci:affected"]
 run = "go run ./tools/affected"
 
+[tasks."lint:secrets"]
+# ADR-0202: plaintext secret values do not appear in any committed file. Scans the
+# working tree by default; GITLEAKS_HISTORY=1 walks the full history instead.
+run = "bash scripts/lint-secrets.sh"
+
+[tasks."lint:tool-register"]
+# ADR-0002's four register Rules: every Tier 1/2 row names an owning ADR that
+# exists, that ADR carries the comparison its tier owes, a Tier 1 row names a
+# runner-up, and every alternative a row records is visible in that ADR.
+run = "go run ./tools/lint-tool-register"
+
+[tasks."lint:contrast"]
+# Reads Tailwind's own theme.css for the ramps the project aliases but does not
+# declare, so node_modules is an input to this gate, not an ambient convenience.
+depends = ["setup:node"]
+# Colour contrast against the design-token file rather than per component
+# (ADR-0400): a token change moves every surface at once, so the token file is
+# where a regression is introduced. axe scans the rendered pages in e2e and catches
+# the composition mistakes this cannot see.
+run = "go run ./tools/lint-contrast"
+
+[tasks."lint:determinism"]
+# Temporal workflow determinism (ADR-0302). Not the same question as
+# lint:thin-workflows, which is about GitHub Actions YAML — this one reads the Go
+# workflow functions and reports any path reaching non-deterministic code.
+#
+# Scoped to services/: a workflow function is only ever defined there, and the
+# analyzer walks the whole call graph from each one, so pointing it at the repo
+# would re-analyse every library for no additional finding.
+run = "workflowcheck ./services/..."
+
+[tasks."lint:thin-workflows"]
+# ADR-0102: workflow YAML checks out, sets up the toolchain, and calls a mise task.
+# A `run:` step carrying pipeline logic cannot be reproduced locally and does not
+# survive the move to another forge, which is the whole point of the rule.
+run = "go run ./tools/lint-thin-workflows"
+
+[tasks."lint:commits"]
+# Conventional Commits over the pull request's commit RANGE (ADR-0103). Not in
+# `lint`: the lefthook commit-msg hook already gates each message as it is written,
+# and a whole-range check on every local `mise run check` would fail a branch whose
+# WIP commits are not yet rewritten. BASE_REF picks the base; it defaults to master.
+run = "bash scripts/lint-commits.sh"
+
+[tasks."lint:api-breaking"]
+# oasdiff labels breaking contract changes for review; it is NOT a version gate
+# (ADR-0303). Exits 0 either way — the signal is the label, and a break that a
+# reviewer sees is the outcome the rule wants. Reads BASE_REF like lint:commits.
+run = "bash scripts/lint-api-breaking.sh"
+
+[tasks."lint:secrets-history"]
+# The history scope of lint:secrets. Separate task, because it answers a different
+# question from the working-tree scan: not "is this change clean" but "is anything
+# already committed that has never been rotated" (ADR-0202). Once per branch in CI,
+# never in the pre-commit hook.
+env = { GITLEAKS_HISTORY = "1" }
+run = "bash scripts/lint-secrets.sh"
+
 [tasks."ci:lint"]
-depends = ["lint"]
+depends = ["lint", "lint:commits", "lint:secrets-history", "lint:api-breaking"]
+
+[tasks."ci:scan"]
+# The vulnerability merge gate (ADR-0104). Neither the registry nor the cluster
+# scans, so this is the only place it can live — and it has to be before the merge,
+# which is before the push a registry-side scanner would see.
+run = "bash scripts/scan.sh"
+
+[tasks."scan:report"]
+# Triage, not a gate: every dependency finding at every severity, including the
+# ones with no fix published. `ci:scan` blocks on the actionable subset.
+run = "bash scripts/scan.sh report"
 
 [tasks."ci:test"]
 depends = ["test"]
+
+[tasks."ci:affected-matrix"]
+# The affected manifest split into the two arrays publish.yml's matrices need,
+# as forge step-output assignments (ADR-0102). The workflow step only redirects.
+run = "bash scripts/ci-affected-matrix.sh"
+
+[tasks."ci:sign"]
+# Sign a published image and attach its SBOM and provenance (ADR-0104). One task
+# for all three because they are one decision — an image is admissible when it
+# carries a signature we made, a bill of materials, and provenance — and three
+# steps is how one of them silently stops running.
+#   mise run ci:sign -- ghcr.io/org/repo/catalog-server@sha256:…
+run = "bash scripts/ci-sign.sh"
+
+[tasks."supply-chain:inventory"]
+# Verify the SBOM attestation of every image pinned in committed values and file
+# what is in it (ADR-0104). Answers "is this CVE in anything we RUN", which the
+# build record cannot: it says what was built, not what any environment points at.
+# Runs nightly (.github/workflows/supply-chain.yml), not per build — it changes on
+# a promotion, and it has to re-answer as new CVEs appear against images that did
+# not change at all.
+run = "bash scripts/supply-chain-inventory.sh"
+
+[tasks."ci:affected-adversarial"]
+# Test affected-detection from the other side (ADR-0101, ADR-0601): break each
+# service in a scratch worktree and assert the manifest names it. Its unit tests
+# check the classifier against a list of paths someone wrote down — the same list
+# the classifier was written from. This one perturbs real files in a real tree and
+# runs the real command, so a service CI would silently skip fails here instead.
+run = "bash scripts/ci-affected-adversarial.sh"
+
+[tasks."ci:e2e-gate"]
+# Whether a pull request pays for the smoke suite, as a forge step-output
+# assignment (ADR-0102, ADR-0601). The `e2e-smoke` label still forces it on; a PR
+# touching more than one service now gets it without anyone remembering to ask,
+# because a cross-service regression is exactly what no test below the e2e level
+# can see. Reads LABELED and BASE_REF.
+run = "bash scripts/ci-e2e-gate.sh"
+
+[tasks."ci:nightly-gate"]
+# Whether tonight's cluster:full suite should run, as a forge step-output
+# assignment (ADR-0102, ADR-0601). Reads EVENT.
+run = "bash scripts/ci-nightly-gate.sh"
+
+[tasks."ci:build-context"]
+# An app's Docker build context, as a forge step-output assignment (ADR-0102).
+#   mise run ci:build-context -- admin
+run = "bash scripts/ci-build-context.sh"
+
+[tasks.release]
+# Cut a repo-wide CalVer release: compute the version, stamp the fields a build
+# tool requires, regenerate CHANGELOG.md, commit, tag, and push (ADR-0103). The
+# tag push is what triggers the production promotion.
+#   DRY_RUN=1 mise run release   # everything except the commit, tag, and push
+run = "bash scripts/release.sh"
+
+[tasks."ci:release-info"]
+# A CalVer release tag resolved to version + commit, as forge step-output
+# assignments (ADR-0102, ADR-0103). Reads GITHUB_REF.
+run = "bash scripts/ci-release-info.sh"
+
+# ── Promotion (ADR-0201) ──────────────────────────────────────────────────────
+[tasks."promote:dev-staging"]
+# Bump dev + staging values for every affected component to $SHA. Prod is not
+# touched here: it pins by digest on a release tag.
+run = "bash scripts/promote-dev-staging.sh"
+
+[tasks."promote:prod"]
+# Pin every prod values file to $SHA by digest and label the images $VER.
+run = "bash scripts/promote-prod.sh"
+
+[tasks."promote:verify"]
+# Gate a release on prod converging on $SHA. Needs ARGOCD_SERVER/ARGOCD_AUTH_TOKEN.
+run = "bash scripts/promote-verify.sh"
 
 [tasks."ci:build"]
 depends = ["build"]
 
 [tasks."ci:gen"]
-# Drift check: fail if regeneration changes anything.
-run = "mise run gen && git diff --exit-code"
+# Drift check: regenerate AND reformat, then fail if anything changed.
+#
+# Formatting belongs here rather than in `lint` because the linters are analysers
+# (golangci-lint run, biome lint, rumdl check, shellcheck) and none of them rewrite
+# code — a correctly-analysed-but-misformatted file passes `mise run lint` cleanly.
+# Only the formatters can tell, and they tell by rewriting, which is exactly the
+# shape this drift check already handles for generated code.
+#
+# The single definition behind ci-drift.yml and the lefthook gen-drift hook: run it
+# locally to reproduce that CI job exactly.
+#
+# Drift is "regenerating CHANGES something", which is not the same question as "the
+# working tree is dirty". `git diff --exit-code` cannot tell them apart — it
+# compares the worktree against the INDEX — so a partially staged commit reported
+# every unstaged file as drift and the lefthook gen-drift hook rejected commits that
+# had not drifted at all. Comparing a snapshot from before the run against one from
+# after asks the question directly, and on CI's clean tree it reduces to the old
+# behaviour exactly.
+run = """
+snapshot() { git status --porcelain; git diff HEAD; }
+before=$(snapshot)
+mise run gen
+mise run format
+if [ "$(snapshot)" != "$before" ]; then
+  # On CI the tree starts clean, so this is the drift and nothing else. Locally it
+  # also carries whatever else is uncommitted.
+  git diff HEAD
+  echo "::error::Generated or formatted artifacts are out of date. Run 'mise run ci:gen' and commit the result."
+  exit 1
+fi
+"""
 
 # ── Deploy to cluster (working-tree overrides) ────────────────────────────────
+[tasks."cluster:add"]
+# One verb for "put this in the cluster" (ADR-0600). Resolves <name> to a service
+# or a platform chart and dispatches; errors if a name is both. Dependency
+# components are NOT nouns here — they are graph-internal (`dep:*`), which is what
+# keeps `postgres` (a platform chart AND a deps.yaml slice) unambiguous.
+#   mise run cluster:add -- orders     # a service, from the working tree
+#   mise run cluster:add -- ory        # a platform chart, from the working tree
+run = "bash scripts/cluster-add.sh"
+
+[tasks."cluster:remove"]
+# The counterpart. Uninstalls the release AND restores ArgoCD auto-sync, which the
+# add path paused — without that, remove leaves the thing gone *and* unmanaged.
+#   mise run cluster:remove -- orders
+run = "bash scripts/cluster-remove.sh"
+
 [tasks."service:deploy"]
-# One-shot in-cluster deploy of a service from the working tree (no watch).
+# One-shot in-cluster deploy of a service from the working tree (no watch). Brings
+# up the service's declared dependency components first. Prefer cluster:add.
 #   mise run service:deploy -- <svc>
 run = "bash scripts/service-deploy.sh"
 
 [tasks."service:undeploy"]
+# Prefer cluster:remove, which also restores GitOps.
 #   mise run service:undeploy -- <svc>
-run = "helm --kube-context k3d-${CLUSTER:-platform} uninstall -n platform"
+run = "bash scripts/cluster-remove.sh"
+
+[tasks."service:dev"]
+# Run a service NATIVELY behind the real edge: stamps the per-service edge glue
+# (an IngressRoute + an EndpointSlice at the docker-bridge gateway) so Traefik
+# routes to the host process, then hands you the command to run.
+#   mise run service:dev -- orders
+run = "bash scripts/service-dev.sh"
 
 [tasks."platform:deploy"]
 # One-shot working-tree overlay of a platform chart (rare infra iteration).
@@ -364,54 +858,81 @@ run = "bash scripts/platform-deploy.sh"
 run = "bash scripts/auth-token.sh"
 
 [tasks."ops:grant"]
-# Operator onboarding (ADR-0010/0017): add/revoke a human's group:operator
+# Operator onboarding (ADR-0304/0017): add/revoke a human's group:operator
 # membership by email. Usage: mise run ops:grant -- <email> [--revoke].
 run = "bash scripts/ops-grant.sh"
 
+[tasks."secrets:cosign"]
+# Generate the platform's image-signing key pair (ADR-0104): public half committed
+# where every environment's Kyverno policy reads it, private half encrypted for CI
+# alone. A task rather than a documented sequence, because the step everyone would
+# skip is the one that keeps the private half off the disk in the clear. One pair
+# for the platform — an image is built once and the same digest flows through every
+# environment, so a per-environment key would reject in prod what it admitted in dev.
+run = "bash scripts/secrets-cosign.sh"
+
 [tasks."secrets:age"]
-# Idempotent; also writes .sops.yaml (ADR-0005).
+# Idempotent; also writes .sops.yaml (ADR-0202).
 run = "bash scripts/secrets-age.sh"
 
 # ── End-to-end tests ──────────────────────────────────────────────────────────
 # Thin delegates into the Node island. The real tasks (and the node pin) live in
-# e2e/.mise.toml, because mise tools flow down a config tree and never up: a task
-# defined here cannot see a tool pinned there. `-C` runs them in e2e/ and
+# test/e2e/.mise.toml, because mise tools flow down a config tree and never up: a task
+# defined here cannot see a tool pinned there. `-C` runs them in test/e2e/ and
 # auto-installs node on first use, so these stay the entrypoint for humans and CI.
 [tasks."e2e:install"]
-run = "mise run -C e2e install"
+run = "mise run -C test/e2e install"
 
 [tasks.e2e]
-run = "mise run -C e2e test"
+run = "mise run -C test/e2e test"
 
 [tasks."e2e:smoke"]
-run = "mise run -C e2e test:smoke"
+run = "mise run -C test/e2e test:smoke"
 
 # ── Load & performance tests ──────────────────────────────────────────────────
 # Thin delegates into the k6 island, same reason as the e2e ones above: the k6
-# pin lives in perf/.mise.toml and mise tools flow down a config tree, never up.
-# These are NOT part of `test`, `check` or `ci:affected` (ADR-0027) — they answer
+# pin lives in test/perf/.mise.toml and mise tools flow down a config tree, never up.
+# These are NOT part of `test`, `check` or `ci:affected` (ADR-0601) — they answer
 # "what does it cost and where does it break", not "is it correct", and they need
 # a running cluster:full.
 [tasks.perf]
 # The steady baseline: nightly + pre-release.
-run = "mise run -C perf load"
+run = "mise run -C test/perf load"
 
 [tasks."perf:smoke"]
 # ~30s. Proves the scenarios still run; the label-gated per-PR lane.
-run = "mise run -C perf smoke"
+run = "mise run -C test/perf smoke"
 
 [tasks."perf:stress"]
 # Ramp to saturation. Thresholds are expected to break — the finding is where.
-run = "mise run -C perf stress"
+run = "mise run -C test/perf stress"
 
 [tasks."perf:soak"]
 # ~30min sustained, for leak detection.
-run = "mise run -C perf soak"
+run = "mise run -C test/perf soak"
+
+[tasks."e2e:a11y"]
+# The axe scan alone (ADR-0400), for iterating on an accessibility fix.
+run = "mise run -C test/e2e test:a11y"
+
+[tasks."lighthouse"]
+# Web vitals and the per-route bundle budgets, as merge gates (ADR-0400):
+# LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile.
+#
+# TBT rather than INP: INP is a FIELD metric measured from real interactions, and
+# Lighthouse's navigation run has none to measure. TBT is its established lab proxy
+# and moves with the same cause, main-thread blocking. Faro reports the real INP
+# from the browser (ADR-0500), which is where the ADR's number is actually observed.
+#
+# Runs against the local edge, so it needs `cluster:full`: the frontend's server
+# components fetch through the edge at render time, so a standalone `next build`
+# cannot produce a page to measure. Point it elsewhere with LHCI_URL.
+run = "mise run -C test/e2e lighthouse"
 
 [tasks."perf:seed"]
 # Bulk catalog data so the read path is measured against a realistic table.
 #   mise run perf:seed -- 50000      mise run perf:seed -- --clean
-run = "mise run -C perf seed"
+run = "mise run -C test/perf seed"
 
 # ── Maintenance ───────────────────────────────────────────────────────────────
 [tasks.upgrade]

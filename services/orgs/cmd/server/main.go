@@ -1,4 +1,4 @@
-// orgs — B2B multi-tenancy on top of Kratos identities (ADR-0010).
+// orgs — B2B multi-tenancy on top of Kratos identities (ADR-0304).
 // Owns: organisations, memberships, and the post-registration "create personal
 // org" webhook called by Kratos.
 package main
@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
 	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
@@ -49,7 +50,7 @@ func run() error {
 
 	// The webhook handler only enqueues the RegisterUser workflow; the worker
 	// (cmd/worker) runs the dual-write. The server still dials OpenFGA for the
-	// operator gate on the Update/Delete org mutations (ADR-0010).
+	// operator gate on the Update/Delete org mutations (ADR-0304).
 	tc, err := temporalmw.NewClient(serviceName)
 	if err != nil {
 		return fmt.Errorf("temporal: %w", err)
@@ -61,13 +62,19 @@ func run() error {
 		return fmt.Errorf("authz: %w", err)
 	}
 
-	api, err := orgs.NewServer(handlers.New(db, tc, checker))
+	api, err := orgs.NewServer(
+		handlers.New(db, tc, checker),
+		// A request the generated server rejects before a handler runs — a malformed
+		// body, a bad parameter, a missing required header — still gets an RFC 9457
+		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).
+		orgs.WithErrorHandler(apierr.ServeError),
+	)
 	if err != nil {
 		return fmt.Errorf("ogen server: %w", err)
 	}
 
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              httpmw.ListenAddr(),
 		Handler:           httpmw.Chain(authmw.Middleware()(api), serviceName),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

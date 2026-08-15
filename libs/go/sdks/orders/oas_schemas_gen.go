@@ -4,11 +4,8 @@ package orders
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/go-faster/errors"
-	"github.com/go-faster/jx"
-	"github.com/google/uuid"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -18,12 +15,12 @@ func (s *ErrorStatusCode) Error() string {
 // Request body to start a checkout.
 // Ref: #/components/schemas/CheckoutInput
 type CheckoutInput struct {
-	ProductID uuid.UUID `json:"product_id"`
+	ProductID ProductId `json:"product_id"`
 	Quantity  int       `json:"quantity"`
 }
 
 // GetProductID returns the value of ProductID.
-func (s *CheckoutInput) GetProductID() uuid.UUID {
+func (s *CheckoutInput) GetProductID() ProductId {
 	return s.ProductID
 }
 
@@ -33,7 +30,7 @@ func (s *CheckoutInput) GetQuantity() int {
 }
 
 // SetProductID sets the value of ProductID.
-func (s *CheckoutInput) SetProductID(val uuid.UUID) {
+func (s *CheckoutInput) SetProductID(val ProductId) {
 	s.ProductID = val
 }
 
@@ -68,38 +65,69 @@ func (s *ErrorStatusCode) SetResponse(val Problem) {
 	s.Response = val
 }
 
-// NewOptProblemDetails returns new OptProblemDetails with value set to v.
-func NewOptProblemDetails(v ProblemDetails) OptProblemDetails {
-	return OptProblemDetails{
+// A monetary amount. The amount is a decimal STRING — a JSON number becomes a double in the
+// TypeScript client, and a double cannot hold a decimal amount exactly. Currency travels with the
+// amount, because an amount without one is not a quantity of anything.
+// Ref: #/components/schemas/Money
+type Money struct {
+	// Decimal amount, sign-prefixed when negative. No thousands separators.
+	Amount string `json:"amount"`
+	// ISO 4217 alphabetic code, uppercase.
+	Currency string `json:"currency"`
+}
+
+// GetAmount returns the value of Amount.
+func (s *Money) GetAmount() string {
+	return s.Amount
+}
+
+// GetCurrency returns the value of Currency.
+func (s *Money) GetCurrency() string {
+	return s.Currency
+}
+
+// SetAmount sets the value of Amount.
+func (s *Money) SetAmount(val string) {
+	s.Amount = val
+}
+
+// SetCurrency sets the value of Currency.
+func (s *Money) SetCurrency(val string) {
+	s.Currency = val
+}
+
+// NewOptString returns new OptString with value set to v.
+func NewOptString(v string) OptString {
+	return OptString{
 		Value: v,
 		Set:   true,
 	}
 }
 
-// OptProblemDetails is optional ProblemDetails.
-type OptProblemDetails struct {
-	Value ProblemDetails
+// OptString is optional string.
+type OptString struct {
+	Value string
 	Set   bool
 }
 
-// IsSet returns true if OptProblemDetails was set.
-func (o OptProblemDetails) IsSet() bool { return o.Set }
+// IsSet returns true if OptString was set.
+func (o OptString) IsSet() bool { return o.Set }
 
 // Reset unsets value.
-func (o *OptProblemDetails) Reset() {
-	var v ProblemDetails
+func (o *OptString) Reset() {
+	var v string
 	o.Value = v
 	o.Set = false
 }
 
 // SetTo sets value to v.
-func (o *OptProblemDetails) SetTo(v ProblemDetails) {
+func (o *OptString) SetTo(v string) {
 	o.Set = true
 	o.Value = v
 }
 
 // Get returns value and boolean that denotes whether value was set.
-func (o OptProblemDetails) Get() (v ProblemDetails, ok bool) {
+func (o OptString) Get() (v string, ok bool) {
 	if !o.Set {
 		return v, false
 	}
@@ -107,53 +135,7 @@ func (o OptProblemDetails) Get() (v ProblemDetails, ok bool) {
 }
 
 // Or returns value if set, or given parameter if does not.
-func (o OptProblemDetails) Or(d ProblemDetails) ProblemDetails {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptURI returns new OptURI with value set to v.
-func NewOptURI(v url.URL) OptURI {
-	return OptURI{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptURI is optional url.URL.
-type OptURI struct {
-	Value url.URL
-	Set   bool
-}
-
-// IsSet returns true if OptURI was set.
-func (o OptURI) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptURI) Reset() {
-	var v url.URL
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptURI) SetTo(v url.URL) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptURI) Get() (v url.URL, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptURI) Or(d url.URL) url.URL {
+func (o OptString) Or(d string) string {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -163,20 +145,20 @@ func (o OptURI) Or(d url.URL) url.URL {
 // A customer order.
 // Ref: #/components/schemas/Order
 type Order struct {
-	ID         uuid.UUID   `json:"id"`
-	ProductID  uuid.UUID   `json:"product_id"`
-	Quantity   int         `json:"quantity"`
-	TotalCents int         `json:"total_cents"`
-	Status     OrderStatus `json:"status"`
+	ID        OrderId     `json:"id"`
+	ProductID ProductId   `json:"product_id"`
+	Quantity  int         `json:"quantity"`
+	Total     Money       `json:"total"`
+	Status    OrderStatus `json:"status"`
 }
 
 // GetID returns the value of ID.
-func (s *Order) GetID() uuid.UUID {
+func (s *Order) GetID() OrderId {
 	return s.ID
 }
 
 // GetProductID returns the value of ProductID.
-func (s *Order) GetProductID() uuid.UUID {
+func (s *Order) GetProductID() ProductId {
 	return s.ProductID
 }
 
@@ -185,9 +167,9 @@ func (s *Order) GetQuantity() int {
 	return s.Quantity
 }
 
-// GetTotalCents returns the value of TotalCents.
-func (s *Order) GetTotalCents() int {
-	return s.TotalCents
+// GetTotal returns the value of Total.
+func (s *Order) GetTotal() Money {
+	return s.Total
 }
 
 // GetStatus returns the value of Status.
@@ -196,12 +178,12 @@ func (s *Order) GetStatus() OrderStatus {
 }
 
 // SetID sets the value of ID.
-func (s *Order) SetID(val uuid.UUID) {
+func (s *Order) SetID(val OrderId) {
 	s.ID = val
 }
 
 // SetProductID sets the value of ProductID.
-func (s *Order) SetProductID(val uuid.UUID) {
+func (s *Order) SetProductID(val ProductId) {
 	s.ProductID = val
 }
 
@@ -210,15 +192,17 @@ func (s *Order) SetQuantity(val int) {
 	s.Quantity = val
 }
 
-// SetTotalCents sets the value of TotalCents.
-func (s *Order) SetTotalCents(val int) {
-	s.TotalCents = val
+// SetTotal sets the value of Total.
+func (s *Order) SetTotal(val Money) {
+	s.Total = val
 }
 
 // SetStatus sets the value of Status.
 func (s *Order) SetStatus(val OrderStatus) {
 	s.Status = val
 }
+
+type OrderId string
 
 type OrderStatus string
 
@@ -275,54 +259,115 @@ func (s *OrderStatus) UnmarshalText(data []byte) error {
 	}
 }
 
-// RFC 7807 problem document.
+// RFC 9457 problem details. Served as `application/problem+json` by services and by the edge alike, so
+// a generated client has one error branch rather than two.
 // Ref: #/components/schemas/Problem
 type Problem struct {
-	Code    string            `json:"code"`
-	Message string            `json:"message"`
-	Details OptProblemDetails `json:"details"`
+	// `about:blank`, except where two errors share a status code and a client handles them differently.
+	// That case takes a `urn:problem-type:<service>:<slug>` URN — never a dereferenceable URL, which
+	// would put an error taxonomy into the flat public URL namespace.
+	Type string `json:"type"`
+	// A stable, human-readable summary. Does not vary with the instance.
+	Title string `json:"title"`
+	// The HTTP status, duplicated in the body.
+	Status int `json:"status"`
+	// Instance-specific and safe to show a user. Never a stack trace, a query, or an internal hostname.
+	Detail OptString `json:"detail"`
+	// The W3C Trace Context trace-id of the failing request, so a user-reported error reaches its trace.
+	// Supplied from the active span, not by the handler.
+	TraceID OptString `json:"trace_id"`
+	// Field-level validation failures, populated from the generated validator. Absent when the failure is
+	// not a validation failure.
+	Errors []ProblemErrorsItem `json:"errors"`
 }
 
-// GetCode returns the value of Code.
-func (s *Problem) GetCode() string {
-	return s.Code
+// GetType returns the value of Type.
+func (s *Problem) GetType() string {
+	return s.Type
+}
+
+// GetTitle returns the value of Title.
+func (s *Problem) GetTitle() string {
+	return s.Title
+}
+
+// GetStatus returns the value of Status.
+func (s *Problem) GetStatus() int {
+	return s.Status
+}
+
+// GetDetail returns the value of Detail.
+func (s *Problem) GetDetail() OptString {
+	return s.Detail
+}
+
+// GetTraceID returns the value of TraceID.
+func (s *Problem) GetTraceID() OptString {
+	return s.TraceID
+}
+
+// GetErrors returns the value of Errors.
+func (s *Problem) GetErrors() []ProblemErrorsItem {
+	return s.Errors
+}
+
+// SetType sets the value of Type.
+func (s *Problem) SetType(val string) {
+	s.Type = val
+}
+
+// SetTitle sets the value of Title.
+func (s *Problem) SetTitle(val string) {
+	s.Title = val
+}
+
+// SetStatus sets the value of Status.
+func (s *Problem) SetStatus(val int) {
+	s.Status = val
+}
+
+// SetDetail sets the value of Detail.
+func (s *Problem) SetDetail(val OptString) {
+	s.Detail = val
+}
+
+// SetTraceID sets the value of TraceID.
+func (s *Problem) SetTraceID(val OptString) {
+	s.TraceID = val
+}
+
+// SetErrors sets the value of Errors.
+func (s *Problem) SetErrors(val []ProblemErrorsItem) {
+	s.Errors = val
+}
+
+type ProblemErrorsItem struct {
+	// RFC 6901 JSON Pointer to the offending member.
+	Pointer string `json:"pointer"`
+	Message string `json:"message"`
+}
+
+// GetPointer returns the value of Pointer.
+func (s *ProblemErrorsItem) GetPointer() string {
+	return s.Pointer
 }
 
 // GetMessage returns the value of Message.
-func (s *Problem) GetMessage() string {
+func (s *ProblemErrorsItem) GetMessage() string {
 	return s.Message
 }
 
-// GetDetails returns the value of Details.
-func (s *Problem) GetDetails() OptProblemDetails {
-	return s.Details
-}
-
-// SetCode sets the value of Code.
-func (s *Problem) SetCode(val string) {
-	s.Code = val
+// SetPointer sets the value of Pointer.
+func (s *ProblemErrorsItem) SetPointer(val string) {
+	s.Pointer = val
 }
 
 // SetMessage sets the value of Message.
-func (s *Problem) SetMessage(val string) {
+func (s *ProblemErrorsItem) SetMessage(val string) {
 	s.Message = val
 }
 
-// SetDetails sets the value of Details.
-func (s *Problem) SetDetails(val OptProblemDetails) {
-	s.Details = val
-}
-
-type ProblemDetails map[string]jx.Raw
-
-func (s *ProblemDetails) init() ProblemDetails {
-	m := *s
-	if m == nil {
-		m = map[string]jx.Raw{}
-		*s = m
-	}
-	return m
-}
+type ProductId string
 
 // Handle to an async Temporal workflow run.
 // Ref: #/components/schemas/WorkflowHandle
@@ -331,7 +376,7 @@ type WorkflowHandle struct {
 	RunID  string               `json:"run_id"`
 	Status WorkflowHandleStatus `json:"status"`
 	// GET to fetch terminal status + result.
-	ResultURL OptURI `json:"result_url"`
+	ResultURL OptString `json:"result_url"`
 }
 
 // GetID returns the value of ID.
@@ -350,7 +395,7 @@ func (s *WorkflowHandle) GetStatus() WorkflowHandleStatus {
 }
 
 // GetResultURL returns the value of ResultURL.
-func (s *WorkflowHandle) GetResultURL() OptURI {
+func (s *WorkflowHandle) GetResultURL() OptString {
 	return s.ResultURL
 }
 
@@ -370,7 +415,7 @@ func (s *WorkflowHandle) SetStatus(val WorkflowHandleStatus) {
 }
 
 // SetResultURL sets the value of ResultURL.
-func (s *WorkflowHandle) SetResultURL(val OptURI) {
+func (s *WorkflowHandle) SetResultURL(val OptString) {
 	s.ResultURL = val
 }
 
