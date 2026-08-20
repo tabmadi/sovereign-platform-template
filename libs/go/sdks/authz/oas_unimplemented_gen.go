@@ -22,12 +22,21 @@ func (UnimplementedHandler) Authorize(ctx context.Context, req *AuthorizeRequest
 	return r, ht.ErrNotImplemented
 }
 
+// CheckRelation implements checkRelation operation.
+//
+// Check one relation for one subject against one object.
+//
+// POST /authorize/relation
+func (UnimplementedHandler) CheckRelation(ctx context.Context, req *RelationCheck) (r *RelationDecision, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // CreateOperator implements createOperator operation.
 //
 // Create an operator identity and grant the operator role.
 //
 // POST /operators
-func (UnimplementedHandler) CreateOperator(ctx context.Context, req *OperatorInput) (r *Operator, _ error) {
+func (UnimplementedHandler) CreateOperator(ctx context.Context, req *OperatorInput) (r *WorkflowHandle, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

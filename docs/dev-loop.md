@@ -50,19 +50,22 @@ the cluster has silently stopped tracking `master`.
 ## Be logged in
 
 There is no bypass, and adding one is a review-blocker (`lint:auth-inline`). Both
-tiers run the real Kratos, and both seed the committed test identities:
+tiers run the real Kratos, and both seed the committed test identities on bring-up:
 
-| Identity | Is | Gets you |
-| --- | --- | --- |
-| operator | AAL2 (password + TOTP) | the ops hosts — Grafana, the admin console, Temporal, Hubble, pgweb, headlamp |
-| user | AAL1 (password) | the product surface |
+| Identity | Credentials | Is | Gets you |
+| --- | --- | --- | --- |
+| admin | `admin@localtest.me` / `1st Password!` | AAL2 (password + TOTP) | the ops hosts — the day-to-day full-tier account |
+| operator | `operator@e2e.localtest.me` / `0perator-e2e-Sessi0n!` | AAL2 (password + TOTP) | the same ops hosts — the e2e fixture, recreated per suite run |
+| user | `user@e2e.localtest.me` / `Pr0duct-e2e-Sessi0n!` | AAL1 (password) | the product surface |
 
-Their credentials are `test/e2e/fixtures/identities.ts`, which is also what the e2e
-suite logs in with. Log in at `https://dev.localtest.me:8443/auth/login`; the ops
-hosts are `https://<name>.ops.dev.localtest.me:8443` and answer `401` until you do.
+`admin` is created once and left alone; `operator` and `user` are recreated on every
+e2e run for determinism, so do not build a workflow around their session. Log in at
+`https://dev.localtest.me:8443/auth/login`; the ops hosts are
+`https://<name>.ops.dev.localtest.me:8443` and answer `401` until you do.
 
-The operator's second factor is enrolled at run time rather than imported, because
-Kratos cannot import a TOTP credential. `mise run auth:seed` re-runs the whole
+The second factor is enrolled at run time rather than imported, because Kratos
+cannot import a TOTP credential. First login with an operator account takes you to
+the settings flow once to enrol it. `mise run auth:seed` re-runs the whole
 provisioning if a login stops working.
 
 ## HTTP proxies
@@ -72,17 +75,22 @@ Behind a proxy, `NO_PROXY` must include `.localtest.me`, `localhost` and `127.0.
 it, and the symptom is a timeout rather than a refusal. The node's containerd has
 the same problem in reverse: it needs the proxy to pull public images, and a pull
 that wedges shows up as `ImagePullBackOff` on a pod that was fine yesterday. That is
-what `mise run cluster:unwedge` is for. The full setup, including what to put in the
-Docker daemon's environment, is [guide/http-proxy.md](guide/http-proxy.md).
+what `mise run cluster:unwedge` is for. On a proxied machine a FRESH cluster cannot
+pull its bootstrap images at all — kind cannot inject the proxy into the node — so
+first bring-up is `CLUSTER_PRELOAD=1 mise run cluster:full`, which host-pulls and
+`kind load`s the images before the imperative head blocks. The full setup, including
+what to put in the Docker daemon's environment, is
+[guide/http-proxy.md](guide/http-proxy.md).
 
 ## After a reboot
 
-The inner loop routes to natively-run services through `host.k3d.internal` and an
-EndpointSlice pointing at the docker-bridge gateway. Both are stamped at bring-up
-and both are wrong after the bridge is recreated, which a reboot does — the cluster
-comes back, the pods are Ready, and every native route 502s. `mise run cluster:heal`
-re-injects the host alias and re-stamps the edge glue. It is idempotent; run it
-whenever the cluster survived something the host did.
+The inner loop routes to natively-run services through an EndpointSlice pointing at
+the docker-bridge gateway — the only host address a pod can reach. It is stamped at
+bring-up and is wrong after the bridge is recreated, which a reboot does: the
+cluster comes back, the pods are Ready, and every native route 502s. `mise run
+cluster:heal` re-starts the node (clearing a half-restored Cilium datapath) and
+re-stamps the edge glue. It is idempotent; run it whenever the cluster survived
+something the host did.
 
 ## UI work: the mock
 
@@ -140,7 +148,7 @@ relative number.
 | Symptom | Try |
 | --- | --- |
 | a pod stuck pulling, after a laptop sleep or a proxy hiccup | `mise run cluster:unwedge` |
-| `host.k3d.internal` unresolvable / native routing dead after a reboot | `mise run cluster:heal` |
+| native routing dead (502 at /) after a reboot — the bridge IP changed | `mise run cluster:heal` |
 | everything is odd and you want the time back | `mise run cluster:delete`, then bring the tier up again |
 | the edge answers 404 for a service you deployed | check Argo did not revert it: `kubectl -n argocd get app` |
 

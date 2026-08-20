@@ -9,14 +9,17 @@ The reasoning stays in the owning ADR. What this adds is the column no ADR can a
 | **alert** | a rule already evaluates the condition, or could with no new signal |
 | **query** | the data exists and nobody is asking; a scheduled query would see it |
 | **event** | a person notices it happening — a contract, an incident, a decision elsewhere |
+| **uncollected** | the condition is measurable in principle, and no collector gathers the series it needs |
 
 An **event** row is not a weaker deferral. Some triggers are commercial or organisational and no metric will ever carry them. What matters is that no row is mislabelled: a condition that could be alerted and is not is a gap, and a condition that only a human can see needs a human who knows to look.
+
+**`uncollected` exists because `alert` was claiming too much.** Three rows read *alert — already measurable* while the series behind them was gathered by nothing, which is the worst of the four states: it reads as covered, so nobody writes the rule and nobody adds the collector. A row is `alert` only once a rule names it.
 
 ## The register
 
 | Deferred | Trigger | Watched by | Owner |
 | --- | --- | --- | --- |
-| Mimir, replacing Prometheus | active series cross the paging threshold and adding memory stops being the cheap answer, or retention exceeds one local TSDB | **alert** — the active-series rule already fires at 70% and 90% | [ADR-0500](../adr/0500-observability.md) |
+| Mimir, replacing Prometheus | active series cross the paging threshold and adding memory stops being the cheap answer, or retention exceeds one local TSDB | **alert** — `ActiveSeriesNearCeiling`. The series arrives through the cluster collector, which scrapes Prometheus and re-exports over OTLP, so the store's only path in is still a push | [ADR-0500](../adr/0500-observability.md) |
 | Tail sampling, via a collector gateway | a latency investigation fails because head sampling discarded the slow traces, twice | **event** | [ADR-0500](../adr/0500-observability.md) |
 | PgBouncer in session mode | a service needs `LISTEN/NOTIFY` across statements, an advisory lock, or a session-scoped `SET` | **event** | [ADR-0300](../adr/0300-data.md) |
 | Postgres row-level security | a service's tables begin carrying rows belonging to more than one organisation | **query** — a schema walk can see the tenant column arrive | [ADR-0300](../adr/0300-data.md) |
@@ -35,19 +38,21 @@ An **event** row is not a weaker deferral. Some triggers are commercial or organ
 | GlitchTip | fingerprint triage becomes routine rather than incident work, or the novelty window misses a fault that reached a customer | **event** for the first; **query** for the second, comparing window-detected faults against reported ones | [ADR-0503](../adr/0503-error-tracking.md) |
 | The `(admin)` route group, replacing Lowdefy | upstream releases stop for two quarters, or a security advisory goes unanswered for one | **query** — a scheduled check of the upstream release feed | [ADR-0401](../adr/0401-internal-admin.md) |
 | Session replay | three distinct incidents in one quarter where a reported bug could not be reproduced from traces plus RUM logs | **event**, and it needs an incident record to count against ([`incident-management`](../guide/incident-management.md)) | [ADR-0700](../adr/0700-analytics.md) |
-| ClickHouse | funnel-query p95 above 2s against the declared rollup window, or the events table sustaining more than about 10M rows per month | **alert** — both are already measurable | [ADR-0700](../adr/0700-analytics.md) |
+| ClickHouse | funnel-query p95 above 2s against the declared rollup window, or the events table sustaining more than about 10M rows per month | **alert** for the volume half — `AnalyticsStorageGrowthTrigger`, on the row-count gauge the analytics service now emits for the current month's partition. The latency half is **query**: the panel reads a precomputed rollup, so a slow funnel is a question about the rollup pass rather than a live p95 | [ADR-0700](../adr/0700-analytics.md) |
 | A second GitOps repository | values-bump PRs outnumber code PRs on `master`, or a review is opened against a diff more than half values bumps | **query** over merge history | [ADR-0201](../adr/0201-gitops.md) |
-| Registry mirroring | an upstream registry rate-limits or removes a pinned digest the cluster depends on | **alert** — image pull failures are already a signal | [ADR-0105](../adr/0105-image-registry.md) |
+| Registry mirroring | ~~an upstream registry rate-limits or removes a pinned digest the cluster depends on~~ | **adopted** — zot mirrors the four upstreams as a pull-through cache ([ADR-0105](../adr/0105-image-registry.md)), taken early because the egress surface rather than the rate limit forced it. `ImagePullsFailing` still watches the pull path | [ADR-0105](../adr/0105-image-registry.md) |
 | A transactional mail provider | a sustained delivery-failure or complaint rate that DMARC alignment and warmup do not resolve, or an uncleared blocklist listing | **query** over DMARC aggregate reports, which are reviewed on a cadence either way | [ADR-0307](../adr/0307-outbound-email.md) |
 | Storybook | a component is edited by someone who does not run the app, or a visual regression reaches `master` twice | **event**. Labelled a **bet**: the stories do not exist to enable | [ADR-0400](../adr/0400-frontend.md) |
-| Longhorn | any volume exceeding 50% of node disk | **alert** — node disk and PVC size are both collected | [ADR-0207](../adr/0207-cluster-storage.md) |
+| Longhorn | any volume exceeding 50% of node disk | **alert** — `VolumeExceedsHalfNodeDisk` | [ADR-0207](../adr/0207-cluster-storage.md) |
 | Per-workload certificate identity | a service performing a monetary mutation, a second team owning a service, or an auditor requiring a CA chain | **event** | [ADR-0305](../adr/0305-edge-auth-and-traffic-policy.md) |
 
 ## What the column shows
 
-**Seven rows could be alerted and are not.** Those are the cheapest work in this document: the signal is already collected, and what is missing is a rule that fires when the condition the ADR wrote down comes true. A deferral whose trigger is alertable and unalerted is indistinguishable from a deferral with no trigger.
+**Five rows are alerted**, by `VolumeExceedsHalfNodeDisk`, `LoadGeneratorDroppingIterations`, `ImagePullsFailing` and `AnalyticsStorageGrowthTrigger` in `infra/observability/alerts/deferral-triggers.yaml`, and by `ActiveSeriesNearCeiling` in `cardinality.yaml`. A deferral whose trigger is alertable and unalerted is indistinguishable from a deferral with no trigger, so a row reaches this state only when a rule names the condition the ADR wrote down.
 
-**Six rows are queries** — the data exists, and something has to ask. They ride the quarterly `Schedule` described in [`upstream-status.md`](upstream-status.md), which opens one tracking issue covering these rows, that document's upstream facts, and [`asvs-verification.md`](asvs-verification.md)'s concerns. A row's owner is the owner of its owning ADR, and a query row walked without its answer being recorded has not been walked.
+**No row is `uncollected`.** The last one was ClickHouse's, and it left the state the way the registry row did — by something collecting its signal first, then a rule naming it. The analytics service now emits the current month's row count as a gauge, and `AnalyticsStorageGrowthTrigger` reads it. Adding the rule before the series would have produced a rule that can never fire, which is the same blindness with a green tick on it.
+
+**Seven rows are queries** — the data exists, and something has to ask. They ride the quarterly `Schedule` described in [`upstream-status.md`](upstream-status.md), which opens one tracking issue covering these rows, that document's upstream facts, and [`asvs-verification.md`](asvs-verification.md)'s concerns. A row's owner is the owner of its owning ADR, and a query row walked without its answer being recorded has not been walked.
 
 **The rest are events**, and every one is commercial, organisational, or an incident. They are watched by whoever reads this register, which is why it is one document rather than twenty.
 

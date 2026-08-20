@@ -4,12 +4,12 @@
 # Locally the local platform ApplicationSet (infra/gitops/local-bootstrap) syncs
 # these from master; ordering/readiness is Argo's job (sync-waves).
 
-# --- Cilium (CNI): k3d keeps kube-proxy, so disable kubeProxyReplacement; one
-# operator replica (the default 2 needs 2 nodes for anti-affinity). Cilium itself
-# is installed imperatively by cluster:full before Argo runs and is excluded from
-# the local platform ApplicationSet, but these values keep parity if it is synced.
+# --- Cilium (CNI): kind declines kube-proxy at create time, so the chart default
+# kubeProxyReplacement=true applies with no override. One operator replica (the
+# default 2 needs 2 nodes for anti-affinity). Cilium itself is installed
+# imperatively by cluster:full before Argo runs and is excluded from the local
+# platform ApplicationSet, but these values keep parity if it is synced.
 cilium:
-  kubeProxyReplacement: false
   operator:
     replicas: 1
 
@@ -74,9 +74,13 @@ kratos:
       session:
         cookie:
           domain: dev.localtest.me
+      # The sink (ADR-0307). `kratos-secrets.smtpConnectionURI` is what Kratos
+      # actually reads — the chart wires it to COURIER_SMTP_CONNECTION_URI, and an
+      # env var beats this file — so the two are kept identical rather than left to
+      # disagree about which sink is in use.
       courier:
         smtp:
-          connection_uri: "smtps://test:test@localhost:1025/?skip_ssl_verify=true"
+          connection_uri: "smtp://mailpit.platform.svc.cluster.local:1025/?disable_starttls=true"
     # Cookie/cipher/system secrets + dsn come from the SOPS-managed `kratos-secrets`
     # Secret (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via
     # secret.enabled=false + nameOverride in infra/auth/kratos/values.yaml — never
@@ -97,7 +101,7 @@ oathkeeper:
             config:
               to: https://dev.localtest.me:8443/auth/login
 
-# --- Observability: point Loki/Tempo at in-cluster MinIO, single replica ---
+# --- Observability: point Loki/Tempo at in-cluster SeaweedFS, single replica ---
 # Only the endpoint + http (insecure) differ from prod; the S3 credentials come
 # from the observability-bucket Secret via extraEnvFrom (wired in the chart values
 # for every env), so no inline keys here — same mechanism as dev/staging/prod.
@@ -105,7 +109,7 @@ loki:
   loki:
     storage:
       s3:
-        endpoint: "minio.platform.svc.cluster.local:9000"
+        endpoint: "seaweedfs.platform.svc.cluster.local:8333"
         s3ForcePathStyle: true
         insecure: true
 
@@ -114,8 +118,16 @@ tempo:
     storage:
       trace:
         s3:
-          endpoint: "minio.platform.svc.cluster.local:9000"
+          endpoint: "seaweedfs.platform.svc.cluster.local:8333"
           insecure: true
+
+# Prometheus' TSDB on a laptop. The default is sized for a deployed tier's series
+# count; the local tier runs one of everything and is torn down often, so it takes
+# the smallest volume that still holds a meaningful window rather than 20Gi of
+# node-local disk that never fills.
+prometheus:
+  storage:
+    size: 5Gi
 
 # Keep every healthy trace locally. Prod/dev head-sample at 5% in the chart default
 # to cap volume, but on a laptop a developer needs to see the exact request they
@@ -146,7 +158,7 @@ grafana:
 lowdefy:
   replicas: 1
   image:
-    repository: k3d-registry.localhost:5000/admin
+    repository: registry.localhost:5000/admin
     tag: local
     pullPolicy: Always
 
@@ -156,7 +168,11 @@ lowdefy:
 # it points read-only at the in-cluster CNPG dev role (same dev:dev creds Kratos
 # uses locally). Headlamp needs no local override.
 pgweb:
-  databaseUrl: "postgres://dev:dev@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"
+  # The read-only role, not `dev` (ADR-0401). `dev` OWNS these tables, so pointing
+  # the inspector at it left pgweb's `--readonly` flag as the only thing between an
+  # operator and a write — one layer where the ADR states two, and the flag is the
+  # layer that does not apply to anyone who reaches the same database with psql.
+  databaseUrl: "postgres://readonly:readonly@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"
 
 # Admission control (ADR-0104). The local tier publishes no images and holds no
 # signing key, so both policies are absent by construction: `imagePrefix` is empty,

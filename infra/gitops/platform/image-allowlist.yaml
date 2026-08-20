@@ -10,33 +10,31 @@
 policies:
   allowedImageSources:
     - alpine/k8s
+    - axllent/mailpit
+    - chrislusf/seaweedfs
     - docker.io/bats/bats
     - docker.io/busybox
     - docker.io/grafana/grafana
     - docker.io/grafana/loki
     - docker.io/grafana/tempo
     - docker.io/kiwigrid/k8s-sidecar
+    - docker.io/library/busybox
     - docker.io/oryd/kratos
     - docker.io/oryd/oathkeeper
+    - docker.io/traefik
+    - foxcpp/maddy
     - ghcr.io/cloudnative-pg/cloudnative-pg
     - ghcr.io/cloudnative-pg/postgresql
     - ghcr.io/dexidp/dex
     - ghcr.io/headlamp-k8s/headlamp
     - ghcr.io/kyverno/readiness-checker
+    - ghcr.io/project-zot/zot-linux-amd64
+    - ghcr.io/tabmadi/microservices-monorepo-template/admin
     - grafana/alloy
     - grafana/pyroscope
-    - k3d-registry.localhost:5000/admin
-    - k3d-registry.localhost:5000/authz-server
-    - k3d-registry.localhost:5000/catalog-server
-    - k3d-registry.localhost:5000/frontend
-    - k3d-registry.localhost:5000/orders-server
-    - k3d-registry.localhost:5000/orders-worker
-    - k3d-registry.localhost:5000/orgs-server
-    - k3d-registry.localhost:5000/orgs-worker
-    - k3d-registry.localhost:5000/payment-server
-    - k3d-registry.localhost:5000/payment-worker
     - openfga/openfga
     - otel/opentelemetry-collector-contrib
+    - prom/alertmanager
     - prom/prometheus
     - public.ecr.aws/docker/library/redis
     - quay.io/argoproj/argocd
@@ -51,14 +49,25 @@ policies:
     - quay.io/jetstack/cert-manager-controller
     - quay.io/jetstack/cert-manager-startupapicheck
     - quay.io/jetstack/cert-manager-webhook
-    - quay.io/minio/mc
-    - quay.io/minio/minio
+    - rancher/local-path-provisioner
     - reg.kyverno.io/kyverno/background-controller
     - reg.kyverno.io/kyverno/cleanup-controller
     - reg.kyverno.io/kyverno/kyverno
     - reg.kyverno.io/kyverno/kyverno-cli
     - reg.kyverno.io/kyverno/kyvernopre
     - reg.kyverno.io/kyverno/reports-controller
+    - registry.localhost:5000/admin
+    - registry.localhost:5000/analytics-server
+    - registry.localhost:5000/authz-server
+    - registry.localhost:5000/authz-worker
+    - registry.localhost:5000/catalog-server
+    - registry.localhost:5000/frontend
+    - registry.localhost:5000/orders-server
+    - registry.localhost:5000/orders-worker
+    - registry.localhost:5000/orgs-server
+    - registry.localhost:5000/orgs-worker
+    - registry.localhost:5000/payment-server
+    - registry.localhost:5000/payment-worker
     - sosedoff/pgweb
     - temporalio/admin-tools
     - temporalio/server

@@ -150,7 +150,7 @@ spec:
               revision: master
               directories:
                 - { path: "infra/helm/platform/postgres" }
-                - { path: "infra/helm/platform/minio" }
+                - { path: "infra/helm/platform/seaweedfs" }
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
@@ -206,7 +206,7 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: core
   annotations:
-    # Wave 3: after the data tier is Healthy, so Tempo/Loki find MinIO + their
+    # Wave 3: after the data tier is Healthy, so Tempo/Loki find the store + their
     # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
     argocd.argoproj.io/sync-wave: "3"
 spec:
@@ -232,12 +232,23 @@ spec:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
               revision: master
               directories:
+                # The registry (ADR-0105). Wave 3 rather than beside the store: it
+                # reads the bucket, so it starts after the data tier is Healthy.
+                - { path: "infra/helm/platform/zot" }
                 - { path: "infra/helm/platform/observability" }
+                - { path: "infra/helm/platform/alertmanager" }
                   # The node-level collector, in a namespace of its own because it
                   # is the one platform workload needing hostPath and hostPorts
                   # (ADR-0200). Same tier as the backends it exports to.
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
+                  # The non-production mail sink Kratos's courier submits to
+                  # (ADR-0307). Beside ory because it is only useful to it, and
+                  # dropped by `mailpit.enabled: false` where a real relay exists.
+                - { path: "infra/helm/platform/mailpit" }
+                # Production mail (ADR-0307). Renders nothing unless the
+                # environment enables it, which only production does.
+                - { path: "infra/helm/platform/maddy" }
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
                 - { path: "infra/helm/platform/openfga" }

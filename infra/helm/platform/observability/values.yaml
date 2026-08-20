@@ -170,7 +170,7 @@ loki:
   # NOTE: the loki chart also bundles minio, rollout-operator and
   # grafana-agent-operator as *grandchild* subcharts, which Helm renders even
   # when their conditions are set false (nested-condition limitation). They are
-  # all dead weight here — loki uses the shared platform MinIO, runs one replica,
+  # all dead weight here — loki uses the shared platform object store, runs one replica,
   # and self-telemetry goes through the OTel collector — so they are physically
   # stripped from the vendored charts/loki-7.0.0.tgz (see observability/Chart.yaml).
 
@@ -234,8 +234,31 @@ prometheus:
   image: prom/prometheus:v3.1.0
   replicas: 1
   httpPort: 9090
-  # Local-TSDB retention. A project needing long retention takes the Mimir swap.
-  retention: 15d
+  # Local-TSDB retention. Must cover the SLO window ADR-0500 declares — 30 days,
+  # rolling — with a day of margin, or the burn-rate rules and the SLO tiles ask
+  # for a range the store cannot answer and quietly return less than they claim.
+  # A project needing longer retention than one local TSDB holds takes the Mimir
+  # swap rather than raising this.
+  retention: 31d
+  # Where evaluated alerts are sent for routing (ADR-0502). Named here rather
+  # than read from the alertmanager chart's values: a chart renders from its own
+  # values alone, so a cross-chart address is a value this chart owns.
+  alertmanagerTarget: alertmanager.platform.svc.cluster.local:9093
+  # The TSDB volume. Sizing is derived, not measured, and the derivation is here so
+  # the next person can redo it rather than trust it: Prometheus stores roughly two
+  # bytes per sample after compaction, this stack pushes through the OTel collector
+  # rather than scraping (`scrape_configs` is empty), and 31 days at one sample per
+  # series per 15 seconds is about 350 MiB per 1,000 active series. 20Gi therefore
+  # covers roughly 55,000 active series for the full window.
+  #
+  # It is a real capacity choice against node disk (ADR-0207), so an environment
+  # whose series count is known overrides it rather than inheriting this. The
+  # failure mode when it is too small is not an alert: Prometheus drops the oldest
+  # blocks and the window silently becomes shorter than `retention` claims.
+  storage:
+    size: 20Gi
+    # Unset means the cluster's default StorageClass.
+    storageClassName: ""
   # Measured 2026-07-26 under the ADR-0601 load suite: 230Mi working set, 37m CPU.
   # No cpu limit (ADR-0204) — a TSDB compaction is exactly the bursty, latency-
   # sensitive work CFS throttling ruins.
@@ -285,3 +308,10 @@ otelCluster:
   resources:
     requests: { cpu: "50m", memory: "192Mi" }
     limits:   { memory: "512Mi" }
+
+# Mirrors the gate in the maddy chart (infra/helm/platform/maddy). Both read the
+# same per-env overlay, so the scrape job appears exactly where the agent does.
+# maddy is production-only (ADR-0307), and a job that discovers nothing is a scrape
+# error every interval rather than a no-op.
+maddy:
+  enabled: false

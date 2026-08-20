@@ -29,16 +29,32 @@ if [ -n "$dupes" ]; then
   rc=1
 fi
 
-# 8080 must stay unassigned: k3d maps host 8080 to the edge, so a service bound
+# 8080 must stay unassigned: the local edge maps host 8080, so a service bound
 # there would shadow it.
 if all_port_entries | grep -q ':8080$'; then
-  warn "8080 is reserved for the k3d edge mapping — pick another port"
+  warn "8080 is reserved for the local edge mapping — pick another port"
   rc=1
 fi
 
 for dir in services/*/; do
   svc="$(basename "$dir")"
   [ "${svc#_}" = "$svc" ] || continue # skip _template
+
+  # A WORKER-ONLY service has no server, so it has no local port to register and
+  # nothing to collide with — it reaches Temporal outbound and never binds. The
+  # registry exists so two natively-run SERVERS do not race for a port; requiring
+  # an entry for something that never listens would put a number in the registry
+  # that means nothing, and a future service could then collide with it.
+  #
+  # `cmd/server` is the same discriminator lint:service-contract uses, so the two
+  # gates cannot disagree about what a service is.
+  if [ ! -d "${dir}cmd/server" ]; then
+    if service_port "$svc" >/dev/null 2>&1; then
+      warn "${svc} has no cmd/server but registers a local port — it never binds one"
+      rc=1
+    fi
+    continue
+  fi
 
   if ! registered="$(service_port "$svc" 2>/dev/null)"; then
     warn "${svc} has no entry in scripts/lib/ports.sh"

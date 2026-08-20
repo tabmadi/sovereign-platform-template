@@ -1,6 +1,6 @@
 # When true, allow the log/trace backends (loki/tempo) egress to external
 # HTTPS — needed in prod, where object storage is a real off-cluster S3 bucket
-# (ADR-0206). Local runs against in-cluster MinIO (covered by intra-namespace
+# (ADR-0206). Local runs against the in-cluster store (covered by intra-namespace
 # egress), so it stays false and no pod reaches the internet at all.
 externalObjectStorage: false
 
@@ -11,7 +11,7 @@ externalObjectStorage: false
 # templates/40-observability.yaml. It matches `namespace` in the otel-agent chart.
 otelAgentNamespace: otel-agent
 
-# The cluster's pod CIDR (k3s `--cluster-cidr`, default 10.42.0.0/16 — ADR-0206).
+# The cluster's pod CIDR (kind's kubeadm default, 10.244.0.0/16 — ADR-0206).
 #
 # Used ONLY by the "stale peer" allows (20-temporal.yaml, 40-observability.yaml),
 # where a workload keeps dialling the IP of a pod that has since been deleted.
@@ -25,5 +25,35 @@ otelAgentNamespace: otel-agent
 # tight port list at each use site, so it grants "may reach a pod address on the
 # ports this workload already uses", not "may reach the pod network".
 #
-# Override per env if the cluster is not on the k3s default.
-podCIDR: "10.42.0.0/16"
+# Override per env if the cluster is not on the kind default.
+podCIDR: "10.244.0.0/16"
+
+# Mirrors the gate in the mailpit chart (infra/helm/platform/mailpit). Both charts
+# read the same per-env overlay, so `mailpit.enabled: false` drops the sink and the
+# policy admitting Kratos to it together, rather than leaving a policy naming a
+# workload that is not there.
+mailpit:
+  enabled: true
+
+# Alertmanager's policy (45-alertmanager.yaml) renders only where it runs.
+alertmanager:
+  enabled: true
+
+# maddy is production-only (ADR-0307), and its policy follows the chart. A rule
+# selecting a workload that does not exist is inert, and inert rules are how a
+# policy file stops being read.
+maddyEnabled: false
+
+# Mirrors the gate in the edge-errors chart (infra/helm/platform/edge-errors). Both
+# read the same per-env overlay, so one flag drops the responder and the rule that
+# admits Traefik to it together — a rule naming an endpoint that does not exist
+# selects nothing, but it is also a claim about the platform that stopped being
+# true.
+edgeErrors:
+  enabled: true
+
+# Mirrors the gate in the forgejo chart (infra/helm/platform/forgejo). Off by
+# default like the chart: a policy selecting an endpoint that does not exist is a
+# claim about the platform that is not true.
+forgejo:
+  enabled: false

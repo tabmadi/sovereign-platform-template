@@ -6,9 +6,10 @@ This directory is synced by the `prod-secrets` Application (the `secrets` Applic
 
 ## Adopt
 
-1. Generate the `prod` cluster age key and replace the `cluster_prod` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/guide/secrets-runbook.md` / the Ansible bootstrap role).
-2. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/prod/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values (the CR structure stays readable) to `cluster_prod` + engineers + ops-recovery.
-3. Commit. Argo delivers it and the operator materialises the Secrets.
+1. Generate the `prod` cluster age key and replace the `cluster_prod` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/guide/secrets-runbook.md` and `infra/talos/README.md` — on Talos it rides in the SOPS-encrypted machine config as an inline manifest, because there is no host filesystem to place it on).
+2. **Replace the other two recipients of that path as well.** `.sops.yaml` gives it `eng_placeholder` and `ops_recovery` beside the cluster key, and sops encrypts to every recipient of a rule or to none — one remaining placeholder fails the encrypt with `malformed recipient`, naming the placeholder rather than the rule that pulled it in.
+3. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/prod/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values (the CR structure stays readable) to `cluster_prod` + engineers + ops-recovery.
+4. Commit. Argo delivers it and the operator materialises the Secrets.
 
 ## `platform.enc.yaml` skeleton
 
@@ -20,6 +21,11 @@ metadata:
   namespace: platform
 spec:
   secretTemplates:
+    # The DNS-01 solver's credential (ADR-0205). Without it the public issuer
+    # never becomes Ready and no wildcard certificate is ever issued.
+    - name: cloudflare-api-token
+      stringData:
+        token: ""
     - name: observability-bucket
       stringData:
         AWS_ACCESS_KEY_ID: ""
@@ -28,6 +34,14 @@ spec:
       type: kubernetes.io/basic-auth
       stringData:
         username: ""
+        password: ""
+    # The read-only inspector role (ADR-0401). CNPG reconciles this password onto
+    # the `readonly` role the cluster creates at bootstrap; pgweb connects as it,
+    # so the inspector cannot write even if its own flag is lost.
+    - name: postgres-readonly
+      type: kubernetes.io/basic-auth
+      stringData:
+        username: readonly
         password: ""
     - name: temporal-db-creds
       stringData:
@@ -50,5 +64,32 @@ spec:
         secretsCookie: ""
         secretsCipher: ""
         dsn: ""
+        # Production submits through maddy (ADR-0307), so this is a real
+        # submission endpoint. Mailpit is not deployed here.
         smtpConnectionURI: ""
+    # The registry's push and pull credentials, and the store credential it reads
+    # and writes S3 with (ADR-0105). `htpasswd` holds one BCRYPT line per identity
+    # — an apr1 file loads without complaint and then refuses every password.
+    #
+    #   htpasswd -nbB ci <push-password>
+    #   htpasswd -nbB cluster <pull-password>
+    - name: zot-credentials
+      stringData:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        htpasswd: ""
+    # maddy's DKIM private key (ADR-0307). Its public half goes in the TXT record
+    # at `<selector>._domainkey.mail.example.com`, and the two must be generated
+    # together: maddy MINTS a key when this is absent, which yields an agent that
+    # signs every message with a key no DNS record matches.
+    - name: maddy-dkim
+      stringData:
+        private.key: ""
+    # The submission credential Kratos, the services and Alertmanager authenticate
+    # with. The hash, not the password — this value reaches maddy's config file.
+    #
+    #   maddy hash --password <submission-password>
+    - name: maddy-submission
+      stringData:
+        password_hash: ""
 ```

@@ -1,0 +1,15 @@
+{{- if .Values.zot.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot
+  labels:
+    app: zot
+    app.kubernetes.io/name: zot
+    app.kubernetes.io/part-of: platform
+spec:
+  selector:
+    app: zot
+  ports:
+    - { name: http, port: {{ .Values.zot.service.port }}, targetPort: http }
+{{- end }}

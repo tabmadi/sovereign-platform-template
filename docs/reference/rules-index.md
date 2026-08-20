@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 154 |
-| Review-enforced | 299 |
-| **Total** | **453** |
+| Machine-enforced | 157 |
+| Review-enforced | 307 |
+| **Total** | **464** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -169,7 +169,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 
 | Rule | Enforced by |
 | --- | --- |
-| The forge is Forgejo, self-hosted, with its database on the existing CNPG cluster. | review |
+| The forge is Forgejo, self-hosted on a host outside the workload cluster, with its Postgres on that host. | review |
+| **The forge runs OUTSIDE the workload cluster it serves.** See below. | review |
 | Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](../adr/0000-platform-foundations.md), principle 5). | review |
 | Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML. | review |
 | Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](../adr/0000-platform-foundations.md), principle 1). | review |
@@ -321,6 +322,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier. | review |
 | The Kubernetes API, service chart, service images, and env contract are identical in every tier. | review |
 | Object storage is one implementation in every environment ([ADR-0207](../adr/0207-cluster-storage.md)). Production runs it outside the cluster, and no store holding production data runs on the cluster it serves. | review |
+| Outbound mail is one contract in every environment, not one implementation: production submits through the agent [ADR-0307](../adr/0307-outbound-email.md) decides, and every environment below it submits to a sink with no outbound path. | review |
 | Backups are off-cluster and mandatory in production ([ADR-0207](../adr/0207-cluster-storage.md)). Non-prod backups are convenience and are never cited as a recovery guarantee. | review |
 | SOPS is the secret mechanism in every environment, including local. | review |
 | A PR preview is the full-platform tier at a pull request's images, label-gated, and destroyed with the run. Its slug derives from the pull request number. | review |
@@ -355,7 +357,9 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires. | review |
 | Object storage is SeaweedFS in every environment. A second S3 implementation is not introduced for any tier. | review |
 | Production runs it outside the cluster. No object store holding production data runs on the cluster it serves. | review |
-| Production buckets have Object Lock enabled, with a retention window no shorter than the backup retention. | review |
+| Production buckets have Object Lock enabled, with the lock window EQUAL to the backup retention — a longer window makes CNPG's retention deletes fail and the bucket grow without bound. | review |
+| Object Lock mode is COMPLIANCE on the backup bucket and GOVERNANCE on the telemetry and registry buckets. | review |
+| Erasure reaches live stores immediately and locked backups by expiry of the lock window, and that bound is disclosed. | review |
 | Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly. | review |
 | Loki, Tempo, CNPG backups, and Pyroscope write to object storage rather than to a block volume. | review |
 
@@ -521,7 +525,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Platform mail and human mailboxes are never the same sender. They use separate egress IPs and separate `DKIM` selectors whether the mailbox system is bought or self-hosted, and platform mail sends as a subdomain. | review |
 | `SPF`, `DKIM`, and `DMARC` are committed per environment, and DMARC reaches `p=reject` before an environment is treated as production. | standard: RFC 7208, RFC 6376, RFC 7489 |
 | Delivery honours DANE and MTA-STS where the receiver publishes them. A failed policy validation defers the message; it never downgrades to cleartext. | standard: RFC 7672, RFC 8461 |
-| Non-production environments deliver to a sink, never to a real recipient. | review |
+| Non-production environments deliver to a sink, never to a real recipient. The sink carries no outbound delivery path, so the production agent does not serve as one. | review |
 | Mail a recipient did not individually trigger carries one-click `List-Unsubscribe`. Verification, recovery, and other transactional mail does not. | standard: RFC 8058 |
 | Mail bodies carry links and codes, never personal data ([ADR-0301](../adr/0301-data-lifecycle-privacy.md)). | review |
 | Delivery failure is observable as a metric: a failed submission is a failed activity, and the identity flow's completion rate is the signal a dropped verification mail moves. | review |
@@ -551,6 +555,9 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Forms use react-hook-form and zod through the shared `<Form>` primitive. | review |
 | URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. | `ci:lint` in CI |
 | The proxy enforces the Kratos session on the authenticated route groups, and the frontend never mints, decodes, or validates JWTs. | `lint:auth-inline` in CI |
+| An access denial is answered by its kind. No session redirects to the login flow carrying the current path and query; a session without permission renders in place, at the denied URL. | standard: RFC 9110 §15.5 |
+| Denials are raised once, in the fetch clients, and rendered by the framework's `unauthorized.tsx` and `forbidden.tsx`. A route carries no auth branch of its own, and the frontend computes no permission — the service decides ([ADR-0304](../adr/0304-identity-and-authorization.md)). | standard: OWASP ASVS V4.1.1 |
+| Browser calls to the API go through TanStack Query. A React boundary does not catch what an event handler throws, so a denial raised outside a render reaches no one. | review |
 | CSP is set in the proxy with a per-request nonce; inline scripts are not used and `connect-src` allowlists the telemetry ingest origin. | standard: CSP Level 3 |
 | CSRF rests on the SameSite cookie, Kratos's built-in protection, and the Server Actions Origin check. Hand-rolled CSRF tokens are not added. | review |
 | Biome is the only lint and format tool. ESLint is not installed. | `ci:lint` in CI |
@@ -558,6 +565,10 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The frontend contains no development-only authentication code. | `lint:auth-inline` in CI |
 | Browser observability is OpenTelemetry web plus Faro, exporting through the edge to the collector. Faro's session id is in-memory and per-page; the ops path writes nothing to client-side storage ([ADR-0700](../adr/0700-analytics.md)). | review |
 | Server logs are structured JSON to stdout. | `ci:lint` in CI |
+| A client provider mounts at the route group that consumes it. Only providers that must wrap every route belong in the root layout. | review |
+| A browser SDK not needed for first paint is loaded with a dynamic `import()`. A static import decides when a bundle is downloaded and parsed, which deferring the call does not change — so nothing in the initial graph may statically import one. | review |
+| A redirect that can be decided before rendering is issued from the proxy, not from a page. Behind a `loading.tsx` boundary a page-level redirect ships as a rendered 200. | review |
+| Server components do not call the identity provider. Browser flows reach it through the edge ([ADR-0304](../adr/0304-identity-and-authorization.md)), which is the only path the network policy allows. | review |
 | Bundle budgets and the Lighthouse thresholds are merge gates. | review |
 | Images go through `next/image` and fonts through `next/font`. | `ci:lint` in CI |
 | No i18n library is adopted; strings live in one file per route group. | review |
@@ -625,7 +636,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used. | review |
 | Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state ([ADR-0000](../adr/0000-platform-foundations.md), principle 1). | review |
-| Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes. | review |
+| Every alert rule carries `severity: page` or `severity: ticket`. `page` asserts a human must act within minutes. | `lint:alert-severity` in CI |
 | Error-budget burn rules are authored against the SLIs in [ADR-0500](../adr/0500-observability.md) and carry `severity: ticket` while no paging receiver is attached. | review |
 | Maintenance silences are committed, time-bounded, and expire on their own. | review |
 | No on-call rotation is claimed until a paging receiver is attached to the webhook. | review |

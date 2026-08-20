@@ -31,6 +31,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
@@ -38,12 +39,18 @@ DOMAIN="${DOMAIN:-dev.localtest.me}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
-h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
+h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
 # 1. Cluster + CNI. Same bootstrap floor as every other tier.
 bash scripts/cluster-ensure.sh
 bash scripts/cilium-install.sh
+
+# 1a. The edge controller. kind ships no ingress controller, so
+#     the floor installs the committed Traefik chart every environment runs.
+#     Its CRDs must exist before any IngressRoute is applied, hence imperative.
+step "installing Traefik (edge controller)"
+bash scripts/traefik-install.sh
 
 # 1b. The namespaces, with their Pod Security Admission profile (ADR-0200). Before
 #     anything is admitted into them, because PSA is an admission check: a label
@@ -136,6 +143,16 @@ k apply -n "$NS" -f infra/gateway/middlewares.yaml
 #    cluster:full decrypts through the sops-operator), with one substitution: the
 #    dsn points at the stand-in Postgres above instead of CNPG, which this profile
 #    does not run.
+# The local age key is committed (ADR-0202's one exemption), and the template ships
+# ONE of them — so every project generated from it would share a key until someone
+# thought to change it. This mints a per-project key on first use and re-encrypts
+# the local bundle to it; a project that already has its own is left alone.
+#
+# Ahead of the decrypt below, because after it the bundle is closed to a key this
+# repository no longer holds.
+step "checking the local age key belongs to this project"
+bash scripts/rotate-local-age-key.sh
+
 step "materialising kratos-secrets from the committed local SOPS bundle"
 secrets="$(SOPS_AGE_KEY_FILE=infra/gitops/platform/local/age.key \
   sops -d infra/gitops/platform/local/secrets/platform.enc.yaml |
@@ -169,14 +186,11 @@ h upgrade --install ory infra/helm/platform/ory \
 #    dials the edge reaches the edge and not its own loopback. Needed by anything
 #    running in-cluster that calls through the edge — the frontend above all.
 step "rewriting ${DOMAIN} to the edge in CoreDNS"
-k apply -f infra/local/coredns-rewrite.yaml
-k -n kube-system rollout restart deploy/coredns
-k -n kube-system rollout status deploy/coredns --timeout=120s
+bash scripts/coredns-rewrite.sh
 
 # 8. Host edge glue: the catch-all `/` route to the host `next dev` and the
 #    docker-bridge EndpointSlice. cluster-ensure.sh skips it on a brand-new cluster
 #    (Traefik's CRDs are not registered yet), so stamp it now that they are.
-k apply -f infra/local/traefik-config.yaml
 bash scripts/cluster-edge-glue.sh
 
 # 9. The committed test identities (ADR-0601) — the same ones the e2e suite uses,
@@ -185,8 +199,8 @@ bash scripts/identity-seed.sh
 
 # The credentials are committed once, in the e2e fixtures; read them rather than
 # repeating them here (bun reads the .ts directly — no Node, no e2e install).
-login_email="$(bun --silent -e \
-  "console.log((await import('${ROOT}/test/e2e/fixtures/identities.ts')).USER.email)" 2>/dev/null ||
+login_identity="$(bun --silent -e \
+  "const {ADMIN} = await import('${ROOT}/test/e2e/fixtures/identities.ts'); console.log(ADMIN.email + ' / ' + ADMIN.password)" 2>/dev/null ||
   echo '<see test/e2e/fixtures/identities.ts>')"
 
 cat <<EOF
@@ -198,8 +212,9 @@ cat <<EOF
     mise run cluster:add -- <svc>           in-cluster, from the working tree
 
   Open:          https://${DOMAIN}:8443/
-  Log in as:     ${login_email}
-                 (password: test/e2e/fixtures/identities.ts — sessions last 7 days)
+  Log in as:     ${login_identity}
+                 (committed throwaway credentials; sessions last 7 days. The full
+                 credential table is docs/dev-loop.md)
   Teardown:      mise run cluster:stop  (keep cache) / cluster:delete (delete)
 
   Base alone serves no application data: /api routes 404 until something answers

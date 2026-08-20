@@ -2,13 +2,17 @@
 # Preload every platform image into the node BEFORE the imperative bring-up needs
 # them (OPT-IN, proxied networks only).
 #
+# Works on both tiers, by different means: `kind load` into the inner loop's node,
+# and a push to the local registry for the full tier, which has no load path. See
+# import_image below.
+#
 # The sibling cluster:unwedge is REACTIVE — it rescues Argo-synced pods stuck in
 # ImagePullBackOff. But cluster:full's imperative head (cilium-install, then the
 # ArgoCD install) BLOCKS on `helm --wait` rollouts BEFORE Argo ever runs, so if
 # the node's containerd wedges pulling Cilium or ArgoCD through a slow proxy there
 # is no pod loop for unwedge to fix — the whole bring-up just hangs. This warms
 # every platform image ahead of time: host `docker pull` (the host proxy handles
-# large TLS blobs fine) → `k3d image import` into the node's containerd.
+# large TLS blobs fine) → `kind load docker-image` into the node's containerd.
 #
 #   mise run cluster:preload          # every platform chart image
 #
@@ -17,9 +21,54 @@
 # this — cluster:full only runs it when CLUSTER_PRELOAD=1.
 set -euo pipefail
 
-CLUSTER="${CLUSTER:-platform}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
+
+CLUSTER="$(cluster_name)"
+
+# How an image reaches the node differs by tier, and on the full tier there is no
+# load path at all — a Talos node holds nothing the cluster did not PULL.
+#
+# So the full tier's preload is a push: the image is fetched on the host, where the
+# proxy is configured and the pull is serial, then pushed to the local registry.
+# The nodes reach it because infra/talos/local/patch.yaml mirrors quay.io, ghcr.io,
+# registry.k8s.io and docker.io at that registry, with upstream fallback left on.
+#
+# The repository path is preserved across the push — `quay.io/argoproj/argocd`
+# becomes `registry.localhost:5000/argoproj/argocd` — because a containerd mirror
+# requests the SAME path from the mirror endpoint. Rewriting the path would produce
+# a registry full of images no node ever asks for.
+LOCAL_REGISTRY="127.0.0.1:5000"
+
+import_image() { # <ref>
+  local ref="$1"
+  if [ "$(cluster_tier)" != "full" ]; then
+    kind load docker-image "$ref" --name "$CLUSTER" >/dev/null
+    return
+  fi
+  # The repository path the NODE asks the mirror for: the ref minus its registry
+  # host. Three shapes, and conflating them silently wastes the push:
+  #
+  #   redis:8              → library/redis:8     (Docker Hub's implicit namespace)
+  #   axllent/mailpit:v1   → axllent/mailpit:v1  (already namespaced — NOT library/)
+  #   ghcr.io/org/app:v1   → org/app:v1          (explicit host, stripped)
+  #
+  # `library/` applies only to a SINGLE-segment name. Adding it to `axllent/mailpit`
+  # produces `library/axllent/mailpit`, which no node ever requests — the pull falls
+  # back upstream and the preload bought nothing. Measured: mailpit and seaweedfs
+  # both landed under the wrong path.
+  local path
+  if [[ "$ref" != */* ]]; then
+    path="library/${ref}"
+  elif [[ "${ref%%/*}" == *.* || "${ref%%/*}" == *:* ]]; then
+    path="${ref#*/}"
+  else
+    path="$ref"
+  fi
+  docker tag "$ref" "${LOCAL_REGISTRY}/${path}"
+  docker push -q "${LOCAL_REGISTRY}/${path}" >/dev/null
+}
 
 # cilium + argocd are the two charts cluster:full installs imperatively (helm
 # --wait) before Argo, so a wedged pull there stalls the whole bring-up; the rest
@@ -41,7 +90,7 @@ render() { # <chart>
   local c="$1"
   case "$c" in
   cilium) helm template cilium infra/helm/platform/cilium \
-    --set cilium.kubeProxyReplacement=false --set cilium.k8sServiceHost=127.0.0.1 2>/dev/null ;;
+    --set cilium.k8sServiceHost=127.0.0.1 2>/dev/null ;;
   *) helm template "$c" "infra/helm/platform/$c" 2>/dev/null ;;
   esac
 }
@@ -92,9 +141,9 @@ for img in "${want[@]}"; do
     failed+=("$img")
     continue
   fi
-  # k3d import can't resolve a `repo:tag@sha256:…` ref; a digest-only pull leaves no
-  # `repo:tag` local tag either. Tag it back so import (and the digest-pinned pod)
-  # resolve the same bytes locally. Same dance as cluster:unwedge.
+  # kind load docker-image can't resolve a `repo:tag@sha256:…` ref; a digest-only
+  # pull leaves no `repo:tag` local tag either. Tag it back so the load (and the
+  # digest-pinned pod) resolve the same bytes locally. Same dance as cluster:unwedge.
   import_ref="$img"
   if [[ "$img" == *"@sha256:"* ]]; then
     no_digest="${img%@sha256:*}"
@@ -102,7 +151,7 @@ for img in "${want[@]}"; do
       docker tag "$img" "$no_digest" && import_ref="$no_digest"
     fi
   fi
-  k3d image import "$import_ref" -c "$CLUSTER" >/dev/null || {
+  import_image "$import_ref" || {
     echo "    ✗ import failed: $import_ref"
     failed+=("$img")
   }

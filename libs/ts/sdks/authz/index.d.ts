@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/authorize/relation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Check one relation for one subject against one object. */
+        post: operations["checkRelation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/operators": {
         parameters: {
             query?: never;
@@ -145,21 +162,42 @@ export interface components {
             /** @description The operator identity trait; "true" when set. */
             operator: string;
         };
+        /** @description A single OpenFGA relation question, in the model's own vocabulary. */
+        RelationCheck: {
+            /** @description The subject, prefixed by its type — `user:<identity-id>`. */
+            subject: string;
+            /** @description The relation to test */
+            relation: string;
+            /** @description The object, prefixed by its type — `analytics_panel:funnels`. */
+            object: string;
+        };
+        /**
+         * @description The answer to one relation check.
+         * @example {
+         *       "allowed": true
+         *     }
+         */
+        RelationDecision: {
+            allowed: boolean;
+        };
         /** @description Request body to create an operator. */
         OperatorInput: {
             email: string;
             password: string;
         };
         /**
-         * @description A created operator.
+         * @description Handle to an async Temporal workflow run.
          * @example {
-         *       "id": "019a3f8c-6d21-7c4b-8e55-0f27f7f0b001",
-         *       "email": "operator@e2e.localtest.me"
+         *       "id": "register-operator-ops-example.com",
+         *       "run_id": "01kztn9tsrea7b1597q3yjdeav",
+         *       "status": "running"
          *     }
          */
-        Operator: {
+        WorkflowHandle: {
             id: string;
-            email: string;
+            run_id: string;
+            /** @enum {string} */
+            status: "running" | "completed" | "failed" | "cancelled";
         };
         /**
          * @description A Kratos identity, flattened from its traits for the admin changelist.
@@ -310,6 +348,32 @@ export interface operations {
             default: components["responses"]["Error"];
         };
     };
+    checkRelation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The relation to check. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelationCheck"];
+            };
+        };
+        responses: {
+            /** @description The decision. A deny is an answer, not an error. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelationDecision"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
     createOperator: {
         parameters: {
             query?: never;
@@ -324,13 +388,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created */
-            200: {
+            /** @description The operator registration was accepted and is running. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Operator"];
+                    "application/json": components["schemas"]["WorkflowHandle"];
                 };
             };
             default: components["responses"]["Error"];

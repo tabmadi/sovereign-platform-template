@@ -5,7 +5,7 @@
 
 # ── PriorityClass tiers ──────────────────────────────────────────────────────
 # Eviction order under real node pressure: batch dies first, Core last. Values are
-# far below the k3s system classes (system-cluster-critical = 2000000000,
+# far below the Kubernetes system classes (system-cluster-critical = 2000000000,
 # system-node-critical = 2000001000), so nothing here can out-prioritise the CNI
 # or kubelet's own workloads — which is exactly right, because a node that evicts
 # Cilium to keep a product service alive has lost the network the service needs.
@@ -86,7 +86,7 @@ limitRanges:
     defaultCPURequest: 50m
 
 # ── ResourceQuota: aggregate namespace cap ───────────────────────────────────
-# Sized for the LOCAL single-node k3d tier (24 cores / 31Gi allocatable). Override
+# Sized for the LOCAL single-node kind tier (24 cores / 31Gi allocatable). Override
 # per environment in infra/gitops/platform/<env>/values.yaml — a prod three-node
 # set has a different budget, and these numbers must not be mistaken for it.
 #

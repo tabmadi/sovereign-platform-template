@@ -1,14 +1,16 @@
 # Platform ApplicationSets (ADR-0201). The platform tier is split into three
 # dependency layers, each its own ApplicationSet so ArgoCD can order them:
 #
-#   base (wave 0)  — sops-operator, cert-manager, network-policies, resource-governance, cilium, argocd
+#   base (wave 0)  — sops-operator, cert-manager, network-policies, resource-governance
 #                    Foundational, dependency-free. sops-operator must run before
 #                    any SopsSecret CR can be decrypted into Secrets (ADR-0202).
-#   data (wave 2)  — postgres, minio. The storage layer everything else sits on;
+#                    Cilium and Argo CD are NOT in it — they precede Argo and are
+#                    installed imperatively in every tier (see the generator).
+#   data (wave 2)  — postgres, seaweedfs. The storage layer everything else sits on;
 #                    needs the Secrets produced by the base + secrets tiers.
 #   core (wave 3)  — observability, ory, temporal, temporal-worker-controller,
 #                    openfga, pgweb, headlamp, lowdefy. Consumers of the data
-#                    layer (Postgres DSNs, the MinIO trace/log buckets).
+#                    layer (Postgres DSNs, the trace/log buckets).
 #
 # WHY THREE SETS AND NOT PER-CHART SYNC-WAVES: sync-waves on the Applications a
 # single ApplicationSet generates are INERT — those Applications are created by
@@ -68,6 +70,14 @@ spec:
                   # labelled after its pods are admitted governs nothing, because
                   # PSA is an admission check.
                 - { path: "infra/helm/platform/namespaces" }
+                  # The default StorageClass (ADR-0200). Base tier, and ahead of
+                  # the data tier by construction: a PVC created before a default
+                  # StorageClass exists stays Pending with no class to resolve, and
+                  # nothing re-binds it when one appears. Talos ships no
+                  # provisioner, so without this every stateful chart hangs at its
+                  # first volume. The laptop tier leaves it off — kind brings its
+                  # own.
+                - { path: "infra/helm/platform/local-path" }
                   # Admission control (ADR-0104). In the BASE tier because a
                   # policy that arrives after the workloads it gates has already
                   # missed them: admission is evaluated once, at creation.
@@ -81,12 +91,41 @@ spec:
                   # workload names one — a pod naming a missing class is rejected.
                 - { path: "infra/helm/platform/resource-governance" }
                 - { path: "infra/helm/platform/temporal-worker-controller-crds" }
-                # Prod manages the CNI + ArgoCD itself through GitOps (the local
-                # tier excludes these — cluster:full installs them imperatively
-                # because a CNI must exist before any pod, and Argo cannot install
-                # itself). They belong in the earliest tier.
-                - { path: "infra/helm/platform/cilium" }
-                - { path: "infra/helm/platform/argocd" }
+                # CILIUM AND ARGO CD ARE DELIBERATELY NOT HERE, in any tier.
+                #
+                # Neither can be installed by the thing it is a prerequisite of:
+                # no pod schedules before the CNI exists, and Argo cannot apply
+                # its own first install. Both come up imperatively ahead of Argo
+                # (scripts/cilium-install.sh and cluster-full.sh / the equivalent
+                # prod bootstrap), which is the one-time `kubectl apply` step
+                # ADR-0201 permits.
+                #
+                # Listing either here does not merely duplicate that install — it
+                # BREAKS it. Every Application this set generates targets the
+                # `platform` namespace, while Cilium runs in `kube-system` and
+                # Argo CD in `argocd`, and both charts' RBAC is CLUSTER-SCOPED:
+                # the rendered ClusterRoleBinding keeps its name and rebinds the
+                # subject to `platform:<sa>`, overwriting the correct binding.
+                #
+                # Measured on a three-node cluster, both faults reproduced from a
+                # clean install:
+                #
+                #   kubectl get clusterrolebinding cilium-operator -o \
+                #     jsonpath='{.subjects[0].namespace}'            -> platform
+                #   kubectl auth can-i get namespaces --as=system:\
+                #     serviceaccount:kube-system:cilium-operator      -> no
+                #
+                # on a cluster whose ClusterRole granted exactly that verb. The
+                # operator then crashloops on `namespaces "kube-system" is
+                # forbidden` while every agent still reports healthy; new pods
+                # stop getting identities and sit in ContainerCreating with no
+                # events at all.
+                #
+                # Argo CD fails the same way one level up — its own controller
+                # loses cluster access and reports
+                # `namespaces "platform" is forbidden: User
+                # "system:serviceaccount:argocd:argocd-application-controller"`,
+                # so every other Application in the set stops syncing.
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
@@ -178,7 +217,7 @@ spec:
               revision: master
               directories:
                 - { path: "infra/helm/platform/postgres" }
-                - { path: "infra/helm/platform/minio" }
+                - { path: "infra/helm/platform/seaweedfs" }
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
@@ -233,7 +272,7 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: core
   annotations:
-    # Wave 3: after the data tier is Healthy, so Tempo/Loki find MinIO + their
+    # Wave 3: after the data tier is Healthy, so Tempo/Loki find the store + their
     # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
     argocd.argoproj.io/sync-wave: "3"
 spec:
@@ -261,12 +300,41 @@ spec:
               repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
               revision: master
               directories:
+                # The registry (ADR-0105). Wave 3 rather than beside the store: it
+                # reads the bucket, so it starts after the data tier is Healthy.
+                - { path: "infra/helm/platform/zot" }
+                  # The forge (ADR-0102). Renders nothing unless an environment
+                  # enables it, which none do by default — deploying the forge that
+                  # hosts this repository from the Argo instance that syncs it is
+                  # the bootstrap circularity, and it is a decision rather than a
+                  # default.
+                - { path: "infra/helm/platform/forgejo" }
+                  # The public ACME issuer and the edge's wildcard certificates
+                  # (ADR-0205). Core tier, not base: a DNS-01 solver needs the
+                  # token the secrets tier (wave 1) delivers, and an Application
+                  # stays Progressing while an issuer it owns is not Ready — so
+                  # in the base tier it holds wave 0 open against a secret only a
+                  # later wave can produce.
+                - { path: "infra/helm/platform/public-tls" }
                 - { path: "infra/helm/platform/observability" }
+                - { path: "infra/helm/platform/alertmanager" }
                   # The node-level collector, in a namespace of its own because it
                   # is the one platform workload needing hostPath and hostPorts
                   # (ADR-0200). Same tier as the backends it exports to.
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
+                  # The edge's RFC 9457 error bodies (ADR-0305). Beside ory
+                  # because Oathkeeper is what raises most of the responses it
+                  # rewrites, and every denial the edge issues makes a subrequest
+                  # here.
+                - { path: "infra/helm/platform/edge-errors" }
+                  # The non-production mail sink Kratos's courier submits to
+                  # (ADR-0307). Beside ory because it is only useful to it, and
+                  # dropped by `mailpit.enabled: false` where a real relay exists.
+                - { path: "infra/helm/platform/mailpit" }
+                # Production mail (ADR-0307). Renders nothing unless the
+                # environment enables it, which only production does.
+                - { path: "infra/helm/platform/maddy" }
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
                 - { path: "infra/helm/platform/openfga" }

@@ -6,16 +6,16 @@ cluster:
   storage: { size: 50Gi }
   backup:
     retentionPolicy: "7d"
-    s3: { endpointURL: "http://minio.platform.svc.cluster.local:9000", destinationPath: "s3://platform-backups/postgres" }
+    s3: { endpointURL: "http://seaweedfs.platform.svc.cluster.local:8333", destinationPath: "s3://platform-backups/postgres" }
 
-# Non-prod object storage is in-cluster MinIO, not an off-cluster bucket
+# Non-prod object storage is in-cluster SeaweedFS, not the off-cluster store
 # (ADR-0205). Override each backend's S3 endpoint; prod keeps the chart
 # defaults (the off-cluster bucket) and disables this chart entirely.
 loki:
   loki:
     storage:
       s3:
-        endpoint: minio.platform.svc.cluster.local:9000
+        endpoint: seaweedfs.platform.svc.cluster.local:8333
         s3ForcePathStyle: true
         insecure: true
 tempo:
@@ -23,13 +23,31 @@ tempo:
     storage:
       trace:
         s3:
-          endpoint: minio.platform.svc.cluster.local:9000
+          endpoint: seaweedfs.platform.svc.cluster.local:8333
           insecure: true
 
 # Lowdefy admin console (ADR-0401): the one repo-built platform image. Pulled from
 # ghcr and promoted by git SHA on merge (promote-on-merge), exactly like the Go
-# services and the frontend. Local uses the k3d registry (platform/local/values.yaml).
+# services and the frontend. Local uses the local registry (platform/local/values.yaml).
 lowdefy:
   image:
     repository: ghcr.io/tabmadi/microservices-monorepo-template/admin
     tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
+
+# Talos ships no storage provisioner and nothing else claims the default
+# StorageClass here (ADR-0200), so this is what an unannotated PVC resolves to.
+# The laptop tier leaves it off — kind brings its own.
+localPath:
+  enabled: true
+
+# The wildcard host this environment serves, and the ACME account that certifies
+# it (ADR-0205). Both are placeholders an adopter replaces: the certificates are
+# derived from the host, and Let's Encrypt sends expiry warnings and account
+# recovery to the address. Neither has a default a template could pick, so the
+# chart fails the render rather than issuing a certificate for `*.`.
+envHost: dev.example.com
+publicTls:
+  enabled: true
+  envHost: dev.example.com
+  acme:
+    email: ops@example.com

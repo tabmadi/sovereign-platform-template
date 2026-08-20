@@ -13,14 +13,22 @@
 # Teardown: mise run cluster:stop (stop) / mise run cluster:delete (delete).
 set -euo pipefail
 
+# The full tier runs on Talos, not kind (ADR-0600). Set BEFORE the context library
+# is sourced: it resolves the cluster name and kube context from this, and a
+# cluster:full that resolved to the inner loop's context would install the whole
+# platform onto the wrong cluster.
+export TIER=full
+
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-k() { kubectl --context "k3d-${CLUSTER}" "$@"; }
-h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
+source "$(dirname "$0")/lib/cluster-ctx.sh"
+
+k() { kubectl --context "$(cluster_ctx)" "$@"; }
+h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 # argocd CLI in core mode: talks straight to the Application CRDs (no `argocd
 # login` / argocd-server, ADR-0201). Core mode derives the install namespace from
 # the kube-context, so it runs against a throwaway kubeconfig pinned to `argocd`
@@ -28,7 +36,12 @@ h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
 ac() { KUBECONFIG="$AC_KUBECONFIG" argocd --core "$@"; }
 
 # 1. Cluster + CNI (a CNI must exist before Argo's pods can schedule).
-bash scripts/cluster-ensure.sh
+#
+# The Talos provisioner installs Cilium itself, and it has to: this tier's machine
+# config carries `cni: name: none`, so the nodes never go Ready — and
+# `talosctl cluster create` never returns — until a CNI is delivered. There is no
+# separate cilium-install step here for that reason.
+bash scripts/cluster-dispatch.sh ensure
 # On a proxied network the node's containerd can wedge pulling the large Cilium /
 # ArgoCD images through privoxy, stalling the `helm --wait` steps below (which run
 # before Argo, so cluster:unwedge can't rescue them). CLUSTER_PRELOAD=1 warms those
@@ -37,7 +50,6 @@ if [ "${CLUSTER_PRELOAD:-0}" = "1" ]; then
   echo "→ CLUSTER_PRELOAD=1: preloading bootstrap-critical images"
   bash scripts/cluster-preload-images.sh
 fi
-bash scripts/cilium-install.sh
 
 # 2. ArgoCD (it cannot sync itself into existence). Excluded from the local
 #    platform ApplicationSet, so this imperative release is authoritative.
@@ -47,6 +59,13 @@ h upgrade --install argocd infra/helm/platform/argocd -n argocd --create-namespa
 k -n argocd rollout status deploy/argocd-server --timeout=300s
 k -n argocd rollout status deploy/argocd-repo-server --timeout=300s
 k -n argocd rollout status deploy/argocd-applicationset-controller --timeout=300s
+
+# 2b. The edge controller (ADR-0305). kind ships no ingress controller, so the
+#     tier installs the committed Traefik chart every
+#     environment runs. Imperative, like Cilium: the gateway Application (wave 4)
+#     applies IngressRoutes, and their CRDs must exist before it does.
+echo "→ installing Traefik (edge controller)"
+bash scripts/traefik-install.sh
 
 # 3. SOPS decryption key (the bootstrap root of trust): the committed throwaway
 #    local age key, planted as the Secret the sops-operator mounts (ADR-0202).
@@ -63,29 +82,29 @@ k -n "$NS" create secret generic sops-age-key \
   --dry-run=client -o yaml | k apply -f -
 
 # 3b. Grafana's `grafana-dashboards` ConfigMap (observability chart values
-#     dashboardsConfigMaps.default) is now GitOps-managed, not materialised here:
-#     the local root-app syncs infra/gitops/local-bootstrap/app-grafana-dashboards.yaml,
-#     a Kustomize app that generates it from infra/observability/dashboards/*.json at
+#     dashboardsConfigMaps.default) is GitOps-managed, not materialised here: the
+#     local root-app syncs infra/gitops/local-bootstrap/app-grafana-dashboards.yaml,
+#     whose chart generates it from infra/observability/dashboards/*.json at
 #     sync-wave 2 — before the core tier (wave 3) starts Grafana, which mounts it
-#     (ADR-0500). A PR that adds or edits a dashboard now reaches the cluster on the
-#     next Argo pass, instead of needing an imperative `kubectl create configmap`.
+#     (ADR-0500). A PR that adds or edits a dashboard reaches the cluster on the
+#     next Argo pass, rather than needing an imperative `kubectl create configmap`.
 
 # 3c. Build + push repo images to the local registry — the local stand-in for CI.
 #     Argo then deploys services + lowdefy from the registry exactly as prod pulls
 #     from ghcr; the only difference is the registry host in the values overlay
 #     (ADR-0205). Must run before step 4 so images exist before Argo creates pods.
 #     Build args mirror scripts/service-deploy.sh.
-REG="k3d-registry.localhost:5000"
+REG="registry.localhost:5000"
 # Push over the loopback host, not REG. Docker picks HTTP-vs-HTTPS by resolving the
 # registry hostname and checking the result against its insecure-registry CIDRs
-# (127.0.0.0/8, ::1/128 by default). k3d's registry only speaks plain HTTP, so the
-# push works only if the name resolves into those CIDRs — which depends on each dev's
-# NSS setup mapping *.localhost to loopback (e.g. myhostname). Where it doesn't,
-# k3d-registry.localhost resolves elsewhere and docker demands TLS: "server gave HTTP
-# response to HTTPS client". 127.0.0.1 sidesteps all of that (loopback is insecure on
-# every daemon, no per-machine daemon.json). Both names address the same registry
-# container and blobs are keyed by repo path, so REG stays the cluster-facing pull
-# name in the values overlays; only the push target differs.
+# (127.0.0.0/8, ::1/128 by default). The local registry only speaks plain HTTP, so
+# the push works only if the name resolves into those CIDRs — which depends on each
+# dev's NSS setup mapping *.localhost to loopback (e.g. myhostname). Where it
+# doesn't, registry.localhost resolves elsewhere and docker demands TLS: "server
+# gave HTTP response to HTTPS client". 127.0.0.1 sidesteps all of that (loopback is
+# insecure on every daemon, no per-machine daemon.json). Both names address the
+# same registry container and blobs are keyed by repo path, so REG stays the
+# cluster-facing pull name in the values overlays; only the push target differs.
 PUSH_REG="127.0.0.1:5000"
 build_push() { # <image-name> <dockerfile> <context> [extra docker build args…]
   local name="$1" dockerfile="$2" context="$3"
@@ -242,12 +261,18 @@ done
 echo "✓ all ArgoCD applications Synced + Healthy"
 
 # 6. Host-specific edge tail (cannot be GitOps — depends on per-machine state):
-#    local Traefik tuning, plus the /auth + landing routes to a host-run frontend
-#    and the frontend-dev EndpointSlice. The latter two live in cluster-edge-glue.sh so
-#    the start path (cluster-ensure.sh) and reboot recovery (cluster-heal.sh) can
-#    re-stamp them too — otherwise a stop/start drops the `frontend` route (404 at /).
-k apply -f infra/local/traefik-config.yaml
+#    the /auth + landing routes to a host-run frontend and the frontend-dev
+#    EndpointSlice. They live in cluster-edge-glue.sh so the start path
+#    (cluster-ensure.sh) and reboot recovery (cluster-heal.sh) can re-stamp them
+#    too — otherwise a stop/start drops the `frontend` route (404 at /).
 bash scripts/cluster-edge-glue.sh
+
+# 6b. Seed the committed test identities (ADR-0601) so a fresh full tier is usable
+#     immediately. Kratos, orgs, and OpenFGA are all up by now, so this creates the
+#     identities, runs each one's post-registration process (personal org + tuple),
+#     and grants group:operator in OpenFGA — no e2e run or manual ops:grant needed.
+#     Idempotent; safe on every bring-up.
+bash scripts/identity-seed.sh
 
 cat <<EOF
 
@@ -257,14 +282,17 @@ cat <<EOF
     Grafana:          https://grafana.ops.${DOMAIN}:8443/
     Hubble UI (map):  https://hubble.ops.${DOMAIN}:8443/
     Temporal UI:      https://temporal.ops.${DOMAIN}:8443/
-    MinIO console:    https://minio.ops.${DOMAIN}:8443/  (login: minio / minio-password)
+    SeaweedFS admin:  https://seaweedfs.ops.${DOMAIN}:8443/  (then: admin / seaweedfs-admin-password)
     Lowdefy console:  https://lowdefy.ops.${DOMAIN}:8443/
     ArgoCD:           https://argocd.ops.${DOMAIN}:8443/
     Headlamp (k8s):   https://headlamp.ops.${DOMAIN}:8443/   (read-only debug UI)
     pgweb (DB):       https://pgweb.ops.${DOMAIN}:8443/    (read-only DB inspector)
+  Log in:             https://${DOMAIN}:8443/auth/login  — admin@localtest.me / 1st Password!
+                      (AAL2: enrol a TOTP second factor on first login; full credential
+                      table in docs/dev-loop.md)
   Frontend:           run it natively on :3000 (the frontend-dev EndpointSlice
                       routes /auth + landing to the host).
-  Diagnose:           argocd --core --kube-context k3d-${CLUSTER} app get <app>
+  Diagnose:           argocd --core --kube-context "$(cluster_ctx)" app get <app>
                       UI: kubectl -n argocd port-forward svc/argocd-server 8080:443
   Break-glass:        auth plane down? reach any tool via kubectl port-forward with
                       your kubeconfig — the sanctioned bypass (docs/guide/break-glass.md),

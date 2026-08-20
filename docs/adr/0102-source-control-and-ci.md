@@ -26,7 +26,7 @@ A managed forge is the one dependency that cannot be reconciled with principle 3
 
 | Option | Component weight | Pipelines | Governance | Verdict |
 | --- | --- | --- | --- | --- |
-| **Forgejo + Forgejo Actions** | one Go binary, plus a database on the existing CNPG cluster | built in, GitHub-Actions workflow syntax, runners are self-hosted by definition | non-profit umbrella ([Codeberg e.V.](https://forgejo.org/)), [GPLv3+](https://lwn.net/Articles/986998/) | **Chosen.** The only option that satisfies drivers 1–4 together *(reasoned)* |
+| **Forgejo + Forgejo Actions** | one Go binary, plus a Postgres on the forge host | built in, GitHub-Actions workflow syntax, runners are self-hosted by definition | non-profit umbrella ([Codeberg e.V.](https://forgejo.org/)), [GPLv3+](https://lwn.net/Articles/986998/) | **Chosen.** The only option that satisfies drivers 1–4 together *(reasoned)* |
 | Gitea + Gitea Actions | identical | identical | company-controlled | Functionally equivalent. Provenance is *recorded evidence about exit cost* (principle 4), and the governing body is the only discriminator between two otherwise equal choices |
 | Gogs | one Go binary | **none** — no built-in CI | maintainer-led | The ancestor both rows above forked from, and the pipelines went with the forks. Adopting it lands on the separate-CI-engine row below |
 | GitLab CE | a suite — Gitaly, Redis, Sidekiq, its own Postgres, several web services | mature and complete | company-controlled, open-core | Rejected by principle 2, as [ADR-0000](0000-platform-foundations.md) already records. It replaces one component with a platform |
@@ -48,7 +48,7 @@ Both Tier 2 ([ADR-0002](0002-tool-adoption.md)), and both are consequences of th
 
 | Concern | Decision |
 | --- | --- |
-| Forge | **Forgejo**, self-hosted, backed by a database on the existing CNPG cluster ([ADR-0300](0300-data.md)) rather than its own |
+| Forge | **Forgejo**, self-hosted on its own host, with its Postgres on that same host |
 | Pipelines | **Forgejo Actions**, with runners on infrastructure we control |
 | Workflow content | checkout, toolchain setup, then `mise run ci:*`. Logic does not live in YAML |
 | Review record | pull requests on the forge. Branch protection and required checks are configuration in the repository ([ADR-0000](0000-platform-foundations.md), principle 1) |
@@ -72,13 +72,55 @@ A generated project needs CI from its first commit, before any cluster exists to
 
 Forgejo does mint [per-job OIDC tokens for Actions](https://forgejo.org/docs/latest/user/actions/security-openid-connect/), alongside ephemeral runners. That capability is available for anything wanting a short-lived workload identity; it is not what signs images.
 
+## Where the forge runs
+
+**Outside the workload cluster**, on its own host, and this is the same decision
+[ADR-0207](0207-cluster-storage.md) makes about the production object store for the
+same reason: a component that exists to recover a cluster must not share that
+cluster's failure domain.
+
+The forcing argument is circularity. Argo CD reconciles the platform from git, git
+lives in the forge, and the forge would be deployed by Argo — so a full-cluster loss
+leaves nothing to reconcile *from*. Recovery would start by rebuilding the forge by
+hand, from a backup, before any of the automation that depends on it can run. That
+is not a recovery procedure anyone should discover during an incident.
+
+Running it outside removes the cycle rather than sequencing it: Argo syncs from a
+forge that Argo never deployed.
+
+**Its database goes with it.** A forge on its own host whose Postgres is the
+workload cluster's CNPG has moved the binary and left the state behind: the same
+cluster loss still takes the repositories, the pull requests and the review record
+with it, and the recovery still starts by restoring a database from a backup before
+anything can reconcile. The forge host carries its own Postgres for the same reason
+it is a host at all.
+
+| | In the workload cluster | Outside it |
+| --- | --- | --- |
+| Recovery from full-cluster loss | rebuild the forge first, by hand, from a backup | the source is already there; Argo reconciles |
+| Bootstrap order | forge must be installed imperatively before Argo, like Argo itself | no ordering constraint at all |
+| Operational cost | one fewer host | one more host, patched and backed up separately |
+| Blast radius of a cluster mistake | takes the source of truth with it | does not |
+
+The cost is honest and it is a host: someone patches it, backs it up, and monitors
+it outside the platform's own observability. That is the price of the property, and
+it is the same price already paid for the object store.
+
+**zot is the same question with a different answer.** The registry is on the
+critical path for every pod start, so an in-cluster registry cannot serve the
+cluster it lives in during a cold start — but unlike the forge it holds no source of
+truth: it is object-storage-backed and its contents are rebuildable by a redeploy
+([ADR-0105](0105-image-registry.md)). What it needs is for its BUCKET to be outside
+the cluster, which [ADR-0207](0207-cluster-storage.md) already requires in
+production. The registry itself stays in-cluster.
+
 ## Consequences
 
 ### Positive
 
 - Source, review, pipelines, and the build identity run on controlled infrastructure. Axis B is held rather than asserted.
 - Forgejo Actions reuses the workflow syntax already in the repository, so the migration is re-targeting rather than rewriting.
-- No second CI engine, and no second datastore: the forge uses the Postgres already on the floor.
+- No second CI engine, and the forge's database is a single Postgres on the forge host — the one place it can be without re-entering the cluster's failure domain.
 
 ### Negative / Risks
 
@@ -88,7 +130,8 @@ Forgejo does mint [per-job OIDC tokens for Actions](https://forgejo.org/docs/lat
 
 ## Rules
 
-- The forge is Forgejo, self-hosted, with its database on the existing CNPG cluster.
+- The forge is Forgejo, self-hosted on a host outside the workload cluster, with its Postgres on that host.
+- **The forge runs OUTSIDE the workload cluster it serves.** See below.
 - Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](0000-platform-foundations.md), principle 5).
 - Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
 - Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](0000-platform-foundations.md), principle 1).

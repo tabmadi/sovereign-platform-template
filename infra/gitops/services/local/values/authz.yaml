@@ -6,10 +6,14 @@
 # chart via the SOPS-managed preshared key.
 name: authz
 image:
-  repository: k3d-registry.localhost:5000/authz-server
+  repository: registry.localhost:5000/authz-server
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:full re-run
-worker:     { enabled: false }
+worker:
+  enabled: true          # RegisterOperator dual write (ADR-0302, ADR-0304)
+  image:
+    repository: registry.localhost:5000/authz-worker
+    tag: local
 server:     { replicas: 1 }
 ingress:    { enabled: false }   # internal authorizer — no edge route
 migrations: { enabled: false }   # no database
@@ -24,7 +28,7 @@ secrets:    { envFrom: [openfga-creds] }
 # routed back through the edge/Oathkeeper.
 networkPolicy:
   allowFromGateway: false
-  allowFrom: [oathkeeper, lowdefy]
+  allowFrom: [oathkeeper, lowdefy, frontend]
 env:
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   # Blank so libs/go/authz falls back to openfga-creds.preshared_key (envFrom).

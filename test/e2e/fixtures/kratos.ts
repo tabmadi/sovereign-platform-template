@@ -214,40 +214,56 @@ export async function operatorLogin(
   await page.fill('input[name="identifier"]', email);
   await page.fill('input[name="password"]', password);
   await page.click(submitFor("password"));
+
+  // Kratos continues a browser login to aal=aal2 in-flow when the identity has a
+  // second factor enrolled and whoami.required_aal is highest_available
+  // (infra/auth/kratos): after the password it redirects the browser to
+  // `/auth/self-service/login/browser?aal=aal2` and renders the TOTP challenge on
+  // the same /auth/login URL. Answer it in place; a password-only identity (no
+  // second factor) redirects away instead, the locator never becomes visible, and
+  // the AAL1 session stands.
+  const totp = page.locator('input[name="totp_code"]');
+  const prompted = await totp
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (prompted) {
+    await totp.fill(await freshTotp(page, secret));
+    await page.click(submitFor("totp"));
+  }
   await notOnLogin(page);
   await waitForSession(page);
   await settle(page);
 
-  // Step up in a SECOND, explicitly aal2 flow rather than expecting the first one
-  // to prompt in place.
-  //
-  // `whoami.required_aal: highest_available` (infra/auth/kratos) governs what a
-  // session must be to satisfy whoami — it does not make the login flow ask for a
-  // second factor. `selfservice.flows.login.required_aal` would, and is not set, so
-  // a plain login/browser init completes at AAL1 for an operator with TOTP enrolled
-  // and renders no totp node at all.
-  //
-  // This helper used to answer the prompt only `if (prompted)`, which turned that
-  // into the suite's long-running flake: the login quietly finished at AAL1, the ops
-  // edge then refused the dashboard and redirected to the product root, and the
-  // failure surfaced 30 seconds and two assertions later as `expected /Grafana/,
-  // received "Platform"` — which reads like a routing bug and is nothing of the
-  // kind. It passed whenever the browser happened to carry an aal2 flow id from the
-  // gate's own redirect, which is why it looked like load-dependent flakiness.
-  //
-  // The prompt is required here: the context is fresh, so there is no already-
-  // elevated session for Kratos to short-circuit against (which is the case
-  // ensureAal2 exists to handle, and why it keeps the optional shape).
-  const totp = page.locator('input[name="totp_code"]');
-  await gotoFlow(page, init("login", "?aal=aal2"), 'input[name="totp_code"]');
-  await expect(
-    totp,
-    "no TOTP prompt in the aal2 login flow — this session would stay AAL1 and the ops edge would refuse it",
-  ).toBeVisible({ timeout: 30_000 });
-  await totp.fill(await freshTotp(page, secret));
-  await page.click(submitFor("totp"));
-  await notOnLogin(page);
-  await settle(page);
+  // An operator HAS a second factor, so anything short of aal2 is a failed
+  // step-up, not a password-only identity. The step-up can be lost without ever
+  // failing loudly: a 429 from `auth-ratelimit` on the aal2 continuation renders
+  // "Could not start sign-in" instead of the TOTP form, so the prompt never
+  // appears, the branch above is skipped, and the flow ends on an AAL1 session
+  // that the edge then refuses — surfacing much later as a dashboard title
+  // assertion reading "Platform". Ask Kratos what the session actually is and
+  // re-run the step-up until it says aal2.
+  await expect(async () => {
+    if ((await sessionAal(page)) !== "aal2") {
+      await ensureAal2(page, secret);
+      await settle(page);
+    }
+    expect(await sessionAal(page)).toBe("aal2");
+  }).toPass({ timeout: 90_000, intervals: [RATE_LIMIT_WAIT_MS] });
+}
+
+// sessionAal reads the AAL Kratos itself records for the browser session, which is
+// the only authority on whether a step-up landed — the URL after a login says
+// nothing about it. Returns null when there is no session at all.
+async function sessionAal(page: Page): Promise<string | null> {
+  const res = await page.request.get(`${BASE_URL}/auth/sessions/whoami`, {
+    failOnStatusCode: false,
+  });
+  if (!res.ok()) {
+    return null;
+  }
+  const body = (await res.json()) as { authenticator_assurance_level?: string };
+  return body.authenticator_assurance_level ?? null;
 }
 
 // enrolTotp enrols a TOTP second factor via the settings flow, reading the secret
@@ -284,4 +300,21 @@ export async function ensureAal2(page: Page, secret: string): Promise<void> {
     await page.click(submitFor("totp"));
   }
   await notOnLogin(page);
+}
+
+// startRecovery drives the real recovery form, which is what makes the Kratos
+// COURIER submit a message — the server only queues it (ADR-0307).
+//
+// `use: code` (infra/auth/kratos/values.yaml) means the mail carries a six-digit
+// code rather than a magic link, and the flow stays open until that code is
+// entered, so starting recovery does not change the account it names.
+export async function startRecovery(page: Page, email: string): Promise<void> {
+  await gotoFlow(page, init("recovery"), 'input[name="email"]');
+  await page.fill('input[name="email"]', email);
+  await page.click(submitFor("code"));
+  // Kratos advances the same flow to the code form. Enumeration protection makes
+  // it render identically for an address that has no account, so this proves the
+  // flow moved and NOT that anything was sent — the sink is the only evidence of
+  // that, which is the whole reason a sink exists.
+  await page.locator('input[name="code"]').waitFor({ state: "visible", timeout: 30_000 });
 }

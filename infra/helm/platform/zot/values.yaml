@@ -1,0 +1,101 @@
+# Values namespaced under `zot:` so this chart shares the platform
+# ApplicationSet's single per-env values overlay without key collisions. A
+# top-level key here would be read by every OTHER chart's render of the same
+# file — and, worse, this chart would ignore the per-environment override that
+# names it, which is how a production-disabled component stays enabled.
+zot:
+  # zot — the image registry (ADR-0105).
+  #
+  # `enabled` is the umbrella gate. The local tier sets it false: the inner loop
+  # pushes to the shared local registry at `registry.localhost:5000`, which exists
+  # so a working-tree image never needs a registry the cluster has to authenticate
+  # to (ADR-0600).
+  enabled: true
+
+  image:
+    repository: ghcr.io/project-zot/zot-linux-amd64
+    tag: "v2.1.20"
+    pullPolicy: IfNotPresent
+
+  # The S3 bucket zot stores images and their referrers in, on the platform's own
+  # object store. Image data is never on a node volume (ADR-0105).
+  storage:
+    bucket: zot-images
+    endpoint: seaweedfs.platform.svc.cluster.local:8333
+    region: us-east-1
+    # http, not https: the store is in-cluster and the hop does not leave it. The
+    # off-cluster production store is reached over TLS, which is why this is a value
+    # rather than a constant.
+    secure: false
+    # Untagged manifests unreferenced by a signature or an environment's values are
+    # collected on a schedule (ADR-0105). `gcDelay` is the grace an in-flight push
+    # gets before its blobs count as garbage — shorter than a slow push and the
+    # push collects its own layers.
+    gc: true
+    gcDelay: 1h
+    gcInterval: 24h
+
+  # PULL-THROUGH MIRRORING of the upstream registries (ADR-0105).
+  #
+  # This is the answer to a problem that is not really about registries: on a
+  # proxied or firewalled network, every layer that pulls an image needs its own
+  # egress configuration — each Talos node, each kind node, each build host. Point
+  # them all at zot instead and exactly ONE component talks to the internet for
+  # images. The firewall rule becomes one entry and the node configuration becomes
+  # none.
+  #
+  # `onDemand` rather than a poll: zot fetches an image the first time something
+  # asks for it and caches it thereafter. Nothing has to be preloaded, and no list
+  # of images has to be derived and kept current — which is the part that rots.
+  #
+  # Docker Hub is `onDemand` ONLY and must never be polled: it rate-limits pulls
+  # and does not support catalog listing, so a poll walks a catalog that is not
+  # there and spends the rate limit finding out. zot's own documentation says so.
+  #
+  # What this does NOT do, and the docs say so plainly: it covers IMAGE pulls. The
+  # build path still needs egress for base images and language modules, and
+  # non-image traffic — ACME, mail delivery, DMARC reports — is unaffected. This
+  # reduces the layers that need a proxy; it does not remove the proxy.
+  sync:
+    enabled: true
+    # Retained on the local disk cache as well as the bucket, so a second node
+    # pulling the same image does not re-fetch it from upstream.
+    registries:
+      - urls: ["https://registry-1.docker.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://quay.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://ghcr.io"]
+        onDemand: true
+        tlsVerify: true
+      - urls: ["https://registry.k8s.io"]
+        onDemand: true
+        tlsVerify: true
+
+  # Credentials, both halves, from one SOPS-encrypted Secret (ADR-0105, ADR-0202):
+  #
+  #   htpasswd                 bcrypt lines for the two identities below
+  #   AWS_ACCESS_KEY_ID        the store credential zot reads and writes S3 with
+  #   AWS_SECRET_ACCESS_KEY
+  #
+  # bcrypt specifically: zot loads an apr1 file without complaint, reports the right
+  # number of users, and then refuses every password (observed 2026-08-19 on 2.1.20).
+  credentialsSecret: zot-credentials
+
+  # The two identities ADR-0105 names. Anonymous gets nothing — no policy, so a
+  # request without credentials is refused before any repository rule is consulted.
+  auth:
+    pushUser: ci
+    pullUser: cluster
+
+  service:
+    port: 5000
+
+  # ADR-0204. The registry is on the critical path for pod starts, so the limit is
+  # the one that decides whether a scale-up succeeds; it is set for a concurrent
+  # multi-layer pull rather than for the idle case.
+  resources:
+    requests: { cpu: "50m", memory: "256Mi" }
+    limits: { memory: "1Gi" }

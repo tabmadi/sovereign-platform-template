@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # One-shot in-cluster deploy from the WORKING TREE (ADR-0200, ADR-0205) — the
 # occasional "I need my uncommitted code in the cluster for edge/auth/e2e testing"
-# case. No watch loop (that was Skaffold's job; the daily loop is native execution).
-# Builds the image(s), imports them into k3d, and helm-upgrades the same chart prod
-# uses with the local values overlay.
+# case. No watch loop: the daily loop is native execution.
+# Builds the image(s), loads them into the kind node, and helm-upgrades the same
+# chart prod uses with the local values overlay.
 #
 #   mise run service:deploy -- <svc>
 #
@@ -24,6 +24,7 @@ set -euo pipefail
 source "$(dirname "$0")/lib/argo.sh"
 
 CLUSTER="${CLUSTER:-platform}"
+source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -49,8 +50,8 @@ else
   exit 1
 fi
 
-k() { kubectl --context "k3d-${CLUSTER}" -n "$NS" "$@"; }
-h() { helm --kube-context "k3d-${CLUSTER}" "$@"; }
+k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
+h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
 # Bring up what this service declares it needs, before deploying it (ADR-0205,
 # ADR-0600). Without this a deploy onto a bare base silently CrashLoops: orders
@@ -107,8 +108,47 @@ for s in $svcs; do
   fi
 done
 
+# publish_image — get a locally built image onto the ACTIVE TIER's nodes.
+#
+# The two tiers need different mechanisms, and the difference is not incidental:
+#
+#   inner loop (kind)  `kind load docker-image` copies from the host's image store
+#                      straight into the node. Fast, and there is nothing to
+#                      reconcile from git here, so directness costs nothing.
+#
+#   full tier (Talos)  there is no load path. A Talos node holds no image the
+#                      cluster did not pull, and there is no host store to share —
+#                      so the image is PUSHED to the local registry and the kubelet
+#                      pulls it, which is the path a deployed environment uses
+#                      (ADR-0600). The registry is plain HTTP, which the nodes
+#                      accept because infra/talos/local/patch.yaml declares it as a
+#                      mirror; without that the pull fails on a TLS handshake
+#                      against a plaintext endpoint.
+#
+# The push address is 127.0.0.1:5000 and the pull address is registry.localhost:5000
+# — the same registry under two names. Docker treats loopback as insecure so the
+# push needs no daemon.json, and blobs are keyed by repository path, so the two
+# names never have to agree.
+publish_image() {
+  local ref="$1"
+  if [ "$(cluster_tier)" = "full" ]; then
+    docker tag "$ref" "127.0.0.1:5000/${ref}"
+    docker push -q "127.0.0.1:5000/${ref}" >/dev/null
+    return
+  fi
+  kind load docker-image "$ref" --name "$(cluster_name)" >/dev/null
+}
+
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
-SET=(--set "image.repository=${IMAGE}" --set "image.tag=${TAG}")
+# On the full tier the pod pulls by the registry name the NODES resolve, not by the
+# bare image name the host built — a bare name would send the kubelet to Docker Hub.
+REPO="${IMAGE}"
+WORKER_REPO="${SVC}-worker"
+if [ "$(cluster_tier)" = "full" ]; then
+  REPO="registry.localhost:5000/${IMAGE}"
+  WORKER_REPO="registry.localhost:5000/${SVC}-worker"
+fi
+SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
 
 # Build identity baked into the image (ADR-0103): the working-tree SHA (+ -dirty
 # for uncommitted edits — the norm for this local path), so /version and the
@@ -135,7 +175,7 @@ else
     --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' "$VALUES")" \
     -f "${SVC_DIR}/Dockerfile" .
 fi
-k3d image import "${IMAGE}:${TAG}" -c "$CLUSTER"
+publish_image "${IMAGE}:${TAG}"
 
 # Build the worker too when this service declares one (orders, payment).
 if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
@@ -145,8 +185,8 @@ if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
     --build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local \
     --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     -f "${SVC_DIR}/Dockerfile" .
-  k3d image import "${SVC}-worker:${TAG}" -c "$CLUSTER"
-  SET+=(--set "worker.image.repository=${SVC}-worker" --set "worker.image.tag=${TAG}")
+  publish_image "${SVC}-worker:${TAG}"
+  SET+=(--set "worker.image.repository=${WORKER_REPO}" --set "worker.image.tag=${TAG}")
 fi
 
 # Pause Argo auto-sync on this service if the full tier manages it.

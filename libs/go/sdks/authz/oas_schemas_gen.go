@@ -4,6 +4,8 @@ package authz
 
 import (
 	"fmt"
+
+	"github.com/go-faster/errors"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -168,33 +170,6 @@ func (s *IdentityUpdate) SetName(val OptString) {
 // SetOperator sets the value of Operator.
 func (s *IdentityUpdate) SetOperator(val OptBool) {
 	s.Operator = val
-}
-
-// A created operator.
-// Ref: #/components/schemas/Operator
-type Operator struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-}
-
-// GetID returns the value of ID.
-func (s *Operator) GetID() string {
-	return s.ID
-}
-
-// GetEmail returns the value of Email.
-func (s *Operator) GetEmail() string {
-	return s.Email
-}
-
-// SetID sets the value of ID.
-func (s *Operator) SetID(val string) {
-	s.ID = val
-}
-
-// SetEmail sets the value of Email.
-func (s *Operator) SetEmail(val string) {
-	s.Email = val
 }
 
 // Request body to create an operator.
@@ -470,4 +445,154 @@ func (s *ProblemErrorsItem) SetPointer(val string) {
 // SetMessage sets the value of Message.
 func (s *ProblemErrorsItem) SetMessage(val string) {
 	s.Message = val
+}
+
+// A single OpenFGA relation question, in the model's own vocabulary.
+// Ref: #/components/schemas/RelationCheck
+type RelationCheck struct {
+	// The subject, prefixed by its type — `user:<identity-id>`.
+	Subject string `json:"subject"`
+	// The relation to test.
+	Relation string `json:"relation"`
+	// The object, prefixed by its type — `analytics_panel:funnels`.
+	Object string `json:"object"`
+}
+
+// GetSubject returns the value of Subject.
+func (s *RelationCheck) GetSubject() string {
+	return s.Subject
+}
+
+// GetRelation returns the value of Relation.
+func (s *RelationCheck) GetRelation() string {
+	return s.Relation
+}
+
+// GetObject returns the value of Object.
+func (s *RelationCheck) GetObject() string {
+	return s.Object
+}
+
+// SetSubject sets the value of Subject.
+func (s *RelationCheck) SetSubject(val string) {
+	s.Subject = val
+}
+
+// SetRelation sets the value of Relation.
+func (s *RelationCheck) SetRelation(val string) {
+	s.Relation = val
+}
+
+// SetObject sets the value of Object.
+func (s *RelationCheck) SetObject(val string) {
+	s.Object = val
+}
+
+// The answer to one relation check.
+// Ref: #/components/schemas/RelationDecision
+type RelationDecision struct {
+	Allowed bool `json:"allowed"`
+}
+
+// GetAllowed returns the value of Allowed.
+func (s *RelationDecision) GetAllowed() bool {
+	return s.Allowed
+}
+
+// SetAllowed sets the value of Allowed.
+func (s *RelationDecision) SetAllowed(val bool) {
+	s.Allowed = val
+}
+
+// Handle to an async Temporal workflow run.
+// Ref: #/components/schemas/WorkflowHandle
+type WorkflowHandle struct {
+	ID     string               `json:"id"`
+	RunID  string               `json:"run_id"`
+	Status WorkflowHandleStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *WorkflowHandle) GetID() string {
+	return s.ID
+}
+
+// GetRunID returns the value of RunID.
+func (s *WorkflowHandle) GetRunID() string {
+	return s.RunID
+}
+
+// GetStatus returns the value of Status.
+func (s *WorkflowHandle) GetStatus() WorkflowHandleStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *WorkflowHandle) SetID(val string) {
+	s.ID = val
+}
+
+// SetRunID sets the value of RunID.
+func (s *WorkflowHandle) SetRunID(val string) {
+	s.RunID = val
+}
+
+// SetStatus sets the value of Status.
+func (s *WorkflowHandle) SetStatus(val WorkflowHandleStatus) {
+	s.Status = val
+}
+
+type WorkflowHandleStatus string
+
+const (
+	WorkflowHandleStatusRunning   WorkflowHandleStatus = "running"
+	WorkflowHandleStatusCompleted WorkflowHandleStatus = "completed"
+	WorkflowHandleStatusFailed    WorkflowHandleStatus = "failed"
+	WorkflowHandleStatusCancelled WorkflowHandleStatus = "cancelled"
+)
+
+// AllValues returns all WorkflowHandleStatus values.
+func (WorkflowHandleStatus) AllValues() []WorkflowHandleStatus {
+	return []WorkflowHandleStatus{
+		WorkflowHandleStatusRunning,
+		WorkflowHandleStatusCompleted,
+		WorkflowHandleStatusFailed,
+		WorkflowHandleStatusCancelled,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s WorkflowHandleStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case WorkflowHandleStatusRunning:
+		return []byte(s), nil
+	case WorkflowHandleStatusCompleted:
+		return []byte(s), nil
+	case WorkflowHandleStatusFailed:
+		return []byte(s), nil
+	case WorkflowHandleStatusCancelled:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *WorkflowHandleStatus) UnmarshalText(data []byte) error {
+	switch WorkflowHandleStatus(data) {
+	case WorkflowHandleStatusRunning:
+		*s = WorkflowHandleStatusRunning
+		return nil
+	case WorkflowHandleStatusCompleted:
+		*s = WorkflowHandleStatusCompleted
+		return nil
+	case WorkflowHandleStatusFailed:
+		*s = WorkflowHandleStatusFailed
+		return nil
+	case WorkflowHandleStatusCancelled:
+		*s = WorkflowHandleStatusCancelled
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }

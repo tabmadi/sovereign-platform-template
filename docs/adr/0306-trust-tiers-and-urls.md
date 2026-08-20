@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0307](0307-outbound-email.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
 - **Decides:** Product is served from the apex and operator tooling from one origin per tool under `*.ops.<host>`.
 
 ## Context
@@ -13,7 +13,7 @@ Every environment exposes two kinds of HTTP surface behind one Traefik edge:
 | Surface | Contents | Code ownership |
 | --- | --- | --- |
 | **Product** | the Next.js app, the service APIs, browser telemetry ingest | first-party |
-| **Operations tooling** | Hubble UI, Grafana, the Lowdefy console, Argo CD, the Temporal UI, Headlamp, pgweb, the SeaweedFS admin UI | **third-party — deployed, not authored** |
+| **Operations tooling** | Hubble UI, Grafana, the Lowdefy console, Argo CD, the Temporal UI, Headlamp, pgweb, the Mailpit viewer, the SeaweedFS admin UI | **third-party — deployed, not authored** |
 
 This ADR fixes where each lives, how one operator login covers the ops tier, and what the API path looks like.
 
@@ -83,6 +83,7 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | Lowdefy admin | `lowdefy.ops.<host>` | the sole admin surface ([ADR-0401](0401-internal-admin.md)) |
 | Headlamp | `headlamp.ops.<host>` | read-only by default ([ADR-0501](0501-operator-uis-and-dashboards.md)) |
 | pgweb | `pgweb.ops.<host>` | read-only break-glass |
+| Mailpit | `mailpit.ops.<host>` | **non-prod only** — the mail sink's viewer ([ADR-0307](0307-outbound-email.md)) |
 | SeaweedFS admin | `seaweedfs.ops.<host>` | **non-prod only**, and the sole exposed surface of that component |
 
 **A component exposing several UIs gets one origin, not several.** SeaweedFS ships a master UI, a filer UI, and an admin UI; only the admin UI is routed. The others are diagnostic surfaces reached the way any unrouted surface is reached, because an origin per internal view multiplies CSP, rate-limit, and session surface for no operator capability that the admin UI lacks. The production instance runs outside the cluster ([ADR-0200](0200-cluster-topology.md)), so it has no `ops.<host>` origin at all and its administration is not an edge concern.
@@ -162,6 +163,38 @@ The service API is a **flat resource namespace** — the URL names the resource,
 **One reserved path sits outside both tiers.** `/.well-known/` on the apex is neither product nor ops surface; it is where the web's own conventions live, so nothing else claims that prefix. The apex publishes [`security.txt`](https://www.rfc-editor.org/rfc/rfc9116) there — a contact address and a disclosure policy — because a researcher who finds something looks in exactly one place, and its absence routes the report to whatever public inbox they can find instead.
 
 **The path holds for a public or partner API too.** It is distinguished by its `x-audience: public` contract and its JWT auth, not by its origin. Versioning never enters the URL: the default is single-live-version, and online versioning rides a header ([ADR-0303](0303-api-contracts-and-lifecycle.md)), which is precisely why the flat resource URL stays stable across versions.
+
+## Single sign-on for the operator consoles
+
+Self-hosting multiplies consoles — Forgejo, zot, Grafana, Argo CD, Headlamp, Hubble,
+the Temporal UI, pgweb — and the cost lands on offboarding: someone leaves, and
+the question is whether anyone remembers all eight.
+
+**The answer is the identity stack already here, not a ninth component.** Ory Hydra
+is already in the tree as the OIDC provider ([ADR-0305](0305-edge-auth-and-traffic-policy.md)),
+Kratos is already the identity source, and the login UI already exists at
+`/auth/login`. Consoles that speak OIDC consume it; deactivating one Kratos identity
+removes access to all of them at once.
+
+| Option | Verdict |
+| --- | --- |
+| **Hydra + Kratos, already deployed** | **Chosen.** No new component, no second identity source, and one offboarding action. Consent is auto-granted for first-party console clients, which is what keeps a third-party consent screen from appearing in front of an internal tool *(reasoned)* |
+| Authentik | The best admin experience in the field and the wrong shape here: it is a second identity system beside Kratos, so every person exists twice and offboarding becomes two actions — the problem restated, not solved. It also brings its own PostgreSQL and Redis |
+| Zitadel | Live candidate for this slot precisely because the objections to it are about custom login UIs and config-as-code for *application* identity, neither of which applies to hosted-login OIDC. It still loses on the same count as Authentik: a second source of people |
+| Keycloak | The same duplication, on a JVM, with realms and mappers to learn |
+| Authelia | A tiny footprint and a forward-auth model this platform already has, in Oathkeeper. It would replace a component rather than add SSO |
+
+**Consoles that do not speak OIDC stay edge-gated**, which is what they have today:
+Oathkeeper's forward-auth in front of `{tool}.ops.<host>` already requires a Kratos
+session, so access is single sign-on even where the console has no idea. pgweb, the
+Hubble UI and the Temporal UI are in this group.
+
+**The residual risk is local accounts, and it is the one worth naming.** Grafana,
+Forgejo and Argo CD each keep an internal admin that bypasses OIDC entirely, so an
+offboarding that only deactivates the Kratos identity leaves those standing. Each
+console's local admin is therefore a **break-glass credential in the secret store**
+([ADR-0202](0202-secrets.md)) rather than a per-person account — one credential to
+rotate, and nobody's personal login.
 
 ## Consequences
 

@@ -30,14 +30,27 @@ cluster:
   priorityClassName: platform-critical
   storage:
     size: 20Gi
-    storageClass: ""    # defaults to k3s local-path (ADR-0207)
+    storageClass: ""    # defaults to the cluster's default StorageClass (ADR-0207)
   # CNPG provisions one app database (`database`/`owner`) per Cluster; the
   # platform needs one per service plus kratos/temporal/openfga, so the rest
   # are created via postInitApplicationSQL, owned by the same app role.
+  #
+  # These run ONCE, at cluster bootstrap. Adding a line here does nothing to a
+  # cluster that already exists — a service whose database is missing fails to
+  # start, and the fix is a manual `CREATE DATABASE` against the running cluster,
+  # not a re-sync. `lint:service-databases` is what stops a new service reaching a
+  # deployed environment without its line being here in the first place.
   initdb:
     database: orders
     owner: dev
     secretName: postgres-superuser
+    # Cluster-global, so it belongs at bootstrap rather than in any one service's
+    # migrations: the read-only inspector role ADR-0401 requires, created without a
+    # login. `managed.roles` below attaches the password and the login right, so no
+    # credential appears in committed SQL. What the role may READ is granted per
+    # database by each service's migrations, because that changes with the schema.
+    postInitSQL:
+      - "CREATE ROLE readonly NOLOGIN"
     postInitApplicationSQL:
       - "CREATE DATABASE catalog OWNER dev"
       - "CREATE DATABASE orgs OWNER dev"
@@ -45,7 +58,20 @@ cluster:
       - "CREATE DATABASE kratos OWNER dev"
       - "CREATE DATABASE temporal OWNER dev"
       - "CREATE DATABASE temporal_visibility OWNER dev"
+      - "CREATE DATABASE analytics OWNER dev"
       - "CREATE DATABASE openfga OWNER dev"
+      # The forge's database (ADR-0102). Created even though the forgejo chart is
+      # disabled by default: this list runs ONCE at bootstrap, so a database that
+      # is not created here cannot be created later by enabling a chart.
+      - "CREATE DATABASE forgejo OWNER dev"
+  # The read-only role's login half (ADR-0401, ADR-0202). CNPG reconciles the
+  # password from the Secret rather than from a values field, so rotating it is
+  # re-encrypting one SopsSecret entry.
+  managedRoles:
+    - name: readonly
+      ensure: present
+      login: true
+      passwordSecretName: postgres-readonly
   pooler:
     instances: 2
     poolMode: transaction      # ADR-0300: transaction mode is the default

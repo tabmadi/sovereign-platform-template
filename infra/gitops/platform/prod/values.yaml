@@ -1,18 +1,62 @@
-# MinIO is non-prod only (ADR-0205); gate the whole chart off here, the same
-# values-only way every other per-env delta is expressed.
-minio:
+# The in-cluster object store is non-prod only (ADR-0207): production runs the
+# same implementation OUTSIDE the cluster, because a store that runs on the
+# cluster it backs shares the failure domain it exists to survive. Gated off here,
+# the same values-only way every other per-env delta is expressed.
+seaweedfs:
   enabled: false
 
-# ...which is exactly why this is on. With MinIO gone, prod's object storage is a
-# real off-cluster bucket: Loki/Tempo fall back to the chart's
-# s3.eu-central-1.amazonaws.com endpoint, and postgres' backup.s3.endpointURL is
-# empty, meaning real AWS S3. Default-deny egress (network-policies 00-baseline)
-# drops all of that unless this flag opens it (network-policies 70-*).
+# Mailpit is the NON-production sink (ADR-0307). Production submits through maddy
+# on a dedicated IP, so the sink is gated off here for the same reason the store is —
+# and this flag drops its network policy with it (network-policies 35-mailpit).
+mailpit:
+  enabled: false
+
+# Alertmanager routes `ticket` to email (ADR-0502), and production's relay is
+# maddy rather than the sink (ADR-0307). maddy is not deployed yet, so this names
+# the address it will answer on rather than leaving prod pointed at a sink that
+# is switched off above.
+alertmanager:
+  email:
+    to: platform-alerts@example.com
+    from: alertmanager@mail.example.com
+    smarthost: maddy.platform.svc.cluster.local:587
+    # False, and it is the same posture as every other east-west hop here rather
+    # than an exception: Postgres, OpenFGA and Temporal are all reached in the
+    # clear inside the namespace, because ADR-0305 defers per-workload certificate
+    # identity and the network policy is what admits a caller. maddy's submission
+    # listener follows that, and the four senders its policy names are the only
+    # things that can reach it.
+    #
+    # It was `true` against a maddy that did not exist, so it had never been true
+    # of anything. When ADR-0305's deferred trigger fires, this and maddy's `tls`
+    # line move together.
+    requireTLS: false
+
+# ...which is exactly why this is on. With no store in the cluster, every write
+# leaves it: Loki, Tempo and postgres' `backup.s3.endpointURL` address the
+# off-cluster store. Default-deny egress (network-policies 00-baseline) drops all
+# of that unless this flag opens it (network-policies 70-*).
 #
-# Read as a pair with `minio.enabled: false`: turning MinIO off in an env without
+# Read as a pair with `seaweedfs.enabled: false`: turning the store off in an env without
 # turning this on is the failure mode — Postgres keeps serving while WAL archiving
 # silently fails in the background, and nothing pages until a restore is needed.
 externalObjectStorage: true
+
+# maddy is the production mail path (ADR-0307), and production is the only
+# environment that has one: every other sinks to Mailpit, which cannot deliver.
+# Read as a pair with `mailpit.enabled: false` above — an environment with neither
+# has no delivery path at all, which is identity verification silently failing.
+maddy:
+  enabled: true
+  hostname: mail.example.com
+
+# The policy follows the chart. network-policies renders maddy's rules only when
+# the workload exists, and its egress is this platform's only allow to an
+# arbitrary host on port 25.
+maddyEnabled: true
+
+# Alertmanager's `ticket` receiver relays through maddy rather than the sink
+# (ADR-0502), which the smarthost above already names.
 
 # Top-level `cluster:` — the postgres chart's own values schema has no
 # `postgres:` namespace wrapper (unlike the dependency subcharts below).
@@ -32,6 +76,45 @@ tempo:
 grafana:
   replicas: 2
 
+# ── Resource governance, sized for a multi-node production tier (ADR-0204) ──
+#
+# The chart's caps are computed against the single-node local tier, where the whole
+# platform shares one machine. Production runs three Postgres instances, two of each
+# observability backend and two replicas per service, so the same caps would reject
+# pods during an ordinary deploy — and a ResourceQuota rejects pod CREATION, which
+# surfaces as an unrelated change failing to roll out.
+#
+# Doubled rather than computed: `mise run lint:resource-governance` reports
+# utilisation against these on every CI run, so the number can be tightened
+# deliberately once a production render exists to measure. Guessing tighter now
+# would be guessing.
+resourceQuotas:
+  platform:
+    enabled: true
+    requestsCPU: "16"
+    requestsMemory: 32Gi
+    limitsMemory: 96Gi
+  argocd:
+    enabled: true
+    requestsCPU: "4"
+    requestsMemory: 8Gi
+    limitsMemory: 16Gi
+
+# ── PodDisruptionBudgets, for the components this tier actually scales out ──
+#
+# Enabled ONLY where this file sets two replicas above. `minAvailable: 1` in front
+# of a single-replica workload permits zero disruptions and makes `kubectl drain`
+# hang indefinitely — so a PDB switched on ahead of the replica count does not
+# protect a component, it strands a node.
+#
+# Temporal's three and OpenFGA stay off here because this file does not scale them;
+# they are the next ones to enable, and each needs its replica count raised first.
+podDisruptionBudgets:
+  loki:
+    enabled: true
+  tempo:
+    enabled: true
+
 # Lowdefy admin console (ADR-0401): the one repo-built platform image. Pinned to
 # the release commit by digest on a CalVer release (promote-on-release), the same
 # immutable-identity guarantee every prod service gets.
@@ -39,3 +122,21 @@ lowdefy:
   image:
     repository: ghcr.io/tabmadi/microservices-monorepo-template/admin
     tag: "0000000000000000000000000000000000000000"   # pinned + digested by promote-on-release
+
+# Talos ships no storage provisioner and nothing else claims the default
+# StorageClass here (ADR-0200), so this is what an unannotated PVC resolves to.
+# The laptop tier leaves it off — kind brings its own.
+localPath:
+  enabled: true
+
+# The wildcard host this environment serves, and the ACME account that certifies
+# it (ADR-0205). Both are placeholders an adopter replaces: the certificates are
+# derived from the host, and Let's Encrypt sends expiry warnings and account
+# recovery to the address. Neither has a default a template could pick, so the
+# chart fails the render rather than issuing a certificate for `*.`.
+envHost: prod.example.com
+publicTls:
+  enabled: true
+  envHost: prod.example.com
+  acme:
+    email: ops@example.com

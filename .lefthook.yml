@@ -10,7 +10,16 @@ pre-commit:
   # runs when a file it cares about is staged. Keep this in step with the lint/
   # format umbrellas in .mise.toml — a check that lives only in CI is a gate a
   # commit can slip past locally (that is how a lint:gostyle break reached CI).
-  parallel: true
+  #
+  # SEQUENTIAL, and it costs almost nothing. Every analyser here finishes in under
+  # two seconds; `gen-drift` takes minutes and dominates the wall clock either way.
+  # What parallel bought was a race: gen-drift REGENERATES the tree while the
+  # analysers are reading it, and the failures name the wrong thing entirely —
+  # Biome reporting `No such file or directory` on a file that exists, and
+  # golangci-lint reporting `no go files to analyze` in a repository full of them.
+  # Both are real and neither is reproducible on demand, which is the worst kind of
+  # gate: one that fails for reasons the developer cannot act on.
+  piped: true
   commands:
     go-fmt:
       glob: "*.go"
@@ -55,7 +64,18 @@ pre-commit:
       # a misformatted infra/ file slip past this hook and fail CI's repo-wide
       # `biome ci .` (lint.yml) and the `mise run format` drift check (ci-drift.yml) —
       # exactly the "gate a commit can slip past locally" this file warns about.
+      #
+      # `exclude` mirrors biome.jsonc's negated includes, and it is not redundant.
+      # Naming a file on the command line overrides the config's include list, so
+      # without this the hook hands Biome exactly the generated files the config
+      # excludes — checking, and potentially rewriting, output that is drift-checked
+      # rather than reviewed.
       glob: "**/*.{ts,tsx,js,jsx,json,jsonc,css}"
+      exclude:
+        - "libs/ts/sdks/**"
+        - "apps/admin/_generated/**"
+        - "apps/frontend/public/devportal/**"
+        - "test/e2e/**"
       run: biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
     rumdl:
@@ -71,6 +91,10 @@ pre-commit:
       # Shell lint (lint:shell). Runs the repo-wide script; catches cross-file too.
       glob: "*.sh"
       run: bash scripts/lint-shell.sh
+    comments:
+      # ADR-0001's comment table (lint:comments), over the staged Go/TS.
+      glob: "*.{go,ts,tsx}"
+      run: go run ./tools/lint-comments
     log-vocab:
       # Human-output vocabulary gate (lint:log-vocab).
       glob: "scripts/**/*.sh"
@@ -88,9 +112,16 @@ pre-commit:
       glob: "infra/auth/openfga/**"
       run: bash scripts/validate-openfga.sh
     authorizer:
-      # Ops dashboards authorize via remote_json, never `allow` (part of lint:authz).
+      # Ops dashboards authorize via remote_json, never `allow`, and the product
+      # /api rule enumerates resources rather than wildcarding (part of lint:authz).
       glob: "infra/auth/oathkeeper/access-rules.json"
-      run: bash scripts/lint-authorizer.sh
+      run: |
+        go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
+        go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
+    alert-severity:
+      # Alert rules carry `page` or `ticket`, and the Watchdog exists (ADR-0502).
+      glob: "infra/observability/alerts/**"
+      run: go run ./tools/lint-alert-severity
     strip-headers:
       # Forward-auth routes strip client identity headers first (part of lint:authz).
       glob: "infra/{gateway/**,helm/service/**}"
