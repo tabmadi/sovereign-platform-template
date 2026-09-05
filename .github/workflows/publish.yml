@@ -37,6 +37,12 @@ jobs:
 
   images:
     needs: affected
+    # Same empty guard the apps job carries. An affected set of `[]` is normal —
+    # a commit that touches only scripts or docs builds no image — but GitHub
+    # rejects an empty `include` when it creates the job, and a job that fails to
+    # be created fails the RUN while appearing nowhere in its job list. Red with
+    # nothing to open.
+    if: ${{ needs.affected.outputs.images != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
