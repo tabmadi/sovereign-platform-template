@@ -8,10 +8,13 @@
 # file leaves the value in the history that every clone already has. So each entry
 # below records what happened to the credential, never merely that it is old.
 
-# TYK_GW_SECRET in a docker-compose.yml, June 2024.
+# TYK_GW_SECRET in a docker-compose.yml, June 2024. Now carried by the root commit,
+# which squashes the pre-2026 Tyk prototype.
 # Rotation is moot: Tyk was the API gateway before Traefik and Oathkeeper, and both
 # the component and the file are gone from the tree. There is no gateway holding
-# this value and no environment it opens. Left in history rather than rewritten —
-# purging it would rewrite every commit since, which is a far larger action than the
-# risk warrants for a credential to a system that no longer exists.
-ca6a733b078df5ce789d30cd82f703f95918ab69:docker-compose.yml:generic-api-key:21
+# this value and no environment it opens.
+#
+# A fingerprint names a commit, so rewriting history invalidates this line and the
+# scan goes red until it is repointed. It was last repointed when the history was
+# squashed in September 2026.
+ed7b4e5a653370c6cd126fc9aa6e7b28229efc66:docker-compose.yml:generic-api-key:21
