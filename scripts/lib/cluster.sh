@@ -227,7 +227,7 @@ stage_warm() {
   total="$(grep -cvE '^#|^$' "$refs")"
   step "warming the registry with ${total} third-party image(s)"
 
-  local ref host path reference name tag
+  local ref host path reference name tag status attempt
   while read -r ref; do
     # Split the reference the way a registry client does.
     host=docker.io
@@ -267,12 +267,31 @@ stage_warm() {
     fi
 
     detail "· ${ref}"
-    if curl -sf -o /dev/null --noproxy '*' --max-time 900 \
-      -H 'Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json' \
-      "http://127.0.0.1:5000/v2/${path}/manifests/${reference}?ns=${host}"; then
+    # Three attempts, the same allowance the build+push loop below gives a push.
+    # Answering this manifest makes zot stream the whole image from upstream, so a
+    # miss is usually a truncated read or a rate-limited registry rather than a
+    # reference that does not exist — and one such miss used to fail the bring-up
+    # after every other image had already been cached.
+    #
+    # The status is captured rather than left to `-f`, which collapses every HTTP
+    # error into exit 22 and is why a missed image could never say WHY. A 429 means
+    # the upstream is throttling and the wait is the fix; a 404 means the reference
+    # is wrong and no number of retries will help. The summary prints it.
+    status=000
+    for attempt in 1 2 3; do
+      status="$(curl -s -o /dev/null -w '%{http_code}' --noproxy '*' --max-time 900 \
+        -H 'Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json' \
+        "http://127.0.0.1:5000/v2/${path}/manifests/${reference}?ns=${host}" || true)"
+      [ -n "$status" ] || status=000
+      [ "$status" = 200 ] && break
+      # Backs off between attempts: an upstream that just rate-limited this pull is
+      # not ready for the same request a millisecond later.
+      [ "$attempt" = 3 ] || sleep $((attempt * 5))
+    done
+    if [ "$status" = 200 ]; then
       fetched=$((fetched + 1))
     else
-      missed+=("$ref")
+      missed+=("${ref} (HTTP ${status})")
     fi
   done < <(grep -vE '^#|^$' "$refs")
 
