@@ -99,13 +99,20 @@ RUN set -eux; \
   rm -rf /tmp/mise
 
 # The toolchain from the root .mise.toml. The proxy and token are passed on the
-# RUN line (not ENV), so neither persists into the image.
+# RUN line (not ENV), so neither persists into the image. No `-x` on this one: the
+# trace prints GITHUB_TOKEN into the build log and the BuildKit cache metadata,
+# both of which outlive the layer the token was needed for.
+#
+# PIP_RETRIES/PIP_TIMEOUT because mise retries its own HTTP but pipx shells out to
+# pip, which does not — a single truncated read from PyPI through the proxy takes
+# the whole bake down with it, after every other tool has already installed.
 COPY .mise.toml /opt/act-local/.mise.toml
-RUN set -eux; \
+RUN set -eu; \
   cd /opt/act-local; \
   mise trust -y .mise.toml; \
   HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}" \
   GITHUB_TOKEN="${GITHUB_TOKEN}" \
+  PIP_RETRIES=10 PIP_TIMEOUT=60 \
   mise install
 
 # The install is done; drop mise's download cache to keep the layer lean.
