@@ -323,6 +323,12 @@ stage_warm() {
   ok "registry warm: ${warmed} already cached, ${fetched} fetched"
   if [ "${#missed[@]}" -gt 0 ]; then
     printf '    · %s\n' "${missed[@]}" >&2
+    # zot answers 404 both for "no such tag" and for "my sync of it failed", and only
+    # its own log separates the two. Without this the caller sees a 404 and has to
+    # guess — which is how a rate limit, a proxy refusal and a genuinely wrong
+    # reference all arrive looking identical.
+    detail "last 40 lines of ${REGISTRY} (the sync errors behind the 404s):"
+    docker logs --tail 40 "$REGISTRY" 2>&1 | sed 's/^/      /' >&2 || true
     fail "${#missed[@]} image(s) above could not be cached. The nodes pull only from
   this registry, so the cluster cannot start without them. Re-run to retry; if it
   persists, check egress with 'mise run proxy:setup -- --check'."
