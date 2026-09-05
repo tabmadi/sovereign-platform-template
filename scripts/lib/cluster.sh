@@ -185,12 +185,37 @@ argo_service_app() {
 # both clusters. It mirrors the upstreams on demand, so nothing is preloaded and no
 # image list has to be maintained. Host-level: it survives cluster delete/recreate.
 stage_registry() {
+  # The upstream credentials zot syncs with, outside the repository on purpose: it
+  # holds a token, and a secret in the working tree is one the secret scan has to be
+  # taught to ignore (ADR-0202). Written every time, `{}` when the environment
+  # carries nothing, so the mount always resolves and zot never starts against a
+  # missing file.
+  local creds="${XDG_RUNTIME_DIR:-/tmp}/zot-sync-creds-${REGISTRY}.json"
+  if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
+    printf '{"registry-1.docker.io":{"username":"%s","password":"%s"}}\n' \
+      "$DOCKERHUB_USERNAME" "$DOCKERHUB_TOKEN" >"$creds"
+  else
+    printf '{}\n' >"$creds"
+  fi
+  chmod 600 "$creds"
+
+  # A container created before this mount existed has no credentials and cannot gain
+  # them while it runs. Replacing it is cheap: the cache is a named volume, so the
+  # images survive.
+  if docker inspect "$REGISTRY" >/dev/null 2>&1 &&
+    ! docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' "$REGISTRY" |
+    grep -q /etc/zot/sync-creds.json; then
+    step "recreating '${REGISTRY}' to mount the sync credentials"
+    docker rm -f "$REGISTRY" >/dev/null
+  fi
+
   if ! docker inspect "$REGISTRY" >/dev/null 2>&1; then
     step "creating the local registry '${REGISTRY}:5000' (zot)"
     # The image's default command names a config.json; this config is YAML.
     docker run -d --restart=always --name "$REGISTRY" \
       -p 127.0.0.1:5000:5000 \
       -v "${ROOT}/infra/local/zot-config.yaml:/etc/zot/config.yaml:ro" \
+      -v "${creds}:/etc/zot/sync-creds.json:ro" \
       -v "${REGISTRY}-data:/var/lib/zot" \
       "$ZOT_IMAGE" serve /etc/zot/config.yaml >/dev/null
   elif [ "$(docker inspect -f '{{.State.Running}}' "$REGISTRY")" != true ]; then

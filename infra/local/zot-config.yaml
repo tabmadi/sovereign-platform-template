@@ -59,6 +59,14 @@ extensions:
   sync:
     enable: true
     downloadDir: /var/lib/zot/sync
+    # Docker Hub rate-limits ANONYMOUS pulls per source IP, and CI runners share
+    # theirs with every other project on the forge — so a warm that pulls 50 images
+    # can exhaust a limit it never spent itself. An authenticated pull is counted
+    # against the account instead. The file is written by stage_registry from
+    # DOCKERHUB_USERNAME/DOCKERHUB_TOKEN and is `{}` when they are unset, which is
+    # the anonymous behaviour this had before, so a developer without a Docker Hub
+    # account is unaffected.
+    credentialsFile: /etc/zot/sync-creds.json
     registries:
       - urls: ["https://registry-1.docker.io"]
         onDemand: true

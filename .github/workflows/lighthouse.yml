@@ -55,8 +55,15 @@ jobs:
       # The floor: real Traefik, real cert-manager, real Kratos and Oathkeeper.
       # `/auth/login` is one of the measured URLs, so the identity stack has to be
       # the real one — there is no page to measure without it.
+      # Authenticated Docker Hub pulls for zot's on-demand sync. Anonymous pulls are
+      # limited per source IP and this runner shares one with the whole forge, so the
+      # warm stage fails on images it never pulled itself. Unset on a fork, where the
+      # secrets do not resolve and the sync falls back to anonymous.
       - name: Bring up cluster:up
         run: mise run cluster:up
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # The production container, not `next dev`. A bundle budget measured against a
       # development server measures unminified output and means nothing.

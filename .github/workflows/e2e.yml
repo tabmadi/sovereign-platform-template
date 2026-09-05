@@ -60,8 +60,15 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
+      # Authenticated Docker Hub pulls for zot's on-demand sync. Anonymous pulls are
+      # limited per source IP and this runner shares one with the whole forge, so the
+      # warm stage fails on images it never pulled itself. Unset on a fork, where the
+      # secrets do not resolve and the sync falls back to anonymous.
       - name: Bring up cluster:up full
         run: mise run cluster:up -- full
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Install Playwright (Node island)
         run: mise run e2e:install
       - name: Run full e2e + visual suite
@@ -114,8 +121,15 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
+      # Authenticated Docker Hub pulls for zot's on-demand sync. Anonymous pulls are
+      # limited per source IP and this runner shares one with the whole forge, so the
+      # warm stage fails on images it never pulled itself. Unset on a fork, where the
+      # secrets do not resolve and the sync falls back to anonymous.
       - name: Bring up cluster:up full
         run: mise run cluster:up -- full
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Install Playwright (Node island)
         run: mise run e2e:install
       - name: Run smoke suite
