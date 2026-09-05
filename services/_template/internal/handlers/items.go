@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
-	tmpl "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/_template"
-	"github.com/tabmadi/microservices-monorepo-template/services/_template/internal/store"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/id"
+	tmpl "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/_template"
+	"github.com/tabmadi/sovereign-platform-template/services/_template/internal/store"
 )
 
 type Handlers struct {

@@ -95,17 +95,25 @@ Adding a service is the service folder ([ADR-0101](0101-monorepo.md)) plus one v
 
 ### Fan-out and ordering
 
-Four ApplicationSets per environment, ordered by sync wave on the root app-of-apps.
+Five ApplicationSets per environment, ordered by sync wave on the root app-of-apps. **Each wave is named for the reason it must precede the next**, and a chart belongs to the last wave whose successors still resolve it — so the ladder is a claim a reader can check, chart by chart, rather than a layering to memorise.
 
-| Wave | Set | Components | Gated on |
+| Wave | Set | Components | Why it precedes the next |
 | --- | --- | --- | --- |
-| `-10` | AppProjects | per-env `AppProject`s | — |
-| `0` | `platform-base` | sops-operator, cert-manager, network-policies | — |
-| `1` | secrets | the per-env `SopsSecret` | base — the operator and its CRD are up |
-| `2` | `platform-data` | postgres, seaweedfs | secrets — credentials decrypted |
-| `3` | `platform-core` | observability, ory, temporal, openfga, pgweb, headlamp, lowdefy | data — live Postgres, buckets exist |
-| `4` | gateway | Traefik middlewares and cross-cutting IngressRoutes | core |
-| `5` | services | one Application per service, from a git-directory generator over the values files | gateway |
+| `-10` | AppProjects | per-env `AppProject`s | an Application cannot cite a project that does not exist |
+| `0` | `platform-admission` | namespaces + PSA, kyverno, priority classes, resource-governance, network-policies, cert-manager, sops-operator, local-path | admission is evaluated once, at creation: a policy arriving later has already missed what it gates |
+| `1` | secrets | the per-env `SopsSecret` | the operator that decrypts it is up |
+| `2` | `platform-stores` | postgres, seaweedfs | every wave below reads one of them, and they need the decrypted credentials |
+| `3` | `platform-telemetry` | observability, alertmanager | `otel-agent` exports to `tempo` and `loki` **by name**, so the backends cannot follow the collector |
+| `4` | `platform-core` | zot, otel-agent, ory, edge-errors, mailpit, maddy, temporal, openfga, public-tls | everything a service resolves by name |
+| `5` | gateway | Traefik middlewares and cross-cutting IngressRoutes | its `problem-json-errors` middleware names `edge-errors` |
+| `6` | services | one Application per service, from a git-directory generator over the values files | — |
+| `7` | `platform-consoles` | pgweb, headlamp, lowdefy | nothing resolves a console |
+
+**Two placements are worth stating, because the rule alone does not predict them.** `zot` sits in core although no DNS name resolves it: deployed nodes pull images from it, so it precedes anything that starts later, and it needs the wave-2 bucket. The mounted-config Applications — Prometheus rules, Grafana dashboards, Alertmanager silences — sit one wave *before* the tier that mounts them, because a pod whose ConfigMap volume is missing cannot start at all.
+
+**A wave holds only what a later wave resolves.** An operator console is a read surface over the platform ([ADR-0501](0501-operator-uis-and-dashboards.md)): no workload looks one up, and the gateway's ops routes are `IngressRoute`s that answer as soon as their backend appears. A wave that holds a console makes every later wave wait for a dashboard, and puts its pods on the node while the store's consumers are still electing.
+
+The rule cuts the other way too, and that is the half easier to get wrong: a component nothing resolves may still be late, but a component something resolves may never be. Telemetry is the case in point — the collector names its backends, so the backends precede it, and no reordering for speed may cross that edge.
 
 Cilium and Argo CD are in no tier, in any environment. Both are installed imperatively before Argo runs, which is the one-time bootstrap step this ADR permits: no pod schedules before the CNI exists, and Argo cannot apply its own first install.
 
@@ -113,9 +121,13 @@ Managing either through this set also breaks it. Every generated Application tar
 
 **Why the waves inside one set are inert:** Applications a single ApplicationSet generates are created by the ApplicationSet controller rather than synced as a parent's resources, so Argo never sequences them among themselves and applies them concurrently. Ordering exists only at the granularity of a root-app-of-apps child, which is why each tier is its own set.
 
+**What makes the gates reachable at all: the diff is the API server's.** Every Application here syncs with `ServerSideApply`, and the cluster runs mutating webhooks — CNPG defaults a `Cluster`, Kyverno mutates pods — so the live object legitimately carries fields no chart rendered. A client-side diff calls that drift permanently, the Application never reports Synced, and because a tier is Healthy only when every Application it generated is **Synced and Healthy**, one such resource holds its wave shut and no later tier ever runs. `controller.diff.server.side` diffs against the API server's dry-run instead. The symptom without it is an Application reporting OutOfSync while `argocd app diff` prints nothing.
+
 **What makes the waves real gates:** default ApplicationSet health reflects only successful templating. A custom health check on the `ApplicationSet` kind walks `.status.resources` and reports Progressing until every generated Application is Synced and Healthy, so wave 3 blocks until waves 0 through 2 are up.
 
 A companion health check on the CNPG `Cluster` kind makes the data-to-core gate honest — without it Argo reports the unknown CRD Healthy the instant it applies, and core starts against a Postgres that is not ready. Charts within a tier are still concurrent and must tolerate that.
+
+Each service Application layers the environment's `shared.yaml` before that service's own values file, so a setting true of every service in an environment — the registry's pull credential, for one — is declared once instead of per service. A default repeated eight times is a default one service will eventually be missing.
 
 A new service appears in dev the moment its values file lands in `master`, with no Argo configuration change. **This is what keeps onboarding cost flat as the fleet grows.**
 

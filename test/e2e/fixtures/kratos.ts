@@ -64,8 +64,11 @@ async function freshTotp(page: Page, secret: string): Promise<string> {
 // page loads. Retrying only the first leaves the second failing identically, and
 // gives the fixture nothing to catch. `expectVisible` is the selector that proves
 // the form actually rendered.
+// Exported for the one caller that navigates to an auth route without driving a
+// flow through it: the visual baseline, which only needs the form on screen. Every
+// other route into Kratos goes through the named flows below.
 const RATE_LIMIT_WAIT_MS = 7_000;
-async function gotoFlow(page: Page, url: string, expectVisible?: string): Promise<void> {
+export async function gotoFlow(page: Page, url: string, expectVisible?: string): Promise<void> {
   const navigate = async () => {
     await page.goto(url, { waitUntil: "domcontentloaded" }).catch((err: unknown) => {
       if (!String(err).includes("ERR_ABORTED")) {
@@ -81,6 +84,63 @@ async function gotoFlow(page: Page, url: string, expectVisible?: string): Promis
     await navigate();
     await expect(page.locator(expectVisible)).toBeVisible({ timeout: 8_000 });
   }).toPass({ timeout: 90_000, intervals: [RATE_LIMIT_WAIT_MS] });
+}
+
+// Re-run a whole rendered flow that `auth-ratelimit` cut short after its init.
+//
+// `gotoFlow` waits its turn for the ONE request that starts a flow, but the same
+// limit covers every form POST the flow makes afterwards — and a registration is
+// three requests, not one. Traefik answers the POST itself with a body that is the
+// literal string "Too Many Requests", so the form the next step is waiting for is
+// simply not on the page, and the step fails naming that element: "waiting for
+// input[name=password]" for a limit the test never mentions.
+//
+// The unit of retry is the whole flow rather than the POST, because the flow id in
+// the URL belongs to a form that is no longer rendered — there is nothing left to
+// re-submit. Re-running from the init is safe for exactly the case that triggers
+// it: a POST Traefik refused never reached Kratos, so no identity, session, or
+// second factor was created by the attempt being retried.
+//
+// Only a 429 is retried. Any other failure is the real one and rethrows on the
+// first attempt, so a genuinely broken flow still fails in seconds. The limit page
+// is checked on the way OUT as well as on a throw, because a step whose last act is
+// a POST (the operator's first factor) hands the limit page back without failing —
+// the failure then lands on the step after it, outside this wrapper.
+async function throughRateLimit<T>(page: Page, flow: () => Promise<T>): Promise<T> {
+  const deadline = Date.now() + 120_000;
+  // Two renderings of the same 429, because it lands on two different requests.
+  // Traefik's own body is the bare string when the refused request is the form POST
+  // the browser navigated to. When it is instead the flow fetch KratosFlow makes
+  // from the page after that POST re-renders the flow, the browser stays on the
+  // app's own route and the app reports what it sees: no flow to render.
+  const rateLimited = () =>
+    page
+      .locator("body")
+      .innerText()
+      .then(
+        (text) =>
+          text.trim() === "Too Many Requests" || /Could not start .*\. Please retry\./.test(text),
+      )
+      .catch(() => false);
+  for (;;) {
+    let result: T;
+    try {
+      result = await flow();
+    } catch (err) {
+      if (!(await rateLimited()) || Date.now() > deadline) {
+        throw err;
+      }
+      await page.waitForTimeout(RATE_LIMIT_WAIT_MS);
+      continue;
+    }
+    if (!(await rateLimited())) {
+      return result;
+    }
+    if (Date.now() > deadline) {
+      throw new Error("auth-ratelimit kept answering 429 for the whole retry budget");
+    }
+    await page.waitForTimeout(RATE_LIMIT_WAIT_MS);
+  }
 }
 
 async function notOnLogin(page: Page): Promise<void> {
@@ -128,11 +188,13 @@ async function settle(page: Page): Promise<void> {
 
 // passwordLogin completes first-factor (AAL1) login through the rendered form.
 export async function passwordLogin(page: Page, email: string, password: string): Promise<void> {
-  await gotoFlow(page, init("login"), 'input[name="identifier"]');
-  await page.fill('input[name="identifier"]', email);
-  await page.fill('input[name="password"]', password);
-  await page.click(submitFor("password"));
-  await notOnLogin(page);
+  await throughRateLimit(page, async () => {
+    await gotoFlow(page, init("login"), 'input[name="identifier"]');
+    await page.fill('input[name="identifier"]', email);
+    await page.fill('input[name="password"]', password);
+    await page.click(submitFor("password"));
+    await notOnLogin(page);
+  });
   await waitForSession(page);
   await settle(page);
 }
@@ -151,18 +213,20 @@ export async function passwordLogin(page: Page, email: string, password: string)
 // No `session` hook is configured after registration, so this does NOT leave an
 // authenticated session; it only proves the identity was created.
 export async function register(page: Page, email: string, password: string): Promise<void> {
-  await gotoFlow(page, init("registration"), 'input[name="traits.email"]');
-  await page.fill('input[name="traits.email"]', email);
-  await page.click(submitFor("profile"));
+  await throughRateLimit(page, async () => {
+    await gotoFlow(page, init("registration"), 'input[name="traits.email"]');
+    await page.fill('input[name="traits.email"]', email);
+    await page.click(submitFor("profile"));
 
-  await page.locator('input[name="password"]').waitFor({ state: "visible", timeout: 20_000 });
-  await page.fill('input[name="password"]', password);
-  await page.click(submitFor("password"));
-  // Kratos re-renders the register form with the message on any failure — including
-  // a rejected password policy and, because the orgs web_hook is blocking
-  // (`ignore: false`), a failed personal-org enqueue. Leaving the form is therefore
-  // the success signal.
-  await expect(page).not.toHaveURL(/\/auth\/register/, { timeout: 30_000 });
+    await page.locator('input[name="password"]').waitFor({ state: "visible", timeout: 20_000 });
+    await page.fill('input[name="password"]', password);
+    await page.click(submitFor("password"));
+    // Kratos re-renders the register form with the message on any failure — including
+    // a rejected password policy and, because the orgs web_hook is blocking
+    // (`ignore: false`), a failed personal-org enqueue. Leaving the form is therefore
+    // the success signal.
+    await expect(page).not.toHaveURL(/\/auth\/register/, { timeout: 30_000 });
+  });
 }
 
 // registerExpectingRejection drives the same two-step form as `register` but for
@@ -176,14 +240,20 @@ export async function registerExpectingRejection(
   email: string,
   password: string,
 ): Promise<string> {
-  await gotoFlow(page, init("registration"), 'input[name="traits.email"]');
-  await page.fill('input[name="traits.email"]', email);
-  await page.click(submitFor("profile"));
+  return throughRateLimit(page, async () => {
+    await gotoFlow(page, init("registration"), 'input[name="traits.email"]');
+    await page.fill('input[name="traits.email"]', email);
+    await page.click(submitFor("profile"));
 
-  await page.locator('input[name="password"]').waitFor({ state: "visible", timeout: 20_000 });
-  await page.fill('input[name="password"]', password);
-  await page.click(submitFor("password"));
+    await page.locator('input[name="password"]').waitFor({ state: "visible", timeout: 20_000 });
+    await page.fill('input[name="password"]', password);
+    await page.click(submitFor("password"));
+    return readRejection(page);
+  });
+}
 
+// The rejection assertions, split out so the retry above wraps the whole flow.
+async function readRejection(page: Page): Promise<string> {
   // Staying on /auth/register is the rejection signal — the inverse of the
   // "left the form" success signal `register` waits for. The re-rendered credential
   // step carries the message on the password node (KratosFlow renders node messages
@@ -210,10 +280,12 @@ export async function operatorLogin(
   password: string,
   secret: string,
 ): Promise<void> {
-  await gotoFlow(page, init("login"), 'input[name="identifier"]');
-  await page.fill('input[name="identifier"]', email);
-  await page.fill('input[name="password"]', password);
-  await page.click(submitFor("password"));
+  await throughRateLimit(page, async () => {
+    await gotoFlow(page, init("login"), 'input[name="identifier"]');
+    await page.fill('input[name="identifier"]', email);
+    await page.fill('input[name="password"]', password);
+    await page.click(submitFor("password"));
+  });
 
   // Kratos continues a browser login to aal=aal2 in-flow when the identity has a
   // second factor enrolled and whoami.required_aal is highest_available
@@ -309,12 +381,20 @@ export async function ensureAal2(page: Page, secret: string): Promise<void> {
 // code rather than a magic link, and the flow stays open until that code is
 // entered, so starting recovery does not change the account it names.
 export async function startRecovery(page: Page, email: string): Promise<void> {
-  await gotoFlow(page, init("recovery"), 'input[name="email"]');
-  await page.fill('input[name="email"]', email);
-  await page.click(submitFor("code"));
-  // Kratos advances the same flow to the code form. Enumeration protection makes
-  // it render identically for an address that has no account, so this proves the
-  // flow moved and NOT that anything was sent — the sink is the only evidence of
-  // that, which is the whole reason a sink exists.
-  await page.locator('input[name="code"]').waitFor({ state: "visible", timeout: 30_000 });
+  // Wrapped like every other flow that POSTs: `gotoFlow` waits its turn for the
+  // init, and `auth-ratelimit` covers the submit that follows it just the same.
+  // Unwrapped, a refused POST leaves Traefik's bare "Too Many Requests" on screen
+  // and the step fails naming the code input, for a limit it never mentions.
+  // Re-running from the init is safe here for the same reason it is elsewhere: a
+  // POST Traefik refused never reached Kratos, so no recovery flow advanced.
+  await throughRateLimit(page, async () => {
+    await gotoFlow(page, init("recovery"), 'input[name="email"]');
+    await page.fill('input[name="email"]', email);
+    await page.click(submitFor("code"));
+    // Kratos advances the same flow to the code form. Enumeration protection makes
+    // it render identically for an address that has no account, so this proves the
+    // flow moved and NOT that anything was sent — the sink is the only evidence of
+    // that, which is the whole reason a sink exists.
+    await page.locator('input[name="code"]').waitFor({ state: "visible", timeout: 30_000 });
+  });
 }

@@ -1,7 +1,7 @@
 # Wrapper around the upstream traefik chart (ADR-0305) — the edge controller every
 # environment runs. kind ships no ingress controller, so both local tiers install
 # this chart.
-# One Traefik configuration in the repo, installed by scripts/traefik-install.sh
+# One Traefik configuration in the repo, installed by scripts/lib/cluster.sh
 # imperatively for the local tiers — its IngressRoute/Middleware CRDs must exist
 # before the gateway Application applies any route, which is the same reason Cilium
 # is imperative. A deployed environment installs the same chart through its own
@@ -26,3 +26,15 @@ traefik:
       nodePort: 30080
     websecure:
       nodePort: 30443
+      # An image push is the longest request that crosses this edge: one streamed
+      # layer, on one connection, for as long as the client's link needs
+      # (ADR-0105). Upstream's defaults are minutes, which is right for an API and
+      # wrong for a registry — and the failure is not a timeout message at either
+      # end. The client sees `unexpected EOF` and retries forever; the registry
+      # logs an incomplete upload. Whichever hop cuts first decides, so this and
+      # zot's own timeouts are set together.
+      transport:
+        respondingTimeouts:
+          readTimeout: 10m
+          writeTimeout: 10m
+          idleTimeout: 3m

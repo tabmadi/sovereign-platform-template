@@ -27,8 +27,11 @@ tempo:
 # Lowdefy admin console (ADR-0401): the one repo-built platform image, promoted by
 # git SHA on merge (promote-on-merge), like the services and the frontend.
 lowdefy:
+  # The registry this environment pulls from authenticates every pull (ADR-0105).
+  imagePullSecrets:
+    - name: registry-pull
   image:
-    repository: ghcr.io/tabmadi/microservices-monorepo-template/admin
+    repository: ghcr.io/tabmadi/sovereign-platform-template/admin
     tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
 
 # Talos ships no storage provisioner and nothing else claims the default
@@ -48,3 +51,59 @@ publicTls:
   envHost: staging.example.com
   acme:
     email: ops@example.com
+
+# Identity, at this environment's host. The canonical auth config (infra/auth) is
+# written against a placeholder, and every one of these is a URL a BROWSER is sent
+# to — so an environment that does not override them redirects its operators to a
+# domain it does not own, and the failure is a login page that never loads rather
+# than anything naming the wrong host.
+#
+# TOTP and WebAuthn are domain-bound on top of that: a second factor enrolled
+# against the wrong relying party cannot be presented to this one.
+kratos:
+  kratos:
+    config:
+      serve:
+        public:
+          base_url: "https://staging.example.com/auth/"
+      selfservice:
+        default_browser_return_url: https://staging.example.com/
+        # The apex, and every ops origin. The ops entry is what makes a denied
+        # panel request return to that panel after login: Oathkeeper puts the
+        # origin in `return_to`, and Kratos follows it only if it is listed here.
+        allowed_return_urls:
+          - https://staging.example.com/
+          - https://*.ops.staging.example.com/
+        flows:
+          error:        { ui_url: https://staging.example.com/auth/error }
+          login:        { ui_url: https://staging.example.com/auth/login }
+          registration: { ui_url: https://staging.example.com/auth/register }
+          recovery:     { ui_url: https://staging.example.com/auth/recovery }
+          verification: { ui_url: https://staging.example.com/auth/verification }
+          settings:     { ui_url: https://staging.example.com/auth/settings }
+        methods:
+          totp:
+            config:
+              issuer: staging.example.com
+          webauthn:
+            config:
+              rp:
+                id: staging.example.com
+                display_name: Platform
+                origins: ["https://staging.example.com"]
+      # The ops tools are served at their own origins under `ops.<host>`
+      # (ADR-0306), so the session cookie has to cover the whole host rather than
+      # the apex alone.
+      session:
+        cookie:
+          domain: staging.example.com
+
+# Where Oathkeeper sends an unauthenticated browser request (ADR-0305).
+oathkeeper:
+  oathkeeper:
+    config:
+      errors:
+        handlers:
+          redirect:
+            config:
+              to: https://staging.example.com/auth/login

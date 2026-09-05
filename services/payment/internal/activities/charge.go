@@ -7,9 +7,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
-	"github.com/tabmadi/microservices-monorepo-template/services/payment/internal/workflows"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/id"
+	"github.com/tabmadi/sovereign-platform-template/services/payment/internal/workflows"
 )
 
 type Activities struct {

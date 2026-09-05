@@ -10,7 +10,7 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
 )
 
 // The wire shape is the contract (ADR-0303), and it is what the generated clients

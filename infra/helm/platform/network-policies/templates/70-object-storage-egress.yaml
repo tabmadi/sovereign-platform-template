@@ -9,7 +9,11 @@
 ## Loki and Tempo push chunks/traces to the bucket (ADR-0207) and so need egress on
 ## 443. Prometheus keeps a local TSDB and needs none.
 ##
-## These rules are the platform's only world egress. Kratos briefly had one too,
+## World egress is granted in exactly three places, and this file holds two of them:
+## these object-store rules, and cert-manager's ACME rule below. The third is the
+## registry's pull-through mirror (15-object-storage.yaml), which is the one
+## component whose whole purpose is to reach upstream so nothing else has to.
+## Kratos briefly had one too,
 ## for the HaveIBeenPwned breach check; ADR-0304 turned that check off by default
 ## and 30-ory.yaml carries the recipe for putting it back per env.
 apiVersion: cilium.io/v2
@@ -54,5 +58,46 @@ spec:
   egress:
     - toEntities: [world]
       toPorts:
-        - ports: [{ port: "443", protocol: TCP }]
+        - ports:
+            - { port: "443", protocol: TCP }
+            - { port: "53", protocol: UDP }
+            - { port: "53", protocol: TCP }
+{{- end }}
+{{- if .Values.publicTls.enabled }}
+---
+## cert-manager, when the environment issues PUBLIC certificates (ADR-0205).
+##
+## An ACME issuer talks to three places on the internet and none is optional: the
+## CA's directory and order endpoints, the DNS provider's API that answers the
+## DNS-01 challenge, and — on **53** rather than 443 — the AUTHORITATIVE
+## nameservers, which cert-manager queries directly to confirm the record it just
+## wrote has propagated. That last one is not the cluster's own resolver and is
+## not covered by the baseline's CoreDNS allow, so leaving it out parks every
+## challenge in `Waiting for DNS-01 challenge propagation: dial tcp …:53: i/o
+## timeout` — a message about the DNS provider, from a policy in this cluster.
+##
+## Gated on the same flag as the issuer itself, so an environment using the local
+## self-signed CA keeps cert-manager with no world egress at all — the issuer it
+## runs never leaves the cluster.
+##
+## Without it the ClusterIssuer reports
+## `Failed to register ACME account: … i/o timeout`, which reads as Let's Encrypt
+## being unreachable rather than as this cluster declining to reach it. Every
+## certificate then stays `False` with no challenge object ever created, because
+## registration precedes the order.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: cert-manager-acme-egress
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: cert-manager
+  egress:
+    - toEntities: [world]
+      toPorts:
+        - ports:
+            - { port: "443", protocol: TCP }
+            - { port: "53", protocol: UDP }
+            - { port: "53", protocol: TCP }
 {{- end }}

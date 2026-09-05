@@ -9,11 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"go.temporal.io/sdk/client"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	payment "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/payment"
-	"github.com/tabmadi/microservices-monorepo-template/services/payment/internal/store"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	payment "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/payment"
+	"github.com/tabmadi/sovereign-platform-template/services/payment/internal/store"
 )
 
 const statusSettled = "settled"

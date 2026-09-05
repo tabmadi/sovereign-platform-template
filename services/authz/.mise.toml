@@ -15,7 +15,7 @@ run = "bash ../../scripts/env-ensure.sh"
 [tasks.server]
 # Dependency components this service needs in the cluster (ADR-0205, ADR-0600).
 # Declared here, with the service, because the service knows its own dependencies
-# and a named profile never can. mise resolves the graph: the shared cluster:base
+# and a named profile never can. mise resolves the graph: the shared cluster:up
 # edge is deduped, independent components come up in parallel, and each one
 # fast-exits when already Ready.
 depends = ["env", "dep:openfga", "dep:temporal"]
@@ -33,6 +33,11 @@ run = "go test ./..."
 
 [tasks.lint]
 run = "golangci-lint run ./..."
+
+[tasks.generate]
+# No sqlc pass: this service owns no schema (see [tasks.worker]). The spec is the
+# only codegen input it has.
+run = "bash ../../scripts/gen-openapi.sh"
 
 [tasks.build]
 run = "go build ./..."

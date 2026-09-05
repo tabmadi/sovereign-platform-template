@@ -30,7 +30,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/buildinfo"
 )
 
 // Config is read from environment variables when omitted. Service code provides

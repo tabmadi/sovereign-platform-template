@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
 )
 
 // MustOpen opens a pgxpool with the platform-default tracer.

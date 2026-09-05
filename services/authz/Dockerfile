@@ -16,9 +16,9 @@ ARG BUILD_TIME=""
 RUN --mount=type=cache,target=/root/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build \
       -ldflags="-s -w \
-        -X github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo.Version=${BUILD_VERSION} \
-        -X github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo.SHA=${GIT_SHA} \
-        -X github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo.BuiltAt=${BUILD_TIME}" \
+        -X github.com/tabmadi/sovereign-platform-template/libs/go/buildinfo.Version=${BUILD_VERSION} \
+        -X github.com/tabmadi/sovereign-platform-template/libs/go/buildinfo.SHA=${GIT_SHA} \
+        -X github.com/tabmadi/sovereign-platform-template/libs/go/buildinfo.BuiltAt=${BUILD_TIME}" \
       -o /out/app ./services/${SERVICE}/cmd/${APP_CMD}
 
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:f7f8f729987ad0fdf6b05eeeae94b26e6a0f613bdf46feea7fc40f7bd72953e6

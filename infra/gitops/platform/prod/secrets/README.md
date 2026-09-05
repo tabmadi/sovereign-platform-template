@@ -21,6 +21,13 @@ metadata:
   namespace: platform
 spec:
   secretTemplates:
+    # The registry pull credential (ADR-0105), as a docker config. Every chart
+    # running a first-party image names this Secret in `imagePullSecrets`; a
+    # kubelet has no credential of its own and the node cannot hold one.
+    - name: registry-pull
+      type: kubernetes.io/dockerconfigjson
+      stringData:
+        .dockerconfigjson: ""
     # The DNS-01 solver's credential (ADR-0205). Without it the public issuer
     # never becomes Ready and no wildcard certificate is ever issued.
     - name: cloudflare-api-token
@@ -30,6 +37,8 @@ spec:
       stringData:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
+    # `username` has to be the role `cluster.initdb.owner` names in the postgres
+    # chart, and the same string every DSN below uses. Three places, one role.
     - name: postgres-superuser
       type: kubernetes.io/basic-auth
       stringData:
@@ -50,6 +59,8 @@ spec:
       stringData:
         preshared_key: ""
         datastore_uri: ""
+    - name: analytics-db
+      stringData: { DATABASE_URL: "" }
     - name: catalog-db
       stringData: { DATABASE_URL: "" }
     - name: orders-db
@@ -67,17 +78,40 @@ spec:
         # Production submits through maddy (ADR-0307), so this is a real
         # submission endpoint. Mailpit is not deployed here.
         smtpConnectionURI: ""
+    # Only when `hydra_thirdparty` is on (ADR-0305). The Ory release deploys
+    # Hydra beside Kratos and reads all three keys from this Secret, because
+    # `hydra.secret.enabled` is false in infra/helm/platform/ory/values.yaml.
+    # `dsn` names the same owner role every other DSN here does, against the
+    # `hydra` database; the chart's plaintext default carries no password and is
+    # never read.
+    # `secretsSystem` encrypts every issued token and consent record, so rotate
+    # it by prepending a new value and dropping the old one once the tokens
+    # signed under it have expired — replacing it outright invalidates them all.
+    - name: hydra-secrets
+      stringData:
+        secretsSystem: ""
+        secretsCookie: ""
+        dsn: ""
     # The registry's push and pull credentials, and the store credential it reads
     # and writes S3 with (ADR-0105). `htpasswd` holds one BCRYPT line per identity
     # — an apr1 file loads without complaint and then refuses every password.
     #
     #   htpasswd -nbB ci <push-password>
     #   htpasswd -nbB cluster <pull-password>
+    #
+    # `consoleAuthorization` is the pre-encoded header the console proxy sends so an
+    # operator is not asked for the pull credential a second time (ADR-0306). It
+    # MUST match the `cluster` password above:
+    #
+    #   printf 'cluster:<pull-password>' | base64   # -> Basic <that>
+    #
+    # Drop it if `zot.consoleAuth.enabled` is false for this environment.
     - name: zot-credentials
       stringData:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
         htpasswd: ""
+        consoleAuthorization: ""
     # maddy's DKIM private key (ADR-0307). Its public half goes in the TXT record
     # at `<selector>._domainkey.mail.example.com`, and the two must be generated
     # together: maddy MINTS a key when this is absent, which yields an agent that

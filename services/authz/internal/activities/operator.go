@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/kratos"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/services/authz/internal/kratos"
 )
 
 type Activities struct {

@@ -3,7 +3,7 @@
 # app-gateway.yaml applies, synced locally by the local root-app. The host-specific
 # local edge glue (edge-auth.yaml, and the
 # frontend-dev EndpointSlice pointing at the docker-bridge gateway IP) is NOT here —
-# it depends on per-machine state and stays in the imperative tail of cluster:full.
+# it depends on per-machine state and stays in the imperative tail of cluster:up full.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -16,11 +16,11 @@ metadata:
     # CRDs (middlewares) before the per-service IngressRoutes that reference them.
     # Wave 4: after the whole platform tier (base 0 · data 2 · core 3), before
     # services (5). See infra/gitops/local-bootstrap/appset-platform.yaml.
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   project: local
   source:
-    repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+    repoURL: https://github.com/tabmadi/sovereign-platform-template.git
     targetRevision: master
     path: infra/gateway
   destination:

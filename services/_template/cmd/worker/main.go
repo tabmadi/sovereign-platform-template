@@ -10,8 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/temporalmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/temporalmw"
 )
 
 const serviceName = "_template"

@@ -20,7 +20,7 @@ import (
 	"os"
 	"strconv"
 
-	authzsdk "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/authz"
+	authzsdk "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/authz"
 )
 
 // SchemaUserV1 is the Kratos identity schema id (user.v1.json).

@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/id"
 )
 
 func TestRoundTrip(t *testing.T) {

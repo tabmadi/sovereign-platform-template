@@ -1,6 +1,6 @@
 name: catalog
 image:
-  repository: ghcr.io/tabmadi/microservices-monorepo-template/catalog-server
+  repository: ghcr.io/tabmadi/sovereign-platform-template/catalog-server
   tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
 worker:
   enabled: false
@@ -17,9 +17,8 @@ ingress:
 # dials catalog east-west (ADR-0302).
 networkPolicy: { allowFrom: [lowdefy, orders] }
 secrets:
-  envFrom: [catalog-db-creds, openfga-creds]
+  envFrom: [catalog-db, openfga-creds]
 env:
-  DATABASE_URL_SECRET_REF: catalog-db-creds
   # Write authz (ADR-0304): dial OpenFGA via the shared Checker. Blank preshared key
   # falls back to openfga-creds.preshared_key (envFrom), as the authz service does.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"

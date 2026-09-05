@@ -19,6 +19,7 @@ policies:
     - docker.io/grafana/tempo
     - docker.io/kiwigrid/k8s-sidecar
     - docker.io/library/busybox
+    - docker.io/library/nginx
     - docker.io/oryd/kratos
     - docker.io/oryd/oathkeeper
     - docker.io/traefik
@@ -29,7 +30,7 @@ policies:
     - ghcr.io/headlamp-k8s/headlamp
     - ghcr.io/kyverno/readiness-checker
     - ghcr.io/project-zot/zot-linux-amd64
-    - ghcr.io/tabmadi/microservices-monorepo-template/admin
+    - ghcr.io/tabmadi/sovereign-platform-template/admin
     - grafana/alloy
     - grafana/pyroscope
     - openfga/openfga

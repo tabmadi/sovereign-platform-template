@@ -13,13 +13,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.temporal.io/sdk/client"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
-	orgs "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/orgs"
-	"github.com/tabmadi/microservices-monorepo-template/services/orgs/internal/store"
-	"github.com/tabmadi/microservices-monorepo-template/services/orgs/internal/workflows"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/id"
+	orgs "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/orgs"
+	"github.com/tabmadi/sovereign-platform-template/services/orgs/internal/store"
+	"github.com/tabmadi/sovereign-platform-template/services/orgs/internal/workflows"
 )
 
 const serviceName = "orgs"

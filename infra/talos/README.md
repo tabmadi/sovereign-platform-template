@@ -123,6 +123,32 @@ else — and it means cluster identity and the secret root of trust are recovere
 the same apply, rather than by a manual step someone has to remember during an
 incident.
 
+## Pulling from the platform's own registry
+
+The registry authenticates every pull (ADR-0105): an anonymous client gets nothing.
+A **kubelet** is such a client, so every workload running a first-party image needs
+a pull credential, delivered as an `imagePullSecret` from the environment's
+`SopsSecret` and named in that chart's values.
+
+**The node cannot hold it instead, and the attempt looks like it worked.** Talos
+takes registry credentials in the machine config:
+
+```yaml
+machine:
+  registries:
+    config:
+      registry.example.com:
+        auth: { username: cluster, password: "…" }
+```
+
+That is written faithfully into the node's containerd configuration, and
+**containerd 2 ignores it**: once a `config_path` for hosts.d is set — which Talos
+sets — the deprecated `registry.configs.*.auth` block is no longer consulted, and
+hosts.toml has no field for credentials. The pull then fails with
+`no basic auth credentials` on a node whose configuration visibly contains them,
+and `talosctl read /etc/cri/conf.d/01-registries.part` shows the password sitting
+there unused. Reach for the pull secret first.
+
 ## Behind a proxy
 
 A Talos node inherits nothing from anyone's shell. On a proxied network the node

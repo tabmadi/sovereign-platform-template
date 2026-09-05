@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/money"
 )
 
 const (

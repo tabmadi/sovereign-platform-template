@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
 )
 
 //go:embed fixtures.json

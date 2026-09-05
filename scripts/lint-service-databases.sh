@@ -3,8 +3,8 @@
 #
 #   mise run lint:service-databases
 #
-# CNPG creates one database per Cluster and the rest come from
-# `postInitApplicationSQL` in infra/helm/platform/postgres/values.yaml. That list is
+# CNPG creates one database per Cluster and the rest come from `initdb.databases`
+# in infra/helm/platform/postgres/values.yaml. That list is
 # hand-written, it runs ONCE at bootstrap, and nothing else references it — so a new
 # service can be built, tested locally against a database its own migrations
 # created, and reach a deployed environment where the database does not exist.
@@ -20,12 +20,16 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 VALUES="infra/helm/platform/postgres/values.yaml"
+LOCAL_SECRET="infra/gitops/platform/local/secrets/platform.enc.yaml"
+PG_POLICY="infra/helm/platform/network-policies/templates/10-datastores.yaml"
 [ -f "$VALUES" ] || fail "$VALUES not found"
 
 # The bootstrap database plus every one created afterwards.
 declared="$(
   {
     yq -r '.cluster.initdb.database // ""' "$VALUES"
+    yq -r '.cluster.initdb.databases // [] | .[]' "$VALUES"
+    # Anything created by a hand-written statement rather than by that list.
     yq -r '.cluster.initdb.postInitApplicationSQL // [] | .[]' "$VALUES" |
       sed -nE 's/^[[:space:]]*CREATE DATABASE[[:space:]]+([a-z0-9_]+).*/\1/p'
   } | grep -vE '^\s*$' | sort -u
@@ -50,6 +54,35 @@ for dir in services/*/; do
     warn "${svc} ships migrations but no database named '${svc}' is created in ${VALUES}"
     rc=1
   fi
+
+  # A DATABASE IS HALF OF IT. The other half is the Secret carrying its DSN: the
+  # service chart mounts `<service>-db`, so a service with a database and no Secret
+  # entry fails at CreateContainerConfigError — a message that names the Secret and
+  # not the list it is missing from. `analytics` shipped exactly that way, absent
+  # from the local file and from every environment's skeleton at once.
+  #
+  # The encrypted file is greppable on purpose: `.sops.yaml` encrypts only the
+  # VALUES (`encrypted_regex: ^(data|stringData)$`), so the secretTemplate NAMES
+  # stay in clear text and this needs no key and no decryption.
+  if ! grep -q "name: ${svc}-db" "$LOCAL_SECRET"; then
+    warn "${svc} owns a schema but ${LOCAL_SECRET} carries no ${svc}-db Secret"
+    rc=1
+  fi
+  # AND THE THIRD PIECE: reaching the database. Postgres selects its own endpoint,
+  # so its policy is the complete caller list — a schema-owning service missing from
+  # it connects to a ClusterIP that answers nothing, and the migration init
+  # container fails with `connect: connection timed out`, which names an address.
+  # `analytics` was missing here too.
+  if ! grep -q "app.kubernetes.io/name: ${svc} }" "$PG_POLICY"; then
+    warn "${svc} owns a schema but ${PG_POLICY} does not admit it to Postgres"
+    rc=1
+  fi
+  for readme in infra/gitops/platform/*/secrets/README.md; do
+    if ! grep -q "name: ${svc}-db" "$readme"; then
+      warn "${svc} owns a schema but ${readme} documents no ${svc}-db entry"
+      rc=1
+    fi
+  done
 done
 
 [ "$found" -gt 0 ] || fail "no services with migrations found — the check would pass vacuously"

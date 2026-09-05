@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/funnels"
+	"github.com/tabmadi/sovereign-platform-template/services/analytics/internal/funnels"
 )
 
 func write(t *testing.T, body string) string {

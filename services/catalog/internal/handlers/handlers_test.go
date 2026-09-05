@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	catalog "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/catalog"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	catalog "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/catalog"
 )
 
 // fakeChecker stands in for the OpenFGA Checker so the authz gate can be

@@ -10,9 +10,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
-	"github.com/tabmadi/microservices-monorepo-template/services/orgs/internal/store"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/id"
+	"github.com/tabmadi/sovereign-platform-template/services/orgs/internal/store"
 )
 
 type Activities struct {

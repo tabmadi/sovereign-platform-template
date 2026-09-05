@@ -7,7 +7,8 @@
     "test:smoke": "playwright test --grep @smoke",
     "install:browsers": "playwright install chromium",
     "test:a11y": "playwright test --grep @a11y",
-    "lighthouse": "lhci autorun --config=./lighthouserc.json"
+    "test:visual": "playwright test --project visual",
+    "lighthouse": "lhci autorun --config=./lighthouserc.cjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.11.0",

@@ -26,7 +26,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/money"
 )
 
 // statusFailed is the terminal status of an order the saga could not complete.

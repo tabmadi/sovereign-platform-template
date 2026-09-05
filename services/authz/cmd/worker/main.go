@@ -10,11 +10,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/temporalmw"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/activities"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/workflows"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/temporalmw"
+	"github.com/tabmadi/sovereign-platform-template/services/authz/internal/activities"
+	"github.com/tabmadi/sovereign-platform-template/services/authz/internal/workflows"
 )
 
 const serviceName = "authz"

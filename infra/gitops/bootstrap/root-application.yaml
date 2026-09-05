@@ -13,7 +13,7 @@ spec:
   # AppProjects (appproject.yaml), so it cannot live in one of them.
   project: default
   source:
-    repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+    repoURL: https://github.com/tabmadi/sovereign-platform-template.git
     targetRevision: master
     path: infra/gitops/bootstrap
     directory:

@@ -1,18 +1,30 @@
-# Platform ApplicationSets (ADR-0201). The platform tier is split into three
-# dependency layers, each its own ApplicationSet so ArgoCD can order them:
+# Platform ApplicationSets (ADR-0201). The platform tier is split into five
+# dependency layers, each its own ApplicationSet so ArgoCD can order them. Each
+# layer is named for the reason it must precede the next, and a chart belongs to
+# the last layer whose successors still resolve it:
 #
-#   base (wave 0)  — sops-operator, cert-manager, network-policies, resource-governance
-#                    Foundational, dependency-free. sops-operator must run before
-#                    any SopsSecret CR can be decrypted into Secrets (ADR-0202).
-#                    Cilium and Argo CD are NOT in it — they precede Argo and are
-#                    installed imperatively in every tier (see the generator).
-#   data (wave 2)  — postgres, seaweedfs. The storage layer everything else sits on;
-#                    needs the Secrets produced by the base + secrets tiers.
-#   core (wave 3)  — observability, ory, temporal, temporal-worker-controller,
-#                    openfga, pgweb, headlamp, lowdefy. Consumers of the data
-#                    layer (Postgres DSNs, the trace/log buckets).
+#   admission (0) — namespaces + their PSA profile, kyverno, priority classes,
+#                   resource-governance, network-policies, cert-manager,
+#                   sops-operator, local-path. Admission is evaluated once, at
+#                   creation, so a policy arriving after the workload it gates has
+#                   already missed it; an operator must precede the CR it decrypts
+#                   (ADR-0202). Cilium and Argo CD are NOT here — both precede Argo
+#                   and are installed imperatively in every tier.
+#   stores (2)    — postgres, seaweedfs. Need the Secrets waves 0+1 produce, and
+#                   every layer below reads one of them.
+#   telemetry (3) — observability, alertmanager. Before the collector: otel-agent
+#                   exports to tempo and loki BY NAME, so a later agent would ship
+#                   to an address that does not resolve yet. After the stores,
+#                   because Loki and Tempo write to the buckets.
+#   core (4)      — zot, otel-agent, ory, edge-errors, mailpit, maddy, temporal,
+#                   temporal-worker-controller, openfga. Everything a SERVICE
+#                   resolves by name. zot is the exception and says so: no DNS
+#                   resolves it, but deployed nodes pull images from it.
+#   consoles (7)  — pgweb, headlamp, lowdefy. Nothing resolves a console
+#                   (ADR-0501). Last, because a wave that holds one makes every
+#                   later wave wait for a dashboard.
 #
-# WHY THREE SETS AND NOT PER-CHART SYNC-WAVES: sync-waves on the Applications a
+# WHY FIVE SETS AND NOT PER-CHART SYNC-WAVES: sync-waves on the Applications a
 # single ApplicationSet generates are INERT — those Applications are created by
 # the ApplicationSet controller, not synced as resources of a parent, so ArgoCD
 # never sequences them (it applies them all concurrently). Real ordering exists
@@ -24,20 +36,20 @@
 # every wave-0/1 component to actually be up, and so on. Charts WITHIN a tier are
 # still applied concurrently and must tolerate that.
 #
-# Wave ladder (root children): -10 projects · 0 base · 1 secrets · 2 data ·
-# 3 core · 4 gateway · 5 services.
+# Wave ladder (root children): -10 projects · 0 admission · 1 secrets · 2 stores ·
+# 3 telemetry · 4 core · 5 gateway · 6 services · 7 consoles.
 #
-# The three sets share an identical template body (the same auth valueFiles /
+# The five sets share an identical template body (the same auth valueFiles /
 # fileParameters wiring as before; non-Ory/OpenFGA charts ignore the extra keys).
 # Only the generator's directory list and the set's own sync-wave differ.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: platform-base
+  name: platform-admission
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: platform
-    app.kubernetes.io/component: base
+    app.kubernetes.io/component: admission
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 spec:
@@ -62,7 +74,7 @@ spec:
                 - { env: staging, server: "https://kubernetes.default.svc" }
                 - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
-              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               directories:
                   # Namespaces + their Pod Security Admission profile (ADR-0200).
@@ -96,7 +108,7 @@ spec:
                 # Neither can be installed by the thing it is a prerequisite of:
                 # no pod schedules before the CNI exists, and Argo cannot apply
                 # its own first install. Both come up imperatively ahead of Argo
-                # (scripts/cilium-install.sh and cluster-full.sh / the equivalent
+                # (scripts/lib/cluster.sh and scripts/cluster.sh / the equivalent
                 # prod bootstrap), which is the one-time `kubectl apply` step
                 # ADR-0201 permits.
                 #
@@ -136,7 +148,7 @@ spec:
     spec:
       project: "{{ .env }}"
       source:
-        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        repoURL: https://github.com/tabmadi/sovereign-platform-template.git
         targetRevision: master
         path: "{{ .path.path }}"
         helm:
@@ -182,11 +194,11 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: platform-data
+  name: platform-stores
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: platform
-    app.kubernetes.io/component: data
+    app.kubernetes.io/component: stores
   annotations:
     # Wave 2: after base (operator up) and the secrets tier (wave 1, local) so
     # Postgres finds its superuser Secret instead of CreateContainerConfigError.
@@ -213,7 +225,7 @@ spec:
                 - { env: staging, server: "https://kubernetes.default.svc" }
                 - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
-              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               directories:
                 - { path: "infra/helm/platform/postgres" }
@@ -228,7 +240,7 @@ spec:
     spec:
       project: "{{ .env }}"
       source:
-        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        repoURL: https://github.com/tabmadi/sovereign-platform-template.git
         targetRevision: master
         path: "{{ .path.path }}"
         helm:
@@ -266,14 +278,15 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: platform-core
+  name: platform-telemetry
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: platform
-    app.kubernetes.io/component: core
+    app.kubernetes.io/component: telemetry
   annotations:
-    # Wave 3: after the data tier is Healthy, so Tempo/Loki find the store + their
-    # buckets and Ory/Temporal/OpenFGA/pgweb find a live Postgres.
+    # Wave 3: BEFORE the collector, because otel-agent exports to tempo and loki by
+    # name (otel-agent/values.yaml). After the stores, because Loki and Tempo write to
+    # the buckets, and Prometheus mounts the rule ConfigMap wave 2 delivers.
     argocd.argoproj.io/sync-wave: "3"
 spec:
   goTemplate: true
@@ -297,7 +310,95 @@ spec:
                 - { env: staging, server: "https://kubernetes.default.svc" }
                 - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
-              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              repoURL: https://github.com/tabmadi/sovereign-platform-template.git
+              revision: master
+              directories:
+                - { path: "infra/helm/platform/observability" }
+                - { path: "infra/helm/platform/alertmanager" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/sovereign-platform-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-core
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: core
+  annotations:
+    # Wave 4: everything a service resolves by name — its identity provider, its
+    # authorization store, its workflow engine, the collector it ships telemetry to,
+    # and the mail sink the courier submits to. zot is here for the deployed shape
+    # rather than for DNS: nodes pull images from it, so it precedes anything that
+    # starts later, and it needs the wave-2 bucket.
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: staging, server: "https://kubernetes.default.svc" }
+                - { env: prod,    server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               directories:
                 # The registry (ADR-0105). Wave 3 rather than beside the store: it
@@ -316,8 +417,6 @@ spec:
                   # in the base tier it holds wave 0 open against a secret only a
                   # later wave can produce.
                 - { path: "infra/helm/platform/public-tls" }
-                - { path: "infra/helm/platform/observability" }
-                - { path: "infra/helm/platform/alertmanager" }
                   # The node-level collector, in a namespace of its own because it
                   # is the one platform workload needing hostPath and hostPorts
                   # (ADR-0200). Same tier as the backends it exports to.
@@ -338,6 +437,90 @@ spec:
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
                 - { path: "infra/helm/platform/openfga" }
+  template:
+    metadata:
+      name: "{{ .env }}-platform-{{ .path.basename }}"
+      labels:
+        env: "{{ .env }}"
+        app.kubernetes.io/part-of: platform
+        app.kubernetes.io/component: "{{ .path.basename }}"
+    spec:
+      project: "{{ .env }}"
+      source:
+        repoURL: https://github.com/tabmadi/sovereign-platform-template.git
+        targetRevision: master
+        path: "{{ .path.path }}"
+        helm:
+          releaseName: "{{ .path.basename }}"
+          valueFiles:
+            # First, so anything below can still override it: the deletions of
+            # upstream defaults that a wrapper chart's own values.yaml cannot
+            # express (see the file's header).
+            - "../../../gitops/platform/shared-values.yaml"
+            # Generated: the repositories the platform's charts pull from, which
+            # Kyverno's allow-list policy reads (ADR-0104).
+            - "../../../gitops/platform/image-allowlist.yaml"
+            - "../../../auth/kratos/values.yaml"
+            - "../../../auth/oathkeeper/values.yaml"
+            - "../../../gitops/platform/{{ .env }}/values.yaml"
+          fileParameters:
+            - name: 'kratos.kratos.identitySchemas.user\.v1\.json'
+              path: "../../../auth/kratos/identity-schemas/user.v1.json"
+            - name: oathkeeper.oathkeeper.accessRules
+              path: "../../../auth/oathkeeper/access-rules.json"
+            - name: seed.model
+              path: "../../../auth/openfga/model.json"
+            # The one copy of the platform's signing public key (ADR-0104). Empty
+            # in the template, which renders no policy — see infra/auth/cosign.
+            - name: policies.publicKey
+              path: "../../../auth/cosign/cosign.pub"
+      destination: { server: "{{ .server }}", namespace: platform }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-consoles
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform
+    app.kubernetes.io/component: consoles
+  annotations:
+    # Wave 7: LAST, and the rule is the whole reason — nothing resolves a console.
+    # These are read surfaces over the platform (ADR-0501), and the gateway's ops
+    # routes are IngressRoutes, which answer as soon as their backend appears. A wave
+    # that holds one makes every later wave wait for a dashboard.
+    argocd.argoproj.io/sync-wave: "7"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  # A manual pause of auto-sync has to survive this ApplicationSet's own
+  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
+  # within seconds, auto-sync comes back, and self-heal reverts whatever
+  # scripts/platform-deploy.sh just installed — the deploy reports success and the
+  # cluster keeps running the committed image. `cluster:add` is the whole
+  # working-tree path (ADR-0600), so the field it pauses is the one field this set
+  # must not own.
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: staging, server: "https://kubernetes.default.svc" }
+                - { env: prod,    server: "https://kubernetes.default.svc" }
+          - git:
+              repoURL: https://github.com/tabmadi/sovereign-platform-template.git
+              revision: master
+              directories:
                 - { path: "infra/helm/platform/pgweb" }
                 - { path: "infra/helm/platform/headlamp" }
                 - { path: "infra/helm/platform/lowdefy" }
@@ -351,7 +534,7 @@ spec:
     spec:
       project: "{{ .env }}"
       source:
-        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        repoURL: https://github.com/tabmadi/sovereign-platform-template.git
         targetRevision: master
         path: "{{ .path.path }}"
         helm:

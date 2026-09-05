@@ -1,6 +1,6 @@
 name: frontend
 image:
-  repository: ghcr.io/tabmadi/microservices-monorepo-template/frontend
+  repository: ghcr.io/tabmadi/sovereign-platform-template/frontend
   tag: "0000000000000000000000000000000000000000"
 worker: { enabled: false }
 server:

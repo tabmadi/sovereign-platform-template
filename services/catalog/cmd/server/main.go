@@ -13,14 +13,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	catalog "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/catalog"
-	"github.com/tabmadi/microservices-monorepo-template/services/catalog/internal/handlers"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/dbmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/httpmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
+	catalog "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/catalog"
+	"github.com/tabmadi/sovereign-platform-template/services/catalog/internal/handlers"
 )
 
 const serviceName = "catalog"

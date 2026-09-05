@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 157 |
-| Review-enforced | 307 |
-| **Total** | **464** |
+| Machine-enforced | 159 |
+| Review-enforced | 316 |
+| **Total** | **475** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -152,6 +152,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR. | review |
 | Tasks are invoked through `mise run <task>`. Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker`. | `lint:service-contract` in CI |
 | A task name is `group:member`, grouped by the axis worth listing together. | review |
+| What a task acts on is an argument, never an environment variable: `mise run cluster:down -- full`. Environment variables carry the machine's environment, and a variable a script exports for its own subprocesses is not an interface. | standard: clig.dev, POSIX Utility Conventions |
+| A task validates its operand against a closed set and fails on an unrecognised one, rather than falling back to a default. | review |
 | Every external tool is pinned: developer and CI tools in `.mise.toml`, runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. | `lint:floating-tags` in CI |
 | A PR changing a spec, SQL query, or any codegen input includes the regenerated artifacts. | `ci:gen` in CI |
 | A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. | `ci:affected` in CI |
@@ -214,8 +216,13 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | Images are stored in a self-hosted zot registry backed by object storage. | review |
 | Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI. | review |
+| The registry console is served at `zot.ops.<host>` behind the ops forward-auth; the distribution API at `registry.<host>` is gated by the registry's own credentials and never by an operator session ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)). | review |
+| Every environment's registry is zot, including the local tiers, where it runs as a host container beside the cluster ([ADR-0600](../adr/0600-local-development-loop.md)). Anonymous access and directory storage are permitted there and nowhere else. | review |
+| The local nodes pull from that registry and from nowhere else: no upstream is configured as a fallback endpoint, and `cluster:up` warms the registry before it creates the cluster. | review |
+| The warm set is generated from the charts alongside Kyverno's allow-list, never hand-written. | `lint:image-allowlist` in CI |
 | Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](../adr/0104-supply-chain-security.md)). | standard: OCI 1.1 |
 | Vulnerability scanning runs in CI, not in the registry. | review |
+| The registry the pipeline pushes to is set by forge variables, never written into a workflow. | review |
 | Deployments reference images by digest ([ADR-0103](../adr/0103-release-and-versioning.md)). | admission: Kyverno |
 
 ## ADR-0106 — Dependency Updates & Template Propagation
@@ -641,6 +648,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Maintenance silences are committed, time-bounded, and expire on their own. | review |
 | No on-call rotation is claimed until a paging receiver is attached to the webhook. | review |
 | Alerts about the outbound-mail path do not route through email. | review |
+| The Watchdog routes to its own heartbeat receiver, never to a receiver a human reads. A heartbeat delivered to a page destination is a contentless message on every repeat interval, which mutes the channel the pages arrive on. | review |
 
 ## ADR-0503 — Error Tracking
 
@@ -660,17 +668,20 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 
 | Rule | Enforced by |
 | --- | --- |
-| Local development runs two tiers: the `cluster:base` inner loop and `cluster:full`. There are no named profiles. | review |
-| The inner loop runs on kind and the full tier runs on Talos in Docker, as two clusters with two contexts. Neither tier's bring-up alters the other. | review |
-| The full tier's nodes take the same machine config a deployed environment's nodes take, so it runs etcd, no kube-proxy, Cilium as an inline manifest, and the committed Traefik chart ([ADR-0200](../adr/0200-cluster-topology.md), [ADR-0206](../adr/0206-cluster-networking.md)). It carries no distribution divergence, and a divergence introduced there is a defect. | review |
-| The inner loop's divergence from a deployed environment is node count alone. Its cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used. | review |
-| Cilium is in both tiers' floor, from the committed chart with WireGuard on and its eBPF dataplane replacing kube-proxy: in the machine config for the full tier, imperatively for the inner loop. No Cilium value differs by tier. | review |
-| Images reach the full tier through a local registry, so Argo CD pulls a tag as it does in a deployed environment. Node-resident images are the inner loop's path only. | review |
+| Local development runs two tiers: the `cluster:up` inner loop and `cluster:up full`. There are no named profiles. | review |
+| Both local tiers run on kind, as two clusters with two contexts. Neither tier's bring-up alters the other, and no local tier shares a cluster with another. | review |
+| `scripts/cluster.sh` is the only script that names a tier, and it takes one as an argument. Every other script resolves the tier from the cluster that is running; a tier hardcoded as a consumer's default is a defect. | review |
+| Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built, and a difference introduced between them is a defect. | review |
+| No local tier exercises the cross-node datapath. Service routing between nodes and the WireGuard encryption [ADR-0206](../adr/0206-cluster-networking.md) enables are first exercised in a deployed environment. | review |
+| Every local cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used. | review |
+| No local tier applies a machine config. The delivery mechanism [ADR-0206](../adr/0206-cluster-networking.md) decides is exercised in a deployed environment, and `infra/talos/` carries no local variant. | review |
+| Cilium is in both tiers' floor, from the committed chart with WireGuard on and its eBPF dataplane replacing kube-proxy, installed imperatively before Argo CD exists. No Cilium value differs by tier. | review |
+| Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation a deployed environment runs ([ADR-0105](../adr/0105-image-registry.md)), so the local image path is not a second product. | review |
 | What is up locally is the floor plus the declared dependencies of what is running. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. | `lint:service-contract, lint:service-deps` in CI |
 | `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied. | review |
 | Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. | `lint:ports` in CI |
 | Every service ships a values file per environment or declares `# platform/not-deployed: <env>`. Absence is never inferred. | `lint:service-contract` in CI |
-| Argo CD is the engine for `cluster:full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly. | review |
+| Argo CD is the engine for `cluster:up full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly. | review |
 | API mocking exists for the UI development loop only. The mock appears in no deployed environment, no chart, and no image built from our own source. | review |
 | The mock's only input is the committed `internal.json` projection. Globbing `services/*/openapi.yaml`, hand-written route files, and standalone fixture bodies are not used. | review |
 | The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers. | review |
@@ -692,8 +703,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | All e2e and visual tests live in the repo-root `test/e2e/` workspace under one Playwright config. | review |
 | The browser acceptance test is the platform's acceptance gauge; operator dashboards are tested rendered behind a real AAL2 session, not by HTTP status alone. | review |
 | Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests. | review |
-| E2e runs against `cluster:full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](../adr/0600-local-development-loop.md)). | review |
-| Service integration tests run against `cluster:base` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code. | review |
+| E2e runs against `cluster:up full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](../adr/0600-local-development-loop.md)). | review |
+| Service integration tests run against `cluster:up` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code. | review |
 | Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate. | review |
 | E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state. | review |
 | Node is permitted solely as the Playwright runner, pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. | `lint:node-scope` in CI |

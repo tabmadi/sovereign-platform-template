@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
 )
 
 // The edge admits guests through its anonymous authenticator, which puts a real

@@ -18,13 +18,12 @@
 #
 # If the full tier (ArgoCD) manages this service, its auto-sync is paused first so
 # self-heal does not revert your local image; re-enable with:
-#   argocd app set local-service-<svc> --sync-policy automated   (or just cluster:full)
+#   argocd app set local-service-<svc> --sync-policy automated   (or just cluster:up full)
 set -euo pipefail
 
-source "$(dirname "$0")/lib/argo.sh"
+source "$(dirname "$0")/lib/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster-ctx.sh"
 NS="platform"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -76,6 +75,18 @@ deps="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'dep:[a-z][a-
 if [ "$KIND" = service ]; then
   deps="${deps} dep:db-secrets"
 fi
+# ONLY ON THE INNER LOOP. A `dep:*` is a lightweight STAND-IN — a plain Postgres,
+# `temporal server start-dev`, an in-memory OpenFGA (ADR-0600) — and the full tier
+# already runs the real component, deployed by Argo from the same charts production
+# uses. Applying a stand-in there does not add a missing dependency: it adds a
+# SECOND database beside CNPG's, in the same namespace, for a service whose values
+# point at the real one. Measured: `cluster:add -- analytics` on the full tier
+# created `deployment/postgres` next to a healthy CNPG cluster and then failed
+# waiting for it to roll out, so the service it was asked to deploy never got built.
+if [ "$(cluster_tier)" = "full" ]; then
+  echo "→ full tier: dependencies come from the platform charts, not stand-ins"
+  deps=""
+fi
 for dep in $deps; do
   bash scripts/dep-apply.sh "${dep#dep:}"
 done
@@ -110,44 +121,22 @@ done
 
 # publish_image — get a locally built image onto the ACTIVE TIER's nodes.
 #
-# The two tiers need different mechanisms, and the difference is not incidental:
+# One mechanism for both tiers, because both are kind (ADR-0600): `kind load
+# docker-image` copies from the host's image store straight into every node of the
+# named cluster, so a three-node tier needs no registry round trip and no pull
+# credential for an image that already exists on this machine.
 #
-#   inner loop (kind)  `kind load docker-image` copies from the host's image store
-#                      straight into the node. Fast, and there is nothing to
-#                      reconcile from git here, so directness costs nothing.
-#
-#   full tier (Talos)  there is no load path. A Talos node holds no image the
-#                      cluster did not pull, and there is no host store to share —
-#                      so the image is PUSHED to the local registry and the kubelet
-#                      pulls it, which is the path a deployed environment uses
-#                      (ADR-0600). The registry is plain HTTP, which the nodes
-#                      accept because infra/talos/local/patch.yaml declares it as a
-#                      mirror; without that the pull fails on a TLS handshake
-#                      against a plaintext endpoint.
-#
-# The push address is 127.0.0.1:5000 and the pull address is registry.localhost:5000
-# — the same registry under two names. Docker treats loopback as insecure so the
-# push needs no daemon.json, and blobs are keyed by repository path, so the two
-# names never have to agree.
+# This is the imperative path, where there is nothing to reconcile from git. What
+# Argo deploys still comes from the local registry by a `registry.localhost:5000`
+# reference, exactly as a deployed environment pulls from its own registry — that
+# path is cluster:up full's build_push, not this one.
 publish_image() {
-  local ref="$1"
-  if [ "$(cluster_tier)" = "full" ]; then
-    docker tag "$ref" "127.0.0.1:5000/${ref}"
-    docker push -q "127.0.0.1:5000/${ref}" >/dev/null
-    return
-  fi
-  kind load docker-image "$ref" --name "$(cluster_name)" >/dev/null
+  kind load docker-image "$1" --name "$(cluster_name)" >/dev/null
 }
 
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
-# On the full tier the pod pulls by the registry name the NODES resolve, not by the
-# bare image name the host built — a bare name would send the kubelet to Docker Hub.
 REPO="${IMAGE}"
 WORKER_REPO="${SVC}-worker"
-if [ "$(cluster_tier)" = "full" ]; then
-  REPO="registry.localhost:5000/${IMAGE}"
-  WORKER_REPO="registry.localhost:5000/${SVC}-worker"
-fi
 SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
 
 # Build identity baked into the image (ADR-0103): the working-tree SHA (+ -dirty
@@ -201,7 +190,7 @@ echo "→ helm upgrade ${SVC} (working-tree image ${TAG})"
 # --take-ownership: when the full tier normally manages this service, its resources
 # are owned by ArgoCD (Server-Side Apply), not a Helm release. Helm 4 refuses to
 # adopt them without this flag. Auto-sync is already paused above, so taking
-# ownership for the local override is safe; a re-run of cluster:full restores GitOps.
+# ownership for the local override is safe; a re-run of cluster:up full restores GitOps.
 h upgrade --install "$SVC" infra/helm/service -n "$NS" -f "$VALUES" \
   --take-ownership --force-conflicts --set image.pullPolicy=IfNotPresent "${SET[@]}" --timeout 5m
 k rollout restart "deploy/${SVC}-server"

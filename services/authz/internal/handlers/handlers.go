@@ -21,11 +21,11 @@ import (
 
 	"go.temporal.io/sdk/client"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	authzsdk "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/authz"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/kratos"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/workflows"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	authzsdk "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/authz"
+	"github.com/tabmadi/sovereign-platform-template/services/authz/internal/kratos"
+	"github.com/tabmadi/sovereign-platform-template/services/authz/internal/workflows"
 )
 
 const (

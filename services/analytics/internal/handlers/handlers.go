@@ -19,13 +19,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	analytics "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/analytics"
-	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/funnels"
-	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/rollup"
-	"github.com/tabmadi/microservices-monorepo-template/services/analytics/internal/store"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/id"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
+	analytics "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/analytics"
+	"github.com/tabmadi/sovereign-platform-template/services/analytics/internal/funnels"
+	"github.com/tabmadi/sovereign-platform-template/services/analytics/internal/rollup"
+	"github.com/tabmadi/sovereign-platform-template/services/analytics/internal/store"
 )
 
 // stateGranted is the one consent state that permits storing an event. Withdrawn

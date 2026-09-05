@@ -62,9 +62,16 @@ The **Auth** column is the always-on coarse gate: the `operator` claim plus an A
 | `headlamp.ops.dev.localtest.me:8443` | Headlamp — Kubernetes debug UI, read-only | none |
 | `pgweb.ops.dev.localtest.me:8443` | pgweb — read-only database inspector | none |
 | `mailpit.ops.dev.localtest.me:8443` | Mailpit — the mail sink's viewer, non-prod only | none |
-| `seaweedfs.ops.dev.localtest.me:8443` | SeaweedFS admin UI, non-prod only | **yes** — see below |
+| `seaweedfs.ops.dev.localtest.me:8443` | SeaweedFS admin UI, non-prod only | none |
+| `zot.ops.dev.localtest.me:8443` | zot console — the registry catalogue, tags, and what the mirror has cached | none |
 
-Grafana and Argo CD trust the edge and serve anonymously, so an operator who clears the gate lands straight on the tool. **The SeaweedFS admin UI is the exception**: it carries its own credential rather than trusting the edge, so it prompts for the pre-seeded local one after the edge gate. Its master and filer UIs are not routed ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)); reach them by port-forward.
+Every tool above trusts the edge and serves anonymously, so an operator who clears the gate lands straight on it. **The zot console cannot serve anonymously** — its access policy is one configuration for one process, and opening it would open `registry.dev.localtest.me:8443` to anonymous pulls with it ([ADR-0105](../adr/0105-image-registry.md)). So the credential is presented for the browser instead: a small reverse proxy in the zot pod adds the registry's `cluster` pull user on the `zot.ops` origin alone, and the operator meets no second prompt. The `registry.<host>` origin still asks for that credential; read it with `kubectl -n platform get secret zot-credentials -o jsonpath='{.data.htpasswd}' | base64 -d` — the local bundle's password is the committed throwaway one.
+
+**Two zots run locally, and they answer different questions.** `zot.ops` above is the platform's own registry — in-cluster, backed by the object store, the component a deployed environment runs. The one the **nodes pull from** is the host container at `http://registry.localhost:5000`, which mirrors the upstream registries and holds the repo's own images; it serves its console at that address with no login, so "is this image cached yet" is a page rather than a `curl`. The split is not redundancy: a `*.localtest.me` name does not resolve inside a node, so the in-cluster registry cannot be the node pull source locally ([ADR-0105](../adr/0105-image-registry.md)) — the host container is. The in-cluster instance is deployed anyway so its chart is exercised on the full tier, and `cluster:up full` mirrors the first-party images into it after bring-up, so its `zot.ops` catalogue shows the same images CI would push in a deployed environment rather than sitting empty. If you opened `zot.ops` and it was empty, the mirror step had not run yet; `mise run cluster:populate-zot` fills it.
+
+**Why that one is not on `localtest.me`.** Every origin in the table above is reached by a browser on the host, where `*.localtest.me` resolves to `127.0.0.1` and the edge answers. The registry is reached by a **node's containerd**, and inside a node container `127.0.0.1` is the node itself — so a `localtest.me` name would send every image pull to the wrong place. `registry.localhost` is the registry container's own name, which docker's embedded DNS resolves to its address from any container on the network. It also cannot go through the edge: Traefik's own image has to be pulled before Traefik can route anything.
+
+SeaweedFS's master and filer UIs are not routed either ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)); reach them by port-forward.
 
 Mailpit holds every message the Kratos courier submits, so it is where a verification or recovery mail is read; production keeps no such store ([ADR-0307](../adr/0307-outbound-email.md)).
 
@@ -94,13 +101,12 @@ Browser-side calls need none of this: the client uses a relative `/api`, which i
 | `mise run dev:frontend` | run the frontend dev server against the edge |
 | `mise run db:migrate` | apply every service's migrations to the local database |
 | `mise run auth:seed` | seed the committed test identities |
-| `mise run cluster:base` | the local floor |
-| `mise run cluster:full` | the real charts at single replica, via Argo CD |
+| `mise run cluster:up` | the local floor |
+| `mise run cluster:up -- full` | the real charts at single replica, via Argo CD |
 | `mise run cluster:add -- <name>` | build, import, and deploy one service or platform chart |
 | `mise run cluster:remove -- <name>` | uninstall **and restore Argo auto-sync** |
-| `mise run cluster:stop` / `cluster:delete` | stop, keeping the image cache; or delete |
+| `mise run cluster:stop` / `cluster:down` | stop, keeping the image cache; or delete. Both take the tier: `-- full` |
 | `mise run cluster:heal` | recover a cluster wedged after a host reboot |
-| `mise run cluster:unwedge` | recover stalled image pulls ([http-proxy](../guide/http-proxy.md)) |
 | `mise run e2e` / `e2e:smoke` | browser acceptance suites ([ADR-0601](../adr/0601-testing-strategy.md)) |
 | `mise run perf` / `perf:smoke` / `perf:stress` / `perf:seed` | load suites ([perf runbook](../guide/performance-runbook.md)) |
 | `mise run lint` / `format` | every language, including Markdown |

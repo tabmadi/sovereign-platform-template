@@ -14,13 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	authzsdk "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/temporalmw"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/handlers"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/httpmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
+	authzsdk "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/temporalmw"
+	"github.com/tabmadi/sovereign-platform-template/services/authz/internal/handlers"
 )
 
 const serviceName = "authz"

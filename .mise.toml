@@ -28,18 +28,18 @@ biome = "2.5.0"
 # Kubernetes & infra
 helm = "4.2.2"
 kubectl = "1.36.2"
-# CLI pinned to the server appVersion (infra/helm/platform/argocd). cluster:full
+# CLI pinned to the server appVersion (infra/helm/platform/argocd). cluster:up full
 # drives convergence with `argocd app wait --core` (talks to the Application CRDs
 # via kubeconfig, no argocd-server login).
 argocd = "3.4.4"
 cilium-cli = "0.19.4"
 terraform = "1.15.6"
 kind = "0.32.0"
-# talosctl configures every node in a provisioned environment (ADR-0200). Pinned
-# here rather than scoped to an island: it is a single static binary, and unlike
-# the bootstrap tool it replaced it drags in no Python for a dev running
-# lint/test/cluster:full. The version tracks the Talos release the machine configs
-# under infra/talos/ are written against.
+# talosctl configures every node in a PROVISIONED environment (ADR-0200); no local
+# tier applies a machine config (ADR-0600), so nothing in the dev loop calls it.
+# Pinned here rather than scoped to an island: it is a single static binary and
+# drags in nothing for a dev running lint/test. The version tracks the Talos release
+# the machine configs under infra/talos/ are written against.
 talosctl = "1.13.5"
 
 # Dependency updates & template propagation (ADR-0106). Both run on a developer or
@@ -146,6 +146,7 @@ CGO_ENABLED = "0"
 # nested config's [tools], so there is exactly one place to bump.
 NODE_VERSION = "22"
 
+
 # Task naming: `group:member`, group = the axis you list/run together (ADR-0101).
 # `activity:target` for fan-out families with an umbrella (gen, lint, format);
 # `resource:operation` for lifecycles (cluster, service, db).
@@ -165,67 +166,45 @@ run = "lefthook install"
 run = "bun install --frozen-lockfile"
 
 # ── Local cluster & inner loop ────────────────────────────────────────────────
-[tasks."cluster:ensure"]
-# Ensure the ACTIVE TIER's cluster exists and is running (create-or-start).
-#
-# There are two clusters, because the two tiers run different distributions
-# (ADR-0600): the inner loop on kind, the full tier on Talos in Docker. `TIER=full`
-# selects the second; the default is the inner loop, which is the common case.
-#
-# They share the edge's host ports and are therefore alternatives rather than
-# peers — bringing one up while the other runs is refused with the command to stop
-# it, instead of a bind error from inside a half-created cluster.
-run = "bash scripts/cluster-dispatch.sh ensure"
-
-[tasks."cluster:talos"]
-# The full tier's provisioner, run directly. `TIER=full mise run cluster:ensure`
-# reaches the same script; this exists so the Talos path is discoverable by name.
-hide = true
-run = "TIER=full bash scripts/cluster-talos-ensure.sh"
-
-[tasks."cluster:cilium"]
-# Install Cilium as the CNI (ADR-0200). Needs the cluster first. Internal plumbing
-# (a dependency node for cluster:base), not a command you run directly — hence hidden.
-hide = true
-depends = ["cluster:ensure"]
-run = "bash scripts/cilium-install.sh"
-
-[tasks."cluster:base"]
-# The local floor (ADR-0205, ADR-0600): Traefik + cert-manager + Postgres + Kratos
-# + Oathkeeper, plus the host edge glue and the seeded test identities. Everything
-# above it is opt-in and declared by the service that needs it — there are no named
-# profiles. You rarely run this by hand: a service's own tasks depend on it.
-run = "bash scripts/cluster-base.sh"
-
-[tasks."cluster:full"]
-# Full local platform via ArgoCD (ADR-0201, ADR-0205): syncs committed master.
-# Ordering/waits/secrets are Argo's job (sync-waves). See docs/dev-loop.md.
-run = "bash scripts/cluster-full.sh"
+# One entrypoint, one verb per task (scripts/cluster.sh). The tier is an argument,
+# not a separate command: both are kind, one node each, and what separates them is
+# which workloads run and what drives them (ADR-0600, ADR-0205).
+[tasks."cluster:up"]
+# Create, resume or repair a tier. Convergent — safe to re-run at any point.
+#   mise run cluster:up             the inner loop: Traefik, cert-manager, Postgres,
+#                                   Kratos, Oathkeeper. Everything above it is opt-in,
+#                                   declared by the service that needs it (`dep:*`).
+#   mise run cluster:up -- full     the whole platform, synced from committed master
+#                                   by ArgoCD, which owns every ordering concern.
+# The tiers share the edge's host ports, so they are alternatives: bringing one up
+# while the other runs is refused, with the command to stop it. Every tier-scoped
+# task names its tier the same way — `-- base` or `-- full`, defaulting to base.
+run = "bash scripts/cluster.sh up"
 
 # ── Opt-in dependency components ──────────────────────────────────────────────
 # One task per label slice of infra/local/deps.yaml. Services declare these in
-# their own .mise.toml; mise dedupes the shared cluster:base edge, so a service
+# their own .mise.toml; mise dedupes the shared cluster:up edge, so a service
 # needing three components still brings the floor up once. Every one of them
 # fast-exits when already Ready — see the guard in scripts/dep-apply.sh, which is
 # what keeps the graph cheap to re-enter.
 [tasks."dep:postgres"]
 # In the floor already (Kratos needs a store); declared anyway so a service's
 # dependencies read as its own, not as something base happens to provide.
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/dep-apply.sh postgres"
 
 [tasks."dep:temporal"]
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/dep-apply.sh temporal"
 
 [tasks."dep:openfga"]
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/dep-apply.sh openfga"
 
 [tasks."dep:db-secrets"]
 # The per-service DB secrets the service chart mounts via envFrom. Needed by the
 # IN-CLUSTER path only: a natively-run service reads .env instead.
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/dep-apply.sh db-secrets"
 
 # ── Sibling services ──────────────────────────────────────────────────────────
@@ -240,84 +219,77 @@ run = "bash scripts/dep-apply.sh db-secrets"
 # be opaque; run a callee natively yourself and svc:* sees the port answered and
 # stays out of the way.
 [tasks."svc:authz"]
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/svc-apply.sh authz"
 
 [tasks."svc:catalog"]
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/svc-apply.sh catalog"
 
 [tasks."svc:orders"]
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/svc-apply.sh orders"
 
 [tasks."svc:orgs"]
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/svc-apply.sh orgs"
 
 [tasks."svc:payment"]
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/svc-apply.sh payment"
 
-[tasks."cluster:edge-glue"]
-# Re-stamp the host-only frontend edge glue: the last-resort catch-all `/` → host
-# `next dev` :3000 and the docker-bridge EndpointSlice behind it. Per-machine state
-# that cannot be GitOps-managed (the bridge IP is discovered at runtime and moves
-# across restarts), so a stop/start or reboot loses it → Traefik 404 at /.
-#
-# Internal plumbing: cluster:ensure (start), cluster:heal (reboot) and cluster:base
-# all run it automatically. Hidden for the same reason cluster:cilium is — invoke it
-# by hand only to self-heal a 404/502 at / without a full restart. To route a
-# NATIVE service (not the frontend) through the edge, use service:dev instead.
+[tasks."cluster:glue"]
+# Re-stamp the host-only edge glue: the catch-all `/` → host `next dev` :3000 and
+# the docker-bridge EndpointSlice behind it. Per-machine state that cannot be
+# GitOps-managed — the bridge address is discovered at runtime and moves across
+# restarts. Every bring-up and heal runs it, so invoke it by hand only to clear a
+# 404/502 at `/`. To route a NATIVE service through the edge, use service:dev.
 hide = true
-run = "bash scripts/cluster-edge-glue.sh"
+run = "bash scripts/cluster.sh glue"
 
 [tasks."cluster:stop"]
-# Stops the ACTIVE TIER's cluster but KEEPS it (image cache + volumes survive) so
-# the next bring-up resumes without re-pulling. This is also how you hand the edge
-# ports over to the other tier.
-run = "bash scripts/cluster-dispatch.sh stop"
+# Halt the tier's nodes but KEEP them: the image cache and volumes survive, so the
+# next cluster:up resumes without re-pulling. Also how you hand the edge ports to
+# the other tier.
+#   mise run cluster:stop -- full
+run = "bash scripts/cluster.sh stop"
 
-[tasks."cluster:delete"]
-# Deletes the ACTIVE TIER's cluster and wipes its image cache (reclaims disk, clean
-# rebuild). `TIER=full` deletes the Talos cluster instead of the kind one — the
-# dispatch is what stops one tier's delete taking the other's cluster with it.
-run = "bash scripts/cluster-dispatch.sh delete"
+[tasks."cluster:down"]
+# Delete the tier's cluster and its image cache. The registry container survives —
+# it is host-level, shared by both tiers (ADR-0105).
+#   mise run cluster:down -- full
+run = "bash scripts/cluster.sh down"
 
 [tasks."cluster:heal"]
-# Recover a cluster wedged after a host reboot: Docker's raw restart of the node
-# can leave Cilium's datapath half-restored and the docker-bridge gateway IP
-# changed (stale frontend EndpointSlice → 502 at /). Restarts the node and
-# rebuilds the datapath. Run it when pods are stuck ContainerCreating or the edge
-# answers 502 after a reboot.
-run = "bash scripts/cluster-heal.sh"
+# Recover a cluster wedged by a host reboot: Docker replays the node raw, which can
+# leave Cilium's datapath half-restored (pods cannot reach the API) and the
+# docker-bridge address stale under the edge glue (502 at `/`). Restarts the nodes
+# and forces those stages.
+run = "bash scripts/cluster.sh heal"
 
-[tasks."cluster:unwedge"]
-# OPT-IN, proxied networks only: host-pull + kind-load any image the node's
-# containerd is failing to pull through an HTTP proxy (ImagePullBackOff), then
-# restart the stuck pods. Not part of any bring-up — clean networks never need it.
-run = "bash scripts/cluster-unwedge-images.sh"
+[tasks."cluster:status"]
+# What is running in the active tier and where to reach it: nodes, the registry,
+# the Argo applications or helm releases, and anything not Running.
+run = "bash scripts/cluster.sh status"
 
-[tasks."proxy:doctor"]
-# Check this machine's proxy setup against docs/guide/http-proxy.md, and apply what
-# can be applied without root (ADR-0600). The guide's four steps are read from four
-# different places — host, build container, cluster node, cluster pod — and a
-# loopback proxy has a different address in each; this does that arithmetic and
-# names the step that is wrong, instead of leaving it to surface as a hung pull or
-# an Argo app stuck at `Unknown`.
-#   mise run proxy:doctor            # diagnose
-#   mise run proxy:doctor -- --fix   # apply the non-root fixes
-# Exits 0 and says so on a direct network.
-run = "bash scripts/proxy-doctor.sh"
+[tasks."cluster:populate-zot"]
+# Mirror the first-party images into the full tier's in-cluster zot so its zot.ops
+# console is not empty (ADR-0105). Runs automatically as a stage of cluster:up full;
+# this is the on-demand form for re-filling it after a fresh push.
+run = "bash scripts/populate-zot.sh"
 
-[tasks."cluster:preload"]
-# OPT-IN, proxied networks only: PROACTIVELY host-pull + kind-load the
-# bootstrap-critical images (Cilium, ArgoCD) before cluster:full's imperative
-# `helm --wait` head can wedge on them — the gap cluster:unwedge (reactive, pods
-# only) cannot cover. Image list is derived from the charts, not hardcoded.
-# `PRELOAD_ALL=1` also warms the Argo-synced platform apps. cluster:full runs this
-# automatically only when CLUSTER_PRELOAD=1.
-run = "bash scripts/cluster-preload-images.sh"
+# ── Behind a firewall ─────────────────────────────────────────────────────────
+# OPT-IN and separate from every command above: nothing in scripts/cluster.sh knows
+# a proxy exists, so a direct network never runs this.
+[tasks."proxy:setup"]
+# Converge this machine for a proxied network, once, before the first cluster:up
+# (docs/guide/http-proxy.md). The settings are read from four places and a loopback
+# proxy has a different address in each; this does that arithmetic and applies what
+# does not need root. Exits 0 and says so on a direct network.
+#   mise run proxy:setup            apply
+#   mise run proxy:setup -- --check diagnose only
+run = "bash scripts/proxy-setup.sh"
+
 
 [tasks."argo:pause"]
 # Open a live-patch window: ArgoCD selfHeal reverts any direct edit to a synced
@@ -326,13 +298,13 @@ run = "bash scripts/cluster-preload-images.sh"
 # or NetworkPolicy fix before it lands on master). The cluster keeps running —
 # only reconciliation stops. ALWAYS pair with argo:resume; a paused controller
 # means the cluster silently stops tracking master.
-run = "kubectl --context kind-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=0"
+run = "bash scripts/argo.sh pause"
 
 [tasks."argo:resume"]
 # Close the live-patch window and hand the cluster back to GitOps. Anything patched
 # live that is not committed to master is reverted on the next sync — that is the
 # point: push first, then resume, or lose the change.
-run = "kubectl --context kind-${CLUSTER:-platform} -n argocd scale statefulset/argocd-application-controller --replicas=1"
+run = "bash scripts/argo.sh resume"
 
 [tasks."dev:forward"]
 # Port-forward the inner-loop deps so a natively-run service can reach them.
@@ -377,7 +349,7 @@ run = "bash scripts/db-migrate.sh"
 
 [tasks."auth:seed"]
 # Seed the committed deterministic test identities (ADR-0601) into a running Kratos.
-# cluster:base does this for you; run it alone after a Kratos reinstall.
+# cluster:up does this for you; run it alone after a Kratos reinstall.
 run = "bash scripts/identity-seed.sh"
 
 # ── Code generation ───────────────────────────────────────────────────────────
@@ -496,7 +468,7 @@ run = "go vet -tags _template ./services/_template/cmd/... ./services/_template/
 [tasks."lint:helm-deps"]
 # `helm dependency build` needs the repo registered in the caller's helm config;
 # `update` resolves it from Chart.yaml. The difference is invisible until a clean
-# runner hits it, which is how cluster:base reached CI broken.
+# runner hits it, which is how cluster:up reached CI broken.
 run = "bash scripts/lint-helm-deps.sh"
 
 [tasks."lint:sql"]
@@ -676,7 +648,7 @@ run = "bash scripts/lint-node-scope.sh"
 # Auth single-source guard (ADR-0305/0010/0029): fails if kratos/oathkeeper config
 # is re-inlined into the Ory chart values instead of living in infra/auth/*, or if
 # the frontend grows development-only auth code (a session bypass in proxy.ts or
-# src/lib/auth/ — local UI work logs in for real via cluster:base).
+# src/lib/auth/ — local UI work logs in for real via cluster:up).
 run = "bash scripts/lint-auth-inline.sh"
 
 [tasks."lint:authz"]
@@ -703,6 +675,13 @@ run = "go test ./..."
 # The shared TypeScript libraries under libs/ts/ — not the frontend, whose browser
 # behaviour is covered by the e2e suite (ADR-0601). Bun's runner, so this needs no
 # second toolchain and no Node.
+#
+# `setup:node` for the reason that task's own comment gives: the libraries import
+# their dependencies, and nothing installs node_modules implicitly. Without it this
+# passes on a developer machine, where they are already there, and fails on a cold
+# runner with `Cannot find package 'zod'` — which reads as a missing dependency in
+# the lockfile rather than as an install that never ran.
+depends = ["setup:node"]
 run = "bun test libs/ts/"
 
 [tasks.build]
@@ -833,7 +812,7 @@ run = "bash scripts/ci-affected-adversarial.sh"
 run = "bash scripts/ci-e2e-gate.sh"
 
 [tasks."ci:nightly-gate"]
-# Whether tonight's cluster:full suite should run, as a forge step-output
+# Whether tonight's cluster:up full suite should run, as a forge step-output
 # assignment (ADR-0102, ADR-0601). Reads EVENT.
 run = "bash scripts/ci-nightly-gate.sh"
 
@@ -871,6 +850,18 @@ run = "bash scripts/promote-verify.sh"
 [tasks."ci:build"]
 depends = ["build"]
 
+[tasks."ci:preview"]
+# The pull-request preview environment (ADR-0205): the full tier at one pull
+# request's images and manifests, destroyed with the run that made it. Takes the
+# verb as an argument; PREVIEW_PR and PREVIEW_REVISION come from the run.
+run = "bash scripts/ci-preview.sh"
+
+[tasks."forge:apply"]
+# Reconcile the committed branch protection and required checks into the forge
+# (ADR-0102). Idempotent, and it puts a UI edit back — which is the reason the
+# rules are a file. Needs FORGE_URL, FORGE_REPO and FORGE_TOKEN.
+run = "bash scripts/forge-apply.sh"
+
 [tasks."temporal:schedules"]
 # The platform's periodic obligations, from infra/temporal/schedules.yaml
 # (ADR-0302). Idempotent — an existing schedule is updated rather than duplicated,
@@ -893,13 +884,13 @@ run = "bash scripts/ci-gen.sh"
 # keeps `postgres` (a platform chart AND a deps.yaml slice) unambiguous.
 #   mise run cluster:add -- orders     # a service, from the working tree
 #   mise run cluster:add -- ory        # a platform chart, from the working tree
-run = "bash scripts/cluster-add.sh"
+run = "bash scripts/cluster.sh add"
 
 [tasks."cluster:remove"]
 # The counterpart. Uninstalls the release AND restores ArgoCD auto-sync, which the
 # add path paused — without that, remove leaves the thing gone *and* unmanaged.
 #   mise run cluster:remove -- orders
-run = "bash scripts/cluster-remove.sh"
+run = "bash scripts/cluster.sh remove"
 
 [tasks."service:deploy"]
 # One-shot in-cluster deploy of a service from the working tree (no watch). Brings
@@ -910,7 +901,7 @@ run = "bash scripts/service-deploy.sh"
 [tasks."service:undeploy"]
 # Prefer cluster:remove, which also restores GitOps.
 #   mise run service:undeploy -- <svc>
-run = "bash scripts/cluster-remove.sh"
+run = "bash scripts/cluster.sh remove"
 
 [tasks."service:dev"]
 # Run a service NATIVELY behind the real edge: stamps the per-service edge glue
@@ -956,7 +947,7 @@ run = "bash scripts/secrets-age.sh"
 # every generated project shares it — a default credential whose safety rests on
 # each project remembering the key is throwaway.
 #
-# `cluster:base` runs this before it decrypts anything, so the rotation is not
+# `cluster:up` runs this before it decrypts anything, so the rotation is not
 # something anyone has to remember. Idempotent: a project that has already rotated
 # is left alone. Pass `--force` to rotate again.
 run = "bash scripts/rotate-local-age-key.sh"
@@ -980,7 +971,7 @@ run = "mise run -C test/e2e test:smoke"
 # pin lives in test/perf/.mise.toml and mise tools flow down a config tree, never up.
 # These are NOT part of `test`, `check` or `ci:affected` (ADR-0601) — they answer
 # "what does it cost and where does it break", not "is it correct", and they need
-# a running cluster:full.
+# a running cluster:up full.
 [tasks.perf]
 # The steady baseline: nightly + pre-release.
 run = "mise run -C test/perf load"
@@ -1014,6 +1005,11 @@ run = "mise run -C test/perf soak"
 # The axe scan alone (ADR-0400), for iterating on an accessibility fix.
 run = "mise run -C test/e2e test:a11y"
 
+[tasks."e2e:visual"]
+# The committed screenshot baselines alone (ADR-0601), for iterating on an
+# intentional UI change without a full acceptance run.
+run = "mise run -C test/e2e test:visual"
+
 [tasks."lighthouse"]
 # Web vitals and the per-route bundle budgets, as merge gates (ADR-0400):
 # LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile.
@@ -1023,7 +1019,7 @@ run = "mise run -C test/e2e test:a11y"
 # and moves with the same cause, main-thread blocking. Faro reports the real INP
 # from the browser (ADR-0500), which is where the ADR's number is actually observed.
 #
-# Runs against the local edge, so it needs `cluster:full`: the frontend's server
+# Runs against the local edge, so it needs `cluster:up full`: the frontend's server
 # components fetch through the edge at render time, so a standalone `next build`
 # cannot produce a page to measure. Point it elsewhere with LHCI_URL.
 run = "mise run -C test/e2e lighthouse"

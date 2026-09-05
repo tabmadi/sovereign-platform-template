@@ -44,12 +44,38 @@ data:
           "name": "s3",
           "region": "{{ .Values.zot.storage.region }}",
           "bucket": "{{ .Values.zot.storage.bucket }}",
-          "regionendpoint": "{{ .Values.zot.storage.endpoint }}",
+          {{- /*
+          A URL, with the scheme. zot's storage driver is docker/distribution's,
+          whose `regionendpoint` the AWS SDK parses as an endpoint URL — a bare
+          `host:port` reads as a scheme-less URI and the driver gives up during
+          `parseStorage`, with an exit code and NO message after
+          `parsing storage and initializing`. Loki and Tempo take the same address
+          as `host:port` because their clients accept that form; the value here is
+          the same host and a different contract.
+          */}}
+          "regionendpoint": "{{ if .Values.zot.storage.secure }}https{{ else }}http{{ end }}://{{ .Values.zot.storage.endpoint }}",
           "secure": {{ .Values.zot.storage.secure }},
           "forcepathstyle": true
         }
       },
       "http": {
+        {{- /*
+        An image push is a LONG request. A layer arrives as one streamed PATCH and
+        zot writes it through to object storage as it goes, so the request lasts as
+        long as the slowest of the client link and the store — and upstream's
+        60-second default cuts a large layer mid-stream. What the client sees is
+        `unexpected EOF` and an endless retry loop; what the registry logs is an
+        i/o timeout reading from its own peer, which reads as a network fault
+        rather than as its own deadline.
+
+        A DURATION STRING, never a bare number. These are Go durations, so a JSON
+        number is nanoseconds: `600` is 600ns, every request past the first byte
+        dies instantly, and the edge in front reports 502 while the registry's own
+        log shows it answering. Larger is not safer here — it is six hundred
+        millionths of a second.
+        */}}
+        "readTimeout": "{{ .Values.zot.http.readTimeout }}",
+        "writeTimeout": "{{ .Values.zot.http.writeTimeout }}",
         "address": "0.0.0.0",
         "port": "{{ .Values.zot.service.port }}",
         "auth": { "htpasswd": { "path": "/etc/zot-auth/htpasswd" } },
@@ -68,15 +94,31 @@ data:
         },
         "compat": ["docker2s2"]
       },
-      "log": { "level": "info" }{{ if .Values.zot.sync.enabled }},
-      {{- /*
-      The sync extension, making zot a pull-through cache for the upstreams
-      (ADR-0105). Anonymous pulls of a MIRRORED image still pass through the
-      accessControl above, so the pull identity is the same one the cluster already
-      uses — mirroring does not open a second, unauthenticated door into the
-      registry.
-      */}}
+      "log": { "level": "info" }{{ if or .Values.zot.console.enabled .Values.zot.sync.enabled }},
       "extensions": {
+        {{- if .Values.zot.console.enabled }}
+        {{- /*
+        The console (ADR-0306), and the search extension it is a client of. Both,
+        or neither: `ui` alone renders a page whose every query 404s, which reads
+        as an empty registry rather than as a missing extension.
+
+        The accessControl above is unchanged by this, which is the point — the UI
+        is served by the same authenticated endpoint as the API, so a browser that
+        cleared the edge still presents the registry's own pull credential. No
+        anonymousPolicy is added to make the console convenient; that would open
+        every pull on `registry.<host>` at the same time.
+        */}}
+        "ui": { "enable": true },
+        "search": { "enable": true }{{ if .Values.zot.sync.enabled }},{{ end }}
+        {{- end }}
+        {{- if .Values.zot.sync.enabled }}
+        {{- /*
+        The sync extension, making zot a pull-through cache for the upstreams
+        (ADR-0105). Anonymous pulls of a MIRRORED image still pass through the
+        accessControl above, so the pull identity is the same one the cluster already
+        uses — mirroring does not open a second, unauthenticated door into the
+        registry.
+        */}}
         "sync": {
           "enable": true,
           {{- /*
@@ -87,8 +129,19 @@ data:
           Docker Hub's anonymous rate limit applies and is the accepted cost; it is
           also why that upstream must stay onDemand rather than polled.
           */}}
+          {{- /*
+          Where a synced image lands before it is committed to the store. zot
+          REFUSES TO START without it whenever sync and a remote storage driver
+          are both configured — `using both sync and remote storage features
+          needs config.Extensions.Sync.DownloadDir to be specified` — so on S3
+          this key is not a tuning option, it is the difference between a
+          registry and a CrashLoopBackOff. It shares the emptyDir that holds the
+          metadata cache: the contents are a staging area, rebuilt on demand.
+          */}}
+          "downloadDir": "{{ .Values.zot.sync.downloadDir }}",
           "registries": {{ toJson .Values.zot.sync.registries }}
         }
+        {{- end }}
       }{{ end }}
     }
 {{- end }}

@@ -17,7 +17,7 @@ import (
 	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
 )
 
 // Address resolves the Temporal frontend host from $TEMPORAL_HOST_PORT.

@@ -10,7 +10,7 @@ import (
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/testsuite"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/money"
 )
 
 var testCheckout = CheckoutInput{

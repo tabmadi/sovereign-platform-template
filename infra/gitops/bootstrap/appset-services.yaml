@@ -2,7 +2,8 @@
 # values files; one Application per service per environment, auto-onboarded
 # when its values file lands in master.
 #
-# sync-wave "5" holds this back until the whole platform tier (base "0", data "2",
+# sync-wave "6" holds this back until the whole platform tier (admission "0",
+# stores "2", telemetry "3", core "4"),
 # core "3" — each gated by a custom ApplicationSet health check, see
 # infra/helm/platform/argocd/values.yaml) and the gateway Application (wave "4")
 # are all Synced+Healthy. Services depend on both: platform for
@@ -16,7 +17,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: services
   annotations:
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -41,13 +42,17 @@ spec:
                 - { env: staging, server: "https://kubernetes.default.svc" }
                 - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
-              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               files:
                 - { path: "infra/gitops/services/{{ .env }}/values/*.yaml" }
   template:
     metadata:
-      name: "{{ .env }}-service-{{ .path.filenameNormalized }}"
+      # `filenameNormalized` keeps the extension, so it produces
+      # `dev-service-orders.yaml` — a resource whose name says which FILE generated
+      # it rather than which service it deploys, against the `<env>-<tier>-
+      # <component>` naming ADR-0201 fixes. Trimming it is the whole fix.
+      name: '{{ .env }}-service-{{ trimSuffix ".yaml" .path.filename }}'
       labels:
         env: "{{ .env }}"
         app.kubernetes.io/part-of: services
@@ -55,11 +60,17 @@ spec:
     spec:
       project: "{{ .env }}"
       source:
-        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        repoURL: https://github.com/tabmadi/sovereign-platform-template.git
         targetRevision: master
         path: infra/helm/service
         helm:
           valueFiles:
+            # Env-wide first, then the service's own, which therefore wins. What
+            # belongs in the shared file is anything true of every service in the
+            # environment — the registry's pull credential, for one. Repeating it
+            # per service is how one of them ends up without it, and the symptom is
+            # an ImagePullBackOff on the service nobody edited.
+            - "../../gitops/services/{{ .env }}/shared.yaml"
             - "../../gitops/services/{{ .env }}/values/{{ .path.filename }}"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:

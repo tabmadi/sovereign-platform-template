@@ -11,7 +11,7 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/buildinfo"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/buildinfo"
 )
 
 // Chain wraps h with tracing, RED metrics, and access logging. RED is owned by

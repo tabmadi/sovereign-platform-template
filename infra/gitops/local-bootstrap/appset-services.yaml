@@ -4,14 +4,15 @@
 # values (infra/gitops/services/local/values/*.yaml). One Application per service,
 # named `local-service-<svc>` (env-prefix; grouped by the `local` AppProject).
 # The frontend is intentionally absent locally: it runs as a host process and is
-# wired through the frontend-dev EndpointSlice (the imperative tail of cluster:full).
+# wired through the frontend-dev EndpointSlice (the imperative tail of cluster:up full).
 #
-# sync-wave "5" holds this back until the whole local-platform tier (base "0",
-# data "2", core "3"), local-secrets ("1"), and local-gateway ("4") are all
+# sync-wave "6" holds this back until the whole local-platform tier (admission "0",
+# stores "2", telemetry "3", core "4"), local-secrets ("1"), and local-gateway ("5")
+# are all
 # Synced+Healthy — the same CNI-stability/middleware/DB-credential dependencies as
 # prod, plus the per-service Secrets that local-secrets's sops-operator
 # materialises. Without this, service pods raced Cilium/CoreDNS warm-up and the
-# local registry on every `cluster:full` after a `cluster:stop`, landing in
+# local registry on every `cluster:up full` after a `cluster:stop`, landing in
 # CrashLoopBackOff.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -22,7 +23,7 @@ metadata:
     env: local
     app.kubernetes.io/part-of: services
   annotations:
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -43,7 +44,7 @@ spec:
               elements:
                 - { env: local, server: "https://kubernetes.default.svc" }
           - git:
-              repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+              repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               files:
                 - { path: "infra/gitops/services/{{ .env }}/values/*.yaml" }
@@ -62,7 +63,7 @@ spec:
     spec:
       project: "{{ .env }}"
       source:
-        repoURL: https://github.com/tabmadi/microservices-monorepo-template.git
+        repoURL: https://github.com/tabmadi/sovereign-platform-template.git
         targetRevision: master
         path: infra/helm/service
         helm:

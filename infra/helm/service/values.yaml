@@ -8,7 +8,7 @@ name: ""
 # Server image (cmd/server). Pin by a concrete git SHA tag (dev/staging) or, in
 # prod, by digest (ADR-0101, ADR-0103). Moving tags are lint-forbidden.
 image:
-  repository: ""        # e.g. ghcr.io/tabmadi/microservices-monorepo-template/catalog-server
+  repository: ""        # e.g. ghcr.io/tabmadi/sovereign-platform-template/catalog-server
   tag: ""               # e.g. 4f9dbcb12 (git SHA); dev/staging
   digest: ""            # e.g. sha256:… ; prod pins by digest (set by promote-on-release)
   pullPolicy: IfNotPresent
@@ -186,3 +186,8 @@ networkPolicy:
   # one dependency that is not in this service's own namespace, so it is the one
   # egress rule that has to name a namespace rather than rely on the platform one.
   otelAgentNamespace: otel-agent
+
+# Pull credentials for the registry this service's image lives in (ADR-0105).
+# Empty for a registry that serves anonymously — the local tier's does. A deployed
+# environment names the Secret its SopsSecret carries.
+imagePullSecrets: []

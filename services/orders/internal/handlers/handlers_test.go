@@ -11,13 +11,13 @@ import (
 
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	orders "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/orders"
-	"github.com/tabmadi/microservices-monorepo-template/services/orders/internal/store"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
+	orders "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/orders"
+	"github.com/tabmadi/sovereign-platform-template/services/orders/internal/store"
 )
 
 const statusPending = "pending"

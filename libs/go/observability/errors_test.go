@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
 )
 
 // The fingerprint's whole job is stability (ADR-0503): the same fault yields the

@@ -268,7 +268,7 @@ func appFrames() []string {
 // modulePrefix is this platform's module path. A frame outside it is a vendor
 // frame: the same code for every caller, so it identifies a library rather than a
 // fault.
-const modulePrefix = "github.com/tabmadi/microservices-monorepo-template/"
+const modulePrefix = "github.com/tabmadi/sovereign-platform-template/"
 
 func isFirstParty(fn string) bool {
 	if !strings.HasPrefix(fn, modulePrefix) {

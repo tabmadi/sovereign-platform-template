@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	authzsdk "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/authz"
-	"github.com/tabmadi/microservices-monorepo-template/services/authz/internal/kratos"
+	authzsdk "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/authz"
+	"github.com/tabmadi/sovereign-platform-template/services/authz/internal/kratos"
 )
 
 const (

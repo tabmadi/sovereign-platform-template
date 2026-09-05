@@ -17,16 +17,28 @@ spec:
             apiTokenSecretRef: { name: {{ $tls.acme.cloudflare.tokenSecret }}, key: {{ $tls.acme.cloudflare.tokenKey }} }
 ---
 # Product tier `*.<host>`. Routes in infra/gateway read this secret.
+#
+# `platform`, because Traefik resolves a route's TLS secret in the namespace of
+# the IngressRoute that names it, and every route in infra/gateway is in
+# `platform`. The certificate's own namespace is the only thing that decides
+# whether the edge serves it or falls back to Traefik's self-signed default —
+# which presents as a hostname mismatch rather than as a missing certificate.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: wildcard
-  namespace: traefik
+  namespace: platform
 spec:
   secretName: wildcard-tls
   issuerRef: { name: letsencrypt, kind: ClusterIssuer }
+  # The apex as well as the wildcard: `*.example.com` does NOT cover
+  # `example.com` — a wildcard matches exactly one label — and the product tier is
+  # served at the apex (ADR-0306). Without it the edge falls back to Traefik's own
+  # certificate there, so the site the platform exists to serve is the one origin
+  # with a name mismatch, while every ops subdomain is fine.
   dnsNames:
     - "*.{{ $host }}"
+    - "{{ $host }}"
 ---
 # Ops-tier wildcard (ADR-0306). The product wildcard covers one label, so the
 # two-labels-deep ops tools (`{tool}.ops.<host>`) need their own certificate.
@@ -34,7 +46,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: wildcard-ops
-  namespace: traefik
+  namespace: platform
 spec:
   secretName: wildcard-ops-tls
   issuerRef: { name: letsencrypt, kind: ClusterIssuer }

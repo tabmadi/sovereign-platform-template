@@ -16,12 +16,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/dbmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/httpmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	tmpl "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/_template"
-	"github.com/tabmadi/microservices-monorepo-template/services/_template/internal/handlers"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/dbmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/httpmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
+	tmpl "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/_template"
+	"github.com/tabmadi/sovereign-platform-template/services/_template/internal/handlers"
 )
 
 const serviceName = "_template"

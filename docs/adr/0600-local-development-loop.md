@@ -4,7 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md), [ADR-0206](0206-cluster-networking.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0601](0601-testing-strategy.md)
-- **Decides:** Two local tiers — `cluster:base` on kind for the inner loop and `cluster:full` on Talos in Docker for the platform — with a vendored mock and no second definition of the system.
+- **Decides:** Two local tiers — `cluster:up` for the inner loop and `cluster:up full` for the platform — both on kind, with a vendored mock and no second definition of the system.
 
 ## Context
 
@@ -64,22 +64,28 @@ Conformance makes a chart apply; it does not make the cluster behave. A distribu
 
 | Option | Node shape | Getting an image in | Diverges at | Verdict |
 | --- | --- | --- | --- | --- |
-| **Talos in Docker** | Talos nodes as containers, driven by `talosctl` and a machine config | a local registry | the host kernel and the installer path: no system extensions, no disk layout, no upgrade path | **Chosen for `cluster:full`.** The only option that runs the machine config itself, so the delivery mechanism [ADR-0206](0206-cluster-networking.md) decides is exercised rather than approximated, and the layers it drops are the ones no laptop reaches *(reasoned)* |
-| **kind** | upstream Kubernetes in Docker, provisioned by kubeadm | `kind load docker-image`, or a local registry | node count, and nothing above it | **Chosen for the inner loop.** Upstream Kubernetes on etcd, kube-proxy declined at create time, and no bundled edge, so Cilium runs its eBPF dataplane against the committed chart. It reaches that at no cost against the alternative: create-and-destroy time and idle footprint are indistinguishable from k3d's *(measured)* |
+| **kind** | upstream Kubernetes in Docker, provisioned by kubeadm | `kind load docker-image`, or a local registry | node count and the machine config, in both tiers | **Chosen for both tiers.** Upstream Kubernetes on etcd, kube-proxy declined at create time, and no bundled edge, so Cilium runs its eBPF dataplane against the committed chart — one provisioner, one image path, one bring-up to debug *(reasoned)* |
+| Talos in Docker | Talos nodes as containers, driven by `talosctl` and a machine config | a local registry only — a Talos node holds no image the cluster did not pull | the host kernel and the installer path: no system extensions, no disk layout, no upgrade path, and the `upgrade` and `reset` APIs are absent in container mode | **Rejected, having been run.** Its case was exercising the machine config, and that case is weaker than it appears: the local patch is explicitly not the deployed one, so the tier validates a config that exists nowhere else. What it charged instead was measured — see the operating cost below *(measured)* |
 | k3d | k3s in Docker containers | `k3d image import`, or the built-in registry | all four | The bundles are the loss [ADR-0200](0200-cluster-topology.md) already names, and kine and kube-proxy are two more. Its case was speed and footprint, and neither survives measurement: level on create-and-destroy, marginally heavier at idle |
 | minikube | a VM or a container, many drivers | `minikube image load`, or its Docker daemon | the datapath and the edge, plus its addon layer | The most portable across host operating systems, and the heaviest per cluster. Its addons are a second source of cluster configuration, against parity |
 | Docker Desktop or Orbstack Kubernetes | bundled with the host tool | shares the host image store, so no load step at all | the datapath and the edge, vendor-managed | The best image path of the field and no cluster lifecycle to control: it is one cluster, tied to a specific desktop product, which [ADR-0205](0205-environment-parity.md)'s per-engineer recreate-freely lifecycle needs |
-| One distribution for both tiers | — | — | — | Talos everywhere charges the inner loop a machine-config bootstrap on every recreate, for layers a Go handler never reaches. kind everywhere leaves the machine config — the mechanism that delivers the CNI and disables kube-proxy — exercised by nothing before a deployed environment |
+| Two distributions, one per tier | — | — | — | **Rejected on its operating cost.** Every seam between the two produced its own defect: a stand-in cleanup that deleted the resource it shared a name with, an image-unwedge tool that worked on one tier only, and a preload path that branched per tier. A tier boundary is a workload question; making it a distribution question puts a second product under it |
 
-The measurement behind the two verdicts above is a bare single-node cluster of each, no CNI and no load balancer, compared on time to a ready API and on idle node-container memory. Re-taking it means creating one of each and sampling both; a result that reverses it makes the k3d row wrong rather than stale.
+The measurement behind the verdicts above is a bare single-node cluster of each, no CNI and no load balancer, compared on time to a ready API and on idle node-container memory. Re-taking it means creating one of each and sampling both; a result that reverses it makes the k3d row wrong rather than stale.
 
-**The split is the parity ladder, applied.** [ADR-0205](0205-environment-parity.md) permits implementation divergence in the inner loop and forbids it in the full tier. The inner loop runs one service against stand-ins, where recreate speed is the forcing property; the full tier is what CI, label-gated previews, and pre-merge validation run, where the forcing property is that they exercise production's implementation, including how that implementation is delivered.
+**The operating cost of a Talos full tier is measured, not predicted.** The tier ran on Talos in Docker, and over the 48 hours that followed, 17 of 84 commits touched cluster machinery — 13 of them on friction belonging to that provisioner alone: node IPs colliding with the shared registry container on a pinned docker network, a kubelet bind-mount the read-only root needs before a provisioner starts, a TLS stanza Talos refuses on a plaintext mirror, node memory and disk thresholds sized for a laptop, and an image path that must be preloaded because a Talos node holds nothing the cluster did not pull. None of those are properties of the platform being tested; they are properties of running that OS in a container on a developer's machine.
 
-**Neither local tier carries quorum, and that is deliberate.** `talosctl cluster create docker` builds one control plane — the docker provisioner takes `--workers` and has no `--controlplanes` — so the full tier is one control plane plus two workers. Quorum was never what the tier was for: nothing that runs here kills two of three members, and the datastore semantics the table above names are single-member properties. Raft consensus, leader election and partition behaviour are exercised where they matter, on the three-node deployed environments ([ADR-0200](0200-cluster-topology.md)), and quorum loss is a recovery rehearsal ([ADR-0207](0207-cluster-storage.md)) rather than something a laptop reproduces.
+**The fidelity that cost was buying is narrower than it looks.** `talosctl cluster create docker` is a supported path — its own documentation names CI pipelines and local testing — but container mode withholds the `upgrade` and `reset` APIs, which are the Talos lifecycle worth rehearsing, and the local machine config is deliberately not the deployed one. So the tier demonstrated that *a* machine config delivers a CNI and disables kube-proxy, using content no deployed environment applies. The deployed machine config is exercised where its disks, extensions and installer are real.
 
-**What the extra nodes buy is not etcd.** Three nodes make pod-to-pod traffic cross a real network hop, so Cilium's dataplane and NetworkPolicy are enforced between nodes rather than over loopback; they make anti-affinity and PodDisruptionBudgets mean something; and they make a `local-path` volume node-pinned, which is the `WaitForFirstConsumer` failure mode that is invisible on a single node.
+**The parity ladder is unchanged; only the node under it is.** [ADR-0205](0205-environment-parity.md) permits implementation divergence in the inner loop and forbids it in the full tier. That forbids divergence in *the platform* — the charts, the operators, the sync ordering, the datapath — and every one of those is identical on kind. The full tier is what CI, label-gated previews, and pre-merge validation run, and it exercises production's implementation of everything above the node.
 
-**The inner loop's divergence is one line: it is a single node.** Everything above that matches — upstream Kubernetes, etcd, Cilium's eBPF dataplane with kube-proxy absent, and the committed Traefik chart. Cilium is the same chart with the same WireGuard encryption in both tiers, so NetworkPolicy is enforced in the inner loop as it is everywhere ([ADR-0206](0206-cluster-networking.md)).
+**Storage comes from kind in both tiers.** kind ships a provisioner and a default StorageClass, so the `local-path` chart stays off locally — enabling it would put two provisioners on one default annotation, and the second one wins silently. A deployed environment runs the chart, because Talos ships no provisioner ([ADR-0207](0207-cluster-storage.md)). This is the one component whose local source differs from the deployed one, and it is a StorageClass rather than a behaviour: kind's provisioner is the same `local-path-provisioner` the chart installs.
+
+**Both local tiers are a single node, and what that costs is stated rather than discovered.** Quorum was never what a local tier was for: nothing here kills two of three members, and the datastore semantics above — watch, compaction, MVCC, compare-and-swap — are single-member properties of etcd. Raft consensus, leader election and partition behaviour are exercised on the three-node deployed environments ([ADR-0200](0200-cluster-topology.md)).
+
+What a second node would buy is not quorum either, and it is a shorter list than it appears. Anti-affinity and PodDisruptionBudgets do not engage, because the local tier runs charts at single replica and nothing drains a node. A node-pinned volume cannot bind to the wrong node when there is only one. **The one real loss is the cross-node datapath**: with every pod on one node, Service routing between nodes is never exercised, and WireGuard transparent encryption ([ADR-0206](0206-cluster-networking.md)) encrypts nothing, because no traffic leaves the node. A regression there does not come from an ordinary change — it comes from a Cilium bump or an edit to the encryption values, and it surfaces on the first deployed environment rather than on a laptop. That is the accepted trade: a datapath rehearsal in exchange for a tier that costs one node.
+
+**The two tiers differ in workloads alone.** Everything else matches — upstream Kubernetes, etcd, Cilium's eBPF dataplane with kube-proxy absent, and the committed Traefik chart. Cilium is the same chart with the same WireGuard encryption in both tiers, so NetworkPolicy is enforced in the inner loop as it is everywhere ([ADR-0206](0206-cluster-networking.md)).
 
 What the inner loop cannot show is anything the machine config carries. The full tier is where that surfaces, and there is no tier behind it: [ADR-0205](0205-environment-parity.md) makes CI and the label-gated preview that same tier at a different lifecycle, so a divergence it carries reaches a deployed environment unexamined.
 
@@ -146,14 +152,16 @@ It does **not** win on graph resolution, the property that attracted us: mise al
 
 | Tier | Command | Distribution | Parity | What runs | For |
 | --- | --- | --- | --- | --- | --- |
-| **Inner loop** | `cluster:base` plus a service's own tasks | kind | **interface** | the local floor; the service under change runs natively on the host | day-to-day coding, UI work |
-| **Full platform** | `cluster:full` | Talos in Docker | **implementation** | the real platform charts at `instances=1` — CNPG, the Temporal chart, OpenFGA, SeaweedFS, observability, edge and auth | e2e ([ADR-0601](0601-testing-strategy.md)), pre-merge validation, CI, label-gated PR previews |
+| **Inner loop** | `cluster:up` plus a service's own tasks | kind | **interface** | the local floor; the service under change runs natively on the host | day-to-day coding, UI work |
+| **Full platform** | `cluster:up full` | kind | **implementation** | the real platform charts at `instances=1` — CNPG, the Temporal chart, OpenFGA, SeaweedFS, observability, edge and auth | e2e ([ADR-0601](0601-testing-strategy.md)), pre-merge validation, CI, label-gated PR previews |
 
 The inner loop runs the service natively against lightweight stand-ins — a plain Postgres, `temporal server start-dev`, in-memory OpenFGA — reached through `dev:forward`. The stand-ins honour the same wire contract, so a bug reproduced against them reproduces in production. There is no image build, redeploy, or file watch on the hot path.
 
-The full platform runs the same charts on the same distribution a deployed environment runs, scaled to one replica through the `local` values overlay. Its nodes take the same machine config, so Cilium arrives as an inline manifest with kube-proxy disabled and etcd is the datastore ([ADR-0200](0200-cluster-topology.md), [ADR-0206](0206-cluster-networking.md)). One control plane and two workers: the workers are what make the datapath cross a node boundary, not what make etcd a cluster. It catches operator behaviour, sync ordering, and chart wiring, and it is the exact configuration CI and PR previews use.
+The full platform runs the same charts on the same distribution a deployed environment runs, scaled to one replica through the `local` values overlay. Cilium is installed from the committed chart with kube-proxy declined at create time, and etcd is the datastore ([ADR-0200](0200-cluster-topology.md), [ADR-0206](0206-cluster-networking.md)). It catches operator behaviour, sync ordering, and chart wiring, and it is the exact configuration CI and PR previews use.
 
-**The two tiers are two clusters, not two states of one.** They differ in distribution, so the inner loop survives a full-tier teardown and neither bring-up disturbs the other. Each is addressed by its own `kubectl` context, and a service's local port is the same in both (`scripts/lib/ports.sh`).
+**The two tiers are two clusters, not two states of one.** The inner loop survives a full-tier teardown and neither bring-up disturbs the other. Each is addressed by its own `kubectl` context, and a service's local port is the same in both (`scripts/lib/ports.sh`).
+
+**Only the entrypoint names a tier.** `scripts/cluster.sh` takes the tier as an argument because it creates one ([ADR-0101](0101-monorepo.md)); every other script acts on a cluster it did not create and reads the tier off the machine instead. The tiers share the edge's host ports, so at most one is ever serving and the answer is never ambiguous. A hardcoded default is what the argument was meant to remove: a tool that assumes the inner loop while the full tier serves resolves to a context that does not exist, and every call inside it fails as though the platform were down.
 
 Images reach the full tier through a local registry, which is the path a deployed environment uses: Argo CD pulls a tag from a registry rather than finding an image already resident on the node. The inner loop keeps the direct import, because nothing there reconciles from git.
 
@@ -172,11 +180,11 @@ Ad-hoc ports would live in each engineer's gitignored `.env`, where they cannot 
 
 ### Composition: a floor, plus per-service declarations
 
-There are no named profiles. **A floor**: `cluster:base` brings up Cilium, Traefik, cert-manager, Postgres, Kratos, and Oathkeeper, plus the host edge glue and the seeded test identities. It is unconditional.
+There are no named profiles. **A floor**: `cluster:up` brings up Cilium, Traefik, cert-manager, Postgres, Kratos, and Oathkeeper, plus the host edge glue and the seeded test identities. It is unconditional.
 
 Cilium is in the floor because a CNI precedes every pod, and because it is the mechanism [ADR-0206](0206-cluster-networking.md) makes the service-to-service trust boundary. A service's NetworkPolicy is enforced from the first tier upward, so a missing allow fails where it was written rather than in a deployed environment.
 
-The chart, its WireGuard encryption, and its eBPF dataplane are the same in both tiers; only the delivery differs. The full tier's nodes carry the inline manifest in their machine config, as a deployed environment's nodes do. The inner loop has no machine config, so `cluster:cilium` installs the same chart imperatively against a cluster created without kube-proxy.
+The chart, its WireGuard encryption, and its eBPF dataplane are the same in every tier; only the delivery differs. A deployed environment's nodes carry the inline manifest in their machine config. A local node has none, so `cluster:up` installs the same chart imperatively against a cluster created without kube-proxy.
 
 **No values differ.** The inner loop declines kube-proxy at cluster-create time rather than compensating for it afterwards, so Cilium runs the committed `kubeProxyReplacement` setting in every tier. A local override of a Cilium value is a defect, because it makes the datapath under a local test a different datapath from the one under the deployed workload.
 
@@ -201,12 +209,12 @@ Dependency components are deliberately **not** addressable through `cluster:add`
 
 ### mise supplies the graph
 
-A service's nested `.mise.toml` can depend on root-config tasks, diamond dependencies dedupe so a shared `cluster:base` runs once, and independent dependencies run in parallel. That is Garden's graph-execution semantics in a tool already pinned.
+A service's nested `.mise.toml` can depend on root-config tasks, diamond dependencies dedupe so a shared `cluster:up` runs once, and independent dependencies run in parallel. That is Garden's graph-execution semantics in a tool already pinned.
 
 ```toml
 # root .mise.toml
 [tasks."dep:temporal"]
-depends = ["cluster:base"]
+depends = ["cluster:up"]
 run = "bash scripts/dep-apply.sh temporal"
 
 # services/orders/.mise.toml
@@ -220,7 +228,7 @@ run = "go run ./cmd/worker"
 | mise | the dependency graph and task vocabulary. Declarations only — no logic in `.mise.toml` |
 | bash | one small idempotent installer per component (`dep-apply.sh`) or sibling (`svc-apply.sh`) |
 | Helm | the component units — the same charts every tier |
-| Argo CD | `cluster:full` only |
+| Argo CD | `cluster:up full` only |
 
 **The one property not free:** Garden does status checks and skips work already done. mise does not — its `sources`/`outputs` staleness is keyed on files, and "is Temporal already Ready?" is not a file. Without a guard, every `mise run server` re-pays a full apply and rollout wait.
 
@@ -260,7 +268,7 @@ Three escape hatches cover uncommitted infra:
 | --- | --- |
 | Chart or values | `platform:deploy -- <chart>` pauses Argo auto-sync on that one app and `helm upgrade`s from the working tree |
 | GitOps wiring — sync-waves, ApplicationSets, App defs | push a branch and point the local root app's `targetRevision` at it, exercising the real delivery path |
-| Machine config, CNI, or CRD | `cluster:delete` plus a fresh `cluster:full`, which is how a machine-config change reaches a deployed node too. Hot-swapping a CNI on a live cluster blips networking — inherent to the component, not a tooling gap |
+| Machine config, CNI, or CRD | `cluster:down -- full` plus a fresh `cluster:up -- full`, which is how a machine-config change reaches a deployed node too. Hot-swapping a CNI on a live cluster blips networking — inherent to the component, not a tooling gap |
 
 `cluster:remove` reverses `cluster:add` **and restores Argo auto-sync**, which the add path paused.
 
@@ -286,7 +294,7 @@ The fix belongs in the contract. Examples in `services/<service>/openapi.yaml` m
 
 ### UI work is the floor plus the mock
 
-| Component | State on `cluster:base` | Why |
+| Component | State on `cluster:up` | Why |
 | --- | --- | --- |
 | Cilium | real | the CNI every pod needs, and the NetworkPolicy enforcement point ([ADR-0206](0206-cluster-networking.md)) |
 | Traefik | real | routes `/api` to the mock and `/` to the host `next dev`; owns the same-origin contract |
@@ -301,7 +309,7 @@ The application's authentication path is **byte-identical to production**. There
 
 ### Identity comes from a seeded real login
 
-`cluster:base` seeds the committed deterministic test identities [ADR-0601](0601-testing-strategy.md) defines, rather than inventing a parallel development-only identity, and `scripts/auth-token.sh` logs in by driving the real native flow. Kratos sessions last **7 days**, so a human logs in about once a week; the bootstrap exists so a fresh cluster is usable immediately and CI never types a password.
+`cluster:up` seeds the committed deterministic test identities [ADR-0601](0601-testing-strategy.md) defines, rather than inventing a parallel development-only identity, and `scripts/auth-token.sh` logs in by driving the real native flow. Kratos sessions last **7 days**, so a human logs in about once a week; the bootstrap exists so a fresh cluster is usable immediately and CI never types a password.
 
 ### The mock is local tooling only
 
@@ -324,7 +332,7 @@ A short enumerated set of manifests has no production analogue:
 | `infra/local/deps.yaml` | the inner-loop dependency stand-ins. The full tier does not use it |
 | `infra/local/edge-auth.yaml` | routes `/auth` and landing to a host-run `next dev` |
 | `infra/local/mock.yaml` | the mock Deployment, Service, and `/api` IngressRoute, carrying the real edge middleware chain. The spec ConfigMap is stamped from the committed projection on every run |
-| `scripts/coredns-rewrite.sh` | resolves the env host to Traefik from inside the cluster, since `127.0.0.1` in a pod is the pod's own loopback. A script rather than a manifest because kind runs stock CoreDNS, which has no custom-record mechanism — it patches the Corefile and restarts |
+| The CoreDNS rewrite (`coredns` stage, `scripts/lib/cluster.sh`) | resolves the env host to Traefik from inside the cluster, since `127.0.0.1` in a pod is the pod's own loopback. A stage rather than a manifest because kind runs stock CoreDNS, which has no custom-record mechanism — it patches the Corefile and restarts |
 | A local CA issuing the wildcard | the same cert-manager mechanism with a local ClusterIssuer. It is a **CA**, not a self-signed leaf: a leaf cannot be a trust anchor, which would force `NODE_TLS_REJECT_UNAUTHORIZED=0` and block the frontend from running as its production image locally |
 
 ## Consequences
@@ -332,11 +340,12 @@ A short enumerated set of manifests has no production analogue:
 ### Positive
 
 - The inner loop stays fast: above the floor, a service pays only for what it declares.
-- The full tier validates the same software delivered the same way a deployed environment delivers it — the machine config, operators, sync ordering, chart wiring, the etcd datastore, and the kube-proxy-free datapath — before a change reaches one.
+- The full tier validates the same software delivered the same way a deployed environment delivers it — operators, sync ordering, chart wiring, the etcd datastore, and the kube-proxy-free datapath — before a change reaches one.
+- One provisioner serves both tiers, so a bring-up defect is fixed once. The seams a second provisioner introduced — a per-tier image path, a per-tier unwedge tool, and a stand-in cleanup matching resources by name across two clusters — have no equivalent here.
 - Both tiers run upstream Kubernetes on etcd, so a Kubernetes-version behaviour, a watch or compaction semantic, and a Service routing difference are all reachable from the first tier upward.
 - NetworkPolicy and the eBPF datapath are the same in every tier, so an undeclared caller and a routing assumption both fail in the tier that introduced them.
 - No Cilium value differs by tier, so the local network posture is the deployed network posture rather than a lookalike.
-- The frontend has a tier costing a fraction of `cluster:full` with the authentication path untouched.
+- The frontend has a tier costing a fraction of `cluster:up full` with the authentication path untouched.
 - No development-only code ships in `apps/frontend/`. The class of bug where a screen works locally and `403`s in staging cannot occur, because the local gates are the real gates.
 - The mock cannot drift from the contract: its only input is a drift-checked artifact.
 - Examples serve the developer portal and the mock simultaneously; the test-identity bootstrap has two consumers, so it is exercised daily rather than nightly.
@@ -351,26 +360,29 @@ A short enumerated set of manifests has no production analogue:
 - **The mock is stateless.** A create followed by a read does not reflect the write, and a `WorkflowHandle`'s `result_url` polls nothing. This is the tier's honest boundary.
 - **Examples are a maintenance surface.** `response-example-required` enforces that a `2xx` response has an example; nothing enforces the example is still true after a schema change. Mitigated by keeping examples minimal and reviewing them as part of the contract diff — a wrong example is a wrong contract, visible in the same PR.
 - **The floor is not free.** Cilium, Traefik, cert-manager, Kratos, Oathkeeper, and Postgres must be up to run any service at all. That cost buys the absence of every development-only auth branch.
-- **Two provisioners are two bring-up paths**, two `kubectl` contexts, and two image paths. The cost is bounded — both are Docker, both run upstream Kubernetes on etcd, each is one `mise` task, and the charts above them are identical — and what it buys is a full tier that exercises the machine config. A third provisioner, or per-tier drift in anything above the node, is the signal to collapse them.
-- **The full tier costs laptop RAM.** Per-service declarations exist so day-to-day work runs only its slice on the smaller tier.
+- **The machine config is exercised by no local tier.** The mechanism [ADR-0206](0206-cluster-networking.md) uses to deliver the CNI and disable kube-proxy is first applied in a deployed environment, and a defect in it surfaces there. This is the cost of the decision, and it is paid knowingly: what a local Talos tier validated was a container-profile config that no deployed environment applies, so the exchange is a rehearsal of the mechanism for the removal of an operating cost measured above. A change to `infra/talos/patches/` is reviewed against a deployed environment, never against a laptop.
+- **The full tier costs laptop RAM and disk**, and the shape is one node running the whole platform. kind does not cap its node container, so the tier takes what the platform needs rather than crashing against a limit — the failure mode is host pressure rather than a pod evicted from a node that had room on paper. Disk is the one that bites first: the node's image store holds every platform image, and a laptop near full takes a `disk-pressure` taint that evicts the platform it has started. Per-service declarations exist so day-to-day work runs only its slice on the smaller tier.
 - **One node is not a quorum.** The inner loop runs single-member etcd, so leader election, quorum loss, and anything else that needs three members is a full-tier question.
-- **The full tier's own boundary is the host kernel.** System extensions, the disk layout, the installer, and the upgrade path are not exercised by a container-provisioned node, so a machine-config change touching them is validated where those layers are real.
+- **The full tier's own boundary is the node.** The distribution, the host kernel, system extensions, the disk layout, the installer, and the upgrade path are not exercised by a container-provisioned node, so a change touching them is validated where those layers are real.
 - **Two mocking mechanisms exist** — MSW at the test layer, Prism at the dev-loop layer. Bounded by an explicit layer boundary and by neither being permitted in e2e.
 - **Re-evaluate at the ~20-service ceiling**, or if the graph outgrows a declaration plus one shared installer. Both are visible, not gradual.
 
 ## Rules
 
-- Local development runs two tiers: the `cluster:base` inner loop and `cluster:full`. There are no named profiles.
-- The inner loop runs on kind and the full tier runs on Talos in Docker, as two clusters with two contexts. Neither tier's bring-up alters the other.
-- The full tier's nodes take the same machine config a deployed environment's nodes take, so it runs etcd, no kube-proxy, Cilium as an inline manifest, and the committed Traefik chart ([ADR-0200](0200-cluster-topology.md), [ADR-0206](0206-cluster-networking.md)). It carries no distribution divergence, and a divergence introduced there is a defect.
-- The inner loop's divergence from a deployed environment is node count alone. Its cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used.
-- Cilium is in both tiers' floor, from the committed chart with WireGuard on and its eBPF dataplane replacing kube-proxy: in the machine config for the full tier, imperatively for the inner loop. No Cilium value differs by tier.
-- Images reach the full tier through a local registry, so Argo CD pulls a tag as it does in a deployed environment. Node-resident images are the inner loop's path only.
+- Local development runs two tiers: the `cluster:up` inner loop and `cluster:up full`. There are no named profiles.
+- Both local tiers run on kind, as two clusters with two contexts. Neither tier's bring-up alters the other, and no local tier shares a cluster with another.
+- `scripts/cluster.sh` is the only script that names a tier, and it takes one as an argument. Every other script resolves the tier from the cluster that is running; a tier hardcoded as a consumer's default is a defect.
+- Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built, and a difference introduced between them is a defect.
+- No local tier exercises the cross-node datapath. Service routing between nodes and the WireGuard encryption [ADR-0206](0206-cluster-networking.md) enables are first exercised in a deployed environment.
+- Every local cluster is created without a CNI and without kube-proxy, and a distribution that bundles either is not used.
+- No local tier applies a machine config. The delivery mechanism [ADR-0206](0206-cluster-networking.md) decides is exercised in a deployed environment, and `infra/talos/` carries no local variant.
+- Cilium is in both tiers' floor, from the committed chart with WireGuard on and its eBPF dataplane replacing kube-proxy, installed imperatively before Argo CD exists. No Cilium value differs by tier.
+- Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation a deployed environment runs ([ADR-0105](0105-image-registry.md)), so the local image path is not a second product.
 - What is up locally is the floor plus the declared dependencies of what is running. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. `(CI: lint:service-contract, lint:service-deps)`
 - `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied.
 - Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. `(CI: lint:ports)`
 - Every service ships a values file per environment or declares `# platform/not-deployed: <env>`. Absence is never inferred. `(CI: lint:service-contract)`
-- Argo CD is the engine for `cluster:full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly.
+- Argo CD is the engine for `cluster:up full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly.
 - API mocking exists for the UI development loop only. The mock appears in no deployed environment, no chart, and no image built from our own source.
 - The mock's only input is the committed `internal.json` projection. Globbing `services/*/openapi.yaml`, hand-written route files, and standalone fixture bodies are not used.
 - The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers.

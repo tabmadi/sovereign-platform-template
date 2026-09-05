@@ -7,11 +7,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	orgs "github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/orgs"
-	"github.com/tabmadi/microservices-monorepo-template/services/orgs/internal/store"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	orgs "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/orgs"
+	"github.com/tabmadi/sovereign-platform-template/services/orgs/internal/store"
 )
 
 // A well-formed wire identifier (ADR-0003), so the cases below exercise the

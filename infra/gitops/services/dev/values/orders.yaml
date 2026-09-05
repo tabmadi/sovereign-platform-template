@@ -1,18 +1,18 @@
 name: orders
 image:
-  repository: ghcr.io/tabmadi/microservices-monorepo-template/orders-server
+  repository: ghcr.io/tabmadi/sovereign-platform-template/orders-server
   tag: "0000000000000000000000000000000000000000"
 worker:
   enabled: true
   image:
-    repository: ghcr.io/tabmadi/microservices-monorepo-template/orders-worker
+    repository: ghcr.io/tabmadi/sovereign-platform-template/orders-worker
     tag: "0000000000000000000000000000000000000000"
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.example.com, resources: [orders] }
 # The Lowdefy admin console (apps/admin) calls orders server-side, east-west on
 # the server port, bypassing the /api edge (ADR-0401).
 networkPolicy: { allowFrom: [lowdefy] }
-secrets: { envFrom: [orders-db-creds, openfga-creds] }
+secrets: { envFrom: [orders-db, openfga-creds] }
 env:
   CATALOG_URL: http://catalog-server.platform.svc.cluster.local
   PAYMENT_URL: http://payment-server.platform.svc.cluster.local

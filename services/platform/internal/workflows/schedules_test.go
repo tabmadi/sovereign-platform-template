@@ -10,7 +10,7 @@ import (
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/testsuite"
 
-	"github.com/tabmadi/microservices-monorepo-template/services/platform/internal/workflows"
+	"github.com/tabmadi/sovereign-platform-template/services/platform/internal/workflows"
 )
 
 const testIdentity = "019a3f8c-6d21-7c4b-8e55-0f27f7f0b001"

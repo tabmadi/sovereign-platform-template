@@ -13,14 +13,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/apierr"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authmw"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/authz"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/id"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/money"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/observability"
-	"github.com/tabmadi/microservices-monorepo-template/libs/go/sdks/catalog"
-	"github.com/tabmadi/microservices-monorepo-template/services/catalog/internal/store"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/authz"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/id"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/money"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
+	"github.com/tabmadi/sovereign-platform-template/libs/go/sdks/catalog"
+	"github.com/tabmadi/sovereign-platform-template/services/catalog/internal/store"
 )
 
 type Handlers struct {
