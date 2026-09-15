@@ -235,7 +235,16 @@ stage_registry() {
     # up — measured: it serves, syncs, and writes blobs unchanged.
     local -a as_user=()
     case "$ZOT_DATA" in
-    /*) as_user=(--user "$(id -u):$(id -g)") ;;
+    /*)
+      # Create it HERE, before docker does. A bind mount whose source is missing is
+      # created by the daemon as root, and zot — running as the caller below — then
+      # cannot write to its own store: it exits into its usage text, the restart
+      # policy loops it, and every pull returns nothing. Measured in CI as 51 images
+      # at "HTTP 000" over fifteen minutes, from a directory that did not exist
+      # because the cache missed.
+      mkdir -p "$ZOT_DATA"
+      as_user=(--user "$(id -u):$(id -g)")
+      ;;
     esac
     # The image's default command names a config.json; this config is YAML.
     docker run -d --restart=always --name "$REGISTRY" \
@@ -251,10 +260,17 @@ stage_registry() {
   fi
   # A restarting registry is one every pull misses, and the failure lands later, on
   # a pod.
+  #
+  # ANSWERING, not merely running. `--restart=always` keeps a container that exits
+  # immediately in the `running` state between attempts, so a state check passes
+  # against a registry that never serves a byte — and the first thing to notice is
+  # the warm, fifty-one images later, reporting "HTTP 000" for all of them with no
+  # explanation. Asking the API is the same wait and names the fault in seconds.
   local waited=0
-  until [ "$(docker inspect -f '{{.State.Running}}' "$REGISTRY" 2>/dev/null)" = true ]; do
-    [ "$waited" -ge 30 ] && fail "the registry '${REGISTRY}' is not running:
-$(docker logs --tail 5 "$REGISTRY" 2>&1 | sed 's/^/    /')"
+  until [ "$(curl -s -o /dev/null -w '%{http_code}' --noproxy '*' --max-time 5 \
+    "http://127.0.0.1:5000/v2/" 2>/dev/null)" = 200 ]; do
+    [ "$waited" -ge 30 ] && fail "the registry '${REGISTRY}' is not serving on :5000:
+$(docker logs --tail 15 "$REGISTRY" 2>&1 | sed 's/^/    /')"
     sleep 1
     waited=$((waited + 1))
   done
