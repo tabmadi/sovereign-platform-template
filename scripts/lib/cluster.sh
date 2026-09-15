@@ -31,6 +31,15 @@ NS="${NS:-platform}"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 KIND_CONFIG="infra/local/kind.yaml"
 REGISTRY="registry.localhost"
+# Where the mirror keeps its blobs. A named docker volume by default: it survives
+# `cluster:down`, needs no thought about ownership, and is what a developer wants.
+#
+# CI overrides it with a host path, because a runner is destroyed after every job and
+# only a PATH can be restored from a forge cache — a named volume lives under
+# /var/lib/docker, which `actions/cache` cannot read. Warming the mirror from scratch
+# is the dominant cost of `cluster:up` and the reason a shared runner IP reaches Docker
+# Hub's anonymous pull limit, so the cache fixes a slow job and a flaky one together.
+ZOT_DATA="${ZOT_DATA:-${REGISTRY}-data}"
 ZOT_IMAGE="ghcr.io/project-zot/zot-linux-amd64:v2.1.20"
 FORCE="${FORCE:-}"
 
@@ -211,12 +220,22 @@ stage_registry() {
 
   if ! docker inspect "$REGISTRY" >/dev/null 2>&1; then
     step "creating the local registry '${REGISTRY}:5000' (zot)"
+    # zot runs as root and writes its store at mode 0600. On a docker volume nobody
+    # cares; on a host path it produces a directory the invoking user cannot read,
+    # and a cache that archives nothing while reporting success. Running as the
+    # caller is what makes the store portable, and zot needs no privilege it gives
+    # up — measured: it serves, syncs, and writes blobs unchanged.
+    local -a as_user=()
+    case "$ZOT_DATA" in
+    /*) as_user=(--user "$(id -u):$(id -g)") ;;
+    esac
     # The image's default command names a config.json; this config is YAML.
     docker run -d --restart=always --name "$REGISTRY" \
       -p 127.0.0.1:5000:5000 \
+      "${as_user[@]}" \
       -v "${ROOT}/infra/local/zot-config.yaml:/etc/zot/config.yaml:ro" \
       -v "${creds}:/etc/zot/sync-creds.json:ro" \
-      -v "${REGISTRY}-data:/var/lib/zot" \
+      -v "${ZOT_DATA}:/var/lib/zot" \
       "$ZOT_IMAGE" serve /etc/zot/config.yaml >/dev/null
   elif [ "$(docker inspect -f '{{.State.Running}}' "$REGISTRY")" != true ]; then
     step "starting the local registry '${REGISTRY}'"

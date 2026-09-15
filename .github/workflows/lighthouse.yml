@@ -52,6 +52,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
 
+      # The mirror's blob store, carried between runs. A cold warm pulls every
+      # third-party image from upstream and is the dominant cost of this job —
+      # measured at 5.6 of 11 minutes, and 19 minutes when Docker Hub throttled the
+      # runner's shared IP. The key is the generated warm list, so it changes when
+      # the image set changes and at no other time.
+      - name: Restore the registry mirror
+        id: registry-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/zot
+          key: zot-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+
       # The floor: real Traefik, real cert-manager, real Kratos and Oathkeeper.
       # `/auth/login` is one of the measured URLs, so the identity stack has to be
       # the real one — there is no page to measure without it.
@@ -62,8 +74,23 @@ jobs:
       - name: Bring up cluster:up
         run: mise run cluster:up
         env:
+          ZOT_DATA: ${{ runner.temp }}/zot
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Saved here, BEFORE the frontend is built and pushed, and not at the end of
+      # the job. The mirror holds only third-party images at this point; every later
+      # step pushes first-party images that change on every commit, and caching those
+      # would miss the key on every run while growing the entry without bound.
+      #
+      # Saved only on a miss: a hit restored this exact key, so re-saving it is a few
+      # gigabytes of upload to replace a byte-identical entry.
+      - name: Save the registry mirror
+        if: steps.registry-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/zot
+          key: ${{ steps.registry-cache.outputs.cache-primary-key }}
 
       # The production container, not `next dev`. A bundle budget measured against a
       # development server measures unminified output and means nothing.
