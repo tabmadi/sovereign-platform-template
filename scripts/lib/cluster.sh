@@ -31,15 +31,23 @@ NS="${NS:-platform}"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 KIND_CONFIG="infra/local/kind.yaml"
 REGISTRY="registry.localhost"
-# Where the mirror keeps its blobs. A named docker volume by default: it survives
-# `cluster:down`, needs no thought about ownership, and is what a developer wants.
+# Where the mirror keeps its blobs. A path, always — never a named volume, and never
+# conditionally one or the other.
 #
-# CI overrides it with a host path, because a runner is destroyed after every job and
-# only a PATH can be restored from a forge cache — a named volume lives under
-# /var/lib/docker, which `actions/cache` cannot read. Warming the mirror from scratch
-# is the dominant cost of `cluster:up` and the reason a shared runner IP reaches Docker
-# Hub's anonymous pull limit, so the cache fixes a slow job and a flaky one together.
-ZOT_DATA="${ZOT_DATA:-${REGISTRY}-data}"
+# A volume was the obvious local choice and it bought one property: surviving
+# `cluster:down`. A path under the cache directory has the same property, and it has
+# one a volume cannot: a forge cache can restore it, because it is a directory rather
+# than something under /var/lib/docker. Warming from scratch is the dominant cost of
+# `cluster:up` and the reason a runner reaches Docker Hub's pull limit, so carrying it
+# between runs is what makes the job fast and reliable at once.
+#
+# Both at once was the mistake. The first version defaulted to a volume and let CI
+# pass a path, which made two code paths through one function: root or caller, mkdir
+# or not, volume or bind. CI then broke on the branch a developer never runs —
+# the directory did not exist, docker created it as root, and zot could not write its
+# own store. One path is fewer conditionals AND the parity ADR-0205 asks for: what CI
+# exercises is what you run.
+ZOT_DATA="${ZOT_DATA:-${XDG_CACHE_HOME:-$HOME/.cache}/zot/${REGISTRY}}"
 ZOT_IMAGE="ghcr.io/project-zot/zot-linux-amd64:v2.1.20"
 FORCE="${FORCE:-}"
 
@@ -233,23 +241,19 @@ stage_registry() {
     # and a cache that archives nothing while reporting success. Running as the
     # caller is what makes the store portable, and zot needs no privilege it gives
     # up — measured: it serves, syncs, and writes blobs unchanged.
-    local -a as_user=()
-    case "$ZOT_DATA" in
-    /*)
-      # Create it HERE, before docker does. A bind mount whose source is missing is
-      # created by the daemon as root, and zot — running as the caller below — then
-      # cannot write to its own store: it exits into its usage text, the restart
-      # policy loops it, and every pull returns nothing. Measured in CI as 51 images
-      # at "HTTP 000" over fifteen minutes, from a directory that did not exist
-      # because the cache missed.
-      mkdir -p "$ZOT_DATA"
-      as_user=(--user "$(id -u):$(id -g)")
-      ;;
-    esac
+    # Before docker, not after. A bind mount whose source is missing is created by
+    # the daemon as root, and zot — running as the caller below — then cannot write
+    # its own store: it exits into its usage text, the restart policy loops it, and
+    # every pull returns nothing. Measured in CI as 51 images at "HTTP 000" over
+    # fifteen minutes, from a directory that did not exist.
+    mkdir -p "$ZOT_DATA"
+    # As the caller, so the store belongs to whoever ran this and a forge cache can
+    # archive it. zot defaults to root and writes mode 0600 throughout, which is a
+    # store nothing else can read.
     # The image's default command names a config.json; this config is YAML.
     docker run -d --restart=always --name "$REGISTRY" \
       -p 127.0.0.1:5000:5000 \
-      "${as_user[@]}" \
+      --user "$(id -u):$(id -g)" \
       -v "${ROOT}/infra/local/zot-config.yaml:/etc/zot/config.yaml:ro" \
       -v "${creds}:/etc/zot/sync-creds.json:ro" \
       -v "${ZOT_DATA}:/var/lib/zot" \
