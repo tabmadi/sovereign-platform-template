@@ -32,7 +32,26 @@ PUB_KEY="infra/auth/cosign/cosign.pub"
 # The template commits an EMPTY cosign.pub (see scripts/secrets-cosign.sh), so a
 # generated project that has not run the bootstrap has nothing to verify against.
 # Say that once and stop, rather than reporting every image as unverifiable.
-[ -s "$PUB_KEY" ] || fail "no public key at ${PUB_KEY} — run 'mise run secrets:cosign' once, at bootstrap"
+if [ ! -s "$PUB_KEY" ]; then
+  # IN THE TEMPLATE this is the finished state, not an unfinished one. A signing key
+  # here would be inherited by every generated project: the same public half in
+  # everyone's admission policy, and a private half encrypted to this repository's
+  # recipients that no adopter can decrypt. The bootstrap is per-project because the
+  # identity is.
+  #
+  # So the template has no key, publishes no images to an environment, and has
+  # nothing to take an inventory of. Failing on that teaches whoever sees the nightly
+  # to ignore it, which costs more than the gap it reports.
+  #
+  # `copier.yml` is the discriminator scripts/test-template.sh already uses for the
+  # same question: the template carries it, and `_exclude` drops it from everything
+  # generated.
+  if [ -f copier.yml ]; then
+    ok "no signing key, and none belongs here — the template publishes no environment images"
+    exit 0
+  fi
+  fail "no public key at ${PUB_KEY} — run 'mise run secrets:cosign' once, at bootstrap"
+fi
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
