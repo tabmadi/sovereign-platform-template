@@ -1,0 +1,6 @@
+# Five characters — below ADR-0003's floor.
+project_name: Bad
+module_path: github.com/bad/bad
+apex_host: bad.example
+image_registry: ghcr.io/bad/bad
+project_slug: fiver

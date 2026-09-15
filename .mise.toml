@@ -701,6 +701,17 @@ run = "go test ./..."
 depends = ["setup:node"]
 run = "bun test libs/ts/"
 
+[tasks."test:template"]
+# The repository's own generation (ADR-0106): a fixture matrix through `copier copy`,
+# the refusals its validators owe, and the equality between the two adoption paths
+# that `copier update`'s merge baseline rests on. Seconds, because it asserts the
+# shape of the generated tree rather than running its gates; `DEEP=1` adds a full
+# `check` inside one generated project and takes minutes.
+#
+# Not in `test`: it is the only test whose subject is the transformation rather than
+# the code, and it is the only one that is a no-op in a generated project.
+run = "bash scripts/test-template.sh"
+
 [tasks.build]
 run = "go build ./..."
 

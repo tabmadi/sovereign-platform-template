@@ -1,0 +1,6 @@
+# The lower bound of ADR-0003's 6-11 character range.
+project_name: Sixer
+project_slug: sixchr
+module_path: github.com/sixer/sixchr
+apex_host: sixchr.example
+image_registry: ghcr.io/sixer/sixchr

@@ -1,0 +1,9 @@
+# A module path and registry on a self-hosted forge rather than github.com, which
+# is the sovereign case this template exists for. The registry namespace sorts LATE
+# among third-party entries — the mirror of defaults.yml, so an ordering bug that
+# depends on where a name sorts cannot hide behind one fixture.
+project_name: Zulu Works
+project_slug: zuluwork
+module_path: forge.zulu.internal/platform/zuluwork
+apex_host: zuluwork.internal
+image_registry: registry.zulu.internal/platform/zuluwork

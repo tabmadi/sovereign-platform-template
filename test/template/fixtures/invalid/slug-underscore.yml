@@ -1,0 +1,6 @@
+# Underscore is outside the grammar; a hyphen is the only separator.
+project_name: Bad
+module_path: github.com/bad/bad
+apex_host: bad.example
+image_registry: ghcr.io/bad/bad
+project_slug: acme_plat

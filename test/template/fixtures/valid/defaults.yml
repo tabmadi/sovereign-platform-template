@@ -1,0 +1,8 @@
+# The documented defaults. Also the registry namespace that sorts EARLY among the
+# allow-list's third-party entries, which is the position that exposes an ordering
+# bug in a generated artefact.
+project_name: Acme Platform
+project_slug: acmeplat
+module_path: github.com/acme/acmeplat
+apex_host: acmeplat.example
+image_registry: ghcr.io/acme/acmeplat

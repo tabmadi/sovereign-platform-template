@@ -1,0 +1,6 @@
+# Twelve characters — above ADR-0003's ceiling.
+project_name: Bad
+module_path: github.com/bad/bad
+apex_host: bad.example
+image_registry: ghcr.io/bad/bad
+project_slug: twelvechars1
