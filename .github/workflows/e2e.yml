@@ -64,9 +64,21 @@ jobs:
       # limited per source IP and this runner shares one with the whole forge, so the
       # warm stage fails on images it never pulled itself. Unset on a fork, where the
       # secrets do not resolve and the sync falls back to anonymous.
+      # Restore-only. The warm set is identical for both tiers today, and the
+      # lighthouse job is the single writer: it reaches the end of the warm before
+      # anything first-party exists, so its entry holds third-party images alone.
+      # A full-tier bring-up pushes its own images midway through `cluster:up`, so a
+      # save from here would cache artefacts that change on every commit.
+      - name: Restore the registry mirror
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/zot
+          key: zot-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+
       - name: Bring up cluster:up full
         run: mise run cluster:up -- full
         env:
+          ZOT_DATA: ${{ runner.temp }}/zot
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Install Playwright (Node island)
@@ -125,9 +137,21 @@ jobs:
       # limited per source IP and this runner shares one with the whole forge, so the
       # warm stage fails on images it never pulled itself. Unset on a fork, where the
       # secrets do not resolve and the sync falls back to anonymous.
+      # Restore-only. The warm set is identical for both tiers today, and the
+      # lighthouse job is the single writer: it reaches the end of the warm before
+      # anything first-party exists, so its entry holds third-party images alone.
+      # A full-tier bring-up pushes its own images midway through `cluster:up`, so a
+      # save from here would cache artefacts that change on every commit.
+      - name: Restore the registry mirror
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/zot
+          key: zot-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+
       - name: Bring up cluster:up full
         run: mise run cluster:up -- full
         env:
+          ZOT_DATA: ${{ runner.temp }}/zot
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Install Playwright (Node island)
