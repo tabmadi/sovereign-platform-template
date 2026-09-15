@@ -248,6 +248,9 @@ $(docker logs --tail 5 "$REGISTRY" 2>&1 | sed 's/^/    /')"
 stage_warm() {
   local refs="infra/local/image-refs.txt" total warmed=0 fetched=0
   local missed=()
+  # The normalised repository path of each miss, kept alongside the display form so
+  # the failure report can find THAT image's lines in the registry log.
+  local missed_paths=()
   [ -f "$refs" ] || fail "${refs} is missing — run 'mise run gen:image-allowlist'"
   total="$(grep -cvE '^#|^$' "$refs")"
   step "warming the registry with ${total} third-party image(s)"
@@ -317,6 +320,7 @@ stage_warm() {
       fetched=$((fetched + 1))
     else
       missed+=("${ref} (HTTP ${status})")
+      missed_paths+=("$path")
     fi
   done < <(grep -vE '^#|^$' "$refs")
 
@@ -327,8 +331,31 @@ stage_warm() {
     # its own log separates the two. Without this the caller sees a 404 and has to
     # guess — which is how a rate limit, a proxy refusal and a genuinely wrong
     # reference all arrive looking identical.
-    detail "last 40 lines of ${REGISTRY} (the sync errors behind the 404s):"
-    docker logs --tail 40 "$REGISTRY" 2>&1 | sed 's/^/      /' >&2 || true
+    # Filtered to the repositories that missed, NOT the tail. The warm walks the list
+    # in file order, so a miss on an early image is thousands of log lines behind the
+    # successful sync of the last one — a tail reports whichever image happened to be
+    # warmed last, which is never the one that failed. That is what made every
+    # previous report of this failure unreadable.
+    local -a miss_pat=()
+    local p own errors
+    for p in "${missed_paths[@]}"; do miss_pat+=(-e "$p"); done
+    detail "${REGISTRY} log for the images that missed:"
+    own="$({ docker logs "$REGISTRY" 2>&1 || true; } | grep -F "${miss_pat[@]}" || true)"
+    errors="$(printf '%s\n' "$own" |
+      grep -iE '"level":"(error|warn)"|denied|unauthorized|toomanyrequests|rate.?limit|error' |
+      tail -20 || true)"
+    # Three outcomes, and they point at three different fixes. An error names the
+    # upstream's refusal. Lines with no error mean zot tried and gave up quietly —
+    # a truncated read, usually. No lines at all mean it never attempted the sync,
+    # which puts the fault in the reference rather than in the network.
+    if [ -n "$errors" ]; then
+      printf '%s\n' "$errors" | sed 's/^/      /' >&2
+    elif [ -n "$own" ]; then
+      detail "  sync attempted, no error logged — a truncated read; re-run"
+      printf '%s\n' "$own" | tail -10 | sed 's/^/      /' >&2
+    else
+      detail "  no sync attempted — the fault is the reference, not the upstream"
+    fi
     fail "${#missed[@]} image(s) above could not be cached. The nodes pull only from
   this registry, so the cluster cannot start without them. Re-run to retry; if it
   persists, check egress with 'mise run proxy:setup -- --check'."
