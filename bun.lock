@@ -10,7 +10,7 @@
     },
     "apps/frontend": {
       "name": "frontend",
-      "version": "0.1.0",
+      "version": "2026.9.0",
       "dependencies": {
         "@grafana/faro-web-sdk": "2.7.1",
         "@grafana/faro-web-tracing": "2.7.1",

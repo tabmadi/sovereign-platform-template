@@ -60,12 +60,27 @@ for chart in infra/helm/**/Chart.yaml; do
 done
 detail "stamped $(find infra/helm -name Chart.yaml | wc -l) chart(s)"
 
+stamped_pkg=false
 for pkg in apps/*/package.json; do
   [[ "$(jq -r 'has("version")' "$pkg")" == "true" ]] || continue
   tmp="$(mktemp)"
   jq --arg v "$semver" '.version = $v' "$pkg" >"$tmp" && mv "$tmp" "$pkg"
+  stamped_pkg=true
   detail "stamped $pkg"
 done
+
+# The lockfile records every workspace member's version, so stamping a manifest
+# without refreshing it leaves the two disagreeing — and the drift check compares
+# the tree against what the generators produce, so it fails on the release commit
+# itself. Measured on v2026.09.0: `bun.lock` still carried apps/frontend at 0.1.0.
+#
+# `--lockfile-only` because the release stamps versions; it does not resolve
+# dependencies, and a release that silently installed something new would be a
+# release nobody reviewed.
+if [[ "$stamped_pkg" == true ]]; then
+  bun install --lockfile-only >/dev/null
+  detail "refreshed bun.lock"
+fi
 
 # The template's own release stamp, carried in the tree rather than in the tag
 # (ADR-0106). A repository the forge creates from this one is a squashed copy with
@@ -87,12 +102,14 @@ if [[ -n "$dry_run" ]]; then
   warn "DRY_RUN set — not committing, tagging, or pushing"
   detail "would commit: chore(release): ${version}"
   detail "would tag:    ${version}"
-  detail "the stamped fields and CHANGELOG.md are left in the working tree to inspect;"
-  # .template-version is listed separately because it is UNTRACKED until the first
-  # release commits it, and `git checkout` does not remove a file git has never seen.
-  # A dry run that leaves it behind leaves a stale ref for `project:init` to read.
-  detail "  git checkout infra/helm apps/*/package.json CHANGELOG.md   discards them"
-  detail "  rm -f .template-version                                    discards the stamp"
+  detail "the stamped fields, bun.lock and CHANGELOG.md are left in the working tree to inspect;"
+  # .template-version needs both verbs because it is untracked before the first
+  # release and tracked after it — `git checkout` cannot restore a file git has never
+  # seen, and `rm` on the tracked one deletes the stamp a generated project reads.
+  # A project generated from this template is always in the first case: `_exclude`
+  # drops the file, so its own first release creates it fresh.
+  detail "  git checkout infra/helm apps/*/package.json bun.lock CHANGELOG.md   discards them"
+  detail "  git checkout .template-version 2>/dev/null || rm -f .template-version"
   exit 0
 fi
 
