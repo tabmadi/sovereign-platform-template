@@ -299,8 +299,20 @@ stage_warm() {
   # the failure report can find THAT image's lines in the registry log.
   local missed_paths=()
   [ -f "$refs" ] || fail "${refs} is missing — run 'mise run gen:image-allowlist'"
-  total="$(grep -cvE '^#|^$' "$refs")"
-  step "warming the registry with ${total} third-party image(s)"
+  # The tier's share of the list, by its first column. A base bring-up runs no
+  # ArgoCD and therefore none of what ArgoCD deploys, so fetching the observability
+  # stack, Temporal and Kyverno before creating it spends minutes and a third-party
+  # pull quota on images the cluster will never ask for.
+  local wanted
+  wanted="$(mktemp)"
+  awk -v tier="$TIER" '
+    /^#/ || /^[[:space:]]*$/ { next }
+    $1 == "base" || tier == "full" { print $2 }
+  ' "$refs" >"$wanted"
+  total="$(grep -cvE '^\s*$' "$wanted" || true)"
+  [ "$total" -gt 0 ] ||
+    fail "${refs} names no image for the ${TIER} tier — run 'mise run gen:image-allowlist'"
+  step "warming the registry with ${total} third-party image(s) for the ${TIER} tier"
 
   local ref host path reference name tag status attempt
   while read -r ref; do
@@ -369,7 +381,8 @@ stage_warm() {
       missed+=("${ref} (HTTP ${status})")
       missed_paths+=("$path")
     fi
-  done < <(grep -vE '^#|^$' "$refs")
+  done <"$wanted"
+  rm -f "$wanted"
 
   ok "registry warm: ${warmed} already cached, ${fetched} fetched"
   if [ "${#missed[@]}" -gt 0 ]; then

@@ -123,7 +123,28 @@ images="$(mktemp)"
 # The local environment's slice of the same render: what a local cluster will pull,
 # and therefore what zot is warmed with.
 local_images="$(mktemp)"
-trap 'rm -f "$images" "$local_images"' EXIT
+# The base tier's share of that slice. `cluster:up` warms the whole list today, so a
+# base-tier bring-up fetches the observability stack, Temporal and Kyverno before
+# starting a cluster that runs none of them.
+base_images="$(mktemp)"
+trap 'rm -f "$images" "$local_images" "$base_images"' EXIT
+
+# WHICH CHARTS THE BASE TIER INSTALLS, read from the stages that install them rather
+# than listed here. A list would be a second place to remember, and the first symptom
+# of forgetting is a pod that cannot pull — after the warm has already reported
+# success. The stage functions name their chart directories, so they are the source.
+base_stages="$(sed -n 's/^STAGES_base=(\(.*\))$/\1/p' scripts/cluster.sh)"
+[ -n "$base_stages" ] || fail "cannot read STAGES_base from scripts/cluster.sh"
+# The prelude runs for every tier, so its charts are base by definition.
+prelude="$(sed -n 's/^PRELUDE=(\(.*\))$/\1/p' scripts/cluster.sh)"
+base_charts=""
+for stage in $prelude $base_stages; do
+  base_charts+="$(sed -n "/^stage_${stage}()/,/^}/p" scripts/lib/cluster.sh |
+    grep -oE 'infra/helm/platform/[a-z0-9-]+' | sed 's#.*/##' || true)"$'\n'
+done
+base_charts="$(printf '%s\n' "$base_charts" | grep -vE '^\s*$' | sort -u)"
+[ -n "$base_charts" ] || fail "no base-tier charts found — the stage functions changed shape"
+detail "base tier installs: $(printf '%s' "$base_charts" | tr '\n' ' ')"
 
 for dir in infra/helm/platform/*/; do
   name="$(basename "$dir")"
@@ -156,7 +177,15 @@ for dir in infra/helm/platform/*/; do
       --set-file "oathkeeper.oathkeeper.accessRules=infra/auth/oathkeeper/access-rules.json" \
       2>/dev/null | collect_images || true)"
     printf '%s\n' "$rendered_images" >>"$images"
-    [ "$env" != "$ENV_NAME" ] || printf '%s\n' "$rendered_images" >>"$local_images"
+    if [ "$env" = "$ENV_NAME" ]; then
+      printf '%s\n' "$rendered_images" >>"$local_images"
+      # An image a base chart renders is warmed by every tier, even when a full-tier
+      # chart renders it too: the earliest need wins, and a second entry would only
+      # delay it.
+      if printf '%s\n' "$base_charts" | grep -qx "$name"; then
+        printf '%s\n' "$rendered_images" >>"$base_images"
+      fi
+    fi
   done
 done
 
@@ -218,9 +247,23 @@ refs_target="$REFS_OUT"
 # Every third-party image a LOCAL cluster pulls, as a full reference. `cluster:up`
 # warms zot with this list before it creates the cluster (ADR-0105): the mirror
 # fetches each image once, sequentially, with no pod waiting on it.
+#
+# The first column is the earliest tier that needs the image. `base` is warmed by
+# every tier; `full` only by the full tier, which is the only one that runs ArgoCD
+# and everything it deploys. One file rather than two, because the set is one
+# decision and a second list is a second thing to keep in step.
 HEADER
-  grep -vE '^registry\.localhost:5000/' "$local_images" |
-    grep -vE '^\s*$' | LC_ALL=C sort -u
+  # `join` needs both sides sorted, and `comm` splits them into "base" and "the rest"
+  # in one pass.
+  base_sorted="$(mktemp)"
+  all_sorted="$(mktemp)"
+  grep -vE '^registry\.localhost:5000/' "$base_images" | grep -vE '^\s*$' |
+    LC_ALL=C sort -u >"$base_sorted"
+  grep -vE '^registry\.localhost:5000/' "$local_images" | grep -vE '^\s*$' |
+    LC_ALL=C sort -u >"$all_sorted"
+  LC_ALL=C comm -12 "$all_sorted" "$base_sorted" | sed 's/^/base /'
+  LC_ALL=C comm -23 "$all_sorted" "$base_sorted" | sed 's/^/full /'
+  rm -f "$base_sorted" "$all_sorted"
 } >"$refs_target"
 
 if [ "$CHECK" = true ]; then
