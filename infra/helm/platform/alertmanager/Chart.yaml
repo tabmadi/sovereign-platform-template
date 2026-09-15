@@ -10,5 +10,5 @@ description: |
   no escalation layer is shipped. Attaching a paging service is that receiver's
   URL and a credential, and no rule is re-authored when it arrives.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "0.28.1"

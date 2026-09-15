@@ -15,5 +15,5 @@ description: |
   saying — the data directory has to be under /var, the only writable path a Talos
   node has.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "v0.0.37"

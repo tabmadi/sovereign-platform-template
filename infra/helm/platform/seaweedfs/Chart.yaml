@@ -12,5 +12,5 @@ description: |
   parity the ADR explicitly does not ask for: what has to match production is the
   S3 dialect, which is the same binary either way.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "4.41"

@@ -11,4 +11,4 @@ description: |
   Ready — so an ACME issuer in the base tier holds that tier open against a
   secret that a later tier delivers, and no later tier ever runs.
 type: application
-version: 0.1.0
+version: "2026.9.0"

@@ -15,5 +15,5 @@ description: |
   Per-workload requests/limits stay in each component's own values — the split is
   "policy and defaults here, right-sized measurements there".
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "1.0.0"

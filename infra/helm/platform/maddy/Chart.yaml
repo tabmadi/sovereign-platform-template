@@ -9,5 +9,5 @@ description: |
   IMAP surface — the platform sends mail and does not receive it, and a mailbox system
   is separate infrastructure with its own egress IP and its own DKIM selector.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "0.9.5"

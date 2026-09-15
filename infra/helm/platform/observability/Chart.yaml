@@ -13,7 +13,7 @@ description: |
   Admission's unit is the namespace (ADR-0200): keeping it here would set this
   namespace's floor at `privileged` for every backend beside it.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "1.0.0"
 
 # Subcharts are vendored under charts/ and rendered directly — there is no

@@ -5,5 +5,5 @@ description: |
   Configuration is built from apps/admin/ into an OCI image at CI time and
   pulled here like any other service image.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "5.4.0"

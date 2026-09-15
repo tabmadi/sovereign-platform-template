@@ -21,7 +21,7 @@ description: |
   The cluster-state collector (`otel-cluster`) is a plain Deployment that needs
   none of this and stays with the backends it feeds.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "1.0.0"
 
 # Subcharts are vendored under charts/ and rendered directly — there is no

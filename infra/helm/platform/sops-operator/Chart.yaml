@@ -5,7 +5,7 @@ description: |
   produces native Kubernetes Secrets (ADR-0202). Uses isindir/sops-secrets-operator
   as the upstream implementation.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "0.21.0"
 
 dependencies:

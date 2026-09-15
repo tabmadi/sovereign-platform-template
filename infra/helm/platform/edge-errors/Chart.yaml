@@ -14,5 +14,5 @@ description: |
   keeping the original status code. This chart is that service — a static
   responder holding one document per status.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "1.37.0"

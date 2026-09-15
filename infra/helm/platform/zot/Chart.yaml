@@ -10,5 +10,5 @@ description: |
   values schema that renders it, which is the same file with a translation layer
   in front of it.
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "v2.1.20"

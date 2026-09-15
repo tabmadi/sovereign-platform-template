@@ -2,7 +2,7 @@ apiVersion: v2
 name: traefik
 description: The edge ingress controller every environment runs (ADR-0305).
 type: application
-version: 0.1.0
+version: "2026.9.0"
 appVersion: "3.7.10"
 
 dependencies:
