@@ -88,7 +88,11 @@ if [[ -n "$dry_run" ]]; then
   detail "would commit: chore(release): ${version}"
   detail "would tag:    ${version}"
   detail "the stamped fields and CHANGELOG.md are left in the working tree to inspect;"
+  # .template-version is listed separately because it is UNTRACKED until the first
+  # release commits it, and `git checkout` does not remove a file git has never seen.
+  # A dry run that leaves it behind leaves a stale ref for `project:init` to read.
   detail "  git checkout infra/helm apps/*/package.json CHANGELOG.md   discards them"
+  detail "  rm -f .template-version                                    discards the stamp"
   exit 0
 fi
 
