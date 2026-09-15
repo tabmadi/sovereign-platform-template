@@ -1,7 +1,7 @@
 [tools]
 # Languages & runtimes
 go = "1.26.4"
-bun = "1.3.14"
+bun = "1.4.2"
 # node is NOT pinned here — it is an island tool (ADR-0100/ADR-0601). Its consumers
 # are test/e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
 # loop), so each pins it in its own config against NODE_VERSION below. See [env].
