@@ -25,11 +25,22 @@ _exclude:
   - "test-results"
   - "playwright-report"
   - ".rumdl_cache"
+  # The forge-copy path only (ADR-0106). Copier renames through `_tasks` below and
+  # writes the answers file itself, so a project generated this way has no use for
+  # the script that does it by hand — or for the release stamp it reads.
+  - "scripts/project-init.sh"
+  - ".template-version"
 
 _tasks:
   # Generation only. On an update the project already carries its own names, and
   # re-running the rename would rewrite the merge result.
   - command: "bash scripts/project-rename.sh {{ project_slug }} {{ module_path }} {{ apex_host }} {{ image_registry }}"
+    when: "{{ _copier_operation == 'copy' }}"
+  # A once-only script has no business in a product repository: it stays armed for
+  # the life of the project against a name someone chose. Removing it here is what
+  # keeps this path's output identical to `project:init`'s, which is the equality
+  # `copier update`'s 3-way baseline depends on.
+  - command: "rm -f scripts/project-rename.sh"
     when: "{{ _copier_operation == 'copy' }}"
 
 project_name:

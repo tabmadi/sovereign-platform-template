@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 159 |
+| Machine-enforced | 160 |
 | Review-enforced | 316 |
-| **Total** | **475** |
+| **Total** | **476** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -238,6 +238,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | A failing update pull request is left open. Disabling the update to clear the queue is not done. | review |
 | A CVE that Trivy gates on and that has a fixed version available is proposed immediately, outside the batch. | `ci:scan` in CI |
 | A generated project tracks this template through Copier's answers file and updates by 3-way merge. The template makes no compatibility promise, and a conflict is the project's to resolve. | review |
+| A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name disagrees with its module path has not been renamed. | `lint:project-identity` in CI |
 | Copier and Renovate are pinned in `.mise.toml` like every other tool, and neither runs inside a cluster workload. | `lint:node-scope` in CI |
 
 ## ADR-0200 — Cluster Topology & Hosting

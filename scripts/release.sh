@@ -67,6 +67,14 @@ for pkg in apps/*/package.json; do
   detail "stamped $pkg"
 done
 
+# The template's own release stamp, carried in the tree rather than in the tag
+# (ADR-0106). A repository the forge creates from this one is a squashed copy with
+# no history and no link back, so the ref it forked from has to be a file it
+# carries; `project:init` reads it to write `_commit`. Stamped with the CalVer tag
+# rather than the SemVer fields above, because that is what a git ref resolves.
+echo "$version" >.template-version
+detail "stamped .template-version"
+
 # ── 3. Regenerate the changelog ───────────────────────────────────────────────
 # One top-level CHANGELOG.md, committed, so a reviewer sees what the release will
 # say and it survives a shallow clone or a mirror.

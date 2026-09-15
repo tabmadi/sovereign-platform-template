@@ -118,4 +118,5 @@ A generated project tracks this repository through Copier's answers file and upd
 - A failing update pull request is left open. Disabling the update to clear the queue is not done.
 - A CVE that Trivy gates on and that has a fixed version available is proposed immediately, outside the batch. `(CI: ci:scan)`
 - A generated project tracks this template through Copier's answers file and updates by 3-way merge. The template makes no compatibility promise, and a conflict is the project's to resolve.
+- A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name disagrees with its module path has not been renamed. `(CI: lint:project-identity)`
 - Copier and Renovate are pinned in `.mise.toml` like every other tool, and neither runs inside a cluster workload. `(CI: lint:node-scope)`

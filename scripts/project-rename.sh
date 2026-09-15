@@ -20,11 +20,31 @@ slug="$1" module="$2" apex="$3" registry="$4"
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# The guard against running this in the template itself. Copier writes the
-# answers file before it runs its tasks, so its presence is what distinguishes a
-# generated project from a clone of the template.
-[ -f .copier-answers.yml ] ||
-  fail "no .copier-answers.yml — this runs in a generated project, not in the template"
+# The guard against running this in the template itself. Two paths reach here and
+# only one of them leaves a marker: Copier writes the answers file before it runs
+# its tasks, while a forge-side "Use this template" copies the tree and runs
+# nothing, so a copy made that way is indistinguishable from the template by file
+# content alone.
+#
+# The fallback is the invariant `lint:project-identity` checks — a repository whose
+# name already matches its module path owns its identity, and is either the template
+# or a project that has been through this once. Renaming it again would rewrite a
+# name someone chose.
+origin_url="$(git remote get-url origin 2>/dev/null || true)"
+if [ -z "$origin_url" ]; then
+  # No remote. Either Copier is mid-generation — it writes the answers file before
+  # it runs its tasks, and the output is not a git repository yet — or someone is
+  # holding a bare clone of the template, where a rename would be a mistake.
+  [ -f .copier-answers.yml ] ||
+    fail "no origin remote and no .copier-answers.yml — nothing distinguishes this tree from the template"
+elif [ "$(basename -s .git "$origin_url")" = "$(basename "$(awk '/^module /{print $2; exit}' go.mod)")" ]; then
+  # The invariant `lint:project-identity` checks. A repository whose name matches
+  # its module path owns its identity: the template, or a project that has been
+  # through this once. The answers file is NOT an exemption here — it is present
+  # for the whole life of a generated project, and treating it as one leaves this
+  # script armed to rewrite a name someone chose, years later.
+  fail "the repository name already matches the module path — this is the template, or a project that has already been renamed"
+fi
 
 # What the template calls itself. Read from go.mod rather than hard-coded, so a
 # template that is itself renamed does not leave this script pointing at a name
