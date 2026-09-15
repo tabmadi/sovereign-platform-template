@@ -85,8 +85,14 @@ jobs:
       #
       # Saved only on a miss: a hit restored this exact key, so re-saving it is a few
       # gigabytes of upload to replace a byte-identical entry.
+      #
+      # `always()`, because the warm is what fails when the upstream throttles, and a
+      # cache that only saves after a clean run cannot recover from that: throttled
+      # warm → no save → next run cold → throttled again. A partial store is worth
+      # keeping. The run that cached 44 of 51 images leaves the next one 7 to fetch,
+      # and the set converges over a few runs instead of deadlocking.
       - name: Save the registry mirror
-        if: steps.registry-cache.outputs.cache-hit != 'true'
+        if: always() && steps.registry-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/zot

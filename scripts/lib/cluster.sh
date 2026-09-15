@@ -203,8 +203,16 @@ stage_registry() {
   if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
     printf '{"registry-1.docker.io":{"username":"%s","password":"%s"}}\n' \
       "$DOCKERHUB_USERNAME" "$DOCKERHUB_TOKEN" >"$creds"
+    # Which of the two limits applies is the first question any throttled warm
+    # raises, and the answer is not otherwise visible: an authenticated sync and an
+    # anonymous one produce the same 429, and zot reports both to the client as a
+    # 404. Saying which was configured turns "is the secret reaching zot" from a
+    # guess into a line in the log. The username is not a secret; the token is never
+    # printed.
+    detail "docker hub sync authenticated as ${DOCKERHUB_USERNAME}"
   else
     printf '{}\n' >"$creds"
+    detail "docker hub sync is ANONYMOUS — the per-IP pull limit applies, and this runner shares its IP"
   fi
   chmod 600 "$creds"
 
