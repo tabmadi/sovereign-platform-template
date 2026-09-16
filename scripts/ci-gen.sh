@@ -55,6 +55,11 @@ fi
 echo "::error::Generated or formatted artifacts are out of date. Run 'mise run ci:gen' and commit the result."
 # The changed paths, which is the actionable half. Printing a full diff here buried
 # the drift in every other uncommitted change in the tree.
-comm -3 <(printf '%s\n' "$before") <(printf '%s\n' "$after") |
-  sed -n 's/^[[:space:]]*[0-9a-f]\{64\}[[:space:]]*//p' | sort -u
+# LC_ALL=C on `comm` as well as on the `sort` that produced its inputs. `comm`
+# compares under its OWN collation and its output is undefined when the inputs are
+# not sorted that way — with a UTF-8 locale it warns "file 1 is not in sorted order"
+# and can report a path as changed that did not change, or miss one that did. Two
+# sorts, one collation.
+LC_ALL=C comm -3 <(printf '%s\n' "$before") <(printf '%s\n' "$after") |
+  sed -n 's/^[[:space:]]*[0-9a-f]\{64\}[[:space:]]*//p' | LC_ALL=C sort -u
 exit 1
