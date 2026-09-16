@@ -47,6 +47,8 @@ jobs:
   gate:
     if: github.event_name != 'pull_request'
     uses: ./.github/workflows/_nightly-gate.yml
+    with:
+      workflow_file: perf.yml
 
   load:
     needs: gate

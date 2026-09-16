@@ -42,6 +42,8 @@ jobs:
   gate:
     if: github.event_name != 'pull_request'
     uses: ./.github/workflows/_nightly-gate.yml
+    with:
+      workflow_file: e2e.yml
 
   full:
     # Nightly, pre-release tags, and manual full runs — never on a PR.

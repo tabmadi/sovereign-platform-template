@@ -13,6 +13,11 @@ name: nightly-gate
 
 on:
   workflow_call:
+    inputs:
+      workflow_file:
+        description: "The caller's own workflow file, whose run history decides the skip."
+        required: true
+        type: string
     outputs:
       run:
         description: "'true' when the nightly suite should proceed."
@@ -20,6 +25,9 @@ on:
 
 permissions:
   contents: read
+  # Reading the caller's own run history: the skip is only safe when the last run
+  # PASSED, and that fact lives in the forge rather than in the tree.
+  actions: read
 
 jobs:
   gate:
@@ -37,4 +45,6 @@ jobs:
       - id: check
         env:
           EVENT: ${{ github.event_name }}
+          WORKFLOW_FILE: ${{ inputs.workflow_file }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: mise run ci:nightly-gate >> "$GITHUB_OUTPUT"
