@@ -114,7 +114,40 @@ collect_images() {
       select(.kind == "ConfigMap") | .data // {} | to_entries | .[] | .value
     ' 2>/dev/null | grep -oE '^[[:space:]]*image:[[:space:]]*\S+' |
       sed -E 's/^[[:space:]]*image:[[:space:]]*//' || true
-  } | grep -E '^[a-z0-9][a-z0-9._-]*(:[0-9]+)?(/[a-z0-9._/-]+)+(:[A-Za-z0-9._-]+)?(@sha256:[a-f0-9]+)?$' || true
+    # Two shapes. The first has a namespace or a registry, so it carries at least one
+    # `/`. The second is a bare Docker Hub official image — `postgres:17-alpine` — which
+    # has neither, and which the first pattern therefore rejected: the local Postgres
+    # stand-in every base bring-up applies was silently absent from the warm set.
+    #
+    # The bare form REQUIRES a tag. Without that it matches any lower-case word, and
+    # this filter is the only thing standing between a stray string in a ConfigMap and
+    # the allow-list Kyverno admits images against.
+  } | grep -E '^([a-z0-9][a-z0-9._-]*(:[0-9]+)?(/[a-z0-9._/-]+)+(:[A-Za-z0-9._-]+)?(@sha256:[a-f0-9]+)?|[a-z0-9][a-z0-9._-]*:[A-Za-z0-9._-]+)$' || true
+}
+
+# Does charts/ already hold what this chart depends on?
+#
+# Chart.lock pins an exact version, so the answer is an exact filename. A chart
+# whose dependencies are VENDORED has no lock — `.gitignore` carries an exception
+# for exactly that, so ArgoCD can render it offline — and there the question is only
+# whether each dependency is present, because the committed tarball IS the pin.
+#
+# A version that moved in Chart.lock leaves the old tarball on disk and the new one
+# missing: a miss, and therefore a fetch, which is right.
+deps_satisfied() {
+  local dir="$1" dep ver
+  if [ -f "${dir}Chart.lock" ]; then
+    while read -r dep ver; do
+      [ -n "$dep" ] || continue
+      [ -f "${dir}charts/${dep}-${ver}.tgz" ] || return 1
+    done < <(yq -r '.dependencies[]? | .name + " " + .version' "${dir}Chart.lock" 2>/dev/null)
+    return 0
+  fi
+  while read -r dep; do
+    [ -n "$dep" ] || continue
+    compgen -G "${dir}charts/${dep}-*.tgz" >/dev/null || return 1
+  done < <(yq -r '.dependencies[]?.name' "${dir}Chart.yaml" 2>/dev/null)
+  return 0
 }
 
 step "rendering every platform chart to collect its images"
@@ -152,8 +185,20 @@ for dir in infra/helm/platform/*/; do
   # fallback cluster:up uses, for the same reason (a clean machine has no repos
   # registered, so `build` fails where `update` succeeds).
   if [ -f "${dir}Chart.yaml" ] && grep -q '^dependencies:' "${dir}Chart.yaml"; then
-    helm dependency build "$dir" >/dev/null 2>&1 ||
-      helm dependency update "$dir" >/dev/null 2>&1 || true
+    # Only when the dependencies are not already on disk. `helm dependency build`
+    # re-resolves the upstream repository index over the network every time it is
+    # called — 15s cold and still 6s against a populated charts/ — and this loop
+    # calls it once per chart. Measured: 165s of `lint:image-allowlist`'s 224s, in a
+    # task whose actual work (`helm template`) is 350ms a chart, and 98% of the wall
+    # clock of `mise run check`.
+    #
+    # Chart.lock names what each chart needs; charts/ holds what it has. When those
+    # agree there is nothing to fetch, and `helm template` resolves the subchart from
+    # the tarball without any help.
+    if ! deps_satisfied "$dir"; then
+      helm dependency build "$dir" >/dev/null 2>&1 ||
+        helm dependency update "$dir" >/dev/null 2>&1 || true
+    fi
   fi
   # `|| true`: a chart that needs values this pass does not supply still contributes
   # whatever it did render. The allow-list is a union, and a missing entry surfaces
@@ -187,6 +232,24 @@ for dir in infra/helm/platform/*/; do
       fi
     fi
   done
+done
+
+# The local stand-ins, which are plain manifests rather than charts and so were
+# invisible to the loop above: the ephemeral Postgres, Temporal and OpenFGA a service
+# talks to on the inner loop (infra/local/deps.yaml, ADR-0600), and the Prism API mock
+# (infra/local/mock.yaml). Every one of them is pulled by a kind node, which pulls
+# only from the mirror — so leaving them out of the warm did not break anything, it
+# just moved the fetch to the moment a pod was already waiting on it. That is the
+# pile-up the warm stage exists to prevent.
+#
+# `base`, because the base tier applies the Postgres slice and nothing here belongs
+# to the full tier alone.
+for manifest in infra/local/deps.yaml infra/local/mock.yaml; do
+  [ -f "$manifest" ] || continue
+  local_stand_ins="$(collect_images <"$manifest" || true)"
+  printf '%s\n' "$local_stand_ins" >>"$images"
+  printf '%s\n' "$local_stand_ins" >>"$local_images"
+  printf '%s\n' "$local_stand_ins" >>"$base_images"
 done
 
 # The service chart, once PER SERVICE with that service's values — the same way the

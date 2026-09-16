@@ -35,6 +35,7 @@ policies:
     - grafana/pyroscope
     - openfga/openfga
     - otel/opentelemetry-collector-contrib
+    - postgres
     - prom/alertmanager
     - prom/prometheus
     - public.ecr.aws/docker/library/redis
@@ -70,7 +71,9 @@ policies:
     - registry.localhost:5000/payment-server
     - registry.localhost:5000/payment-worker
     - sosedoff/pgweb
+    - stoplight/prism
     - temporalio/admin-tools
     - temporalio/server
+    - temporalio/temporal
     - temporalio/temporal-worker-controller
     - temporalio/ui
