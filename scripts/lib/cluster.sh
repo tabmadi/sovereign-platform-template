@@ -807,6 +807,31 @@ stage_rootapp() {
   # that operation and reuses the task plan (sync-waves included) it computed back
   # then, which can never converge against changed manifests. Terminating the
   # operation forces a fresh plan against current git.
+  # What is actually wrong, for the case where waiting longer is not the answer.
+  # `argocd app wait` reports only that it timed out, so a bring-up that fails here
+  # produced sixty minutes of silence and a cancelled job — the reason lived in pod
+  # events nobody printed. Measured: the nightly suite spent 75 minutes reaching a
+  # timeout that named no application.
+  dump_unhealthy() {
+    local app ns
+    warn "applications that did not reach Synced + Healthy:"
+    ac app list -o wide 2>/dev/null |
+      awk 'NR==1 || $2!="Synced" || $3!="Healthy"' | sed 's/^/    /' >&2 || true
+    # Pod-level detail for the namespaces those applications own. A CrashLoop, a
+    # failed mount and an unschedulable pod are three different fixes and the app
+    # status calls all three "Progressing".
+    for ns in $(k get ns -o name 2>/dev/null | sed 's#namespace/##'); do
+      local bad
+      bad="$(k -n "$ns" get pods --no-headers 2>/dev/null |
+        awk '$3!="Running" && $3!="Completed"' || true)"
+      [ -n "$bad" ] || continue
+      warn "  namespace ${ns}:"
+      printf '%s\n' "$bad" | sed 's/^/      /' >&2
+      k -n "$ns" get events --sort-by=.lastTimestamp 2>/dev/null |
+        grep -iE 'warn|fail|error|back-off' | tail -8 | sed 's/^/      /' >&2 || true
+    done
+  }
+
   wait_apps() {
     local timeout="$1" app
     shift
@@ -814,7 +839,13 @@ stage_rootapp() {
     warn "[$*] did not converge in ${timeout}s — terminating their operations (likely stale from a cluster:stop) and re-syncing"
     for app in "$@"; do ac app terminate-op "$app" || true; done
     for app in "$@"; do ac app sync "$app" --timeout "$timeout"; done
-    ac app wait "$@" --sync --health --operation --timeout "$timeout"
+    # HALF the budget on the retry. The first wait already proved the set does not
+    # settle on its own; a second full-length wait doubles the cost of the same
+    # answer, and doubling was what turned a failure into a job the forge killed
+    # before it could report anything.
+    ac app wait "$@" --sync --health --operation --timeout "$((timeout / 2))" && return 0
+    dump_unhealthy
+    fail "ArgoCD did not converge. The applications and pod events above are the reason; \`kubectl --context $(cluster_ctx) -n <ns> describe pod <pod>\` has the rest."
   }
 
   step "waiting for ArgoCD to converge (first run is slow)"
@@ -824,7 +855,11 @@ stage_rootapp() {
   while :; do
     apps="$(ac app list -o name)"
     # shellcheck disable=SC2086  # newline-separated names, intentional split
-    wait_apps 1800 $apps
+    # 900, not 1800. With the mirror warmed every image is a local pull, so an
+    # application that has not settled in fifteen minutes is stuck rather than slow —
+    # and the old budget plus its retry exceeded the job's own timeout, which is how
+    # the suite reported a cancellation instead of a diagnosis.
+    wait_apps 900 $apps
     [ "$(ac app list -o name)" = "$apps" ] && break
   done
   ok "all ArgoCD applications Synced + Healthy"
