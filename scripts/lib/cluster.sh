@@ -208,6 +208,12 @@ stage_registry() {
   # carries nothing, so the mount always resolves and zot never starts against a
   # missing file.
   local creds="${XDG_RUNTIME_DIR:-/tmp}/zot-sync-creds-${REGISTRY}.json"
+  # Docker creates a missing bind-mount source as a ROOT-OWNED DIRECTORY. Start the
+  # registry once while this file is absent — a cleared runtime dir, a container
+  # removed and recreated — and the path becomes a directory that every later run
+  # dies on, with `Is a directory` and no hint of which path or why. Replacing a
+  # non-file here costs one stat and makes the stage self-healing.
+  [ ! -e "$creds" ] || [ -f "$creds" ] || rm -rf "$creds"
   if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
     printf '{"registry-1.docker.io":{"username":"%s","password":"%s"}}\n' \
       "$DOCKERHUB_USERNAME" "$DOCKERHUB_TOKEN" >"$creds"
