@@ -135,8 +135,15 @@ publish_image() {
 }
 
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
-REPO="${IMAGE}"
-WORKER_REPO="${SVC}-worker"
+# The repository carries the local registry's name even though nothing is pushed to
+# it: the image is `kind load`ed onto the node and the helm call below forces
+# `IfNotPresent`, so the name is never resolved over the network. It still has to be
+# an ALLOW-LISTED name — Kyverno's known-registry policy (ADR-0104) matches the
+# reference string against `<repo>:*` patterns built from image-allowlist.yaml, and a
+# bare `frontend:local-…` matches none of them. Admission then denies the pod, the
+# rollout times out, and the failure names the allow-list rather than this line.
+REPO="${REGISTRY}:5000/${IMAGE}"
+WORKER_REPO="${REGISTRY}:5000/${SVC}-worker"
 SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
 
 # Build identity baked into the image (ADR-0103): the working-tree SHA (+ -dirty
@@ -145,9 +152,9 @@ SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
 REV="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 git diff --quiet 2>/dev/null || REV="${REV}-dirty"
 
-echo "→ building ${IMAGE}"
+echo "→ building ${REPO}:${TAG}"
 if [ "$KIND" = service ]; then
-  docker build -t "${IMAGE}:${TAG}" \
+  docker build -t "${REPO}:${TAG}" \
     --build-arg SERVICE="${SVC}" --build-arg APP_CMD=server \
     --build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local \
     --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -159,22 +166,22 @@ else
   # BUILD time. Prod builds leave it empty and rely on same-origin (ADR-0306); this
   # image is local-only and pinned to one host anyway, so it is passed here from the
   # same values file the pod reads it from at runtime — one origin, one source.
-  docker build -t "${IMAGE}:${TAG}" \
+  docker build -t "${REPO}:${TAG}" \
     --build-arg "SERVICE_VERSION=${REV}" \
     --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' "$VALUES")" \
     -f "${SVC_DIR}/Dockerfile" .
 fi
-publish_image "${IMAGE}:${TAG}"
+publish_image "${REPO}:${TAG}"
 
 # Build the worker too when this service declares one (orders, payment).
 if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
-  echo "→ building ${SVC}-worker"
-  docker build -t "${SVC}-worker:${TAG}" \
+  echo "→ building ${WORKER_REPO}:${TAG}"
+  docker build -t "${WORKER_REPO}:${TAG}" \
     --build-arg SERVICE="${SVC}" --build-arg APP_CMD=worker \
     --build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local \
     --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     -f "${SVC_DIR}/Dockerfile" .
-  publish_image "${SVC}-worker:${TAG}"
+  publish_image "${WORKER_REPO}:${TAG}"
   SET+=(--set "worker.image.repository=${WORKER_REPO}" --set "worker.image.tag=${TAG}")
 fi
 
