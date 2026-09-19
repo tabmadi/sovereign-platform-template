@@ -1,14 +1,11 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @import "./theme.css";
-@import "./typography.css";
 
-@plugin "@tailwindcss/typography";
-@plugin "tailwindcss-react-aria-components";
-@plugin "tailwindcss-animate";
-
-@custom-variant dark (&:where(.dark-mode, .dark-mode *));
-@custom-variant label (& [data-label]);
-@custom-variant focus-input-within (&:has(input:focus));
+/* next-themes writes `class="dark"` on <html>; every dark: utility resolves
+ * through this variant, so the class and the variant are one decision. */
+@custom-variant dark (&:is(.dark *));
 
 @utility scrollbar-hide {
     /* For Webkit-based browsers (Chrome, Safari and Opera) */
@@ -22,24 +19,24 @@
     scrollbar-width: none; /* Firefox */
 }
 
-@utility transition-inherit-all {
-    transition-property: inherit;
-    transition-duration: inherit;
-    transition-timing-function: inherit;
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+
+    html {
+        @apply font-sans;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-kerning: normal;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
 }
 
-html,
-body {
-    font-family: var(--font-body);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    -webkit-font-variant-ligatures: contextual;
-    font-variant-ligatures: contextual;
-    -webkit-font-kerning: normal;
-    font-kerning: normal;
-}
-
-/* Hide the default expand arrow on Safari.  */
+/* Hide the default expand arrow on Safari. */
 details summary::-webkit-details-marker {
     display: none;
 }
@@ -59,11 +56,4 @@ input[type="number"] {
 /* Hide the default clear button (X) from search inputs. */
 input[type="search"]::-webkit-search-cancel-button {
     -webkit-appearance: none;
-}
-
-/* Hide the default outline on chart elements. */
-.recharts-surface,
-.recharts-surface g,
-.recharts-surface path {
-    outline: none;
 }

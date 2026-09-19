@@ -100,6 +100,7 @@ A hundred slots per layer rather than ten, so a layer can grow without renumberi
 | ADR | Title | Decides |
 | --- | --- | --- |
 | [0700](0700-analytics.md) | Marketing & Product Analytics | One browser agent, the Collector split, the analytics store |
+| [0701](0701-product-design-and-discovery.md) | Product Design & Discovery | Design authored in the repository against one data seam, and research as dated evidence |
 
 ## Registries
 

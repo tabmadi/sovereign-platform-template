@@ -159,9 +159,8 @@ run = "lefthook install"
 [tasks."setup:node"]
 # The workspace's node_modules. `.mise.toml` pins bun; it does not pin what bun
 # fetches, and nothing installs it implicitly — so a gate that reads a package's
-# own files (lint:contrast reads Tailwind's theme.css) has to depend on this or it
-# passes on a developer machine, where node_modules is already there, and fails on
-# a cold runner. --frozen-lockfile so a bun.lock that has drifted from
+# own files has to depend on this or it passes on a developer machine, where
+# node_modules is already there, and fails on a cold runner. --frozen-lockfile so a bun.lock that has drifted from
 # package.json fails here rather than silently re-resolving to something else.
 run = "bun install --frozen-lockfile"
 
@@ -441,7 +440,7 @@ run = "bash scripts/format-shell.sh"
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity"]
 
 [tasks."lint:go"]
 run = "golangci-lint run ./..."
@@ -737,10 +736,17 @@ run = "bash scripts/lint-secrets.sh"
 # runner-up, and every alternative a row records is visible in that ADR.
 run = "go run ./tools/lint-tool-register"
 
+[tasks."lint:i18n"]
+# Localisation, enforced rather than intended (ADR-0400). Two checks a regex is the
+# right tool for: the message catalogues carry identical keys, and no class is a
+# physical inset that refuses to mirror. The third — no inline copy — is Biome's
+# `noJsxLiterals`, which has a TSX parser; see the tool's header for why that split
+# is not an accident.
+#
+# `-- -fix` applies the physical-to-logical swaps.
+run = "go run ./tools/lint-i18n"
+
 [tasks."lint:contrast"]
-# Reads Tailwind's own theme.css for the ramps the project aliases but does not
-# declare, so node_modules is an input to this gate, not an ambient convenience.
-depends = ["setup:node"]
 # Colour contrast against the design-token file rather than per component
 # (ADR-0400): a token change moves every surface at once, so the token file is
 # where a regression is introduced. axe scans the rendered pages in e2e and catches

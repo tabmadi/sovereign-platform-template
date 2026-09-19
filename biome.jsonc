@@ -48,8 +48,8 @@
       "correctness": {
         // Resolver can't see Next 16 type-only re-exports from next/server.
         "noUnresolvedImports": "off",
-        // React Aria collections (Untitled Table) require stable `id` keys on
-        // columns/rows; these are collection keys, not DOM ids (ADR-0400).
+        // Route files and the design catalogue carry literal ids so a <Label> can
+        // point at its control; these are authored markup, not generated ids.
         "useUniqueElementIds": "off",
         // Qwik-only rule; this is a React app (ADR-0400).
         "useQwikValidLexicalScope": "off",
@@ -60,7 +60,7 @@
       "performance": {
         // Solid.js-only rule; this is a React app (ADR-0400).
         "useSolidForComponent": "off",
-        // The vendored Untitled UI kit ships index barrels (ADR-0400).
+        // radix-ui is consumed as one package, the way shadcn/ui generates it.
         "noBarrelFile": "off"
       },
       "suspicious": {
@@ -68,12 +68,16 @@
         "noReactSpecificProps": "off"
       },
       "style": {
-        // ADR-0400 defers i18n.
-        "noJsxLiterals": "off",
+        // Inline copy is a merge blocker (ADR-0400): every string a reader sees
+        // comes from src/messages/. This rule is the half of that with a parser —
+        // it sees a JSX text node the formatter wrapped across lines, and copy
+        // passed as an attribute, neither of which a regex can recognise.
+        // Catalogue parity and mirroring are `lint:i18n`.
+        "noJsxLiterals": "error",
         "noProcessEnv": "off",
         // ADR-0303 snake_case fields + Next.js SCREAMING_SNAKE env keys.
         "useNamingConvention": "off",
-        // Color literals live in the Untitled token files (src/styles/theme.css).
+        // Colour literals live in the token file alone (src/styles/theme.css).
         "noHexColors": "off",
         "useGlobalThis": "off",
         // Next.js declares `metadata` atop route files.
@@ -123,9 +127,41 @@
       }
     },
     {
-      // App Router route segments and config files use default exports.
+      // App Router route segments and config files use default exports, and a route
+      // file's `generateStaticParams` / `generateMetadata` are exported functions
+      // beside its component by Next's own contract.
       "includes": ["**/app/**", "**/*.config.{js,cjs,mjs,ts}"],
-      "linter": { "rules": { "style": { "noDefaultExport": "off" } } }
+      "linter": {
+        "rules": {
+          "style": { "noDefaultExport": "off", "useComponentExportOnlyModules": "off" }
+        }
+      }
+    },
+    {
+      // The data seam (ADR-0701). A screen states what it needs; `lib/data/` decides
+      // whether that is the generated SDK or a committed fixture. Without this rule
+      // the first page to wire `server-fetch` directly can never be designed against
+      // a fixture again, and the seam decays into a convention nobody can see.
+      // The three route-group overrides below restate it, because a later override
+      // replaces this rule rather than adding to it.
+      "includes": ["**/apps/frontend/src/app/**", "**/apps/frontend/src/components/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
+                    "message": "data reaches a screen through @/lib/data/ (ADR-0701); a page must not choose between the generated SDK and a fixture"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     },
     {
       // Route-group isolation (ADR-0101): a route group does not import from
@@ -141,6 +177,10 @@
               "level": "error",
               "options": {
                 "patterns": [
+                  {
+                    "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
+                    "message": "data reaches a screen through @/lib/data/ (ADR-0701); a page must not choose between the generated SDK and a fixture"
+                  },
                   {
                     "group": ["**/app/(panel)/**", "**/app/(devportal)/**"],
                     "message": "route groups do not import from each other (ADR-0101); share through components/ or lib/"
@@ -167,6 +207,10 @@
               "options": {
                 "patterns": [
                   {
+                    "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
+                    "message": "data reaches a screen through @/lib/data/ (ADR-0701); a page must not choose between the generated SDK and a fixture"
+                  },
+                  {
                     "group": ["**/app/(landing)/**", "**/app/(devportal)/**"],
                     "message": "route groups do not import from each other (ADR-0101); share through components/ or lib/"
                   }
@@ -192,6 +236,10 @@
               "options": {
                 "patterns": [
                   {
+                    "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
+                    "message": "data reaches a screen through @/lib/data/ (ADR-0701); a page must not choose between the generated SDK and a fixture"
+                  },
+                  {
                     "group": ["**/app/(landing)/**", "**/app/(panel)/**"],
                     "message": "route groups do not import from each other (ADR-0101); share through components/ or lib/"
                   }
@@ -203,26 +251,54 @@
       }
     },
     {
+      // The design catalogue (ADR-0400) is a developer tool behind the devportal
+      // session gate. Its labels name primitives and demonstrate states — "Outline",
+      // "Trialling", a swatch's token path — so they are not product copy and are
+      // English by decision rather than by omission. Translating them would put ~75
+      // keys a reader never sees into every catalogue.
+      "includes": ["**/devportal/kitchen-sink/**"],
+      "linter": { "rules": { "style": { "noJsxLiterals": "off" } } }
+    },
+    {
+      // next-intl's request configuration is loaded by the plugin BY PATH, so its
+      // shape is upstream's contract: one default export, and no component in the
+      // module. Both rules exist to keep route files predictable, which this is not.
+      "includes": ["**/apps/frontend/src/i18n/request.ts"],
+      "linter": {
+        "rules": {
+          "style": { "noDefaultExport": "off", "useComponentExportOnlyModules": "off" }
+        }
+      }
+    },
+    {
+      // Fixtures carry wire identifiers (ADR-0003) — 26 base32 characters, which is
+      // what an id looks like and also what the secret scanner's entropy heuristic
+      // looks for. gitleaks still scans these files (lint:secrets), so the coverage
+      // that matters is not lost here.
+      "includes": ["**/apps/frontend/src/fixtures/**"],
+      "linter": { "rules": { "security": { "noSecrets": "off" } } }
+    },
+    {
       // Writes to stdout via console before slog/OTLP wiring.
       "includes": ["**/apps/frontend/src/lib/observability/server.ts"],
       "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
     },
     {
-      // Vendored Untitled UI source (ADR-0400): committed third-party primitives,
-      // token CSS, and utils kept verbatim from upstream for clean re-sync diffs.
-      // Not held to the first-party lint/format rules; tsc still type-checks them.
+      // Vendored shadcn/ui source (ADR-0400): committed third-party primitives and
+      // the token CSS, kept verbatim from upstream so `shadcn add` and a yearly bump
+      // stay clean diffs rather than rewrites. Not held to the first-party
+      // lint/format rules; tsc still type-checks them.
       "includes": [
-        "**/apps/frontend/src/components/base/**",
-        "**/apps/frontend/src/components/application/**",
-        "**/apps/frontend/src/components/foundations/**",
-        "**/apps/frontend/src/utils/cx.ts",
+        "**/apps/frontend/src/components/ui/**",
         "**/apps/frontend/src/utils/is-react-component.ts",
         "**/apps/frontend/src/styles/theme.css",
-        "**/apps/frontend/src/styles/typography.css",
         "**/apps/frontend/src/styles/globals.css"
       ],
       "linter": { "enabled": false },
-      "formatter": { "enabled": false }
+      "formatter": { "enabled": false },
+      // Import order too: upstream's own order is what makes the next `shadcn add`
+      // a no-op diff, and re-sorting it would put every component in the next bump.
+      "assist": { "enabled": false }
     },
     {
       // k6 load scenarios (ADR-0601). Formatted like the rest of the repo, but four

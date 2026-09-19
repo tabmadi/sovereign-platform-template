@@ -4,7 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
-- **Decides:** One Next.js app with route groups, server components by default, and Untitled UI on Tailwind wired CSS-first.
+- **Decides:** One Next.js app with route groups, server components by default, and shadcn/ui on Tailwind wired CSS-first, with every screen reading its data through one seam.
 
 ## Context
 
@@ -28,7 +28,7 @@ This ADR is the single entry point for a newcomer working on the frontend.
 
 1. **One stack for every route group.** Landing, panel, and devportal share the same primitives, and adding a route group decides nothing new.
 2. **The generated SDK is called from a server the platform runs.** A public marketing page, an authenticated panel, and an API console have different rendering needs, and the API credential must never reach the browser to satisfy any of them.
-3. **The design system is the contract with design**, so the primitive library's fidelity to the design tool is a capability, not a preference.
+3. **Design is authored in this repository**, not in a design tool and handed over ([ADR-0701](0701-product-design-and-discovery.md)). The primitive library is therefore judged on how legibly it can be read and edited in place — by a person and by an LLM — rather than on its fidelity to an external file.
 4. **Running it is a container in this cluster**, with no build-time or runtime dependency on the vendor's hosting.
 5. **Governance is recorded, not decisive** ([ADR-0000](0000-platform-foundations.md), principle 4). Exit cost sets how much a vendor relationship is allowed to weigh.
 
@@ -52,18 +52,34 @@ Every option below is MIT and self-hostable as a container, so the column that m
 
 ### Design system
 
-Tier 1 by exit cost ([ADR-0002](0002-tool-adoption.md)), because it is the design-system contract rather than a component library: every screen is composed of it, and replacing it re-authors the markup of the whole surface. Compared on the two properties that survive that observation — where the source lives, and whether the design tool and the code agree.
+Tier 1 by exit cost ([ADR-0002](0002-tool-adoption.md)), because it is the design-system contract rather than a component library: every screen is composed of it, and replacing it re-authors the markup of the whole surface. Compared on the two properties that survive that observation — where the source lives, and how legible that source is to whoever edits it, which under driver 3 is the design surface itself.
 
-| Option | Where the component source lives | Design-tool parity | Accessibility base | Licence | Verdict |
+| Option | Where the component source lives | Legibility of the source | Accessibility base | Licence | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| **Untitled UI React + Tailwind** | **vendored into the repository as source**, and edited like first-party code | a Figma kit the components are drawn from, so a design hand-off is a lookup rather than a translation *(documented)* | React Aria Components underneath | MIT for the React library; the Figma kit and PRO tiers are commercial *(documented)* | **Chosen.** Driver 3 is design-to-code fidelity, and this is the only option where the two artefacts are the same system rather than two interpretations of one |
-| shadcn/ui | vendored as source — the same model | none first-party; the community kits are approximations | Radix underneath | MIT | **The runner-up, and the same shape.** It loses on the Figma row alone, which is the whole of driver 3. If the project has no designer, this is the better-supported choice |
-| Mantine | an installed package | a community kit | its own, good | MIT | A complete library with its own styling engine, which is a second one beside Tailwind — principle 5 |
-| Park UI | vendored as source, over Ark UI | a Figma kit | Ark UI underneath | MIT | The closest structural match to the choice, on a smaller ecosystem and a younger primitive layer |
-| Material UI | an installed package | an official Figma kit, and the strongest parity in the field | its own, mature | MIT | The one option that beats the choice on driver 3. It carries an opinionated visual language that a product design system then fights, and Emotion is a second styling engine |
-| Radix or React Aria plus hand-written components | ours | none | the primitives' | MIT / Apache-2.0 | The honest baseline, and it is what the chosen option is *plus* the components. Choosing it means authoring the design system, which is the work being bought |
+| **shadcn/ui** | **vendored into the repository as source** by a CLI that fetches one component at a time, and edited like first-party code | one file per primitive, plain Tailwind classes and a variant table, no wrapper API to learn. The most widely reproduced React component source in existence, which is what makes an LLM's edits to it predictable *(documented)* | Radix primitives underneath | MIT, with no commercial tier above it | **Chosen.** Driver 3 asks which source is cheapest to read and change in place, and this is the one every contributor — human or model — already knows |
+| Untitled UI React + Tailwind | vendored as source — the same model | a deep folder tree, index barrels, and its own `cx`/`sortCx` and `isReactComponent` helpers to hold in mind before editing a component | React Aria Components underneath | MIT for the React library; **the Figma kit and the PRO component tiers are commercial** | **The displaced choice, and the same shape.** It won an earlier form of driver 3 — fidelity to its Figma kit — on the assumption that design arrived from that tool. With design authored here, the kit is not a capability and its layer of house helpers is a cost |
+| Mantine | an installed package | a component API rather than source: edits are props and overrides, not the markup | its own, good | MIT | A complete library with its own styling engine, which is a second one beside Tailwind — principle 5 |
+| Park UI | vendored as source, over Ark UI | comparable to the choice, on a smaller ecosystem | Ark UI underneath | MIT | The closest structural match, and a younger primitive layer with far less written about it |
+| Material UI | an installed package | theme objects and `sx`, and the markup is the library's | its own, mature | MIT | Carries an opinionated visual language that a product design system then fights, and Emotion is a second styling engine |
+| Radix or React Aria plus hand-written components | ours | maximal — we wrote it | the primitives' | MIT / Apache-2.0 | The honest baseline, and it is what the chosen option is *plus* the components. Choosing it means authoring the design system, which is the work being bought |
 
 **Vendoring as source is the property that makes the exit affordable.** The components are in the repository and are edited there, so abandoning upstream costs the updates rather than the code — which is what keeps a Tier 1 exit cost at the low end of Tier 1.
+
+**Upstream is kept verbatim.** `src/components/ui/` is regenerated by `shadcn add`, so a local edit to a primitive is paid for on every bump. Deviations are made in the token file, which no generator rewrites.
+
+### Localisation
+
+Tier 2 by exit cost ([ADR-0002](0002-tool-adoption.md)): the message catalogues are portable JSON, and leaving means rewriting the call sites rather than the copy. Compared on what a **server-first** app needs from the library, which is narrower than the feature lists suggest.
+
+| Option | Server-component support | Locale in the URL | Message format | Verdict |
+| --- | --- | --- | --- | --- |
+| **next-intl** | first-class: the async API for pages, the hook for components, and the locale resolved from a route param *(documented)* | its own routing helpers, with the default locale unprefixed | ICU MessageFormat, so plurals and ordering belong to the translator rather than to the code | **Chosen.** The only option built for the App Router's rendering model rather than adapted to it, and the one that keeps prerendering per locale |
+| react-i18next | works, through a provider and a client boundary | hand-rolled | ICU via a plugin | The most widely deployed i18n library in React, and its server story here is a provider it was not designed for. Adopting it means owning the routing and the server/client split ourselves |
+| Lingui | supported, with a compile step | hand-rolled | ICU, compiled to a runtime format | The best extraction story in the field — messages come out of the source, not a hand-kept catalogue. It also adds a macro/compiler step to a build this repo keeps free of one |
+| Next's own `i18n` config | none: it is a Pages Router feature | yes, and only there | none | Not available. Named because it is what a reader expects to find, and the App Router replaced it with nothing |
+| Hand-rolled dictionary and a hook | whatever we write | hand-rolled | whatever we write | The honest baseline, and the shape this repo shipped before this amendment. It is ~200 lines and no dependency, and it stops being cheap at the first plural, the first date, and the first reader who needs `fa` |
+
+**The catalogues are the exit.** They are plain JSON keyed by path, which every option above can read, so the cost of changing library is the call sites — mechanical, and visible to `lint:i18n` while it is half-done.
 
 ### Everything else
 
@@ -71,14 +87,14 @@ Tier 1 by exit cost ([ADR-0002](0002-tool-adoption.md)), because it is the desig
 | --- | --- | --- |
 | Router | **App Router** | Pages Router does not fit the server-heavy, small-bundle goal |
 | Styling | **Tailwind, wired CSS-first** | CSS Modules and CSS-in-JS are viable, and the design contract is in Tailwind tokens, so mixing systems doubles the design-system surface |
-| Primitives | **Untitled UI React**, vendored as source, built on React Aria Components | shadcn/ui is the strong contender and the same shape — copied source over headless primitives — and driver 3 decides it on Figma fidelity. Radix plus Tailwind by hand is the same thing without the components. Mantine and Park UI ship their own design language, which is the contract this driver reserves for design. **Its Figma kit and the PRO component tiers are commercial**; the React library is MIT, and only the MIT part is vendored |
+| Primitives | **shadcn/ui**, vendored as source by its CLI, built on Radix | Untitled UI is the displaced choice and the same shape — copied source over headless primitives — and it won driver 3 only while design arrived from a Figma kit. Radix plus Tailwind by hand is the same thing without the components. Mantine and Park UI ship their own design language, which is the contract this driver reserves for the brand |
 | Lint and format | **Biome only** | Biome plus a minimal ESLint for the Next plugin is second-best. One tool wins; the Next-specific rules that matter are caught by `next build`, Lighthouse-CI, and the typed `next/image` and `next/font` APIs |
 | Unit test runner | **`bun test`** | Vitest and Jest duplicate a Jest-compatible runner the only JS runtime already ships |
 | Spec renderer | **Scalar** | Redoc's request console is paywalled, which negates the same-origin "try it" the URL layout was built for. A docs platform (Fern, Mintlify) is a separate stateful service duplicating the SDK codegen. **Stoplight Elements** is the equivalent-capability alternative, and the two are interchangeable because both render the same committed spec |
 | Access-denial UI | **the framework's `unauthorized.js` and `forbidden.js` interrupts** | An error boundary carries no status, misses a Server Action's return path, and renders every denial as a crash. A per-page check is the same branch written once per route, and the one that is forgotten fails silently |
 | Feature flags | **OpenFeature SDK, noop provider** | Vercel `flags` is runtime-specific and wrong for an in-cluster Bun runtime |
-| Component catalogue | **an in-repo kitchen-sink route** | Storybook is useful and not load-bearing with one app, where Figma is already the isolated visual catalogue. The deferral below carries the condition |
-| i18n | **deferred behind a trigger** | `next-intl` on day one is premature without a locale on the roadmap |
+| Component catalogue | **an in-repo kitchen-sink route**, which is also where the brand is rendered | Storybook is useful and not load-bearing with one app. With design authored in the repository there is no second place a primitive could be seen, so the route is the catalogue rather than a copy of one. The deferral below carries the condition |
+| i18n | **`next-intl`, from day one, enforced** | Deferring it was the earlier decision and it was wrong: retrofitting localisation means finding every string already shipped, and the interpolated ones are exactly what an extraction pass misses. Adopting it before the first screen costs a library and a message file; adopting it afterwards costs a sweep of the whole surface. The comparison is below |
 | Server-state fetching | **TanStack Query** for client-side reads | RSC-only means every interactive refetch becomes a route transition. SWR is lighter and lacks the mutation and invalidation model the panel uses |
 | Client state | **Zustand** for the little that outlives a component tree | Jotai and Valtio are equivalent at this size, and the decision is which one rather than whether. XState is right for genuinely stateful flows and is a modelling commitment the panel does not need. Redux and MobX are on nobody's shortlist here |
 | Forms | **`react-hook-form`** | TanStack Form is the closer competitor and is younger; Conform is server-action-first, which couples form code to one framework's action model |
@@ -104,17 +120,17 @@ The `server-fetch` directory has **no barrel**: client code imports the client e
 
 ### Styling
 
-Untitled UI's integration is followed exactly, so a component copied from upstream drops in unmodified.
+shadcn/ui's integration is followed exactly, so a component the CLI fetches drops in unmodified.
 
 | Element | Decision |
 | --- | --- |
 | System | Tailwind, wired CSS-first with no config file. CSS Modules and CSS-in-JS are not used in app code; third-party components shipping their own styles are the exception |
-| Tokens | Untitled UI's committed token file, imported by the global stylesheet. **There is no JS token mirror** — a TypeScript consumer needing a raw value reads the CSS variable |
-| Plugins and variants | the global stylesheet registers the React Aria state-variant and animate plugins and declares Untitled's custom variants |
-| Class composition | Untitled's `cx` and `sortCx`. Hand-written `cn()` helpers are not added |
-| Dark mode | `next-themes`, writing Untitled's class on the root element |
+| Tokens | `src/styles/theme.css`, imported by the global stylesheet. **There is no JS token mirror** — a TypeScript consumer needing a raw value reads the CSS variable |
+| Roles | every colour is a `--<role>` / `--<role>-foreground` couple, declared in both palettes. What each role is for is [docs/brand.md](../brand.md); the values are only here |
+| Class composition | the `cn` package, which is what the generated components import. A second house helper beside it is not added |
+| Dark mode | `next-themes`, writing `.dark` on the root element |
 
-Token edits are PRs. Upstream bumps are recorded in `apps/frontend/src/components/UPSTREAM.md` on a yearly cadence.
+Token edits are PRs, and `lint:contrast` scores the pairs on both palettes before one merges. The CLI's own configuration lives in `apps/frontend/components.json`; it names the style, the base colour and the icon set, so `shadcn add` produces the same component for everyone.
 
 ### Code layout: one app, no first-party packages
 
@@ -130,22 +146,45 @@ There is exactly one consumer of the frontend code. Route groups are folders in 
 | Server and client fetchers | `src/lib/server-fetch/` |
 | Browser and server telemetry | `src/lib/observability/` |
 | Feature flags | `src/lib/feature-flags.ts` |
-| User-facing strings | `src/strings/<route-group>.ts` |
+| User-facing strings | `src/messages/<locale>.json`, one catalogue per locale |
 | Generated API SDKs | `libs/ts/sdks/<service>/` — the **only** `libs/ts` members |
 
 ### Component library
 
-Primitives live under `src/components/` in Untitled UI's own layout. Route groups compose them by explicit path and do not duplicate them. The heuristic: if two route groups would copy a component, it belongs under `src/components/`.
+Primitives live under `src/components/ui/`, written there by `shadcn add` and never by hand. First-party components live beside that directory, under their own folder. Route groups compose both by explicit path and do not duplicate them. The heuristic: if two route groups would copy a component, it belongs under `src/components/`.
 
-Untitled UI ships source the project owns, built on [React Aria Components](https://react-spectrum.adobe.com/react-aria/) for accessibility, vendored as committed source rather than fetched at runtime. Keeping upstream's folder layout and utility names verbatim is deliberate: it makes adding a component or taking a yearly bump a clean diff rather than a rewrite.
+shadcn/ui ships source the project owns, built on [Radix primitives](https://www.radix-ui.com/primitives) for accessibility, vendored as committed source rather than fetched at runtime. Keeping `src/components/ui/` verbatim is deliberate: it makes adding a component or taking a bump a clean diff rather than a rewrite, and it is why a deviation belongs in the token file instead.
 
-**The kitchen-sink page** renders every primitive once. It is the cheap alternative to Storybook: one route, no separate toolchain, gated by the devportal session. Every primitive added under `src/components/` gets a section there in the same PR.
+**The kitchen-sink page** is the design catalogue: the brand — colour roles, chart ramp, type scale, radius, elevation — and then every primitive, once. It is the cheap alternative to Storybook: one route, no separate toolchain, gated by the devportal session. Every primitive added under `src/components/ui/` gets a section there in the same PR. The e2e suite discovers its sections from the rendered page, so a new section is scanned and baselined without a test edit.
+
+### Localisation
+
+Enforced from day one, because the retrofit is the expensive version ([ADR-0701](0701-product-design-and-discovery.md) makes the same argument about design).
+
+| Concern | Decision |
+| --- | --- |
+| Locales | `en`, `de`, `fa`. The set carries a right-to-left locale deliberately: mirroring is a case the design system passes on every commit, and without `fa` nothing keeps the classes logical |
+| URL shape | `localePrefix: "as-needed"` — the default locale is unprefixed (`/panel`), every other locale carries its tag (`/de/panel`). One URL per language, and the English addresses, e2e paths and Lighthouse targets are unchanged |
+| Catalogues | `src/messages/<locale>.json`, one file per locale, ICU MessageFormat |
+| Locale resolution | `next/root-params` in `src/i18n/request.ts`. Not `setRequestLocale` — see below |
+| Negotiation | the `NEXT_LOCALE` cookie first, then `Accept-Language` matched by RFC 4647 lookup, then the default. An explicit choice outranks a header the reader never set |
+| Middleware | the proxy owns locale resolution and the rewrite. next-intl's middleware is not used |
+| Fonts | one token, two faces: Inter for Latin locales, Vazirmatn for `fa`, chosen in the locale layout. Inter has no Persian coverage, and a translated page in a fallback face is half localised |
+| Direction | `dir` on `<html>` from the locale, and layout classes are logical so the mirror is free |
+
+**Why the proxy resolves the locale.** next-intl ships a middleware and it does the job well, but it owns the rewrite — and so does `src/proxy.ts`, which stamps a per-request CSP nonce onto the rewritten request's headers ([ADR-0305](0305-edge-auth-and-traffic-policy.md)). Two middlewares cannot both rewrite one request, and a second middleware's response discards those headers. The auth redirects settle it: a German reader whose session expired belongs on `/de/auth/login`, and only something that already knows the locale can build that URL. What is *not* hand-rolled is the matching — `Accept-Language` is parsed and matched with the same library next-intl uses internally.
+
+**Why `next/root-params` rather than `setRequestLocale`.** Four files render in every route's shell and receive no props: `loading.tsx`, `not-found.tsx`, `forbidden.tsx` and `unauthorized.tsx`. They carry copy, so they read messages — and next-intl caches its resolved configuration on the FIRST call in a request. Whichever shell rendered first therefore pinned every later message on the page to the default locale: `/de` served German markup with English copy, and `setRequestLocale` in a layout could not prevent it, because a file with no props has no locale to pass. Root params are readable anywhere in the render, which fixes the correctness bug and restores prerendering per locale at the same time. `setRequestLocale` is deprecated upstream in favour of exactly this.
+
+**A catch-all under the segment** (`[locale]/[...rest]`) turns an unmatched path into a `notFound()` inside the locale tree. Without it such a path falls out of the segment to Next's own built-in 404 — unstyled and English for every reader.
+
+**The design catalogue is exempt** and says so in `biome.jsonc`: its labels name primitives and demonstrate states, so they are not product copy. Fixtures are exempt for the same reason — mock row data is content, not chrome ([ADR-0701](0701-product-design-and-discovery.md)).
 
 ### Accessibility
 
 **The target is [WCAG 2.2 level AA](https://www.w3.org/TR/WCAG22/)** across every route group. AA is the level EN 301 549 and Section 508 reference, so it is what a procurement question or a regulator asks about. AAA is not adopted: WCAG itself declines to recommend it as a whole-site target, because some of its criteria cannot be satisfied for all content.
 
-React Aria supplies keyboard behaviour, focus management, and ARIA semantics for the primitives. That is the floor rather than the target — contrast, heading structure, landmark semantics, and error association are composition decisions no primitive library makes.
+Radix supplies keyboard behaviour, focus management, and ARIA semantics for the primitives. That is the floor rather than the target — contrast, heading structure, landmark semantics, and error association are composition decisions no primitive library makes.
 
 | Surface | Claim |
 | --- | --- |
@@ -166,7 +205,7 @@ The devportal route group renders the OpenAPI specs through **Scalar**, embedded
 | What it renders | a **pre-filtered projection**, not the raw specs. `gen:openapi-public` merges the service specs and filters on the `x-audience` ladder, so the renderer only ever sees what its audience may see. The strip is real, not a UI hide ([ADR-0303](0303-api-contracts-and-lifecycle.md)) |
 | Self-hosted | the package is bundled by the build rather than loaded from a CDN, and default web fonts are disabled, so nothing is fetched at runtime |
 | CSP fit | it injects inline styles, covered by `style-src`; self-hosts its fonts, covered by `font-src 'self'`; and its console fetches same-origin, covered by `connect-src 'self'` |
-| Visual island | Scalar ships its own theme and the portal does not reuse Untitled UI primitives. Accepted for one route group: matching a spec renderer to the design system is not worth the maintenance, and the console is worth more than pixel parity |
+| Visual island | Scalar ships its own theme and the portal does not reuse the design system's primitives. Accepted for one route group: matching a spec renderer to the design system is not worth the maintenance, and the console is worth more than pixel parity |
 
 The **public docs portal** is anonymous with no login, the norm for public API documentation, and renders only `public` operations. It ships only when a public API does. Credential management is a separate authenticated surface ([ADR-0306](0306-trust-tiers-and-urls.md)): viewing docs never requires an account, only managing keys does.
 
@@ -174,7 +213,7 @@ The **public docs portal** is anonymous with no login, the norm for public API d
 
 | Concern | Decision |
 | --- | --- |
-| Forms | `react-hook-form` for orchestration, `zod` for schemas. Schemas for spec operations are generated and committed, drift-checked in CI. One `<Form>` primitive wires all three; hand-rolled form wiring is a review-blocker |
+| Forms | `react-hook-form` for orchestration, `zod` for schemas. Schemas for spec operations are generated and committed, drift-checked in CI. shadcn/ui's `Field` composes the label, the control, its description and its error, so the ARIA wiring between them is written once; hand-rolled field markup is a review-blocker |
 | URL state | `nuqs` for filters, pagination, tab selection |
 | Client-only state | Zustand, for state that outlives a component tree. Redux and MobX are not used |
 | React Context | theming and per-route-group session bootstrapping only, never cross-cutting state |
@@ -243,7 +282,6 @@ The browser side of [ADR-0500](0500-observability.md) is wired here.
 
 | Capability | Trigger | Seam | Cost if adopted late |
 | --- | --- | --- | --- |
-| i18n via `next-intl` | a second locale is committed to | ✓ all strings already live in one file per route group, so the migration is mechanical | every string added in the meantime has to be found, and the ones interpolated inline are the ones the extraction misses |
 | A concrete feature-flag backend | a change needs to reach some users before others | ✓ application code already calls flags through the OpenFeature API against a noop provider, so only the provider changes | none of consequence — this is why the noop provider is wired on day one rather than the API being added later |
 | Storybook and a hosted visual review UI | a component is edited by someone who does not run the app, or a visual regression reaches `master` twice | ⚠ **a bet.** Both consume the same committed components, which is an input format rather than a slot: nothing today renders a component in isolation, so adopting Storybook means writing the stories, not enabling a path | the component set has grown to whatever size made the kitchen-sink route stop working, and every story is written at once against components never designed to render standalone |
 
@@ -259,7 +297,7 @@ Locally, the dev server runs against `cluster:up` and is reached through the edg
 
 - The entire frontend story is one ADR plus citations.
 - Server-first rendering keeps bundles small without sacrificing the design system.
-- A single design-token source gives Figma-to-code parity.
+- A single design-token source moves every surface at once, and one gate scores it.
 - Biome-only is the smallest possible TypeScript toolchain: install, format, and lint in one binary.
 - Form, fetch, and state primitives are app-wide, so route groups do not fork them.
 - Browser traces continue the same trace id as upstream services.
@@ -267,9 +305,11 @@ Locally, the dev server runs against `cluster:up` and is reached through the edg
 ### Negative / Risks
 
 - **Biome lacks Next-specific lints.** Mitigated by `next build`, Lighthouse-CI, and the typed asset APIs. A different enforcement surface, not a behavioural gap.
-- **Untitled UI source is vendored and committed**, so upgrading is a real PR. Mitigated by keeping the upstream layout verbatim, tracking bumps, and taking them yearly.
+- **shadcn/ui source is vendored and committed**, so a bump is a real PR. Mitigated by keeping `src/components/ui/` verbatim and putting every deviation in the token file, which no generator rewrites.
 - **The OpenTelemetry web SDK is heavier than Faro alone.** Accepted; browser-to-service trace continuity is worth the bytes, and the perf gates keep it honest.
-- **Deferring i18n risks a painful retrofit.** Mitigated by the one-file-per-route-group string layout.
+- **Every route renders per locale, so the prerendered page count is the route count times the locale count.** Accepted: the pages are prerendered at build rather than per request, and a locale nobody visits costs build time rather than serving cost.
+- **A third locale is a third translation of every string.** That is the cost of the decision rather than a defect in it, and `lint:i18n` makes it visible at the gate instead of at a reader's screen.
+- **RTL support means every new class has to be logical.** The mechanical cases are caught and fixed by `lint:i18n -- -fix`; a layout that is wrong only when mirrored — an icon that should not flip, a chart axis — is a judgement no linter makes.
 - **A green axe run is not WCAG conformance.** Automated scanning catches only the machine-checkable subset of the success criteria; the rest — meaningful alt text, sensible reading order, whether a flow is completable by keyboard — is not detectable by a tool. The AA claim rests on the primitives being right and on the keyboard pass, and the gate only prevents regressions in the part a machine can see.
 - **AA is claimed for first-party surfaces and refused for vendored ones.** A user who needs it meets an accessible product panel and an inaccessible Grafana. This is honest rather than good, and it is the direct cost of not building operator tooling.
 - **The Lighthouse thresholds move with the speed of the machine that runs them.** A before/after is a comparison only when both sides were measured in one session; `environment.benchmarkIndex` in each report is what says whether they were.
@@ -283,18 +323,19 @@ Locally, the dev server runs against `cluster:up` and is reached through the edg
 - Server Actions are permitted only for mutations against the route group's owning service. Cross-service mutations use the REST API and the workflow-handle pattern.
 - Every route segment ships `loading.tsx` and `error.tsx`; every route-group root also ships `not-found.tsx`. `(CI: ci:lint)`
 - First-party frontend code lives in the app. A `libs/ts/*` package is created only for a second consumer or a generated artifact.
-- Server components fetch through the server-only fetcher; client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. `(CI: ci:lint)`
+- A screen reads and writes through `src/lib/data/`, never through `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. `(CI: lint:ts)`
+- Inside that seam, server components fetch through the server-only fetcher; client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. `(CI: ci:lint)`
 - Hand-written request and response types are not declared; only generated types are used, and form schemas are generated from the spec. `(CI: ci:gen)`
 - Tailwind is the styling system, wired CSS-first with no config file. CSS Modules, CSS-in-JS, and inline `<style>` are not used in app code. `(CI: ci:lint)`
-- Design tokens come from the committed Untitled UI token file. There is no JS token mirror, and tokens are not redefined per route group.
-- Class composition uses `cx` and `sortCx`. Hand-written helpers are not added. `(CI: ci:lint)`
-- Primitives are the vendored Untitled UI source, composed by explicit path and never duplicated.
-- A primitive added under `src/components/` is added to the kitchen-sink page in the same PR, and that PR includes a keyboard-only pass of the new section.
+- Design tokens come from `apps/frontend/src/styles/theme.css`. There is no JS token mirror, and tokens are not redefined per route group.
+- Class composition uses the `cn` package, as the generated components import it. A second helper is not added. `(CI: ci:lint)`
+- Primitives are the vendored shadcn/ui source under `src/components/ui/`, written by `shadcn add`, composed by explicit path and never duplicated. A primitive is not hand-edited; a deviation is made in the token file.
+- A primitive added under `src/components/ui/` is added to the kitchen-sink page in the same PR, and that PR includes a keyboard-only pass of the new section.
 - Every route group targets WCAG 2.2 AA. The Scalar console and vendored operator UIs are excluded, and the exclusion is stated rather than assumed. `(ref: WCAG 2.2 AA)`
 - Every kitchen-sink section and every product journey is scanned with `@axe-core/playwright`; a `serious` or `critical` violation fails the merge. `(CI: e2e)`
-- Colour contrast is verified against the design-token file, not per component. `(CI: e2e)`
-- Icons come from the Untitled UI icon set. Another set requires an ADR amendment.
-- Forms use react-hook-form and zod through the shared `<Form>` primitive.
+- Colour contrast is verified against the design-token file, not per component, in both palettes. `(CI: lint:contrast)`
+- Icons come from `lucide-react`, the icon set `components.json` names. Another set requires an ADR amendment.
+- Forms use react-hook-form and zod, and every field is composed with `Field` from `src/components/ui/field.tsx`.
 - URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. `(CI: ci:lint)`
 - The proxy enforces the Kratos session on the authenticated route groups, and the frontend never mints, decodes, or validates JWTs. `(CI: lint:auth-inline)`
 - An access denial is answered by its kind. No session redirects to the login flow carrying the current path and query; a session without permission renders in place, at the denied URL. `(ref: RFC 9110 §15.5)`
@@ -313,6 +354,11 @@ Locally, the dev server runs against `cluster:up` and is reached through the edg
 - Server components do not call the identity provider. Browser flows reach it through the edge ([ADR-0304](0304-identity-and-authorization.md)), which is the only path the network policy allows.
 - Bundle budgets and the Lighthouse thresholds are merge gates.
 - Images go through `next/image` and fonts through `next/font`. `(CI: ci:lint)`
-- No i18n library is adopted; strings live in one file per route group.
+- Every string a reader sees comes from `src/messages/<locale>.json` through next-intl. A literal in JSX or in a copy-bearing attribute is a merge blocker. `(CI: lint:ts)`
+- Every catalogue carries identical keys, and the locale set includes at least one right-to-left locale. `(CI: lint:i18n)`
+- Layout classes are logical (`ms-`, `pe-`, `text-start`, `start-`), never physical. Centring fractions are the stated exception. `(CI: lint:i18n)`
+- A sentence broken by a link or a `<code>` stays one key, interpolated with `t.rich`. It is never split into two keys.
+- The locale is resolved from the `[locale]` root param, and the default locale is served unprefixed.
+- Internal navigation uses the helpers in `src/i18n/navigation.ts`, so an href carries no locale prefix by hand.
 - Feature flags go through the OpenFeature API with a noop provider.
 - The container runs the standalone build under Bun, and installs no Node. `(CI: lint:node-scope)`

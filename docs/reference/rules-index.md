@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 160 |
-| Review-enforced | 316 |
-| **Total** | **476** |
+| Machine-enforced | 166 |
+| Review-enforced | 326 |
+| **Total** | **492** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -549,18 +549,19 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Server Actions are permitted only for mutations against the route group's owning service. Cross-service mutations use the REST API and the workflow-handle pattern. | review |
 | Every route segment ships `loading.tsx` and `error.tsx`; every route-group root also ships `not-found.tsx`. | `ci:lint` in CI |
 | First-party frontend code lives in the app. A `libs/ts/*` package is created only for a second consumer or a generated artifact. | review |
-| Server components fetch through the server-only fetcher; client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. | `ci:lint` in CI |
+| A screen reads and writes through `src/lib/data/`, never through `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. | `lint:ts` in CI |
+| Inside that seam, server components fetch through the server-only fetcher; client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. | `ci:lint` in CI |
 | Hand-written request and response types are not declared; only generated types are used, and form schemas are generated from the spec. | `ci:gen` in CI |
 | Tailwind is the styling system, wired CSS-first with no config file. CSS Modules, CSS-in-JS, and inline `<style>` are not used in app code. | `ci:lint` in CI |
-| Design tokens come from the committed Untitled UI token file. There is no JS token mirror, and tokens are not redefined per route group. | review |
-| Class composition uses `cx` and `sortCx`. Hand-written helpers are not added. | `ci:lint` in CI |
-| Primitives are the vendored Untitled UI source, composed by explicit path and never duplicated. | review |
-| A primitive added under `src/components/` is added to the kitchen-sink page in the same PR, and that PR includes a keyboard-only pass of the new section. | review |
+| Design tokens come from `apps/frontend/src/styles/theme.css`. There is no JS token mirror, and tokens are not redefined per route group. | review |
+| Class composition uses the `cn` package, as the generated components import it. A second helper is not added. | `ci:lint` in CI |
+| Primitives are the vendored shadcn/ui source under `src/components/ui/`, written by `shadcn add`, composed by explicit path and never duplicated. A primitive is not hand-edited; a deviation is made in the token file. | review |
+| A primitive added under `src/components/ui/` is added to the kitchen-sink page in the same PR, and that PR includes a keyboard-only pass of the new section. | review |
 | Every route group targets WCAG 2.2 AA. The Scalar console and vendored operator UIs are excluded, and the exclusion is stated rather than assumed. | standard: WCAG 2.2 AA |
 | Every kitchen-sink section and every product journey is scanned with `@axe-core/playwright`; a `serious` or `critical` violation fails the merge. | `e2e` in CI |
-| Colour contrast is verified against the design-token file, not per component. | `e2e` in CI |
-| Icons come from the Untitled UI icon set. Another set requires an ADR amendment. | review |
-| Forms use react-hook-form and zod through the shared `<Form>` primitive. | review |
+| Colour contrast is verified against the design-token file, not per component, in both palettes. | `lint:contrast` in CI |
+| Icons come from `lucide-react`, the icon set `components.json` names. Another set requires an ADR amendment. | review |
+| Forms use react-hook-form and zod, and every field is composed with `Field` from `src/components/ui/field.tsx`. | review |
 | URL state uses `nuqs`; client-only state uses Zustand. Redux and MobX are not used. | `ci:lint` in CI |
 | The proxy enforces the Kratos session on the authenticated route groups, and the frontend never mints, decodes, or validates JWTs. | `lint:auth-inline` in CI |
 | An access denial is answered by its kind. No session redirects to the login flow carrying the current path and query; a session without permission renders in place, at the denied URL. | standard: RFC 9110 §15.5 |
@@ -579,7 +580,12 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Server components do not call the identity provider. Browser flows reach it through the edge ([ADR-0304](../adr/0304-identity-and-authorization.md)), which is the only path the network policy allows. | review |
 | Bundle budgets and the Lighthouse thresholds are merge gates. | review |
 | Images go through `next/image` and fonts through `next/font`. | `ci:lint` in CI |
-| No i18n library is adopted; strings live in one file per route group. | review |
+| Every string a reader sees comes from `src/messages/<locale>.json` through next-intl. A literal in JSX or in a copy-bearing attribute is a merge blocker. | `lint:ts` in CI |
+| Every catalogue carries identical keys, and the locale set includes at least one right-to-left locale. | `lint:i18n` in CI |
+| Layout classes are logical (`ms-`, `pe-`, `text-start`, `start-`), never physical. Centring fractions are the stated exception. | `lint:i18n` in CI |
+| A sentence broken by a link or a `<code>` stays one key, interpolated with `t.rich`. It is never split into two keys. | review |
+| The locale is resolved from the `[locale]` root param, and the default locale is served unprefixed. | review |
+| Internal navigation uses the helpers in `src/i18n/navigation.ts`, so an href carries no locale prefix by hand. | review |
 | Feature flags go through the OpenFeature API with a noop provider. | review |
 | The container runs the standalone build under Bun, and installs no Node. | `lint:node-scope` in CI |
 
@@ -706,7 +712,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests. | review |
 | E2e runs against `cluster:up full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](../adr/0600-local-development-loop.md)). | review |
 | Service integration tests run against `cluster:up` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code. | review |
-| Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate. | review |
+| Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. | review |
 | E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state. | review |
 | Node is permitted solely as the Playwright runner, pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. | `lint:node-scope` in CI |
 | k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and hand-rolled generators are not used. | review |
@@ -741,3 +747,20 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Global Privacy Control is honoured as a refusal, and a visitor sending it is not prompted. | standard: Global Privacy Control |
 | The consent record carries a timestamp, the purpose-text version, and the signal source, and is reachable by the erasure and DSAR workflows ([ADR-0301](../adr/0301-data-lifecycle-privacy.md)). | review |
 | The purpose mapping is configuration reviewed at project instantiation. Changing it never changes the enforcement path. | review |
+
+## ADR-0701 — Product Design & Discovery
+
+[Full decision](../adr/0701-product-design-and-discovery.md)
+
+| Rule | Enforced by |
+| --- | --- |
+| Design is authored in this repository. No external design tool is a source of truth, and no screen is specified by a file outside it. | review |
+| The design system's values live only in `apps/frontend/src/styles/theme.css`; what the roles are for lives only in [docs/brand.md](../brand.md). | `lint:contrast` in CI |
+| A screen reads and writes through `src/lib/data/`. It does not import `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. | `lint:ts` in CI |
+| Fixtures are deterministic: no `Math.random()`, and no `new Date()` evaluated at render. | review |
+| Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`, and a production build with it set fails. | review |
+| A screen is promoted by pointing its seam at the service, keying its copy in every message catalogue, adding its journey to the axe suite, and taking a visual baseline in the same PR. | review |
+| Two candidate designs are compared as two preview deployments, not as a committed menu of alternatives. | review |
+| Product research lives in `docs/product/`, carries an `as-of` date and its sources, and binds nothing until an ADR cites it. | review |
+| No research document is mandatory, and none is generated into a project that did not ask for it. | review |
+| Third-party screenshots and copy kept as research are not reachable from any public surface. | review |

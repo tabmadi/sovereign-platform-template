@@ -12,7 +12,9 @@
 // URL and is shown a 403 in place (src/lib/auth/denial.ts, app/forbidden.tsx).
 // Redirecting that user to the login flow sends them round a loop that ends where
 // it started, minus the address they needed.
+import { match as matchLocale } from "@formatjs/intl-localematcher";
 import { type NextRequest, NextResponse } from "next/server";
+import { isLocale, LOCALE_COOKIE, type Locale, routing } from "@/i18n/routing";
 
 const SESSION_COOKIE = "ory_kratos_session";
 
@@ -59,6 +61,61 @@ const SIGNED_IN_HAS_NO_FLOW = new Set(["login", "register", "recovery"]);
 // by default; override when RUM ships to a distinct host.
 const INGEST_ORIGIN = process.env.NEXT_PUBLIC_OTEL_INGEST_ORIGIN ?? "";
 
+// # Why the locale is resolved here and not by next-intl's middleware
+//
+// next-intl ships one, and it does this job well — but it OWNS the rewrite, and so
+// does this file. Two middlewares cannot both rewrite a request, and the CSP nonce
+// below has to travel on the rewritten request's headers
+// (`NextResponse.next/rewrite({ request: { headers } })`), which a second
+// middleware's response discards. The auth redirects are the other half: a German
+// reader whose session expired must land on `/de/auth/login`, and only something
+// that already knows the locale can build that URL. So the locale is resolved once,
+// here, and `i18n/request.ts` reads it back off the `[locale]` route segment.
+//
+// What is NOT hand-rolled is the matching itself: `Accept-Language` is parsed and
+// matched with the same RFC 4647 lookup library next-intl uses internally.
+
+/** Split a pathname into its locale prefix, if any, and the rest. */
+function splitLocale(pathname: string): { prefix: Locale | null; rest: string } {
+  const [, first = "", ...others] = pathname.split("/");
+  if (isLocale(first)) {
+    return { prefix: first, rest: `/${others.join("/")}` };
+  }
+  return { prefix: null, rest: pathname };
+}
+
+/**
+ * The locale for a request with no prefix: the cookie a previous visit wrote, then
+ * the browser's own preference, then the default. A cookie beats `Accept-Language`
+ * deliberately — an explicit choice in the language picker outranks a header the
+ * reader never set.
+ */
+function negotiateLocale(req: NextRequest): Locale {
+  const fromCookie = req.cookies.get(LOCALE_COOKIE)?.value;
+  if (fromCookie && isLocale(fromCookie)) {
+    return fromCookie;
+  }
+  const header = req.headers.get("accept-language");
+  if (!header) {
+    return routing.defaultLocale;
+  }
+  const requested = header
+    .split(",")
+    .map((part) => part.split(";")[0]?.trim())
+    .filter((tag): tag is string => Boolean(tag));
+  try {
+    return matchLocale(requested, routing.locales, routing.defaultLocale) as Locale;
+  } catch {
+    // An unparseable tag is a header, not an outage.
+    return routing.defaultLocale;
+  }
+}
+
+/** Prefix a path for a locale, leaving the default locale unprefixed (as-needed). */
+function localised(path: string, locale: Locale): string {
+  return locale === routing.defaultLocale ? path : `/${locale}${path}`;
+}
+
 function makeNonce(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -103,7 +160,14 @@ function safeReturnTo(raw: string | null): string | null {
 }
 
 export function proxy(req: NextRequest) {
-  const path = req.nextUrl.pathname;
+  // Locale first: every decision below is made on the path WITHOUT its locale
+  // prefix, and every redirect is written back with it. Doing it the other way
+  // round is how `/de/panel` ends up unprotected and `/de/auth/login` ends up
+  // redirecting a German reader into English.
+  const { prefix, rest } = splitLocale(req.nextUrl.pathname);
+  const locale = prefix ?? negotiateLocale(req);
+  const path = rest === "" ? "/" : rest;
+
   const isProtected = PROTECTED.some((p) => path === p || path.startsWith(`${p}/`));
   const hasSession = req.cookies.get(SESSION_COOKIE) !== undefined;
 
@@ -126,12 +190,16 @@ export function proxy(req: NextRequest) {
   // this shortcut.
   const hasFlow = req.nextUrl.searchParams.get("flow") !== null;
   if (flowKind && hasSession && !hasFlow && SIGNED_IN_HAS_NO_FLOW.has(authSegment)) {
-    const back = safeReturnTo(req.nextUrl.searchParams.get("return_to")) ?? "/";
+    const back = safeReturnTo(req.nextUrl.searchParams.get("return_to")) ?? localised("/", locale);
     return NextResponse.redirect(new URL(back, req.url));
   }
 
   // An /auth/* page with no flow id yet: send the browser to Kratos to start one.
   // With a flow id, fall through — the page renders it server-side.
+  //
+  // The Kratos path is NOT localised: `/auth/self-service/*` is Kratos's own URL
+  // space behind Traefik (ADR-0306), not a route this app renders. The `return_to`
+  // it carries is ours, and that one keeps its prefix.
   if (flowKind && !hasFlow) {
     const start = new URL(`/auth/self-service/${flowKind}/browser`, req.url);
     const returnTo = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
@@ -145,7 +213,7 @@ export function proxy(req: NextRequest) {
   if (isProtected) {
     session = req.cookies.get(SESSION_COOKIE)?.value;
     if (!session) {
-      const login = new URL("/auth/login", req.url);
+      const login = new URL(localised("/auth/login", locale), req.url);
       // Path AND query. The panel keeps filters, pagination and tab selection in
       // the URL through nuqs, so a `return_to` of the bare pathname hands the user
       // back a screen they did not leave — the session expired, not the view.
@@ -163,10 +231,29 @@ export function proxy(req: NextRequest) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("content-security-policy", csp);
 
-  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  // The `[locale]` segment must always be present internally, so an unprefixed
+  // request is rewritten onto the negotiated locale while the address bar keeps the
+  // clean URL. A prefixed request already matches and is passed through.
+  const rewritten = req.nextUrl.clone();
+  rewritten.pathname = `/${locale}${path === "/" ? "" : path}`;
+  const res =
+    prefix === null
+      ? NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } })
+      : NextResponse.next({ request: { headers: requestHeaders } });
+
   res.headers.set("content-security-policy", csp);
   if (session) {
     res.headers.set("x-kratos-session", session);
+  }
+  // Remember a negotiated or chosen locale, so the second visit does not re-derive
+  // it from a header the reader never set. `lax` because this is a preference, not a
+  // credential, and it must survive a cross-site navigation back into the app.
+  if (req.cookies.get(LOCALE_COOKIE)?.value !== locale) {
+    res.cookies.set(LOCALE_COOKIE, locale, {
+      path: "/",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+    });
   }
   return res;
 }

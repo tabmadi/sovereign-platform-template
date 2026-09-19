@@ -21,7 +21,7 @@ test.describe("visual regression @visual", () => {
 
   test("every kitchen-sink section matches its baseline", async ({ page }) => {
     await page.goto(`${BASE_URL}/devportal/kitchen-sink`);
-    await expect(page.getByRole("heading", { name: "UI kitchen sink" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Design catalogue" })).toBeVisible();
 
     const sections = await kitchenSinkSections(page);
     // An empty page would pass vacuously, and a vacuous pass on a regression gate

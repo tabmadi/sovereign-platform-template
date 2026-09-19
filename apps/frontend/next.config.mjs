@@ -16,6 +16,13 @@
 // config into server.js, so a deployed image only carries an entry if the build
 // passed EDGE_PUBLIC_ORIGIN — which pins that image to one env host and breaks the
 // build-once/promote-by-digest flow in ADR-0103. Leave it unset in CI builds.
+import createNextIntlPlugin from "next-intl/plugin";
+
+// The plugin points next-intl at src/i18n/request.ts and makes the message
+// catalogues part of the build graph, so a locale added there is compiled in
+// without a second registration (ADR-0400).
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
 const edgeOrigin = process.env.EDGE_PUBLIC_ORIGIN;
 const allowedOrigins = edgeOrigin ? [new URL(edgeOrigin).host] : [];
 
@@ -61,6 +68,13 @@ const nextConfig = {
     // which is the single place that shape is named, so a rename upstream is one
     // edit rather than a hunt.
     authInterrupts: true,
+    // `next/root-params`, which lets any server component read the `[locale]` root
+    // segment without it being passed down. i18n/request.ts needs exactly that: the
+    // four no-props shells (loading, not-found, forbidden, unauthorized) render
+    // before any page and cannot receive params, and next-intl caches the config on
+    // its FIRST call per request — so without this, whichever shell renders first
+    // pins every later message to the default locale.
+    rootParams: true,
   },
   env: {
     NEXT_PUBLIC_SERVICE_VERSION: process.env.SERVICE_VERSION ?? "dev",
@@ -79,4 +93,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

@@ -30,7 +30,9 @@ The set is large and each task class needs a small part of it. Grep the Rules se
 | A workflow | [0302](docs/adr/0302-temporal.md), and `docs/reference/long-running-workflows.md` if the wall-clock is long | replay tests |
 | A chart or values file | [0201](docs/adr/0201-gitops.md), [0204](docs/adr/0204-resource-management.md), [0205](docs/adr/0205-environment-parity.md) | `mise run lint:resource-governance`, `lint:floating-tags` |
 | Anything at the edge or about identity | [0305](docs/adr/0305-edge-auth-and-traffic-policy.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), [0304](docs/adr/0304-identity-and-authorization.md) | `mise run lint:auth-inline`, and [docs/reference/threat-model.md](docs/reference/threat-model.md) |
-| Frontend code | [0400](docs/adr/0400-frontend.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), [0700](docs/adr/0700-analytics.md) for anything emitting events | `mise run lint:ts` |
+| Frontend code | [0400](docs/adr/0400-frontend.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), [0700](docs/adr/0700-analytics.md) for anything emitting events | `mise run lint:ts`, `lint:i18n` |
+| A screen's design, the brand, or product research | [0701](docs/adr/0701-product-design-and-discovery.md), [docs/brand.md](docs/brand.md) for the token roles, and [docs/guide/designing-a-screen.md](docs/guide/designing-a-screen.md) for the procedure | `mise run lint:contrast`, `lint:i18n`, `lint:ts` |
+| Any user-facing copy | [0400](docs/adr/0400-frontend.md) §Localisation — every string is a key in `apps/frontend/src/messages/<locale>.json`, and all three catalogues move together | `mise run lint:i18n`, `lint:ts` |
 | A document or an ADR | [0001](docs/adr/0001-documentation-and-output-conventions.md), and `_template.md` for a new ADR | `mise run lint:prose`, `lint:adr-xref`, `lint:md` |
 | A rule's wording | the owning ADR only — the rules index and the security baseline are generated | `mise run gen` then `lint:rules-index` |
 

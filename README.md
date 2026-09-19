@@ -175,7 +175,7 @@ Every tool here also carries a row in [`docs/tool-register.md`](docs/tool-regist
 | --- | --- | --- |
 | Backend language | Go | [0100](docs/adr/0100-language-and-runtime.md) |
 | Frontend | Next.js + TypeScript on Bun, one app with route groups | [0100](docs/adr/0100-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) |
-| Design system | Untitled UI React, vendored as source, on Tailwind | [0400](docs/adr/0400-frontend.md) |
+| Design system | shadcn/ui, vendored as source, on Tailwind, with the brand in one token file | [0400](docs/adr/0400-frontend.md), [0701](docs/adr/0701-product-design-and-discovery.md) |
 | Task runner | `mise` | [0101](docs/adr/0101-monorepo.md) |
 | Machines | Talos Linux, configured by machine config | [0200](docs/adr/0200-cluster-topology.md) |
 | Cloud resources | Terraform, per project, skipped where infrastructure is pre-provided | [0200](docs/adr/0200-cluster-topology.md) |

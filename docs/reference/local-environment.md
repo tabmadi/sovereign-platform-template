@@ -86,6 +86,7 @@ Without the edge, Grafana is still reachable by `kubectl -n platform port-forwar
 | `EDGE_PUBLIC_ORIGIN` | The **browser's** edge origin, so it carries the port. The server-action CSRF allowlist is derived from it. Server components fall back to it when the internal origin is unset, which is correct on the host where the two are the same. Unset, the first server-side fetch throws |
 | `EDGE_INTERNAL_ORIGIN` | Where **this process** dials the edge. In-cluster that is the edge's `:443`, not the browser's `:8443` — one variable cannot be both, which is why there are two. Set only in-cluster |
 | `NODE_TLS_REJECT_UNAUTHORIZED` | Local only. See the note below |
+| `NEXT_PUBLIC_FIXTURES` | `1` serves every seam in `src/lib/data/` from its committed fixture instead of the service, which is how a screen is designed before its API exists ([ADR-0701](../adr/0701-product-design-and-discovery.md)). Unset by default, and a production build with it set fails during prerender |
 
 Browser-side calls need none of this: the client uses a relative `/api`, which is same-origin by construction. A server-side fetch has no document to resolve a relative URL against, so the origin is named once — and it must be configuration rather than the request's `Host` header, because that header is client-controlled and this fetcher forwards the user's session cookie.
 

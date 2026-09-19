@@ -1,0 +1,115 @@
+{
+  "common": {
+    "language": "Sprache",
+    "home": "Startseite"
+  },
+  "landing": {
+    "title": "Plattform",
+    "tagline": "Selbst gehostete Microservices-Vorlage.",
+    "signIn": "Anmelden",
+    "createAccount": "Konto erstellen",
+    "forgotPassword": "Passwort vergessen?",
+    "accountSettings": "Kontoeinstellungen & Sicherheit",
+    "customerPanel": "Kundenbereich",
+    "developerPortal": "Entwicklerportal"
+  },
+  "auth": {
+    "login": {
+      "title": "Anmelden",
+      "starting": "Anmeldung wird gestartet…",
+      "submit": "Anmelden",
+      "error": "Anmeldung konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "toRegister": "Konto erstellen"
+    },
+    "register": {
+      "title": "Konto erstellen",
+      "starting": "Registrierung wird gestartet…",
+      "submit": "Konto erstellen",
+      "error": "Registrierung konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "toLogin": "Sie haben schon ein Konto? Anmelden"
+    },
+    "recovery": {
+      "title": "Konto wiederherstellen",
+      "starting": "Wiederherstellung wird gestartet…",
+      "submit": "Wiederherstellungscode senden",
+      "error": "Wiederherstellung konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "toLogin": "Zurück zur Anmeldung"
+    },
+    "verification": {
+      "title": "E-Mail-Adresse bestätigen",
+      "starting": "Bestätigung wird gestartet…",
+      "submit": "Bestätigungscode senden",
+      "error": "Bestätigung konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "toLogin": "Zurück zur Anmeldung"
+    },
+    "settings": {
+      "title": "Kontoeinstellungen & Sicherheit",
+      "starting": "Einstellungen werden geladen…",
+      "submit": "Speichern",
+      "error": "Einstellungen konnten nicht geladen werden. Bitte erneut versuchen."
+    },
+    "errorFlow": {
+      "title": "Etwas ist schiefgelaufen",
+      "loading": "Fehlerdetails werden geladen…",
+      "generic": "Ein unerwarteter Fehler ist aufgetreten.",
+      "toLogin": "Zurück zur Anmeldung"
+    },
+    "qrAlt": "QR-Code"
+  },
+  "panel": {
+    "home": {
+      "title": "Kundenbereich",
+      "products": "Produkte",
+      "checkout": "Kasse"
+    },
+    "products": {
+      "title": "Produkte",
+      "columnName": "Produkt",
+      "columnPrice": "Preis"
+    },
+    "checkout": {
+      "title": "Kasse",
+      "productLabel": "Produkt",
+      "productPlaceholder": "Produkt-ID (product_…)",
+      "productIdInvalid": "keine Produkt-ID",
+      "buy": "Kaufen",
+      "starting": "wird gestartet",
+      "error": "Fehler",
+      "running": "läuft: {id}",
+      "idle": "bereit"
+    }
+  },
+  "devportal": {
+    "title": "Entwicklerportal",
+    "description": "Interne API-Referenz über alle Dienste."
+  },
+  "analytics": {
+    "title": "Produktanalyse",
+    "description": "Ereignisse der letzten {days, plural, one {Tag} other {# Tage}}. „Sitzungen“ beantwortet, wie viele Personen; „Vorkommen“, wie viele Male.",
+    "empty": "Keine Ereignisse in diesem Zeitraum. Marketing-Ereignisse werden nur für Sitzungen mit Einwilligung erfasst — eine leere Tabelle bedeutet also auch „noch niemand hat zugestimmt“.",
+    "columnEvent": "Ereignis",
+    "columnOccurrences": "Vorkommen",
+    "columnSessions": "Sitzungen"
+  },
+  "errors": {
+    "unexpected": {
+      "title": "Etwas ist schiefgelaufen",
+      "retry": "Erneut versuchen"
+    },
+    "notFound": {
+      "title": "Nicht gefunden",
+      "body": "Diese Seite gibt es nicht. <home>Zur Startseite</home>."
+    },
+    "forbidden": {
+      "title": "Kein Zugriff",
+      "body": "Ihr Konto ist angemeldet, darf dies aber nicht sehen. Bitten Sie die Administration Ihrer Organisation um Zugriff — die Adresse in der Adresszeile ist die, die Sie ihr schicken sollten.",
+      "backToPanel": "Zurück zum Kundenbereich"
+    },
+    "unauthorized": {
+      "title": "Ihre Sitzung ist beendet",
+      "body": "Melden Sie sich erneut an, um fortzufahren. Sie kehren zu dieser Seite zurück.",
+      "signInAgain": "Erneut anmelden"
+    },
+    "loading": "Wird geladen…"
+  }
+}

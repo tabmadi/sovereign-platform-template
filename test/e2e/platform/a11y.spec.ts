@@ -15,7 +15,7 @@
 // third-party surfaces behind an operator session, and AA is not claimed for them.
 import { expect, test } from "@playwright/test";
 import { expectNoA11yViolations, kitchenSinkSections } from "../fixtures/a11y";
-import { BASE_URL, REGISTER_URL, USER_STATE } from "../fixtures/env";
+import { BASE_URL, REGISTER_URL, RTL_LOCALE, rtlURL, USER_STATE } from "../fixtures/env";
 
 // Scalar renders into its own container with its own theme; the route group AROUND
 // it is in scope, the console itself is not.
@@ -27,7 +27,7 @@ test.describe("accessibility @a11y", () => {
 
     test("each section is free of serious and critical violations", async ({ page }) => {
       await page.goto(`${BASE_URL}/devportal/kitchen-sink`);
-      await expect(page.getByRole("heading", { name: "UI kitchen sink" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Design catalogue" })).toBeVisible();
 
       const sections = await kitchenSinkSections(page);
       // A page that renders no sections is a broken fixture, not a pass: the whole
@@ -47,6 +47,15 @@ test.describe("accessibility @a11y", () => {
     test("landing", async ({ page }) => {
       await page.goto(BASE_URL);
       await expectNoA11yViolations(page, "(landing) /");
+    });
+
+    // The same landing page mirrored. A violation only this test can see is one that
+    // depends on direction: a control that lands off-screen, or a label that ends up
+    // on the wrong side of its input.
+    test("landing, right-to-left", async ({ page }) => {
+      await page.goto(rtlURL());
+      await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+      await expectNoA11yViolations(page, `(landing) /${RTL_LOCALE}`);
     });
 
     test("login", async ({ page }) => {

@@ -17,9 +17,10 @@ Genre decides the directory, so a path states what kind of document it points at
 | `adr/` | explanation + reference | the decisions |
 | `guide/` | how-to | a procedure someone executes |
 | `reference/` | reference | a lookup, a registry, or live state |
+| `product/` | evidence | dated observations of the outside world, with sources. Optional, and binding on nothing ([ADR-0701](adr/0701-product-design-and-discovery.md)) |
 | `docs/*.md` | entry and canonical registries | the way in, and the documents the ADR set cites by name as the only place a thing is recorded |
 
-The root is deliberately small: [reading-path](reading-path.md) and [dev-loop](dev-loop.md) are where a reader starts, and [operational-surface](operational-surface.md), [adoption-path](adoption-path.md), [tool-register](tool-register.md), and [security-baseline](security-baseline.md) are cited across the ADR set as the single home of the component inventory, the reduction order, the tool inventory, and the control index. A file earns the root by being one of those two things.
+The root is deliberately small: [reading-path](reading-path.md) and [dev-loop](dev-loop.md) are where a reader starts, and [operational-surface](operational-surface.md), [adoption-path](adoption-path.md), [tool-register](tool-register.md), [brand](brand.md), and [security-baseline](security-baseline.md) are cited across the ADR set as the single home of the component inventory, the reduction order, the tool inventory, the design roles, and the control index. A file earns the root by being one of those two things.
 
 Topic lives in the filename, not in a directory. A directory holding one file is a directory that buys nothing, and a `runbook.md` repeated once per topic is four files an editor cannot tell apart.
 
@@ -38,6 +39,7 @@ Topic lives in the filename, not in a directory. A directory holding one file is
 | [gateway-runbook](guide/gateway-runbook.md) | How do I change an edge rule or a rate limit? |
 | [break-glass](guide/break-glass.md) | How do I reach the dashboards when auth is down? |
 | [incident-management](guide/incident-management.md) | What counts as an incident, who does what, and what is owed afterwards? |
+| [designing-a-screen](guide/designing-a-screen.md) | How do I design a screen, and what does promoting it require? |
 | [http-proxy](guide/http-proxy.md) | How do I work behind a corporate proxy? |
 | [performance-runbook](guide/performance-runbook.md) | How do I run a load test and read the result? |
 
@@ -49,6 +51,7 @@ Topic lives in the filename, not in a directory. A directory holding one file is
 | [operational-surface](operational-surface.md) | Every platform component, tiered Core / Scale / Opt-in, with its recurring obligation, plus the budget rule |
 | [adoption-path](adoption-path.md) | What to give up and in what order when the floor exceeds capacity, and what it costs to take back |
 | [tool-register](tool-register.md) | Every tool, its exit-cost tier, licence, governing body, and owning ADR |
+| [brand](brand.md) | What each design token is for, the voice, and what the brand refuses to do. The values live in the token file |
 | [security-baseline](security-baseline.md) | Every security control and the mechanism enforcing it. **Generated** from the owning ADRs' Rules sections |
 | [system-view](reference/system-view.md) | What runs, how a request moves through it, and where identity enters. One page |
 | [risk-register](reference/risk-register.md) | Every accepted risk in the set, ranked, with its compensating control and its trigger |

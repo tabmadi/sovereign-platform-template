@@ -184,7 +184,7 @@ Load runs generate real data: a checkout run creates real orders and Temporal ex
 
 ### Visual baselines
 
-The CI gate is committed accepted-snapshot diffing against baselines in `test/e2e/visual/`; an intentional UI change updates the baseline in the same PR. **Figma stays the authoring source of truth** ([ADR-0400](0400-frontend.md)), reviewed by humans. Rendered-versus-Figma diffing is too brittle — font hinting, anti-aliasing — to gate on.
+The CI gate is committed accepted-snapshot diffing against baselines in `test/e2e/visual/`; an intentional UI change updates the baseline in the same PR. **The committed baselines are the only visual record**: design is authored in the repository, so there is no external file to diff against ([ADR-0400](0400-frontend.md), [ADR-0701](0701-product-design-and-discovery.md)). What a baseline proves is that nothing moved unintentionally — whether the intended movement is an improvement is a human judgement, made on the PR.
 
 **Deferred:** component-isolation tooling (Storybook) and a hosted review UI (Argos). **Trigger:** built-in baseline diffing stops scaling. **Seam:** both consume the same committed baselines, so adoption is additive.
 
@@ -219,7 +219,7 @@ The CI gate is committed accepted-snapshot diffing against baselines in `test/e2
 - Preflight readiness checks run before the browser suite as failure localisers; they are not acceptance tests.
 - E2e runs against `cluster:up full` with real services. MSW and all mocking are forbidden in e2e, including the development API mock and the `edge` profile ([ADR-0600](0600-local-development-loop.md)).
 - Service integration tests run against `cluster:up` plus the service's declared components and drive services through their generated SDK clients; they do not import another service's code.
-- Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR. Automated rendered-versus-Figma diffing is not a CI gate.
+- Visual regression gates on committed `toHaveScreenshot` baselines; an intentional UI change updates the baseline in the same PR.
 - E2e provisions a committed deterministic test identity — AAL1 user plus AAL2 operator. No test relies on hand-created state.
 - Node is permitted solely as the Playwright runner, pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. `(CI: lint:node-scope)`
 - k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and hand-rolled generators are not used.

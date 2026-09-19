@@ -18,7 +18,7 @@ Leaving is a rewrite or a multi-month migration. The owning ADR carries a full c
 | TypeScript | frontend language | [0100](adr/0100-language-and-runtime.md) | Apache-2.0 | Microsoft | none — the browser sets it | JavaScript, ReScript, Elm |
 | Bun | frontend runtime and package manager | [0100](adr/0100-language-and-runtime.md) | MIT, and the binary statically links JavaScriptCore under the LGPL | Oven, single-vendor | Node.js | Node.js, Deno, pnpm on Node |
 | Next.js | frontend framework | [0400](adr/0400-frontend.md) | MIT | Vercel, single-vendor | TanStack Start | TanStack Start, React Router v7, Astro, SvelteKit, Nuxt |
-| Untitled UI React + Tailwind | design system | [0400](adr/0400-frontend.md) | MIT for the React library; the Figma kit and PRO tiers are commercial | Untitled UI, single-vendor | shadcn/ui | shadcn/ui, Mantine, Park UI, Material UI, headless-only |
+| shadcn/ui + Tailwind | design system | [0400](adr/0400-frontend.md) | MIT | shadcn, single-maintainer, no commercial tier | Untitled UI React | Untitled UI, Mantine, Park UI, Material UI, headless-only |
 | PostgreSQL | relational store | [0300](adr/0300-data.md) | PostgreSQL Licence | PostgreSQL Global Development Group | none — no option survived the constraints | MySQL, MariaDB, CockroachDB, YugabyteDB, SQLite |
 | CloudNativePG | Postgres operator | [0300](adr/0300-data.md) | Apache-2.0 | CNCF | StackGres | Zalando, Percona, StackGres, Crunchy, a hand-rolled StatefulSet |
 | Kubernetes | orchestrator | [0200](adr/0200-cluster-topology.md) | Apache-2.0 | CNCF, graduated | Nomad | Nomad, Docker Swarm, systemd units, a PaaS |
@@ -42,6 +42,7 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 
 | Tool | Concern | Owning ADR | Licence | Governance | Recorded against |
 | --- | --- | --- | --- | --- | --- |
+| next-intl | frontend localisation | [0400](adr/0400-frontend.md) | MIT | maintainer-led | react-i18next, Lingui, Next's Pages-Router `i18n` config, a hand-rolled dictionary |
 | Helm | manifest templating | [0201](adr/0201-gitops.md) | Apache-2.0 | CNCF, graduated | Kustomize overlays, Helm + post-render, jsonnet, plain YAML |
 | Kyverno | admission policy | [0104](adr/0104-supply-chain-security.md), [0203](adr/0203-policy-enforcement.md) | Apache-2.0 | CNCF, graduated | Gatekeeper/OPA, Validating Admission Policy, the CI lint layer alone |
 | cert-manager | TLS certificate lifecycle | [0305](adr/0305-edge-auth-and-traffic-policy.md) | Apache-2.0 | CNCF, graduated | certbot in a CronJob, a private CA, manual issuance |
@@ -135,12 +136,13 @@ Removal is a mechanical edit inside the packages that import it. Each row names 
 | `zustand` | client state | Redux Toolkit, Jotai, Context alone |
 | `nuqs` | URL-backed state | hand-written `searchParams` parsing |
 | `next-themes` | theme switching | a hand-rolled class toggle |
-| `tailwind-merge` | class conflict resolution | `clsx` alone, `cva` alone |
-| `react-aria-components` | accessible primitives | Radix, Headless UI, hand-written ARIA |
-| `@untitledui/icons` | icon set | Lucide, Heroicons, Phosphor |
-| `tailwindcss-animate` | animation utilities | Framer Motion, hand-written keyframes |
-| `tailwindcss-react-aria-components` | state variants for the primitives | manual data-attribute selectors |
-| `@tailwindcss/typography` | prose styling | hand-written prose rules |
+| `cn` | class conflict resolution, as the generated components import it | `clsx` plus `tailwind-merge` by hand |
+| `@formatjs/intl-localematcher` | RFC 4647 locale matching for `Accept-Language` | hand-rolled header parsing, `negotiator` |
+| `class-variance-authority` | variant tables in the primitives | hand-written class maps |
+| `radix-ui` | accessible primitives | React Aria, Headless UI, hand-written ARIA |
+| `lucide-react` | icon set | Heroicons, Phosphor, Untitled UI icons |
+| `tw-animate-css` | animation utilities | Framer Motion, hand-written keyframes |
+| `shadcn` | the CLI that writes `src/components/ui/`, and the stylesheet its style imports | copying component source by hand |
 | `openapi-fetch` | typed client transport | `axios`, bare `fetch`, `ky` |
 | `server-only` | build-time server-boundary guard | review alone |
 | `pino` | structured logging | `winston`, `bunyan`, `console` |

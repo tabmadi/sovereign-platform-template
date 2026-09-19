@@ -6,6 +6,13 @@ import path from "node:path";
 export const HOST = process.env.E2E_HOST ?? "dev.localtest.me:8443";
 export const BASE_URL = `https://${HOST}`;
 
+// The right-to-left locale (ADR-0400). The default locale is served unprefixed, so
+// every other URL here is implicitly `en`; this is the one that proves a mirrored
+// layout still renders and still passes axe. Without a spec that visits it, `fa`
+// rots quietly — the copy stays translated and the layout stops being checked.
+export const RTL_LOCALE = "fa";
+export const rtlURL = (path = ""): string => `${BASE_URL}/${RTL_LOCALE}${path}`;
+
 // Operator dashboards each live on their own origin `{tool}.ops.<host>` (ADR-0306).
 export const opsURL = (tool: string): string => `https://${tool}.ops.${HOST}`;
 

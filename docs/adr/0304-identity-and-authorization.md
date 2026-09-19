@@ -19,7 +19,7 @@ The platform serves four kinds of principal:
 
 Constraints inherited from earlier ADRs: self-host only, per-service footprint matters ([ADR-0100](0100-language-and-runtime.md)), and the edge validates tokens while services decide permissions ([ADR-0305](0305-edge-auth-and-traffic-policy.md)).
 
-**Hard requirement on the UI.** The login UI is a custom Next.js implementation of a Figma design. It is not the provider's hosted pages, themed templates, or a forked vendor UI. The provider must expose a headless, API-first identity flow that Next.js drives end to end.
+**Hard requirement on the UI.** The login UI is a custom Next.js surface, built on the platform's own design system ([ADR-0400](0400-frontend.md)). It is not the provider's hosted pages, themed templates, or a forked vendor UI. The provider must expose a headless, API-first identity flow that Next.js drives end to end.
 
 **Authorization shape.** Day-one features already exceed flat RBAC: resource ownership across orgs, shared resources, role per org per resource. Temporal is available ([ADR-0302](0302-temporal.md)), which makes the dual write between application database and authz store a routine workflow.
 
@@ -300,7 +300,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 
 ### Positive
 
-- Login UI freedom: the Figma design is implemented exactly, with no fight against vendor templates.
+- Login UI freedom: the sign-in surface is the product's own, with no fight against vendor templates.
 - One way to get a token for human or machine identity.
 - Authz is a single coherent model from day one — no deferred migration, no per-service RBAC tables.
 - Schema in files, tests in files, a CLI for debugging, GitOps for everything.

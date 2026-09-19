@@ -7,38 +7,36 @@
 // catches composition mistakes this cannot see — a foreground applied over a
 // background the naming convention does not pair it with.
 //
-// The pairing comes from the token names themselves, which is what makes this
-// mechanical rather than a hand-maintained list:
+// The pairing comes from the token names, which is what makes this mechanical
+// rather than a hand-maintained list. shadcn/ui names every role as a couple:
 //
-//	--color-text-*            over  --color-bg-primary
-//	--color-text-*_on-brand   over  --color-bg-brand-solid
+//	--<role>-foreground   over  --<role>
+//	--foreground          over  --background
+//
+// Three roles are also checked against surfaces their name does not state, because
+// that is where they are actually used: page text and secondary text both appear on
+// the card surface, and `text-destructive` is applied over the page rather than over
+// `--destructive`, which is a fill. Those pairs are listed in extraPairs.
 //
 // Thresholds follow the success criteria rather than the visual hierarchy. SC 1.4.3
-// applies to ALL text at 4.5:1 — a token named `quaternary` or `placeholder` is
-// still text, and low prominence is not an exception the criterion grants. Icon
-// fills are non-text and take SC 1.4.11's 3:1. Disabled states are the one genuine
-// exemption 1.4.3 names: an inactive user-interface component is incidental.
+// applies to ALL text at 4.5:1 — low prominence is not an exception the criterion
+// grants. Borders and focus rings are non-text and take SC 1.4.11's 3:1. Disabled
+// states are the one genuine exemption 1.4.3 names: an inactive user-interface
+// component is incidental.
 //
-// Both the light palette and the .dark-mode block are checked. A theme that only
+// Both the light palette and the .dark block are checked. A theme that only
 // conforms in one mode conforms in neither, since the user picks.
 //
 // A pair that cannot be resolved to two concrete colours is a hard failure, never a
-// skip. The first version of this tool skipped them, and it silently checked three
-// pairs out of forty-five because `--color-white` is supplied by Tailwind's own
-// theme rather than declared here — a gate that reports success while measuring
-// nothing is worse than no gate.
-//
-// The neutral, red, green, and yellow ramps the theme aliases are Tailwind's, in
-// oklch(). They are read from the installed Tailwind theme and layered underneath
-// the project's own declarations, which override them.
+// skip. An earlier version skipped them, and silently checked three pairs out of
+// forty-five — a gate that reports success while measuring nothing is worse than no
+// gate. For the same reason a mode whose palette parses empty fails outright.
 package main
 
 import (
 	"fmt"
-	"maps"
 	"math"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -47,21 +45,42 @@ import (
 
 const themeFile = "apps/frontend/src/styles/theme.css"
 
-// Tailwind ships its palette as CSS custom properties. Bun's store nests the real
-// package under .bun/, so both layouts are searched.
-var tailwindThemeGlobs = []string{
-	"node_modules/tailwindcss/theme.css",
-	"node_modules/.bun/tailwindcss@*/node_modules/tailwindcss/theme.css",
-	"apps/frontend/node_modules/tailwindcss/theme.css",
-}
-
 const (
 	thresholdText = 4.5 // WCAG 2.2 SC 1.4.3, normal text
 	thresholdUI   = 3.0 // WCAG 2.2 SC 1.4.11, non-text contrast
 )
 
-// Icon fills are non-text and take SC 1.4.11's 3:1 threshold.
-var nonTextMarkers = []string{"icon"}
+// The two surfaces a role can be rendered on regardless of its own name: the page
+// and anything raised off it.
+const (
+	surfacePage = "--background"
+	surfaceCard = "--card"
+)
+
+// The pairs whose foreground is not named for the surface it sits on. Each is a
+// place the design system puts a role that its name does not predict.
+var extraPairs = []pair{
+	{fg: "--foreground", bg: surfaceCard},
+	{fg: "--muted-foreground", bg: surfacePage},
+	{fg: "--muted-foreground", bg: surfaceCard},
+	{fg: "--destructive", bg: surfacePage},
+	{fg: "--destructive", bg: surfaceCard},
+}
+
+// Non-text roles, at SC 1.4.11's 3:1 against the page.
+//
+// `--input` and `--ring` are here because each is the ONLY visual information
+// identifying something: the boundary of a form control, and which control has
+// focus. 1.4.11 is about exactly that.
+//
+// `--border` is deliberately NOT here. It draws card edges, table rules and
+// separators — decoration, and never the sole indicator of a component or a state,
+// which is the boundary 1.4.11 draws. Scoring it would force every divider in the
+// product to near-3:1 and the surfaces would read as a wireframe.
+var nonTextPairs = []pair{
+	{fg: "--ring", bg: surfacePage},
+	{fg: "--input", bg: surfacePage},
+}
 
 // Disabled states are incidental under SC 1.4.3's own exception for an inactive
 // user-interface component, so they are not scored at all.
@@ -69,33 +88,29 @@ var exemptMarkers = []string{"disabled"}
 
 type rgb struct{ r, g, b float64 }
 
-// CSS-universal colours Tailwind declares as keywords rather than values.
+// pair is a foreground token and the surface token it is rendered on.
+type pair struct{ fg, bg string }
+
+// CSS keywords a token may be declared as rather than a value.
 var baseColors = map[string]rgb{
-	"--color-white": {1, 1, 1},
-	"--color-black": {0, 0, 0},
+	"--white": {1, 1, 1},
+	"--black": {0, 0, 0},
 }
 
-// A token named for a colour states its own value rather than a role, so there is
-// no ground to infer for it: --color-text-white is white text for a dark surface,
-// and pairing it with the page background would measure white on white.
-var selfColoured = []string{"--color-text-white", "--color-text-black"}
-
 var (
-	declRe  = regexp.MustCompile(`(?m)^\s*(--color-[a-z0-9-_]+)\s*:\s*([^;]+);`)
+	declRe  = regexp.MustCompile(`(?m)^\s*(--[a-z0-9-_]+)\s*:\s*([^;]+);`)
 	varRe   = regexp.MustCompile(`var\(\s*(--[a-z0-9-_]+)\s*\)`)
 	rgbRe   = regexp.MustCompile(`rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)`)
 	oklchRe = regexp.MustCompile(`oklch\(\s*([0-9.]+)%?\s+([0-9.]+)\s+([0-9.]+)`)
 	hexRe   = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
+	// The dark palette's selector, as next-themes writes it onto <html>.
+	darkSelectorRe = regexp.MustCompile(`(?m)^\.dark\b`)
 )
 
 func main() {
 	data, err := os.ReadFile(themeFile)
 	if err != nil {
 		failf("read %s: %v", themeFile, err)
-	}
-	base, err := tailwindPalette()
-	if err != nil {
-		failf("%v", err)
 	}
 	light, dark := split(string(data))
 
@@ -105,8 +120,8 @@ func main() {
 		name   string
 		tokens map[string]string
 	}{
-		{"light", layer(base, parse(light))},
-		{"dark", layer(base, parse(dark))},
+		{"light", parse(light)},
+		{"dark", parse(dark)},
 	} {
 		if len(mode.tokens) == 0 {
 			failf("%s: no colour tokens found in the %s palette", themeFile, mode.name)
@@ -126,38 +141,29 @@ func main() {
 	_, _ = fmt.Fprintf(os.Stdout, "✓ %d token pairs meet WCAG 2.2 AA contrast\n", checked)
 }
 
-// checkMode pairs every text token with its background and returns the failures.
+// checkMode derives the pairs from the token names and returns the failures.
 func checkMode(mode string, tokens map[string]string) (int, []string) {
 	var problems []string
 	checked := 0
 
-	for name := range tokens {
-		if !strings.HasPrefix(name, "--color-text-") || slices.Contains(selfColoured, name) {
+	for _, p := range pairsFor(tokens) {
+		if isExempt(p.fg) || isExempt(p.bg) {
 			continue
 		}
-		bgName := "--color-bg-primary"
-		if strings.HasSuffix(name, "_on-brand") {
-			bgName = "--color-bg-brand-solid"
-		}
-
-		if isExempt(name) {
-			continue
-		}
-
-		fg, okFG := resolve(tokens, name)
+		fg, okFG := resolve(tokens, p.fg)
 		if !okFG {
-			problems = append(problems, fmt.Sprintf("%s: %s does not resolve to a colour", mode, name))
+			problems = append(problems, fmt.Sprintf("%s: %s does not resolve to a colour", mode, p.fg))
 			continue
 		}
-		bg, okBG := resolve(tokens, bgName)
+		bg, okBG := resolve(tokens, p.bg)
 		if !okBG {
-			problems = append(problems, fmt.Sprintf("%s: %s does not resolve to a colour", mode, bgName))
+			problems = append(problems, fmt.Sprintf("%s: %s does not resolve to a colour", mode, p.bg))
 			continue
 		}
 
 		want := thresholdText
 		criterion := "1.4.3 normal text"
-		if isNonText(name) {
+		if slices.Contains(nonTextPairs, p) {
 			want = thresholdUI
 			criterion = "1.4.11 non-text"
 		}
@@ -166,10 +172,42 @@ func checkMode(mode string, tokens map[string]string) (int, []string) {
 		got := contrast(fg, bg)
 		if got < want {
 			const form = "%s: %s on %s is %.2f:1, below %.1f:1 (SC %s)"
-			problems = append(problems, fmt.Sprintf(form, mode, name, bgName, got, want, criterion))
+			problems = append(problems, fmt.Sprintf(form, mode, p.fg, p.bg, got, want, criterion))
 		}
 	}
 	return checked, problems
+}
+
+// pairsFor lists every pair to score: one per declared `--<role>-foreground`
+// couple, plus the two fixed tables. A role declared without its surface (or the
+// reverse) yields no pair here and is caught by the couple check below.
+func pairsFor(tokens map[string]string) []pair {
+	pairs := []pair{{fg: "--foreground", bg: surfacePage}}
+	for name := range tokens {
+		// `--color-*` are the @theme aliases that map Tailwind's utility namespace
+		// onto the roles below them. They hold a var() reference, not a value, and
+		// scoring them would score every role twice under a second name.
+		if strings.HasPrefix(name, "--color-") {
+			continue
+		}
+		surface, isCouple := strings.CutSuffix(name, "-foreground")
+		if !isCouple || surface == "-" || surface == "" {
+			continue
+		}
+		pairs = append(pairs, pair{fg: name, bg: surface})
+	}
+	pairs = append(pairs, extraPairs...)
+	pairs = append(pairs, nonTextPairs...)
+
+	// Deterministic order, so the failure list reads the same on every run.
+	byPair := func(a, b pair) int {
+		if a.fg != b.fg {
+			return strings.Compare(a.fg, b.fg)
+		}
+		return strings.Compare(a.bg, b.bg)
+	}
+	slices.SortFunc(pairs, byPair)
+	return slices.Compact(pairs)
 }
 
 func isExempt(name string) bool {
@@ -181,57 +219,26 @@ func isExempt(name string) bool {
 	return false
 }
 
-func isNonText(name string) bool {
-	for _, m := range nonTextMarkers {
-		if strings.Contains(name, m) {
-			return true
-		}
-	}
-	return false
-}
-
-// tailwindPalette reads the ramps the theme aliases but does not declare.
-func tailwindPalette() (map[string]string, error) {
-	for _, pattern := range tailwindThemeGlobs {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("glob %s: %w", pattern, err)
-		}
-		slices.Sort(matches)
-		for _, m := range slices.Backward(matches) {
-			data, err := os.ReadFile(m)
-			if err != nil {
-				continue
-			}
-			return parse(string(data)), nil
-		}
-	}
-	return nil, fmt.Errorf("no Tailwind theme.css found — run `bun install` (searched %v)", tailwindThemeGlobs)
-}
-
-// layer puts the project's declarations over Tailwind's, which is the cascade the
-// browser sees: globals.css imports tailwindcss and then theme.css.
-func layer(base, over map[string]string) map[string]string {
-	out := make(map[string]string, len(base)+len(over))
-	maps.Copy(out, base)
-	maps.Copy(out, over)
-	return out
-}
-
-// split separates the light palette from the .dark-mode override block. The dark
-// palette is the light one with the overrides applied, because .dark-mode only
-// restates what changes.
+// split separates the light palette from the .dark override block. The dark palette
+// is the light one with the overrides applied, because .dark only restates what
+// changes — a role it forgets keeps its light value, and the pair it then forms is
+// what fails here.
 func split(css string) (string, string) {
-	idx := strings.Index(css, ".dark-mode")
-	if idx < 0 {
+	// The SELECTOR, anchored to the start of a line: the string ".dark" also appears
+	// in prose in this file, and matching that silently truncates the light palette
+	// to nothing.
+	loc := darkSelectorRe.FindStringIndex(css)
+	if loc == nil {
 		return css, css
 	}
-	light := css[:idx]
-	return light, light + css[idx:]
+	light := css[:loc[0]]
+	return light, light + css[loc[0]:]
 }
 
-// parse collects every --color-* declaration. A later declaration wins, which is
-// what makes the dark block override the light one.
+// parse collects every custom-property declaration. A later declaration wins, which
+// is what makes the dark block override the light one. Non-colour properties come
+// along (--radius, --font-sans); nothing asks them for a colour, and filtering by
+// value would be a second guess at which of them is a colour.
 func parse(css string) map[string]string {
 	out := map[string]string{}
 	for _, m := range declRe.FindAllStringSubmatch(css, -1) {

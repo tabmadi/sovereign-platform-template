@@ -5,9 +5,9 @@
 // session cookie only exist in the browser.
 "use client";
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { landing } from "@/strings/landing";
+import { Link } from "@/i18n/navigation";
 
 type KratosError = {
   id?: string;
@@ -17,9 +17,8 @@ type KratosError = {
   message?: string;
 };
 
-const strings = landing.errorFlow;
-
 export function AuthError() {
+  const t = useTranslations("auth.errorFlow");
   const [detail, setDetail] = useState<KratosError | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,14 +40,14 @@ export function AuthError() {
 
   return (
     <main className="mx-auto max-w-md p-6">
-      <h1 className="text-2xl font-semibold">{strings.title}</h1>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       {loading ? (
-        <p className="mt-2 text-tertiary">{strings.loading}</p>
+        <p className="mt-2 text-muted-foreground">{t("loading")}</p>
       ) : (
-        <p className="mt-2 text-red-600">{detail?.reason ?? detail?.message ?? strings.generic}</p>
+        <p className="mt-2 text-destructive">{detail?.reason ?? detail?.message ?? t("generic")}</p>
       )}
-      <Link href="/auth/login" className="mt-4 block text-sm text-brand-600 hover:underline">
-        {strings.toLogin}
+      <Link href="/auth/login" className="mt-4 block text-sm text-primary hover:underline">
+        {t("toLogin")}
       </Link>
     </main>
   );
