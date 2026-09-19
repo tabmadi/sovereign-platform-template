@@ -30,6 +30,16 @@ while IFS= read -r hit; do
   file="${hit%%:*}"
   rest="${hit#*:}"
   line="${rest%%:*}"
+  content="${rest#*:}"
+  # A COMMENT is not a call. The pattern reads as prose as readily as it reads as
+  # code — a script explaining why `helm dependency build` needs a fallback names it
+  # to say so — and flagging that costs someone the hunt for a call that is not
+  # there. This file already excludes ITSELF for the same reason; skipping comments
+  # is that exclusion generalised, and it is what the check means by "the shape of
+  # the call".
+  case "${content#"${content%%[![:space:]]*}"}" in
+  "#"*) continue ;;
+  esac
   # The call plus the line after it, which is where a `|| … update` fallback lives.
   window="$(sed -n "${line},$((line + 1))p" "$file")"
   case "$window" in
