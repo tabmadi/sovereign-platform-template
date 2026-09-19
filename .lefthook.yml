@@ -1,9 +1,29 @@
 # Git hooks (ADR-0101, ADR-0103). Installed via `mise run setup`.
+#
+# EVERY command runs through `mise exec --`, and that is not decoration. None of the
+# pinned tools is on PATH otherwise — gitleaks, golangci-lint, shellcheck, sqruff,
+# vacuum, cog, shfmt and rumdl all resolve only through mise — so a hook that calls
+# one by bare name works for whoever has mise active in their shell and fails for
+# everyone else. A terminal that ran the user's profile is the lucky case; an IDE's
+# commit dialog or an agent inherits whatever PATH launched it, and gets exit 127
+# from a script that never names the tool it could not find.
+#
+# The worse half is silent rather than loud: a developer with a distro `shellcheck`
+# on PATH would have this hook check with THAT version while CI checks with the
+# pinned one, and nothing reports the difference.
+#
+# `mise exec` needs `mise` itself on PATH, and nothing guards that — deliberately.
+# The failure reads `mise: command not found`, which names the cause and implies the
+# fix, and a check that restated it would be a second place to maintain. `mise exec`
+# also installs a pinned tool that is missing, so a fresh clone needs no guard either.
+#
+# A `rc:` file setting PATH once looks like the tidier fix and is not: lefthook 2.1.9
+# accepts the key, echoes it back from `lefthook dump`, and never sources it.
 
 commit-msg:
   commands:
     cog:
-      run: cog verify --ignore-merge-commits --file {1}
+      run: mise exec -- cog verify --ignore-merge-commits --file {1}
 
 pre-commit:
   # Mirrors `mise run lint` (plus the formatters), glob-gated so each check only
@@ -25,35 +45,35 @@ pre-commit:
       glob: "*.go"
       # golangci-lint fmt applies the formatters from .golangci.yml and skips
       # generated files (formatters.exclusions.generated), unlike bare gofumpt.
-      run: golangci-lint fmt {staged_files}
+      run: mise exec -- golangci-lint fmt {staged_files}
       stage_fixed: true
     golangci-lint:
       glob: "*.go"
       # Analyse packages, not the staged file list: golangci-lint rejects file
       # arguments that span more than one directory. --new-from-rev still scopes
       # reporting to issues introduced by the staged changes.
-      run: golangci-lint run --new-from-rev HEAD ./...
+      run: mise exec -- golangci-lint run --new-from-rev HEAD ./...
     gostyle:
       # Custom Go layout analyzers (lint:gostyle). Package-scoped like golangci-lint.
       glob: "*.go"
-      run: go run ./tools/gostyle ./...
+      run: mise exec -- go run ./tools/gostyle ./...
     sqruff:
       glob: "{services/**/migrations/*.sql,services/**/internal/store/queries/*.sql}"
-      run: sqruff lint {staged_files}
+      run: mise exec -- sqruff lint {staged_files}
     vacuum:
       glob: "services/**/openapi.yaml"
-      run: vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error {staged_files}
+      run: mise exec -- vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error {staged_files}
     api-audience:
       # Audience↔exposure gate (lint:api-audience) — derives from the specs + routes.
       glob: "services/**/openapi.yaml"
-      run: go run ./tools/lint-api-audience
+      run: mise exec -- go run ./tools/lint-api-audience
     secrets:
       # Plaintext-secret scan over the staged tree (ADR-0202). The working-tree scope
       # is the one a hook wants: is the change about to be made clean? CI runs the
       # history scope, which asks a different question.
-      run: bash scripts/lint-secrets.sh
+      run: mise exec -- bash scripts/lint-secrets.sh
     floating-tags:
-      run: bash scripts/lint-floating-tags.sh
+      run: mise exec -- bash scripts/lint-floating-tags.sh
     gen-drift:
       glob: "{services/**/openapi.yaml,services/**/internal/store/queries/*.sql,services/**/migrations/*.sql,sqlc.yaml}"
       run: mise run ci:gen
@@ -76,58 +96,58 @@ pre-commit:
         - "apps/admin/_generated/**"
         - "apps/frontend/public/devportal/**"
         - "test/e2e/**"
-      run: biome check --write --no-errors-on-unmatched {staged_files}
+      run: mise exec -- biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
     rumdl:
       glob: "*.md"
-      run: rumdl check --fix {staged_files}
+      run: mise exec -- rumdl check --fix {staged_files}
       stage_fixed: true
     shfmt:
       # Shell formatter (format:shell). -i 2 matches the repo's 2-space scripts.
       glob: "*.sh"
-      run: shfmt -w -i 2 {staged_files}
+      run: mise exec -- shfmt -w -i 2 {staged_files}
       stage_fixed: true
     shellcheck:
       # Shell lint (lint:shell). Runs the repo-wide script; catches cross-file too.
       glob: "*.sh"
-      run: bash scripts/lint-shell.sh
+      run: mise exec -- bash scripts/lint-shell.sh
     comments:
       # ADR-0001's comment table (lint:comments), over the staged Go/TS.
       glob: "*.{go,ts,tsx}"
-      run: go run ./tools/lint-comments
+      run: mise exec -- go run ./tools/lint-comments
     log-vocab:
       # Human-output vocabulary gate (lint:log-vocab).
       glob: "scripts/**/*.sh"
-      run: bash scripts/lint-log-vocab.sh
+      run: mise exec -- bash scripts/lint-log-vocab.sh
     node-scope:
       # Node confinement guard (lint:node-scope) — trips when a lockfile leaks.
       glob: "{**/package.json,**/package-lock.json,**/bun.lock}"
-      run: bash scripts/lint-node-scope.sh
+      run: mise exec -- bash scripts/lint-node-scope.sh
     auth-inline:
       # Auth config single-source guard (lint:auth-inline).
       glob: "infra/{auth/**,helm/platform/ory/values.yaml}"
-      run: bash scripts/lint-auth-inline.sh
+      run: mise exec -- bash scripts/lint-auth-inline.sh
     openfga:
       # OpenFGA model + assertions (part of lint:authz).
       glob: "infra/auth/openfga/**"
-      run: bash scripts/validate-openfga.sh
+      run: mise exec -- bash scripts/validate-openfga.sh
     authorizer:
       # Ops dashboards authorize via remote_json, never `allow`, and the product
       # /api rule enumerates resources rather than wildcarding (part of lint:authz).
       glob: "infra/auth/oathkeeper/access-rules.json"
       run: |
-        go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
-        go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
+        mise exec -- go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
+        mise exec -- go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
     alert-severity:
       # Alert rules carry `page` or `ticket`, and the Watchdog exists (ADR-0502).
       glob: "infra/observability/alerts/**"
-      run: go run ./tools/lint-alert-severity
+      run: mise exec -- go run ./tools/lint-alert-severity
     strip-headers:
       # Forward-auth routes strip client identity headers first (part of lint:authz).
       glob: "infra/{gateway/**,helm/service/**}"
-      run: bash scripts/lint-strip-headers.sh
+      run: mise exec -- bash scripts/lint-strip-headers.sh
 
 pre-push:
   commands:
     cog-check:
-      run: cog check --ignore-merge-commits
+      run: mise exec -- cog check --ignore-merge-commits
