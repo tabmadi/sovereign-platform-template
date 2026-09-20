@@ -66,6 +66,7 @@ Topic lives in the filename, not in a directory. A directory holding one file is
 | [upstream-status](reference/upstream-status.md) | Third-party facts the decisions rest on, with the date each was verified |
 | [jwt-validation](reference/jwt-validation.md) | The JWT validation rules, defined once |
 | [long-running-workflows](reference/long-running-workflows.md) | The registry of workflows whose wall-clock exceeds one deploy cycle |
+| [slo-recording-rules](reference/slo-recording-rules.md) | The per-service recording rules the shared burn-rate alerts read |
 
 ## Where a fact lives
 

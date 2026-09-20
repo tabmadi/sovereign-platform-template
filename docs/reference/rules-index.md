@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 166 |
-| Review-enforced | 326 |
-| **Total** | **492** |
+| Machine-enforced | 174 |
+| Review-enforced | 323 |
+| **Total** | **497** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -66,9 +66,14 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Topic is carried by the filename, never by a directory holding a single file, and no two documents in `docs/` share a filename. | `lint:adr-xref` in CI |
 | Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. | standard: OTel semconv |
 | Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. | standard: clig.dev |
-| Code comments explain why, not what, in present tense, and cite `ADR-XXXX` when load-bearing. | review |
-| Commented-out code, changelog/author/date comments, and decorative banners are not committed. | review |
-| A `TODO` cites an issue or an ADR. | review |
+| The need to comment is first answered by extracting a named method. | standard: Fowler, Refactoring |
+| A comment carries only what an expert reader cannot derive from the code and the ADR set. Doubt resolves to deletion. | `lint:comments` in CI |
+| A comment is one paragraph and at most three lines; one line is the norm. | `lint:comments` in CI |
+| A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. | `lint:comments` in CI |
+| An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. | `lint:comments` in CI |
+| The tree's comment budget only decreases. | `lint:comments` in CI |
+| Commented-out code, changelog/author/date comments, and decorative banners are not committed. | `lint:comments` in CI |
+| A `TODO` cites an issue or an ADR. | `lint:comments` in CI |
 | A comment that exists to explain confusing code is a defect; the code is rewritten. | review |
 | Template docs are final-state facts: no change-history, no `Supersedes`/`Amends` chains, no `Proposed → Accepted` narrative, a uniform date, and full-rewrite-over-patch. **`(scope: template repo only)`** — a generated project keeps honest ADR history. | review |
 | An ADR addresses the engineer maintaining the platform, never a prospective adopter. Selection guidance — who should use this, when not to, what to swap before adopting — lives in the root `README.md`. | review |

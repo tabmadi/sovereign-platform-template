@@ -38,7 +38,7 @@ Most of what a house style would say is already published. Re-deriving it produc
 | ADR structure | [MADR](https://adr.github.io/madr/) section set | the fixed section order below; mandatory comparison table ([ADR-0000](0000-platform-foundations.md), principle 7) |
 | Structured logs | [OTel Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/); [RFC 5424](https://www.rfc-editor.org/rfc/rfc5424) severity | no symbols; context as attributes, never interpolated |
 | CLI / human stdout | [clig.dev](https://clig.dev); POSIX Utility Conventions (exit codes, `--help`, `--version`) | the fixed `→ ✓ ✗ ⚠` vocabulary and 2-space sub-detail indent |
-| Code comments | [Effective Go](https://go.dev/doc/effective_go), [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments); [Google Style Guides](https://google.github.io/styleguide/) for TypeScript | the comment rules below |
+| Code comments | [Effective Go](https://go.dev/doc/effective_go), [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments); [Google Style Guides](https://google.github.io/styleguide/) for TypeScript; [Fowler, *Refactoring*](https://martinfowler.com/books/refactoring.html) for the Comments smell | the three tests and the survivor grounds below |
 
 Diátaxis classifies an ADR as **explanation plus reference**. It is not a tutorial and not a how-to: it records a decision and its constraints, and never walks a reader through a task.
 
@@ -204,19 +204,39 @@ No written standard fixes TUI symbols; the checkmark/arrow idiom is convention b
 
 ### Code comments
 
-The density and banned-construct rules above apply unchanged to comments.
+The density and banned-construct rules above apply unchanged to comments, on every commented surface: Go, TypeScript, shell, YAML, and TOML.
 
-| Rule | Rationale |
+**The reader is an expert with an LLM at hand.** What the code does, how it is structured, and why a shape is idiomatic are derivable from the code. A comment carries what is derivable from neither the code nor the ADR set, and nothing else. Depth is the docs' job and the reader's.
+
+The first move is always to change the code instead — *"a heuristic we follow is that whenever we feel the need to comment something, we write a method instead"* ([Fowler, *Refactoring*](https://martinfowler.com/books/refactoring.html), the Comments smell). A name carries the explanation to every call site and cannot fall out of step with what it names.
+
+Three tests decide every comment that survives that move. A comment that fails one is deleted.
+
+| Test | What it asks | What fails it |
+| --- | --- | --- |
+| **Deletion** | Would its absence cause a wrong change? | A comment that makes a reader faster without changing what they would do. Doubt resolves to deletion |
+| **Genre** | Would the sentence still be true with this file deleted? | A decision, a procedure, or a lookup. It belongs to an ADR, `docs/guide/`, or `docs/reference/`, and the comment cites it rather than restating it |
+| **Length** | One paragraph, three lines? | A second paragraph, which is a document. One line is the norm |
+
+A comment survives on one of five grounds:
+
+- an external system's behaviour that its own documentation omits or contradicts
+- a constraint an ADR owns and the code cannot express, cited as `ADR-XXXX`
+- an ordering or timing dependency invisible at the call site
+- a deliberate omission — what a reader would otherwise add back
+- on an exported identifier: units, nil-ness, bounds, side effects, or error conditions
+
+An exported identifier is documented where the doc states a fact its signature cannot. A doc comment that restates the signature is deleted. One that is written is present tense and full sentences, and in Go begins with the identifier name.
+
+| Banned | Rationale |
 | --- | --- |
-| Comments explain **why**, not what | The code states what. A comment that restates it is a second source of truth that rots |
-| A comment that explains confusing code is a defect | Rewrite the code ([Kernighan & Plauger](https://en.wikipedia.org/wiki/The_Elements_of_Programming_Style), *"Don't comment bad code — rewrite it"*) |
-| Load-bearing constraints cite `ADR-XXXX` | The reader can reach the reasoning without archaeology |
-| Present tense, full sentences for doc comments | Google / Effective Go |
-| Go doc comments begin with the identifier name | Effective Go |
-| No commented-out code | Git holds it |
-| No changelog, author, or date comments | Git holds them |
-| No decorative banners or section dividers | The file structure is the structure |
-| `TODO` cites an issue or ADR, or it is not merged | An uncited `TODO` is the "temporary" that [ADR-0000](0000-platform-foundations.md) forbids |
+| A comment that explains confusing code | It is a defect. Rewrite the code ([Kernighan & Plauger](https://en.wikipedia.org/wiki/The_Elements_of_Programming_Style), *"Don't comment bad code — rewrite it"*) |
+| Commented-out code | Git holds it |
+| Changelog, author, or date comments | Git holds them |
+| Decorative banners and section dividers | The file structure is the structure |
+| A `TODO` with no issue or ADR behind it | An uncited `TODO` is the "temporary" that [ADR-0000](0000-platform-foundations.md) forbids |
+
+**The tree's comment count only falls.** `tools/lint-comments` carries the budget, `mise run gen` stamps it, and a change that pushes the tree above it fails CI. Raising the number is not a repair.
 
 ### Template docs are final-state facts
 
@@ -293,9 +313,14 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - Topic is carried by the filename, never by a directory holding a single file, and no two documents in `docs/` share a filename. `(CI: lint:adr-xref)`
 - Structured logs carry a lowercase message with no trailing punctuation and no symbols; context is OTel-conventioned attributes, never string-interpolated. `(ref: OTel semconv)`
 - Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. `(ref: clig.dev)`
-- Code comments explain why, not what, in present tense, and cite `ADR-XXXX` when load-bearing.
-- Commented-out code, changelog/author/date comments, and decorative banners are not committed.
-- A `TODO` cites an issue or an ADR.
+- The need to comment is first answered by extracting a named method. `(ref: Fowler, Refactoring)`
+- A comment carries only what an expert reader cannot derive from the code and the ADR set. Doubt resolves to deletion. `(CI: lint:comments)`
+- A comment is one paragraph and at most three lines; one line is the norm. `(CI: lint:comments)`
+- A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. `(CI: lint:comments)`
+- An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. `(CI: lint:comments)`
+- The tree's comment budget only decreases. `(CI: lint:comments)`
+- Commented-out code, changelog/author/date comments, and decorative banners are not committed. `(CI: lint:comments)`
+- A `TODO` cites an issue or an ADR. `(CI: lint:comments)`
 - A comment that exists to explain confusing code is a defect; the code is rewritten.
 - Template docs are final-state facts: no change-history, no `Supersedes`/`Amends` chains, no `Proposed → Accepted` narrative, a uniform date, and full-rewrite-over-patch. **`(scope: template repo only)`** — a generated project keeps honest ADR history.
 - An ADR addresses the engineer maintaining the platform, never a prospective adopter. Selection guidance — who should use this, when not to, what to swap before adopting — lives in the root `README.md`.
