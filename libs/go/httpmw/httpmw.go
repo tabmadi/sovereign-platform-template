@@ -1,5 +1,5 @@
-// Package httpmw provides default HTTP middleware (ADR-0500): a tracing span,
-// RED metrics, and a structured access log. Services compose them via Chain.
+// Package httpmw provides the default HTTP middleware: a tracing span, RED metrics, and a structured access log
+// (ADR-0500).
 package httpmw
 
 import (
@@ -14,20 +14,9 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/buildinfo"
 )
 
-// Chain wraps h with tracing, RED metrics, and access logging. RED is owned by
-// otelhttp: its stable http.server.request.duration histogram (correct second-scale
-// buckets) plus request counters are the RED signal the dashboards read. This
-// package used to emit hand-rolled http.server.requests / http.server.duration_seconds
-// instruments too, but they duplicated otelhttp and — worse — recorded seconds into
-// OTel's default millisecond-scale bucket boundaries, so every latency percentile
-// collapsed into the first bucket and read as nonsense. They were removed; the
-// dashboards and the availability alert now key off the stable otelhttp metric.
-//
-// otelhttp must wrap access, not the other way round: it creates the server span and
-// injects it into the request context it passes inward. The access log reads that
-// context, so keeping it INSIDE the span is what stamps trace_id/span_id onto every
-// access log line (→ Loki structured metadata), giving logs↔traces correlation. With
-// access outside otelhttp the log had no span and every line landed in Loki untraceable.
+// Chain wraps h with tracing, RED metrics, and access logging. RED is owned by otelhttp's stable
+// http.server.request.duration histogram, which the dashboards and the availability alert read.
+// otelhttp must wrap access, not the reverse: it creates the server span the access log reads to stamp trace_id.
 func Chain(h http.Handler, serviceName string) http.Handler {
 	traced := otelhttp.NewHandler(access(h), "http", otelhttp.WithServerName(serviceName))
 	return version(traced)
@@ -73,17 +62,9 @@ func access(next http.Handler) http.Handler {
 	)
 }
 
-// ListenAddr is the address a service's HTTP server binds. In-cluster it is always
-// ":8080" — the chart's containerPort, the edge IngressRoute and the NetworkPolicies
-// all assume it, and the chart sets no PORT.
-//
-// PORT overrides it for host-native runs, where every service instead binds the
-// stable port assigned to it in scripts/lib/ports.sh (ADR-0205). Without that they
-// would all bind :8080 and only one could run at a time, which made reproducing a
-// cross-service bug — the orders checkout saga calls catalog and payment — mean
-// deploying the callees and giving up breakpoints in them. The registry also lets
-// each caller's <CALLEE>_URL ship a working default instead of a port the engineer
-// has to invent.
+// ListenAddr is ":8080" in-cluster — the chart's containerPort, the edge IngressRoute and the NetworkPolicies
+// all assume it. PORT overrides it for host-native runs, where each service binds its registered port
+// (scripts/lib/ports.sh, ADR-0205) so more than one can run at a time.
 func ListenAddr() string {
 	p := os.Getenv("PORT")
 	if p != "" {

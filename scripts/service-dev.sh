@@ -1,20 +1,5 @@
 #!/usr/bin/env bash
-# Run a service NATIVELY behind the real edge (ADR-0205, ADR-0600) — the other half
-# of `cluster:add`, and the reason the identity stack is in the local floor.
-#
-#   mise run service:dev -- orders
-#
-# Stamps the per-service edge glue so Traefik routes `/api/<resource>` to the host
-# process: a selector-less Service, an EndpointSlice at the docker-bridge gateway,
-# and an IngressRoute carrying the SAME middleware chain the deployed service gets.
-# That chain is the point — a native service reached this way is handed real
-# Oathkeeper identity headers, where one curled directly on :8080 is handed forged
-# ones, and the difference is exactly the class of bug that otherwise only appears
-# after deploy.
-#
-# The glue is per-machine state (the bridge IP is discovered at runtime and moves
-# across restarts), so it is never GitOps-managed — same reasoning as the frontend
-# catch-all in infra/local/edge-auth.yaml.
+# Run a service natively behind the real edge (ADR-0205, ADR-0600) — the other half of `cluster:add`.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -73,10 +58,7 @@ for r in $resources; do
   match="${match}PathPrefix(\`/api/${r}\`)"
 done
 
-# Mirrors infra/helm/service/templates/ingressroute.yaml exactly — same match
-# (service.ingressMatch), same middleware chain, same order. Flat-API routing
-# (ADR-0306) means /api is stripped, so the native process mounts its resources at
-# root just as the deployed pod does.
+# Mirrors infra/helm/service/templates/ingressroute.yaml: same match, same middleware chain, same order. Flat-API routing strips /api (ADR-0306).
 k apply -f - <<EOF
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

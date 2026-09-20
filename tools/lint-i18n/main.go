@@ -1,32 +1,4 @@
 // Command lint-i18n enforces that the frontend is localisable (ADR-0400).
-//
-// Two checks, and deliberately not three:
-//
-//  1. CATALOGUE PARITY. Every locale carries exactly the same keys. This is the
-//     failure that actually ships: a key missing from one catalogue renders a raw
-//     key path on a page nobody on the team reads. The check is symmetric, so drift
-//     in either direction is reported.
-//
-//  2. LOGICAL PROPERTIES. A physical inset or padding (`ml-2`, `pr-4`, `text-left`,
-//     `left-2`) does not mirror, so a Persian page lays out as a left-to-right page
-//     with Persian glyphs in it. The logical forms (`ms-`, `pe-`, `text-start`,
-//     `start-`) mirror for free. `left-1/2`-style fractions are exempt: those are
-//     centring offsets paired with a transform, and mirroring them moves the element
-//     instead of flipping the layout.
-//
-// The third check this tool WOULD have carried — no inline copy — belongs to Biome's
-// `noJsxLiterals` instead, and that division is the point. Biome parses TSX; this
-// tool would have to recognise a JSX text node with a regex, and a regex cannot tell
-// `>` in `=>` from `>` closing a tag. Measured on this repository, the regex version
-// reported three false positives out of three findings, all of them code it mistook
-// for prose. Biome's rule catches single-line text, prose the formatter wrapped
-// across lines, AND copy passed as an attribute — every case the regex was for.
-//
-// So: JSON parity and class strings here, where a regex is the right tool; anything
-// needing a parser goes to the linter that has one.
-//
-// `-fix` applies check 2's mechanical swaps. Parity is not auto-fixable: a missing
-// translation is a decision, and a linter inventing one is worse than the failure.
 package main
 
 import (
@@ -67,11 +39,8 @@ var logicalSwaps = []struct {
 	{regexp.MustCompile(`\bright-([0-9.]+)\b`), "end-$1"},
 }
 
-// `left-1/2` and `right-1/2` are CENTRING offsets, always paired with a transform,
-// and mirroring them would move the element rather than flip the layout. RE2 has no
-// negative lookahead, so they are protected by substitution rather than by a pattern
-// that excludes them — and protecting them explicitly is also the version a reader
-// can check.
+// `left-1/2` and `right-1/2` are centring offsets, and mirroring them moves the element. RE2 has no negative
+// lookahead, so they are protected by substitution.
 var centringRe = regexp.MustCompile(`\b(left|right)-([0-9]+)/([0-9]+)\b`)
 
 const centringSentinel = "\x00centring\x00"
@@ -184,11 +153,6 @@ func flatten(prefix string, value map[string]any) []string {
 	return keys
 }
 
-// checkLogicalProperties reports (or fixes) physical properties that do not mirror.
-//
-// The walk only COLLECTS paths; every read and write happens after it. That is the
-// shape the sibling gates use, and it keeps the filesystem work out of a callback
-// where a path can change under it.
 func checkLogicalProperties(fix bool) []string {
 	var candidates []string
 	collect := func(path string, info os.FileInfo, err error) error {

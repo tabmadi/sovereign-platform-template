@@ -1,14 +1,4 @@
 # Grafana Alloy (ADR-0501 POC) — the pprof-scraping agent that feeds Pyroscope.
-# It discovers pods in the platform namespace, keeps those exposing the `admin`
-# port (the pprof endpoint every Go service serves via obs.Init, ADR-0500), scrapes
-# CPU/heap/goroutine profiles, and pushes them to Pyroscope. Runs as a single
-# Deployment (not a DaemonSet): pull-based profiling is node-agnostic, and one
-# replica keeps the POC footprint small.
-#
-# No new NetworkPolicy is needed for the scrape path: services already allow
-# platform-namespace ingress to their admin port, and the baseline policy already
-# allows every platform pod intra-namespace egress + API-server access (for the
-# Kubernetes pod discovery below).
 {{- $al := .Values.alloy }}
 apiVersion: v1
 kind: ServiceAccount
@@ -50,11 +40,9 @@ metadata:
 data:
   config.alloy: |
     {{- include "observability.alloy.config" . | nindent 4 }}
-{{/* Config in a define so the Deployment stamps checksum/config and rolls on
-     config edits (same pattern as pyroscope.yaml / otel-cluster.yaml). Without it
-     a config change updates the ConfigMap, kubelet syncs the file into the pod,
-     and the running process keeps the config it parsed at startup — the edit is
-     live on disk and inert in memory, which reads as a fix that did not work. */}}
+{{/* Config in a define so the Deployment stamps checksum/config and rolls on config edits. Without it the
+     ConfigMap updates and the running process keeps the config it parsed at startup — live on disk and
+     inert in memory, which reads as a fix that did not work. */}}
 {{- define "observability.alloy.config" }}
 // Discover every pod, then keep only platform-namespace pods that expose the
 // `admin` container port (9090) — i.e. the Go services' pprof endpoint.
@@ -136,11 +124,8 @@ spec:
         checksum/config: {{ include "observability.alloy.config" . | sha256sum }}
     spec:
       serviceAccountName: alloy
-      # `restricted` (ADR-0200). The alloy image ships USER root, so runAsNonRoot
-      # alone would only turn admission into a kubelet refusal at start — the UID
-      # has to be named. 473 is the `alloy` user the image creates, and the one the
-      # upstream chart uses; the storage path below is an emptyDir, so fsGroup
-      # matches it rather than a volume's ownership.
+      # `restricted` (ADR-0200). The alloy image ships USER root, so runAsNonRoot alone would only turn admission into a
+      # kubelet refusal at start — the UID has to be named.
       securityContext:
         runAsNonRoot: true
         runAsUser: 473

@@ -1,18 +1,4 @@
 # shellcheck shell=bash
-# In-place edit of a single YAML scalar, preserving the rest of the file byte for
-# byte. Source it, don't execute:
-#   source "$(dirname "$0")/lib/yaml.sh"
-#
-# Why not `yq -i`: it rewrites the whole document from its own parse tree, so
-# flow-style spacing collapses, blank lines vanish, and trailing comments are
-# re-spaced. On the committed GitOps values files that turns every promotion into a
-# formatting diff a human has to read past, and it fights the drift check.
-#
-# Why not `yq '… | line'` to locate the scalar: it miscounts in the presence of
-# comment and blank lines — on infra/gitops/platform/dev/values.yaml it reports the
-# admin image tag two to three lines above where it is. So the line is found by
-# walking block indentation, and yq is used only to answer whether the path exists,
-# which is the question it answers reliably.
 
 if [[ -n "${__YAML_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi
 __YAML_SH_LOADED=1
@@ -39,11 +25,8 @@ yaml_scalar_line() {
   ' "$1"
 }
 
-# yaml_set_scalar <file> <dotted.path> <value>
-# Returns 1 without touching the file when the path is absent, so a caller can
-# treat "this values file has no worker image" as a skip rather than an error.
-# A path yq can see but the walk cannot reach is a hard failure, never a silent
-# skip: that is the case where a promotion would quietly not happen.
+# Returns 1 without touching the file when the path is absent, so a caller can treat a missing key as a skip.
+# A path yq can see but the walk cannot reach is a hard failure: that is where a promotion would quietly not happen.
 yaml_set_scalar() {
   local file="$1" path="$2" value="$3" line
 

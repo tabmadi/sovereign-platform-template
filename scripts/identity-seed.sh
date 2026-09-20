@@ -1,20 +1,5 @@
 #!/usr/bin/env bash
 # Seed the committed deterministic test identities into Kratos (ADR-0601, ADR-0600).
-#
-# The `edge` profile logs in for real, so it needs a real identity — and it consumes
-# the one the e2e suite already defines rather than inventing a development-only
-# one. test/e2e/fixtures/identities.ts is the single source of the credentials; this
-# reads them with bun (which runs the .ts directly, so no Node and no `e2e:install`)
-# and provisions them through the Kratos admin API, exactly as
-# test/e2e/fixtures/bootstrap.ts does.
-#
-# Two deliberate differences from the e2e bootstrap:
-#   • idempotent, not reset-per-run — a human's enrolled second factor and live
-#     session survive re-running the profile;
-#   • no OpenFGA tuple: the `edge` profile runs no OpenFGA and no ops tier, and the
-#     coarse ops gate is the `operator` trait, which is set here.
-#
-# Requires Kratos up. Run by scripts/cluster-edge-profile.sh; safe to run alone.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -46,10 +31,8 @@ for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
     detail "${email} already exists (${existing})"
     continue
   fi
-  # Import path: Kratos hashes the password and does NOT run it through the sign-up
-  # policy (HIBP/length), so committed deterministic credentials are fine. The
-  # address is pre-verified so login never waits on the (unwired) SMTP sink. The
-  # `operator` trait is the coarse ops-tier claim (ADR-0306) and is always enforced.
+  # Kratos hashes the password on import and does not run the sign-up policy, so committed deterministic credentials are fine.
+  # The address is pre-verified, and the `operator` trait is the coarse ops-tier claim (ADR-0306).
   body="$(jq -n --argjson i "$id" '{
     schema_id: "user_v1",
     traits: { email: $i.email, operator: $i.operator },
@@ -61,21 +44,9 @@ for i in $(seq 0 "$(($(jq length <<<"$identities") - 1))"); do
   detail "created ${email} (${created})"
 done
 
-# The import path above is not a registration: Kratos runs no self-service flow for
-# it, so the `after` web_hook never fires and the RegisterUser workflow never runs
-# (ADR-0304). A seeded identity would therefore have no personal org, no org_id on
-# its Kratos metadata, and no X-Org-Id at the edge — which is not a cosmetic gap,
-# because an order belongs to the org its buyer acts through and cannot be placed
-# without one. Calling the webhook here is what makes a seeded identity reach the
-# same end state a registered one does.
-#
-# Idempotent twice over: the workflow id is derived from the identity, so Temporal
-# rejects a duplicate, and the activities are individually re-runnable.
-# Only where orgs is running. The inner-loop floor (cluster:up) is Postgres, the
-# edge and identity — no application services — so there is nothing to call there,
-# and a seed that insisted would fail the whole tier on a service it never claimed
-# to run. On that tier a seeded identity has no org until `cluster:add -- orgs`
-# brings one up and this script is re-run; it is idempotent.
+# The import path runs no self-service flow, so the `after` web_hook never fires and the identity would have no org or X-Org-Id (ADR-0304).
+# Idempotent twice over: the workflow id is derived from the identity, and the activities are re-runnable.
+# Only where orgs is running — the inner-loop floor has no application services, and a seed that insisted would fail the tier.
 if k get svc orgs-server >/dev/null 2>&1; then
   step "running the post-registration process for each identity"
   k port-forward svc/orgs-server 18093:80 >/dev/null 2>&1 &
@@ -98,12 +69,8 @@ else
   detail "orgs is not running in this tier — seeded identities have no org yet"
 fi
 
-# The coarse ops gate is the `operator` trait (set above, ADR-0306); group:operator
-# membership in OpenFGA feeds the optional fine gate and the admin console's write
-# checks (ADR-0304, ADR-0401). The e2e bootstrap writes the same tuples; doing it
-# here means a fresh full tier needs neither an e2e run nor a manual `ops:grant`.
-# Gated on the real platform OpenFGA: the inner-loop stand-in has no openfga-creds
-# secret and no platform store, so there is nothing to grant against there.
+# The coarse ops gate is the `operator` trait (ADR-0306); group:operator membership feeds the fine gate and the admin console (ADR-0304, ADR-0401).
+# Gated on the real platform OpenFGA: the inner-loop stand-in has no store to grant against.
 if k get secret openfga-creds >/dev/null 2>&1; then
   step "granting group:operator membership in OpenFGA"
   k port-forward svc/openfga 18080:8080 >/dev/null 2>&1 &
@@ -122,10 +89,7 @@ if k get secret openfga-creds >/dev/null 2>&1; then
         "${admin}/admin/identities?credentials_identifier=$(jq -rn --arg e "$email" '$e|@uri')" |
         jq -r --arg e "$email" 'map(select(.traits.email == $e)) | .[0].id // empty')"
       [ -n "$identity_id" ] || continue
-      # Idempotent across three answers: 200 is the grant, and OpenFGA rejects a
-      # duplicate with a 400 saying the tuple already existed, which is the
-      # already-granted case a re-run reaches. `-sS` without `-f` keeps the error
-      # body, because the message is what separates that 400 from a real failure.
+      # Idempotent across three answers: OpenFGA rejects a duplicate tuple with a 400. `-sS` without `-f` keeps the body, which separates that 400 from a real failure.
       resp="$(curl -sS -w '\n%{http_code}' -H "Authorization: Bearer ${sk}" \
         -H 'Content-Type: application/json' \
         -X POST "http://localhost:18080/stores/${sid}/write" \

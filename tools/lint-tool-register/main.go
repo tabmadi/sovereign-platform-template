@@ -1,24 +1,4 @@
-// Command lint-tool-register asserts that the tool register and the ADR set agree
-// (ADR-0002).
-//
-// ADR-0002 makes docs/tool-register.md the canonical inventory and sets what each
-// exit-cost tier owes its owning ADR. Four of its Rules name this task:
-//
-//  1. Every Tier 1 and Tier 2 row names an owning ADR, and that ADR exists.
-//  2. A Tier 1 tool has a full comparison table in that ADR and a named runner-up,
-//     or says outright that no option survived the hard constraints.
-//  3. A Tier 2 tool has a short comparison table in that ADR.
-//  4. Every alternative a row names is visible somewhere in that ADR. A rejection
-//     nobody can see is indistinguishable from an option nobody considered, which
-//     is the failure this check exists to prevent.
-//
-// Tier 3 rows own no ADR table — removal is a mechanical edit inside the packages
-// that import the library — so they are checked for shape alone.
-//
-// What this does NOT check: whether a licence or governing-body cell is TRUE. Those
-// are third-party facts, re-verified on the cadence in reference/upstream-status.md.
-// A linter that cannot read upstream cannot assert them, and pretending otherwise
-// would make the gate a rubber stamp on the register's least reliable columns.
+// Command lint-tool-register asserts that the tool register and the ADR set agree (ADR-0002).
 package main
 
 import (

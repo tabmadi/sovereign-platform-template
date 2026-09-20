@@ -1,36 +1,4 @@
-// Command lint-contrast checks colour contrast against the design-token file
-// rather than per component (ADR-0400).
-//
-// The reason it is not a per-component check: a token change moves every surface
-// at once, so the token file is where a contrast regression is introduced and where
-// it is cheapest to catch. axe still scans the rendered pages (test/e2e), and that
-// catches composition mistakes this cannot see — a foreground applied over a
-// background the naming convention does not pair it with.
-//
-// The pairing comes from the token names, which is what makes this mechanical
-// rather than a hand-maintained list. shadcn/ui names every role as a couple:
-//
-//	--<role>-foreground   over  --<role>
-//	--foreground          over  --background
-//
-// Three roles are also checked against surfaces their name does not state, because
-// that is where they are actually used: page text and secondary text both appear on
-// the card surface, and `text-destructive` is applied over the page rather than over
-// `--destructive`, which is a fill. Those pairs are listed in extraPairs.
-//
-// Thresholds follow the success criteria rather than the visual hierarchy. SC 1.4.3
-// applies to ALL text at 4.5:1 — low prominence is not an exception the criterion
-// grants. Borders and focus rings are non-text and take SC 1.4.11's 3:1. Disabled
-// states are the one genuine exemption 1.4.3 names: an inactive user-interface
-// component is incidental.
-//
-// Both the light palette and the .dark block are checked. A theme that only
-// conforms in one mode conforms in neither, since the user picks.
-//
-// A pair that cannot be resolved to two concrete colours is a hard failure, never a
-// skip. An earlier version skipped them, and silently checked three pairs out of
-// forty-five — a gate that reports success while measuring nothing is worse than no
-// gate. For the same reason a mode whose palette parses empty fails outright.
+// Command lint-contrast checks colour contrast against the design-token file rather than per component (ADR-0400).
 package main
 
 import (
@@ -67,16 +35,9 @@ var extraPairs = []pair{
 	{fg: "--destructive", bg: surfaceCard},
 }
 
-// Non-text roles, at SC 1.4.11's 3:1 against the page.
-//
-// `--input` and `--ring` are here because each is the ONLY visual information
-// identifying something: the boundary of a form control, and which control has
-// focus. 1.4.11 is about exactly that.
-//
-// `--border` is deliberately NOT here. It draws card edges, table rules and
-// separators — decoration, and never the sole indicator of a component or a state,
-// which is the boundary 1.4.11 draws. Scoring it would force every divider in the
-// product to near-3:1 and the surfaces would read as a wireframe.
+// Non-text roles, at SC 1.4.11's 3:1 against the page. `--input` and `--ring` qualify: each is the only
+// visual information identifying a control or its focus. `--border` is excluded — it decorates, and is never
+// the sole indicator of a component or a state.
 var nonTextPairs = []pair{
 	{fg: "--ring", bg: surfacePage},
 	{fg: "--input", bg: surfacePage},
@@ -219,10 +180,7 @@ func isExempt(name string) bool {
 	return false
 }
 
-// split separates the light palette from the .dark override block. The dark palette
-// is the light one with the overrides applied, because .dark only restates what
-// changes — a role it forgets keeps its light value, and the pair it then forms is
-// what fails here.
+// The `.dark` block restates only what changes, so a role it omits keeps its light value.
 func split(css string) (string, string) {
 	// The SELECTOR, anchored to the start of a line: the string ".dark" also appears
 	// in prose in this file, and matching that silently truncates the light palette
@@ -235,10 +193,6 @@ func split(css string) (string, string) {
 	return light, light + css[loc[0]:]
 }
 
-// parse collects every custom-property declaration. A later declaration wins, which
-// is what makes the dark block override the light one. Non-colour properties come
-// along (--radius, --font-sans); nothing asks them for a colour, and filtering by
-// value would be a second guess at which of them is a colour.
 func parse(css string) map[string]string {
 	out := map[string]string{}
 	for _, m := range declRe.FindAllStringSubmatch(css, -1) {

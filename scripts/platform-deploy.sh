@@ -1,16 +1,5 @@
 #!/usr/bin/env bash
-# One-shot working-tree overlay of a platform chart (ADR-0205) — the rare local
-# infra-iteration case (e.g. changing Ory or the observability chart and testing
-# before pushing). Pauses ArgoCD auto-sync on that one app so self-heal does not
-# revert you, then helm-upgrades the chart from the working tree with the local
-# values overlay. Re-enable sync when done (or just re-run cluster:up full).
-#
-#   mise run platform:deploy -- <chart>     # e.g. ory, observability, openfga
-#
-# For GitOps-wiring changes (sync-waves, ApplicationSets, App defs) helm cannot
-# exercise the delivery path — push a branch and point the local root-app
-# targetRevision at it instead. For CNI/CRD changes (Cilium) prefer cluster:down
-# + a fresh cluster:up full over an in-place upgrade.
+# One-shot working-tree overlay of a platform chart (ADR-0205). Pauses ArgoCD auto-sync on that one app so self-heal does not revert it.
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
@@ -29,12 +18,7 @@ CHART_DIR="infra/helm/platform/${CHART}"
 k() { kubectl --context "$(cluster_ctx)" "$@"; }
 h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
-# The lowdefy admin console (ADR-0401) is the one platform chart whose image we
-# build: `lowdefy build` bakes the YAML pages (apps/admin, incl. _generated/) into
-# the image, so a chart/values change alone is not enough — rebuild + push the
-# image, then roll the pod (the local overlay pins :local, pullPolicy Always, so a
-# restart re-pulls). Same one-command story as any other platform chart, plus the
-# image step this one needs.
+# `lowdefy build` bakes apps/admin's YAML pages into the image (ADR-0401), so a chart change alone is not enough.
 if [ "$CHART" = "lowdefy" ]; then
   REG="registry.localhost:5000"
   echo "→ regenerating admin pages + rebuilding the admin image (${REG}/admin:local)"
@@ -50,17 +34,8 @@ if k -n argocd get application.argoproj.io "$APP" >/dev/null 2>&1; then
     -p '{"spec":{"syncPolicy":{"automated":null}}}'
 fi
 
-# Mirror what the platform ApplicationSet supplies, or the working-tree overlay
-# installs a chart missing config ArgoCD would have provided. Keep in sync with the
-# `valueFiles` + `fileParameters` blocks in
-# infra/gitops/{bootstrap,local-bootstrap}/appset-platform.yaml.
-#
-# The appset applies the two auth value files to EVERY chart in the tier (charts
-# that don't consume them ignore the extra keys), so do the same rather than
-# special-casing: the failure mode of omitting them is silent and severe. Ory is
-# the chart that actually needs them — without kratos.config.identity.schemas
-# Kratos CrashLoops on `missing properties: "schemas"`, and an Oathkeeper with
-# empty accessRules stops gating every ops origin while still reporting Ready.
+# Mirror what the platform ApplicationSet supplies; keep in step with appset-platform.yaml.
+# The appset applies both auth value files to every chart, and omitting them fails silently: Kratos CrashLoops on `missing properties: "schemas"`, and Oathkeeper reports Ready with empty accessRules.
 extra_args=(
   -f infra/auth/kratos/values.yaml
   -f infra/auth/oathkeeper/values.yaml
@@ -81,11 +56,7 @@ esac
 
 echo "→ helm upgrade ${CHART} from the working tree"
 h dependency update "$CHART_DIR" >/dev/null
-# --take-ownership: platform charts are normally owned by ArgoCD (Server-Side
-# Apply), not a Helm release; Helm 4 refuses to adopt them without this flag. Sync
-# is paused above, so this is safe for the local override; cluster:up full restores it.
-# Value-file order matches the ApplicationSet: the auth overlays first, the
-# per-env overlay last so it wins. extra_args therefore precedes the local values.
+# Value-file order matches the ApplicationSet: auth overlays first, the per-env overlay last so it wins.
 h upgrade --install "$CHART" "$CHART_DIR" -n "$NS" \
   --take-ownership --force-conflicts "${extra_args[@]}" \
   -f infra/gitops/platform/local/values.yaml --timeout 8m

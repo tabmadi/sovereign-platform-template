@@ -1,21 +1,5 @@
-# Local inner-loop cluster (ADR-0600). kind runs upstream Kubernetes on a kubeadm
-# node, which is the closest local shape to the distribution the full tier runs.
-#
-# Flannel/kube-proxy stay off: Cilium is the CNI (ADR-0206), and kind declines
-# kube-proxy at create time (kubeProxyMode: none). Ports 8080/8443 map the edge: the local values run Traefik as a
-# NodePort (nodePorts 30080/30443 — the 30000+ range is what kind's node can
-# serve), and these host→node mappings are what make https://<host>:8443 reach it.
-# The 30080/30443 numbers must match infra/helm/platform/traefik/values.yaml.
-#
-# Kubelet tuning (registry-qps/burst=0 lifts the per-registry image-pull rate limiter, which only throttles
-# cold reschedules against our OWN registry; eviction-hard pinned at 2% free keeps
-# kubelet from evicting the whole platform over a few spare GB; image-gc thresholds
-# at 98/80 stop the perpetual ImageGCFailed noise on a near-full developer disk).
-#
-# Proxied networks: kind cannot inject node environment, and does not need to — the
-# node pulls every registry through the local zot, which holds the egress (ADR-0105).
-# `mise run proxy:setup` configures that one component. See docs/dev-loop.md
-# ("HTTP proxies").
+# Local inner-loop cluster (ADR-0600). kind runs upstream Kubernetes on a kubeadm node, which is the closest local
+# shape to the distribution the full tier runs.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
@@ -38,25 +22,8 @@ nodes:
 networking:
   disableDefaultCNI: true
   kubeProxyMode: none
-# The local registry (ADR-0205 parity): a zot container on the kind docker network
-# (created by scripts/cluster.sh). The node pulls repo-built images from
-# registry.localhost:5000 exactly as a deployed tier pulls from ghcr. The endpoint
-# carries an explicit http:// scheme, which is how containerd marks a registry as
-# plain-HTTP.
-#
-# THE REGISTRY IS THE ONLY SOURCE. Every upstream is mirrored at that one address
-# and NO upstream is listed as a fallback, so exactly one component talks to the
-# internet for images (ADR-0105). `cluster:up` fills it before creating the cluster,
-# so every pull below is a local read.
-#
-# The fallbacks were removed rather than kept as a safety net. They could not act as
-# one: containerd falls through only on a fast failure, and a saturated mirror fails
-# by timing out, which ends the pull. What they did instead was hide a mirror miss
-# behind a slow direct pull, so the image path differed per machine and per network.
-# This is not an authorization boundary — Kyverno remains the allow-list (ADR-0104).
-#
-# `kind load` is unaffected and stays the fast path for repo-built images: it
-# copies from the host image store and never touches a registry.
+# The local registry (ADR-0205 parity): a zot container on the kind docker network (created by
+# scripts/cluster.sh).
 containerdConfigPatches:
   - |-
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.localhost:5000"]

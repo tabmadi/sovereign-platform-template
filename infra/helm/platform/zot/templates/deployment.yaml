@@ -68,17 +68,7 @@ spec:
             # never sees an update to the object behind it.
             - { name: auth, mountPath: /etc/zot-auth }
             - { name: cache, mountPath: /var/lib/zot }
-          # A TCP probe, and deliberately not an HTTP one. With authentication on
-          # this build serves 401 at `/v2/` and 404 everywhere else — there is no
-          # unauthenticated health endpoint (checked against 2.1.20: `/metrics`,
-          # `/health` and `/v2/_zot/ping` are all 404, the last two because this
-          # binary is built without the mgmt extension). `httpGet` treats 401 as a
-          # failure, so an HTTP probe here produces a registry that serves every
-          # pull and never becomes Ready.
-          #
-          # A credentialed probe is not the fix either: probe headers are literal
-          # values in the pod spec, and putting the pull password there is the one
-          # place ADR-0202 keeps it out of.
+          # A TCP probe, and deliberately not an HTTP one.
           readinessProbe:
             tcpSocket: { port: http }
             initialDelaySeconds: 5
@@ -89,10 +79,7 @@ spec:
             periodSeconds: 30
           resources: {{ toYaml .Values.zot.resources | nindent 12 }}
         {{- if and .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
-        # The console proxy (ADR-0306). It presents the pull identity's credential
-        # so an operator the edge already vouched for reaches the catalogue without
-        # a second login — see the chart's `consoleAuth` values for why this is a
-        # container rather than a header set at the edge.
+        # The console proxy (ADR-0306).
         - name: console-proxy
           image: "{{ .Values.zot.consoleAuth.image.repository }}:{{ .Values.zot.consoleAuth.image.tag }}"
           imagePullPolicy: {{ .Values.zot.consoleAuth.image.pullPolicy }}

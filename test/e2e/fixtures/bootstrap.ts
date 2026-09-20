@@ -1,14 +1,4 @@
-// Committed test-identity bootstrap (ADR-0601 §Test data). Idempotently provisions
-// the deterministic identities into Kratos via the admin API and grants the
-// operator group membership in OpenFGA — the same way in CI and locally, with no
-// hand-seeded state and no SMTP dependency.
-//
-// Split of responsibility (single source of truth):
-//   - cluster:up full bring-up seeds the OpenFGA store + model + the static
-//     dashboard->group:operator grants (platform policy; see scripts/cluster-full.sh).
-//   - this bootstrap creates the Kratos identities, runs the post-registration
-//     process for each, and writes the one relation that can only exist at test
-//     time: group:operator#member@user:<operator-kratos-id>.
+// Idempotent bootstrap of the committed test identities (ADR-0601).
 import { IDENTITIES, type TestIdentity } from "./identities";
 import { portForward } from "./kube";
 
@@ -54,10 +44,7 @@ async function createIdentity(id: TestIdentity): Promise<string> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       schema_id: SCHEMA_ID,
-      // The `operator` trait is the coarse ops-gate claim (ADR-0306) and is ALWAYS
-      // enforced — OpenFGA group:operator membership only feeds the optional fine
-      // gate. Set it here too, or the operator fails the gate despite the grant
-      // below (same coupling as scripts/ops-grant.sh).
+      // The `operator` trait is the coarse ops-gate claim and is always enforced (ADR-0306); group:operator membership only feeds the fine gate.
       traits: { email: id.email, operator: id.operator },
       // Import path: the password is hashed by Kratos and is NOT run through the
       // sign-up policy (HIBP/length) — deterministic committed creds are fine.
@@ -74,11 +61,7 @@ async function createIdentity(id: TestIdentity): Promise<string> {
   return ((await res.json()) as KratosIdentity).id;
 }
 
-// resetIdentity recreates the identity from scratch. Kratos cannot import a TOTP
-// credential (admin create rejects it), so the operator's second factor is enrolled
-// at runtime via the settings flow — which requires a known starting state. Deleting
-// any prior identity makes every run deterministic (fresh password-only identity =>
-// the same login -> enrol -> AAL2 path), instead of state-dependent two-factor login.
+// Kratos cannot import a TOTP credential, so the operator's second factor is enrolled at runtime and needs a known starting state. Deleting any prior identity makes every run deterministic.
 async function resetIdentity(id: TestIdentity): Promise<string> {
   const existing = await findIdentity(id.email);
   if (existing) {
@@ -120,16 +103,9 @@ async function writeTuple(sid: string, user: string, relation: string, object: s
   }
 }
 
-// registerUser runs the post-registration process for an identity created through
-// the admin API.
-//
-// The admin import is not a registration: Kratos runs no self-service flow for it,
-// so the `after` web_hook never fires and RegisterUser never runs (ADR-0304). An
-// identity in that state has no personal org, no `metadata_public.org_id`, and
-// therefore no X-Org-Id at the edge — and an order belongs to the org its buyer
-// acts through, so a seeded identity could not buy anything. Calling the webhook is
-// what the registration flow itself does; the workflow id is derived from the
-// identity, so a repeat is a Temporal no-op.
+// The admin import runs no self-service flow, so the `after` web_hook never fires and the identity has no personal
+// org and no X-Org-Id (ADR-0304). Calling the webhook is what the registration flow itself does, and the
+// workflow id is derived from the identity, so a repeat is a no-op.
 async function registerUser(identityId: string, email: string): Promise<void> {
   const res = await fetch(`http://127.0.0.1:${ORGS_LOCAL_PORT}/identity-created`, {
     method: "POST",

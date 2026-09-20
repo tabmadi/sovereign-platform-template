@@ -1,16 +1,5 @@
-// Command lint-alert-severity asserts that every committed alert rule carries a
-// severity ADR-0502 admits, and that the Watchdog exists.
-//
-// ADR-0502 gives the vocabulary two values and one meaning each: `page` asserts a
-// human acts within minutes, `ticket` is everything else. A third value is not a
-// finer gradation — Alertmanager's routing tree matches on these two, so a rule
-// carrying anything else reaches a receiver by falling through rather than by
-// decision, and reads as routed while being routed by accident. Three rules in
-// capacity.yaml carried `warn` for the life of the repo and nothing said so.
-//
-// The Watchdog check is here rather than in a runtime probe because absence is
-// the signal: a repo with no Watchdog rule cannot detect a dead alerting
-// pipeline, and that is a property of the committed files.
+// Command lint-alert-severity asserts every alert rule carries a severity ADR-0502 admits, and that the Watchdog
+// exists.
 package main
 
 import (

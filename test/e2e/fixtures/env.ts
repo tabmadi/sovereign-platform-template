@@ -1,22 +1,16 @@
-// Shared e2e environment constants (ADR-0306 topology). Host-agnostic: override
-// E2E_HOST to point the suite at a deployed env; defaults to the local edge.
+// Shared e2e environment constants (ADR-0306), host-agnostic and overridable.
 import path from "node:path";
 
-// Product apex origin (landing, /auth/*, flat /api/<resource>). Includes the local :8443.
 export const HOST = process.env.E2E_HOST ?? "dev.localtest.me:8443";
 export const BASE_URL = `https://${HOST}`;
 
-// The right-to-left locale (ADR-0400). The default locale is served unprefixed, so
-// every other URL here is implicitly `en`; this is the one that proves a mirrored
-// layout still renders and still passes axe. Without a spec that visits it, `fa`
-// rots quietly — the copy stays translated and the layout stops being checked.
+// The right-to-left locale (ADR-0400). Without a spec that visits it, `fa` rots quietly: the copy stays translated and the layout stops being checked.
 export const RTL_LOCALE = "fa";
 export const rtlURL = (path = ""): string => `${BASE_URL}/${RTL_LOCALE}${path}`;
 
 // Operator dashboards each live on their own origin `{tool}.ops.<host>` (ADR-0306).
 export const opsURL = (tool: string): string => `https://${tool}.ops.${HOST}`;
 
-// Kratos self-service login UI (rendered by apps/frontend KratosFlow).
 export const LOGIN_URL = `${BASE_URL}/auth/login`;
 // The app route is /auth/register; Kratos' FLOW is named "registration" and the two
 // are easy to confuse. A spec that navigates to /auth/registration gets a 404 and a
@@ -24,7 +18,6 @@ export const LOGIN_URL = `${BASE_URL}/auth/login`;
 export const REGISTER_URL = `${BASE_URL}/auth/register`;
 export const SETTINGS_URL = `${BASE_URL}/auth/settings`;
 
-// Saved storage states produced by the `setup` project and reused by the suites.
 export const AUTH_DIR = path.join(process.cwd(), ".auth");
 export const OPERATOR_STATE = path.join(AUTH_DIR, "operator.json");
 export const USER_STATE = path.join(AUTH_DIR, "user.json");

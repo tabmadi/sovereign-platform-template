@@ -1,22 +1,5 @@
 #!/usr/bin/env bash
 # k6 runner (ADR-0601): wires a scenario to the cluster's telemetry plane, then runs it.
-#
-#   test/perf/run.sh <scenario> [profile]
-#   test/perf/run.sh browse load
-#
-# Two things this handles that a bare `k6 run` cannot:
-#
-#  1. THE OTLP PATH. ADR-0500's invariant is that metrics reach Prometheus only as
-#     an OTLP push through the collector — Prometheus has no scrape config and no
-#     remote-write receiver. The collector is cluster-internal (ClusterIP), so a
-#     host-side k6 reaches it through a short-lived port-forward, exactly as the
-#     e2e suite reaches Tempo/Loki/Prometheus (test/e2e/fixtures/observability.ts).
-#     The forward must outlive k6's final flush, hence the trap rather than a
-#     backgrounded one-liner.
-#
-#  2. THE PROXY HOLE. The local edge (*.localtest.me) must be hit directly. A dev
-#     with HTTPS_PROXY set otherwise sends every VU's request through their proxy
-#     and measures that instead — same reason test/e2e/.mise.toml sets NO_PROXY.
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 # ../../ — this file lives at test/perf/, two levels under the repo root.
@@ -44,10 +27,7 @@ k6_args=(run "$script")
 # to Temporal and MinIO in this repo.
 k6_args+=(--no-usage-report)
 
-# Machine-readable summary alongside the human one. This is what a baseline is
-# recorded from and what CI uploads as an artifact — the Prometheus series expire
-# with the TSDB retention (15d), so a run whose numbers matter needs a file.
-# Gitignored: results are evidence for a PR, not repo content.
+# The Prometheus series expire with the TSDB retention, so a run whose numbers matter needs a file. Gitignored: results are evidence for a PR, not repo content.
 mkdir -p results
 k6_args+=(--summary-export "results/${scenario}-${profile}.json")
 
@@ -72,19 +52,11 @@ if [ "${PERF_OTLP:-1}" = "1" ]; then
 
   export K6_OTEL_GRPC_EXPORTER_ENDPOINT="127.0.0.1:${OTLP_PORT}"
   export K6_OTEL_GRPC_EXPORTER_INSECURE="true"
-  # service.name is promoted to a Prometheus label by the collector's OTLP
-  # translation (infra/helm/platform/observability/templates/prometheus.yaml), so
-  # this is the label every k6 series is grouped by — and the one thing keeping
-  # load metrics from being mistaken for a platform service's own.
+  # service.name is promoted to a Prometheus label by the collector's OTLP translation, so this is what keeps load metrics from being mistaken for a platform service's own.
   export K6_OTEL_SERVICE_NAME="k6"
-  # Namespace k6's built-ins. Without this they export as bare `http_req_duration`,
-  # `http_reqs`, `checks`, `vus` — generic names squatting the global metric
-  # namespace of a Prometheus that every service shares, and confusingly adjacent
-  # to the platform's own `http_server_request_duration_seconds` from ADR-0500.
-  # The prefix applies to the scenarios' custom metrics too, which is why those
-  # are named bare (`checkout_settle`, not `perf_checkout_settle`) — they arrive
-  # as `k6_checkout_settle_milliseconds`. Everything from a load run is therefore
-  # `k6_*` in Prometheus, and nothing else is.
+  # Namespace k6's built-ins: bare `http_req_duration` and `http_reqs` would squat the shared Prometheus
+  # namespace, adjacent to the platform's own `http_server_request_duration_seconds` (ADR-0500).
+  # The prefix covers the scenarios' custom metrics too, which is why those are named bare.
   export K6_OTEL_METRIC_PREFIX="k6_"
   # Export often. The default interval is longer than a smoke run, which would
   # end with the run's metrics still sitting in the exporter's buffer.
@@ -98,10 +70,7 @@ fi
 export PERF_PROFILE="$profile"
 step "k6 ${scenario} @ profile=${profile} → ${PERF_HOST:-dev.localtest.me:8443}"
 
-# The Load test dashboard is deliberately NOT linked from the Overview landing page
-# (ADR-0501 reserves that for incident triage; a load run is a planned experiment).
-# This line is therefore its primary entry point — printed BEFORE the run so it can
-# be opened and watched live, with from/to bracketing exactly this run.
+# The Load test dashboard is not linked from the Overview landing page (ADR-0501), so this line is its entry point. Printed before the run, so it can be watched live.
 started_ms="$(($(date +%s) * 1000))"
 if [ "${PERF_OTLP:-1}" = "1" ]; then
   host="${PERF_GRAFANA_HOST:-grafana.ops.${PERF_HOST:-dev.localtest.me:8443}}"

@@ -1,44 +1,5 @@
-// Command lint-service-deps checks that each service's declared dependencies match
-// the ones its code actually has (ADR-0600, ADR-0205).
-//
-// A service declares what it needs in its own `.mise.toml`:
-//
-//	[tasks.worker]
-//	depends = ["env", "dep:postgres", "dep:temporal", "svc:catalog", "svc:payment"]
-//
-// That list is what `mise run worker` brings up, and it is the whole inner loop.
-// ADR-0600 names the omitted edge as the most likely way to regress it: a worker
-// whose saga dials payment, with no `svc:payment`, starts cleanly and dies on the
-// first checkout — in a way that looks like payment being broken rather than like
-// payment being absent. The declaration is prose about the code, and prose drifts.
-//
-// So the code is asked directly. For each `cmd/<task>` the package closure is taken
-// from `go list -deps`, and four signals are read out of it:
-//
-//	go.temporal.io/sdk/client   → dep:temporal
-//	libs/go/authz               → dep:openfga
-//	"DATABASE_URL"              → dep:postgres
-//	"<SERVICE>_URL"             → svc:<service>, when a sibling service has that name
-//
-// The first two are imports, so they are exact. The last two are string literals in
-// the closure's own source, because a call to another service over plain HTTP has
-// no import to find — the base URL is the only thing in the code that names the
-// callee at all. That is a deliberate limit, not an oversight: an activity that
-// hardcodes a URL rather than reading it from the environment is invisible here,
-// and is also a defect ADR-0205 forbids for its own reasons.
-//
-// # Both directions are reported
-//
-// A missing declaration costs a confusing failure. An extra one costs inner-loop
-// time on every run — `dep:temporal` on a service that never opens a client waits
-// for a database and a schema Job nobody is going to use. Both are drift between
-// the same two things, so both are findings.
-//
-// # What is deliberately NOT a signal
-//
-// KRATOS_ADMIN_URL. Kratos is not a `deps.yaml` component — the base tier runs the
-// real one — so there is no `dep:` to declare, and reporting it would mean adding a
-// name that no task can satisfy.
+// Command lint-service-deps checks that each service's declared dependencies match the ones its code has (ADR-0600,
+// ADR-0205).
 package main
 
 import (
@@ -196,11 +157,7 @@ type pkg struct {
 // tool rather than reimplementing import resolution: build tags, vendoring and the
 // module graph are its job, and it is already pinned in .mise.toml.
 func closure(dir string) ([]pkg, error) {
-	// The argument is a path this tool constructed from a directory listing under
-	// services/, never anything a caller supplied — there are no flags and no input.
-	// A context so the gate cannot hang on a wedged toolchain: `go list` on a cold
-	// module cache can reach the network, and a lint run that never returns is worse
-	// than one that fails.
+	// A context so the gate cannot hang: `go list` on a cold module cache can reach the network.
 	ctx, cancel := context.WithTimeout(context.Background(), listTimeout)
 	defer cancel()
 	//nolint:gosec // fixed argv; the path comes from a repo directory walk
@@ -248,10 +205,8 @@ func envNames(dir string) ([]string, error) {
 	return out, nil
 }
 
-// declaredDeps maps a task name to the `depends` entries it lists. The parse is a
-// regex rather than a TOML library: the module has no TOML dependency, and adding
-// one to read two array literals is a poor trade. The shape it accepts is the shape
-// mise itself documents — a `depends` array inside a `[tasks.x]` section.
+// declaredDeps maps a task name to its `depends` entries. A regex, not a TOML library: the module has no TOML
+// dependency.
 func declaredDeps(path string) (map[string]map[string]bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

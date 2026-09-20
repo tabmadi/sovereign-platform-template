@@ -1,6 +1,4 @@
 // Package handlers implement the ogen-generated orgs.Handler interface (ADR-0303).
-// Hand-written code imports the generated schema types and the sqlc store; it
-// never shadows them with parallel structs or inline SQL.
 package handlers
 
 import (
@@ -36,14 +34,9 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ orgs.Handler = (*Handlers)(nil)
 
-// orgID and storedID are the transport boundary (ADR-0003): the column holds a bare
-// uuid and the wire carries `org_` and the base32 form. Nothing between the two
-// surfaces sees the other's shape.
-//
-// The prefix is a literal, so encoding cannot fail on real input. Decoding cannot
-// either — every identifier reaching a handler has already matched the OrgId pattern
-// in the generated validator — and it still reports rather than panics, because the
-// validator and this call are two places one spec edit can separate.
+// orgID and storedID are the transport boundary (ADR-0003): the column holds a bare uuid and the wire carries
+// `org_` and the base32 form. They report rather than panic, because the generated validator and this call are
+// two places one spec edit can separate.
 func orgID(u pgtype.UUID) orgs.OrgId {
 	return orgs.OrgId(id.MustFrom("org", uuid.UUID(u.Bytes)).String())
 }
@@ -75,12 +68,9 @@ func (h *Handlers) GetOrg(ctx context.Context, params orgs.GetOrgParams) (*orgs.
 	return &orgs.Org{ID: orgID(row.ID), Name: row.Name}, nil
 }
 
-// OnIdentityCreated is the Kratos post-registration webhook (ADR-0304/0006). It
-// starts the RegisterUser workflow rather than writing directly: creating the
-// personal org spans the orgs DB and the OpenFGA owner tuple (an authz-relevant
-// mutation), so it must run as a Temporal dual-write, never a bare DB write. The
-// workflow ID is derived from the identity, so a duplicate webhook delivery is a
-// no-op (Temporal rejects the duplicate ID).
+// OnIdentityCreated: The Kratos post-registration webhook (ADR-0304). It starts RegisterUser rather than writing
+// directly, because the personal org spans the orgs database and the OpenFGA owner tuple. The workflow id is derived
+// from the identity, so a duplicate delivery is a no-op.
 func (h *Handlers) OnIdentityCreated(ctx context.Context, req *orgs.OnIdentityCreatedReq) error {
 	identityID, ok := req.IdentityID.Get()
 	if !ok || identityID == "" {
@@ -187,10 +177,8 @@ func (h *Handlers) NewError(ctx context.Context, err error) *orgs.ErrorStatusCod
 	return &orgs.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
-// requireReader authorises a single-org read (ADR-0003): an unguessable identifier
-// is not an access control, so holding one grants nothing. `org#read` in model.fga
-// resolves the org's members and admins; an operator reaches every org through the
-// same back-office grant the list uses. Both are Checker calls.
+// An unguessable identifier is not an access control (ADR-0003). `org#read` resolves the org's members and admins; an
+// operator reaches every org through the back-office grant.
 func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {
@@ -206,10 +194,8 @@ func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	return h.requireOperator(ctx, "reading an org they are not a member of")
 }
 
-// requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the
-// caller must be an authenticated operator. Reads (List/Get) and the
-// registration webhook stay open; only the operator-facing org mutations are
-// gated, matching catalog's operator-write policy.
+// requireOperator gates a write on the shared Checker (ADR-0304). Reads and the registration webhook stay open; only
+// the operator-facing mutations are gated.
 func (h *Handlers) requireOperator(ctx context.Context, action string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {

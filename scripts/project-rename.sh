@@ -1,16 +1,5 @@
 #!/usr/bin/env bash
 # Rename a freshly generated project (ADR-0106, ADR-0003).
-#
-#   scripts/project-rename.sh <project-slug> <module-path> <apex-host> <image-registry>
-#
-# Run once, by Copier, in the generated project — never in the template. Copier
-# renders only `*.jinja` files (see copier.yml for why), so the strings a project
-# must own are replaced here instead, literally: the Go module path, the apex
-# host and its per-environment names, and the registry namespace.
-#
-# Literal replacement rather than templating is also what keeps the template
-# runnable: the tree a contributor clones is the tree CI builds, with no
-# placeholder that only resolves after generation.
 set -euo pipefail
 # shellcheck source=lib/log.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
@@ -20,16 +9,8 @@ slug="$1" module="$2" apex="$3" registry="$4"
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# The guard against running this in the template itself. Two paths reach here and
-# only one of them leaves a marker: Copier writes the answers file before it runs
-# its tasks, while a forge-side "Use this template" copies the tree and runs
-# nothing, so a copy made that way is indistinguishable from the template by file
-# content alone.
-#
-# The fallback is the invariant `lint:project-identity` checks — a repository whose
-# name already matches its module path owns its identity, and is either the template
-# or a project that has been through this once. Renaming it again would rewrite a
-# name someone chose.
+# A forge-side "Use this template" copies the tree and runs nothing, so such a copy is indistinguishable from the template by content.
+# The fallback is lint:project-identity's invariant: a repository whose name matches its module path owns its identity.
 origin_url="$(git remote get-url origin 2>/dev/null || true)"
 if [ -z "$origin_url" ]; then
   # No remote. Either Copier is mid-generation — it writes the answers file before
@@ -38,11 +19,7 @@ if [ -z "$origin_url" ]; then
   [ -f .copier-answers.yml ] ||
     fail "no origin remote and no .copier-answers.yml — nothing distinguishes this tree from the template"
 elif [ "$(basename -s .git "$origin_url")" = "$(basename "$(awk '/^module /{print $2; exit}' go.mod)")" ]; then
-  # The invariant `lint:project-identity` checks. A repository whose name matches
-  # its module path owns its identity: the template, or a project that has been
-  # through this once. The answers file is NOT an exemption here — it is present
-  # for the whole life of a generated project, and treating it as one leaves this
-  # script armed to rewrite a name someone chose, years later.
+  # The answers file is not an exemption: it is present for the whole life of a generated project, and treating it as one leaves this script armed to rewrite a name someone chose.
   fail "the repository name already matches the module path — this is the template, or a project that has already been renamed"
 fi
 
@@ -55,10 +32,7 @@ old_apex="example.com"
 
 [ "$old_module" != "$module" ] || fail "the module path is already ${module}"
 
-# The file list is a text search over the working tree. A generated project is
-# not a git repository yet — Copier runs this before the first commit — so
-# `git ls-files` has nothing to answer with, and grep must therefore be told
-# which directories are not source.
+# A generated project is not a git repository yet — Copier runs this before the first commit — so grep must be told which directories are not source.
 step "renaming to ${slug}"
 PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache --binary-files=without-match)
 

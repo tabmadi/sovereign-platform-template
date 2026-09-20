@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
 # Apply the committed Temporal Schedules (ADR-0302).
-#
-#   mise run temporal:schedules
-#
-# Idempotent: an existing schedule is updated rather than duplicated, so this is
-# safe to run on every deploy. That matters more than it sounds — a schedule
-# created twice fires twice, and a retention pass that runs twice concurrently is
-# two workflows deleting the same rows.
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 cd "$(cd "$(dirname "$0")/.." && pwd)"
@@ -24,12 +17,7 @@ for i in $(seq 0 $((count - 1))); do
   queue=$(yq -r ".schedules[$i].taskQueue" "$SPEC")
   cron=$(yq -r ".schedules[$i].cron" "$SPEC")
 
-  # The workflow's arguments, one `--input` per top-level element, each as JSON.
-  # A workflow taking no arguments has no `args` key and contributes none.
-  #
-  # This is not cosmetic: a schedule whose workflow expects an argument and is
-  # created without one starts a run that fails on its first line, once per tick,
-  # for as long as nobody looks at it.
+  # One `--input` per top-level element, each as JSON. A schedule whose workflow expects an argument and is created without one fails on its first line, once per tick.
   args=()
   arg_count=$(yq -r ".schedules[$i].args // [] | length" "$SPEC")
   for j in $(seq 0 $((arg_count - 1))); do

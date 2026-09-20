@@ -1,9 +1,4 @@
-// Shared Kratos self-service flow renderer (ADR-0304, ADR-0400). Every /auth/*
-// page is the same shape: fetch the flow from the Kratos public API (same origin
-// via Traefik, /auth/self-service/<flow>/* → ory-kratos-public) and render its UI
-// nodes as a native form that POSTs straight back to Kratos — no client SDK; the
-// session and CSRF cookies are Kratos's. Client component because the flow id and
-// those cookies only exist in the browser.
+// Shared Kratos self-service flow renderer, used by every /auth/* route (ADR-0304, ADR-0400).
 "use client";
 
 import { useTranslations } from "next-intl";
@@ -106,11 +101,7 @@ function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string })
     return <input type="hidden" name={attr.name} value={value} />;
   }
   if (attr.type === "submit" || attr.type === "button") {
-    // `name`, `value` and `formNoValidate` all reach the DOM, and all three are
-    // load-bearing: Kratos identifies the pressed method by name=value, and a
-    // settings flow renders every method (password, WebAuthn, TOTP) in one form,
-    // where `formNoValidate` stops one method's empty field blocking another's
-    // submit. Kratos validates the submitted method server-side.
+    // Kratos identifies the pressed method by name=value, and a settings flow renders every method in one form, where `formNoValidate` stops one method's empty field blocking another's submit.
     return (
       <Button
         type={attr.type === "button" ? "button" : "submit"}

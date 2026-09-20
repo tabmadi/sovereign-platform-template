@@ -1,6 +1,4 @@
-// Command affected emits a JSON manifest describing which services, apps,
-// libraries, and infra are affected by the current diff against the merge base
-// with origin/master. Consumed by CI workflows (ADR-0101 §"Affected detection").
+// Command affected emits the JSON manifest of what the current diff touches, consumed by CI (ADR-0101).
 package main
 
 import (
@@ -14,7 +12,6 @@ import (
 	"strings"
 )
 
-// Manifest is the JSON shape printed to stdout.
 type Manifest struct {
 	Global   bool     `json:"global"`
 	Services []string `json:"services"`

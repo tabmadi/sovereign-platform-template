@@ -1,8 +1,4 @@
 // The orders seam (ADR-0400, ADR-0701). Browser-side, so no `server-only` import:
-// the checkout form is a client component and mutates through the edge.
-//
-// Two functions rather than one, because the screen has something to say between
-// them: the POST returns a handle the user is shown before the workflow settles.
 import { order as fixtureOrder } from "@/fixtures/orders";
 import { createBrowserClient } from "@/lib/server-fetch/client";
 import { pollWorkflow, type WorkflowHandle } from "@/lib/server-fetch/workflow-handle";

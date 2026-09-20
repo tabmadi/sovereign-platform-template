@@ -1,5 +1,5 @@
-# Local full-tier values for the orgs service (ADR-0205). See orders.yaml for the
-# secret-naming note (orgs-db = local SopsSecret resource).
+# Local full-tier values for the orgs service (ADR-0205). See orders.yaml for the secret-naming note (orgs-db =
+# local SopsSecret resource).
 name: orgs
 image:
   repository: registry.localhost:5000/orgs-server
@@ -12,11 +12,7 @@ worker:
     tag: local
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [orgs] }
-# Keep every trace the service starts (ADR-0500: local overrides healthy traces
-# to 100%). The chart default samples 10% in the SDK, and the collector's local
-# 100% cannot restore a span the SDK never started — so a developer looking for
-# the request they just made, and the e2e trace assertion, would both be playing
-# odds.
+# Keep every trace the service starts (ADR-0500: local overrides healthy traces to 100%).
 otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 # Kratos calls /identity-created east-west on the server port (ADR-0304); the
 # edge (allowFromGateway) only covers Traefik → /api/orgs, so allow Kratos too.

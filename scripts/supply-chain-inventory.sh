@@ -1,25 +1,5 @@
 #!/usr/bin/env bash
-# Walk every image pinned in committed values, verify its SBOM attestation, and file
-# what is in it (ADR-0104, ADR-0103).
-#
-#   mise run supply-chain:inventory
-#
-# THE QUESTION THIS ANSWERS. A CVE lands against some library. "Is it in anything we
-# run?" is not answerable from the build stream, which records what was BUILT: an
-# image built four months ago and never promoted is not running, and an image built
-# once and promoted to three environments is running three times. The committed
-# values files are the only statement of what each environment is pinned to, so the
-# walk starts there and reads the SBOM off the registry — the same attestation
-# admission verifies, so the answer cannot drift from what the cluster will admit.
-#
-# NIGHTLY, NOT PER-BUILD. Nothing here changes when a build happens; it changes when
-# a PROMOTION happens, and it has to re-answer anyway as new CVEs appear against
-# images that did not change at all. A nightly walk of a fixed set of images is also
-# a fixed cost, where a per-build walk would scale with build volume for no gain.
-#
-# WHAT IT IS NOT. This is a research surface, not an incident path (ADR-0501): it
-# feeds no alert and hangs off no L1→L2→L3 funnel. Nobody is paged because an SBOM
-# is a day old.
+# Walk every image pinned in committed values, verify its SBOM attestation, and file what is in it (ADR-0104, ADR-0103).
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -33,19 +13,8 @@ PUB_KEY="infra/auth/cosign/cosign.pub"
 # generated project that has not run the bootstrap has nothing to verify against.
 # Say that once and stop, rather than reporting every image as unverifiable.
 if [ ! -s "$PUB_KEY" ]; then
-  # IN THE TEMPLATE this is the finished state, not an unfinished one. A signing key
-  # here would be inherited by every generated project: the same public half in
-  # everyone's admission policy, and a private half encrypted to this repository's
-  # recipients that no adopter can decrypt. The bootstrap is per-project because the
-  # identity is.
-  #
-  # So the template has no key, publishes no images to an environment, and has
-  # nothing to take an inventory of. Failing on that teaches whoever sees the nightly
-  # to ignore it, which costs more than the gap it reports.
-  #
-  # `copier.yml` is the discriminator scripts/test-template.sh already uses for the
-  # same question: the template carries it, and `_exclude` drops it from everything
-  # generated.
+  # The template has no signing key: one here would be inherited by every generated project, with a private half no adopter can decrypt.
+  # `copier.yml` is the discriminator — the template carries it, and `_exclude` drops it from everything generated.
   if [ -f copier.yml ]; then
     ok "no signing key, and none belongs here — the template publishes no environment images"
     exit 0
@@ -90,10 +59,6 @@ for path in "${files[@]}"; do
 
   step "${env}/${service}: ${ref}"
 
-  # --insecure-ignore-tlog for the same reason ci-sign.sh passes --tlog-upload=false:
-  # ADR-0104 chose a key pair over keyless, so nothing was ever published to Rekor
-  # and requiring a transparency-log entry here would fail every image the platform
-  # signs. This is the same verification Kyverno performs at admission.
   if cosign verify-attestation \
     --key "$PUB_KEY" \
     --type spdxjson \
@@ -117,10 +82,7 @@ for path in "${files[@]}"; do
       --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
       '{event: "inventory", ref: $ref, digest: $digest, sbom_verified: true, packages: $packages, at: $at}')"
   else
-    # A pinned image whose attestation does not verify is the finding, not an error
-    # to abort on: the walk's value is the WHOLE picture, and stopping at the first
-    # bad one hides the rest. The reason goes in the line so the dashboard can show
-    # "missing attestation" apart from "wrong key".
+    # A pinned image that does not verify is the finding, not an error to abort on: the walk's value is the whole picture.
     warn "attestation did NOT verify"
     detail "$(head -3 "$work/err.txt" | tr '\n' ' ')"
     line="$(jq -cn \
@@ -136,10 +98,7 @@ for path in "${files[@]}"; do
     "$line"
 done
 
-# Non-zero when something pinned cannot be verified. This runs nightly and nothing
-# pages on it, but a workflow that reports success while half the fleet is
-# unverifiable is a workflow nobody reads twice. Reported as one line either way —
-# a ✓ followed by a ✗ is a script arguing with itself.
+# Non-zero when something pinned cannot be verified. Reported as one line either way — a ✓ followed by a ✗ is a script arguing with itself.
 if [ "$verified" -eq "$total" ]; then
   ok "inventory: all ${total} pinned images carry a verifiable SBOM"
 else

@@ -14,10 +14,8 @@ metadata:
     app.kubernetes.io/name: local-path-provisioner
     app.kubernetes.io/part-of: platform
 data:
-  # `nodePathMap` with the DEFAULT_PATH_FOR_NON_LISTED_NODES entry applies one path
-  # to every node, present and future. Listing nodes individually would mean an
-  # inventory that has to be edited before a node can host a volume, and a node
-  # added under ADR-0200's scaling trigger would silently provision nothing.
+  # `nodePathMap` with the DEFAULT_PATH_FOR_NON_LISTED_NODES entry applies one path to every node, present and
+  # future.
   config.json: |
     {
       "nodePathMap": [
@@ -28,18 +26,8 @@ data:
       ]
     }
 
-  # The helper Pod's command. `-p` so a re-run after a partial failure succeeds
-  # rather than erroring on a directory that is already there.
-  #
-  # `-m 0777` is load-bearing, and it is upstream's own default for this script.
-  # The PVs this provisioner creates are hostPath, and the kubelet does not apply
-  # `fsGroup` ownership to a hostPath volume — so a directory created with the
-  # default mode is root-owned and unwritable by every pod that runs as anyone
-  # else. What that looks like is not a permissions error on the volume: it is
-  # `initdb: could not create directory` from Postgres, a CrashLoopBackOff from
-  # SeaweedFS and Loki, and pods that mounted their volume successfully and then
-  # could not use it. The mode is per-volume, on a directory only that volume's
-  # pod is given.
+  # The helper Pod's command. `-p` so a re-run after a partial failure succeeds rather than erroring on a directory
+  # that is already there.
   setup: |
     #!/bin/sh
     set -eu

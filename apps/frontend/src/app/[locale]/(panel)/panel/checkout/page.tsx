@@ -26,10 +26,7 @@ import { awaitOrder, startOrder } from "@/lib/data/orders";
 // the half of localisation that gets forgotten.
 function makeSchema(invalidId: string) {
   return z.object({
-    // A wire identifier, not a bare UUID (ADR-0003): the field takes the form the
-    // API hands back, so what a user pastes is what they were shown. `isId` is the
-    // shared codec both languages check against, so the accepted shape cannot drift
-    // from the one the services mint.
+    // A wire identifier, not a bare UUID (ADR-0003). `isId` is the shared codec both languages check against, so the accepted shape cannot drift from the one the services mint.
     product_id: z.string().refine((v) => isId(v, "product"), invalidId),
     quantity: z.number().int().positive(),
   });
@@ -81,13 +78,9 @@ export default function Checkout() {
     [t],
   );
 
-  // A mutation rather than an awaited call in the submit handler, and not for the
-  // caching: a 401/403 raises an interrupt (lib/auth/denial.ts) that only reaches
-  // unauthorized.tsx / forbidden.tsx if it is thrown during a render. React
-  // boundaries never see what an event handler throws, so the same denial raised
-  // straight out of `onSubmit` would be an unhandled rejection and the user would
-  // watch the badge sit on "starting". `throwOnError` in the panel providers does
-  // the re-throw, for denials only — everything else still lands in onError below.
+  // A mutation, not an awaited call, and not for the caching: a denial interrupt only reaches forbidden.tsx if it
+  // is thrown during a render, and React boundaries never see what an event handler throws.
+  // `throwOnError` in the panel providers does the re-throw, for denials only.
   const placeOrder = useMutation({
     async mutationFn(values: FormValues) {
       const handle = await startOrder(values);

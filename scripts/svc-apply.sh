@@ -1,37 +1,5 @@
 #!/usr/bin/env bash
-# Make ONE sibling service reachable from a natively-run process (ADR-0205,
-# ADR-0600). Backs the `svc:*` mise tasks, which services declare for themselves
-# exactly as they declare `dep:*`:
-#
-#   # services/orders/.mise.toml
-#   [tasks.worker]
-#   depends = ["env", "dep:postgres", "dep:temporal", "svc:catalog", "svc:payment"]
-#
-# ── Why this exists ───────────────────────────────────────────────────────────
-# `dep:*` covers the INFRASTRUCTURE a service needs (Postgres, Temporal, OpenFGA).
-# It does not cover the other services it calls, and in a microservices template
-# that is the half that matters more: the orders checkout saga dials catalog and
-# payment, so `mise run worker` used to hand you a process that started cleanly and
-# died on the first checkout. Closing that gap by hand meant knowing the callee
-# list, deploying each one, port-forwarding each one, and editing .env — four steps
-# a named profile can't help with and the service itself already knows.
-#
-# This is the precise failure mode ADR-0600 rejected Tilt for: enabling a subset
-# without considering its dependencies turns "why is my service failing" into a
-# scavenger hunt. Declaring callees here makes the graph tell the truth.
-#
-# ── What "reachable" means ────────────────────────────────────────────────────
-# The callee answers on its registered local port (scripts/lib/ports.sh), so the
-# caller's CATALOG_URL/PAYMENT_URL default just works. Two different situations
-# satisfy that, and BOTH are legitimate:
-#
-#   1. The callee runs natively too — you are debugging across services and
-#      started it yourself. Nothing to do; this must not stomp on it.
-#   2. The callee is in the cluster, port-forwarded to that same port. The default
-#      (ADR-0205): you are working on the CALLER, and the callees should be opaque.
-#
-# So the guard probes the PORT, not the deployment. Case 1 then falls out for free
-# rather than needing a flag — start catalog natively and orders stops managing it.
+# Make one sibling service reachable from a natively-run process, backing the `svc:*` tasks services declare (ADR-0205, ADR-0600).
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -61,7 +29,6 @@ k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 # service has a health endpoint, needs auth, or is mid-startup.
 port_open() { (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") >/dev/null 2>&1; }
 
-# ── The guard ─────────────────────────────────────────────────────────────────
 # Same contract as dep-apply.sh: fast-exit when already satisfied, so re-entering
 # the graph on every `mise run worker` stays cheap. Without it each run would
 # re-deploy a service that is already up.

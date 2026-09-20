@@ -90,10 +90,6 @@ func TestClassify(t *testing.T) {
 	}
 }
 
-// A Money property is an object, and the default path renders an object as one
-// TextInput that posts "[object Object]" and one grid column that shows it
-// (ADR-0300). This pins the split: two fields whose dotted ids reassemble into the
-// object the payload already reads, and two columns.
 func TestMoneyFields(t *testing.T) {
 	t.Parallel()
 

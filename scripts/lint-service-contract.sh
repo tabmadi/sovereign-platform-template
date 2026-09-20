@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
-# The service contract gate (ADR-0205). Every service under services/ must provide
-# the same set of artifacts, because the platform DISCOVERS services through those
-# artifacts rather than through a registry:
-#
-#   - the ApplicationSet generates one Argo Application per values file, so a
-#     service with no values file for an environment is simply ABSENT there, with
-#     nothing to notice it (this is not hypothetical — the authz authorizer was
-#     missing from dev exactly this way while Oathkeeper called it by DNS);
-#   - svc-apply.sh and service-dev.sh resolve a service's local port from the
-#     registry, so an unregistered service cannot be run natively or called;
-#   - service-deploy.sh reads dep:*/svc:* out of .mise.toml, so an undeclared
-#     dependency is an undeployed dependency.
-#
-# The contract is therefore mechanical, and so is this check. Whether the
-# declarations are TRUE — that a service listing dep:temporal really uses Temporal,
-# and that one calling payment says so — is the other half, and it is now
-# lint:service-deps, which reads each entrypoint's package closure.
+# The service contract gate (ADR-0205): every service provides the same artifacts, because the platform discovers services through them rather than through a registry.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -42,7 +26,6 @@ for dir in services/*/; do
   [ "${svc#_}" = "$svc" ] || continue # _template is the source, not a service
   checked=$((checked + 1))
 
-  # ── Files every service owns ────────────────────────────────────────────────
   for f in .mise.toml .env.example Dockerfile README.md; do
     [ -f "${dir}${f}" ] || {
       warn "${svc}: missing ${f}"
@@ -50,17 +33,8 @@ for dir in services/*/; do
     }
   done
 
-  # ── Standard task names (ADR-0101) ──────────────────────────────────────────
-  #
-  # `server` only for a service that has one. A worker-only deployable declares
-  # `worker` instead, and demanding both would force it to ship a task that runs
-  # nothing — which is worse than the gap, because a task that exists is a task
-  # someone will run.
-  #
-  # `generate` and `migrate` follow the same shape for the same reason: they are
-  # required of a service that HAS the input — a spec or a sqlc query for the
-  # first, a migrations directory for the second — and demanded of no service
-  # that has neither.
+  # `server` only for a service that has one; a worker-only deployable declares `worker` (ADR-0101).
+  # `generate` and `migrate` are required of a service that has the input, and of no service that has neither.
   tasks="test lint build"
   if [ -d "services/${svc}/cmd/server" ]; then
     tasks="server ${tasks}"
@@ -80,36 +54,20 @@ for dir in services/*/; do
     }
   done
 
-  # ── A declared objective (ADR-0500) ─────────────────────────────────────────
-  #
-  # Both SLIs are computed from the RED histogram of a request, so the file is
-  # owed by a service that answers requests. A worker-only deployable serves none
-  # — its admin port is excluded from both SLIs by the template's own file — and
-  # an SLO over no traffic is a target that can never be missed.
+  # Both SLIs are computed from a request's RED histogram, so the file is owed by a service that answers requests (ADR-0500).
   if [ -d "services/${svc}/cmd/server" ] && [ ! -f "${dir}slo.yaml" ]; then
     warn "${svc}: no slo.yaml — ADR-0500 requires an availability and a latency SLI per service. Copy services/_template/slo.yaml"
     rc=1
   fi
 
-  # ── Isolated from its siblings by depguard (ADR-0101) ───────────────────────
-  # The constraint is relational — services/X may not import services/Y — and
-  # depguard's unit is a file pattern with a deny list, so it takes one rule per
-  # service. A new service that does not add its block is not caught by depguard
-  # (it has no rule to break), which is exactly the silence this check removes.
-  # Go's own internal/ convention covers today's layout; the rule covers the day a
-  # service exports a package outside internal/.
+  # depguard's unit is a file pattern with a deny list, so the relational constraint takes one rule per service (ADR-0101).
+  # A new service that adds no block breaks no rule, which is the silence this check removes.
   grep -q "service-isolation-${svc}:" .golangci.yml || {
     warn "${svc}: no 'service-isolation-${svc}' depguard rule in .golangci.yml — nothing stops a sibling importing it"
     rc=1
   }
 
-  # ── Registered local port, agreeing with what the service binds ─────────────
-  # (uniqueness and the reverse direction are lint:ports' job)
-  #
-  # Only for a service that binds one. A worker-only deployable — the platform
-  # worker is the first — answers no requests, so demanding a port would be
-  # demanding a number nothing listens on, and the registry's value is that every
-  # entry in it is real.
+  # Only for a service that binds a port; uniqueness and the reverse direction are lint:ports' job.
   if [ -d "services/${svc}/cmd/server" ]; then
     service_port "$svc" >/dev/null 2>&1 || {
       warn "${svc}: no local port in scripts/lib/ports.sh"
@@ -117,7 +75,6 @@ for dir in services/*/; do
     }
   fi
 
-  # ── Deployable in every environment, or explicitly not ──────────────────────
   for env in "${envs[@]}"; do
     if [ -f "infra/gitops/services/${env}/values/${svc}.yaml" ]; then continue; fi
     if opted_out "$svc" "$env"; then

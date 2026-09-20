@@ -1,8 +1,4 @@
-// Argo CD operator dashboard (ADR-0201) — the GitOps control plane, gated at
-// argocd.ops.<host> (dashboard:argocd#view) and rendering behind a real AAL2 operator
-// session. argocd-server runs with server.insecure (TLS terminates at Traefik);
-// its own UI keeps a login behind the Kratos gate, so the gauge asserts the SPA
-// shell paints, not a post-login view.
+// The Argo CD operator dashboard, gated at the ops origin (ADR-0201, ADR-0306).
 import { expect, test } from "@playwright/test";
 import {
   expectAal1Forbidden,

@@ -1,8 +1,4 @@
 # Staging values for the authz edge authorizer (ADR-0306).
-#
-# authz is INTERNAL: Oathkeeper calls it by service DNS, so it gets no /api edge
-# route (ingress off). It has no database (migrations off). It reads OpenFGA with
-# the SOPS-managed preshared key.
 name: authz
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/authz-server
@@ -18,11 +14,7 @@ ingress:
   enabled: false     # internal authorizer — no edge route
 migrations:
   enabled: false     # no database
-# Not edge-exposed, so the chart's Traefik→server-port default must be off. Two
-# legitimate callers of the server port: Oathkeeper's remote_json authorizer (every
-# gated dashboard request), and the Lowdefy admin console's server-side
-# "authz-admin" connection (apps/admin/lowdefy.yaml), which POSTs to /operators
-# backend-to-backend rather than back through the edge.
+# Not edge-exposed, so the chart's Traefik→server-port default must be off.
 networkPolicy:
   allowFromGateway: false
   allowFrom: [oathkeeper, lowdefy, frontend]

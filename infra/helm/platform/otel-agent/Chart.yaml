@@ -24,11 +24,6 @@ type: application
 version: "2026.9.0"
 appVersion: "1.0.0"
 
-# Subcharts are vendored under charts/ and rendered directly — there is no
-# `dependencies:` block, for the reason observability/Chart.yaml records: ArgoCD's
-# repo-server runs `helm dependency build` whenever dependencies are declared, and
-# that fetches the repo index over the network, which wedges behind the local
-# privoxy edge.
-# Provenance (name @ version, source repo), matching the tgz in charts/:
-#   opentelemetry-collector  0.159.0  https://open-telemetry.github.io/opentelemetry-helm-charts
-# Refresh with: helm pull open-telemetry/opentelemetry-collector --version <v> -d charts/
+# Subcharts are vendored under charts/ and rendered directly — there is no `dependencies:` block, for the reason
+# observability/Chart.yaml records: ArgoCD's repo-server runs `helm dependency build` whenever dependencies are
+# declared, and that fetches the repo index over the network, which wedges behind the local privoxy edge.

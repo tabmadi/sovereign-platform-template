@@ -1,33 +1,5 @@
 #!/usr/bin/env bash
 # Exercise this repository's own generation (ADR-0106).
-#
-#   mise run test:template          # the fixture matrix, seconds
-#   DEEP=1 mise run test:template   # plus a full `check` inside one generated project
-#
-# # Why this exists
-#
-# Every other gate in this repository takes THIS tree as its input and answers "does
-# this repository work?". Generation asks a different question — "does producing a
-# project from this repository work?" — and its output is a tree that has never
-# existed before: `_exclude` removes files, `*.jinja` files are rendered and renamed,
-# and `project-rename.sh` rewrites three literals across ~136 files. None of that
-# runs when `go build` or `mise run lint` runs, so none of it is covered.
-#
-# The failure mode is silent and lands on a stranger. An ordering mistake in the
-# rename, a new file carrying a literal the rename does not match, a validator whose
-# regex accepts what it should reject — each leaves this tree green and every
-# generated project broken.
-#
-# # What it asserts
-#
-#   1. Every valid fixture generates, and the result carries none of the template's
-#      identity and none of the generation machinery.
-#   2. Every invalid fixture is REJECTED. A validator that accepts everything is
-#      indistinguishable from a correct one until something checks the refusals.
-#   3. The two adoption paths agree. `copier copy` and a forge copy driven through
-#      `project:init` must produce the same tree, because `copier update` renders the
-#      template at `_commit` and three-way merges onto the project — a baseline that
-#      never existed produces conflicts against a phantom.
 
 set -euo pipefail
 # shellcheck source=lib/log.sh
@@ -48,11 +20,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 FAILED=0
 
-# ── The template under test ───────────────────────────────────────────────────
-# Copier renders from a git ref, so it would otherwise test the last commit rather
-# than the tree in front of you — and a gate that ignores your uncommitted change is
-# a gate you learn to distrust. Snapshotting the working tree into a throwaway
-# repository costs a second and makes `mise run test:template` mean what it says.
+# Copier renders from a git ref, so without the snapshot this tests the last commit rather than the working tree.
 step "snapshotting the working tree"
 SRC="$WORK/template"
 mkdir -p "$SRC"
@@ -64,7 +32,6 @@ git -C "$SRC" -c user.email=test@local -c user.name=test commit -qm "template un
 SRC_REF="$(git -C "$SRC" rev-parse --short HEAD)"
 detail "ref ${SRC_REF}"
 
-# ── 1. Invalid fixtures must be refused ───────────────────────────────────────
 step "rejecting invalid fixtures"
 for fixture in "$FIXTURES"/invalid/*.yml; do
   name="$(basename "$fixture" .yml)"
@@ -73,10 +40,8 @@ for fixture in "$FIXTURES"/invalid/*.yml; do
     warn "✗ ${name}: generation SUCCEEDED — the validator accepted an invalid answer"
     FAILED=1
   else
-    # Surface the refusal so a fixture that fails for an unrelated reason — a broken
-    # template, a missing tool — is not mistaken for a validator doing its job.
-    # The RENDERED message, not the f-string copier's traceback also prints. Anchoring
-    # on `ValueError:` is what separates the two.
+    # Surface the refusal, so a fixture failing for an unrelated reason is not mistaken for a validator doing its job.
+    # Anchoring on `ValueError:` separates the rendered message from the f-string in copier's traceback.
     reason="$(grep -m1 -oE "ValueError: Validation error for question '[^']*': .*" "$WORK/$name.log" |
       sed 's/^ValueError: //' || true)"
     if [ -z "$reason" ]; then
@@ -88,7 +53,6 @@ for fixture in "$FIXTURES"/invalid/*.yml; do
   fi
 done
 
-# ── 2. Valid fixtures must generate a clean project ───────────────────────────
 # What the template calls itself, read from the tree so a renamed template does not
 # leave these pointing at a name nothing uses.
 OLD_MODULE="$(awk '/^module /{print $2; exit}' go.mod)"
@@ -135,10 +99,7 @@ for fixture in "$FIXTURES"/valid/*.yml; do
   fi
 done
 
-# ── 3. The two adoption paths must agree ──────────────────────────────────────
-# `copier copy` versus a forge copy driven through `project:init`. Only `_src_path`
-# may differ, and only here: Copier records the path it generated FROM, which in this
-# test is a local directory, while `project:init` writes the canonical remote.
+# Only `_src_path` may differ: Copier records the path it generated from, a local directory here, while `project:init` writes the canonical remote.
 step "comparing the two adoption paths"
 PATH_B="$WORK/valid-defaults"
 PATH_A="$WORK/path-a"
@@ -171,10 +132,7 @@ if [ -d "$PATH_B" ]; then
   fi
 fi
 
-# ── 4. Optional: the generated project passes its own gates ───────────────────
-# Minutes rather than seconds, because it runs every generator and every linter in a
-# tree with no warm caches. Off by default so the matrix above stays a gate anyone
-# runs; the nightly job sets DEEP.
+# Minutes rather than seconds, with no warm caches. Off by default; the nightly job sets DEEP.
 if [ -n "${DEEP:-}" ] && [ -d "$PATH_B" ]; then
   step "running the generated project's own gates (DEEP)"
   if (

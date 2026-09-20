@@ -1,8 +1,4 @@
-// Hubble UI operator dashboard (ADR-0306, ADR-0501) — the Cilium service-map
-// surface. Gated at hubble.ops.<host> (dashboard:hubble#view) and the flow-map
-// renders behind a real AAL2 session.
-// Hubble's React Router only runs at an origin ROOT (ADR-0501), which the
-// {tool}.ops.<host> topology gives it.
+// The Hubble service-map dashboard, gated at the ops origin (ADR-0306, ADR-0501).
 import { expect, test } from "@playwright/test";
 import {
   expectAal1Forbidden,

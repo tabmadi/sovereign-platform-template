@@ -1,12 +1,5 @@
-# Local AppProject (ADR-0201). ArgoCD's real tenancy/grouping primitive — the
-# thing every local Application is grouped *by* (spec.project: local), so grouping
-# no longer relies on parsing the `local-` name prefix. The prefix is now just a
-# display convenience; this is the boundary.
-#
-# Applied by local-root before the apps that reference it (sync-wave "-10"), so the
-# project exists first. Scoped to this repo + the in-cluster server to demonstrate
-# the boundary; resource whitelists stay wide-open because platform charts install
-# arbitrary CRDs/cluster-scoped objects (a narrow whitelist would wedge them).
+# Local AppProject (ADR-0201). ArgoCD's real tenancy/grouping primitive — the thing every local Application is
+# grouped *by* (spec.project: local), so grouping no longer relies on parsing the `local-` name prefix.
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -20,11 +13,8 @@ spec:
   description: Local (kind) environment — platform, services, gateway, secrets.
   sourceRepos:
     - https://github.com/tabmadi/sovereign-platform-template.git
-      # Argo resolves a chart's `dependencies:` under the project's own permissions,
-      # so a repo a chart pulls from is a source of this project even though no
-      # Application names it. Both temporal-worker-controller charts declare an OCI
-      # dependency there; without this the render fails PermissionDenied, and Argo
-      # caches that failure — so the wave stays shut long after the cause is gone.
+      # Argo resolves a chart's `dependencies:` under the project's own permissions, so a repo a chart pulls from is a
+      # source of this project even though no Application names it.
     - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }

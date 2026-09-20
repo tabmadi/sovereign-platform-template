@@ -67,19 +67,12 @@ spec:
             app.kubernetes.io/name: prometheus
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
-    # The API server, for the k8sattributes processor's pod watch and the
-    # kubeletstats receiver's PVC/PV resolution. `host` and `remote-node` alongside
-    # `kube-apiserver` for the reason the platform baseline records: on a node-hosted
-    # API server Cilium classifies the address as the host identity, which takes
-    # precedence, and a `kube-apiserver`-only rule drops every call.
+    # The API server, for the k8sattributes processor's pod watch and the kubeletstats receiver's PVC/PV resolution.
     - toEntities:
         - kube-apiserver
         - host
         - remote-node
-    # The node itself: the kubelet Summary API (10250) and the cilium-agent's Hubble
-    # metrics (9965). Both are node-local by construction — this pod reads its OWN
-    # node through the chart-injected K8S_NODE_IP — and both are reached at a host
-    # address, which no endpoint selector can match.
+    # The node itself: the kubelet Summary API (10250) and the cilium-agent's Hubble metrics (9965).
     - toEntities: [host, remote-node]
       toPorts:
         - ports:

@@ -1,8 +1,4 @@
 // The consent gate's rules, pinned (ADR-0700).
-//
-// Each test is a legal position rather than a preference, which is why they are
-// asserted rather than left to the caller: silence is not consent, a prior signal
-// is honoured without prompting, and a changed purpose is a new question.
 import { describe, expect, test } from "bun:test";
 
 import { type ConsentDecision, gpcDecision, mayEmitMarketing, shouldPrompt } from "./consent";

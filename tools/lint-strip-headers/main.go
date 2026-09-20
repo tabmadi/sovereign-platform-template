@@ -1,12 +1,5 @@
-// Command lint-strip-headers is the anti-spoofing gate (ADR-0305). Every
-// IngressRoute that authenticates via the Oathkeeper forwardAuth middleware MUST
-// also apply strip-identity-headers BEFORE it, so a client cannot inject
-// X-User-* / X-Org-Id / X-Roles on any route (anonymous routes especially). It
-// fails non-zero if a forward-auth route is missing the strip, or applies it
-// after forwardAuth.
-//
-// It reads the manifests (the gateway directory + helm template) from stdin; the
-// caller is scripts/lint-strip-headers.sh, which does the rendering.
+// Command lint-strip-headers is the anti-spoofing gate: a forwardAuth IngressRoute must apply strip-identity-headers
+// before it (ADR-0305).
 package main
 
 import (

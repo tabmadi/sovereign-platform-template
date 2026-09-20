@@ -1,6 +1,4 @@
-// Kratos self-service recovery flow (ADR-0304, ADR-0400). Public route under
-// (landing); emails a recovery code/link (delivery needs a wired SMTP sink). The
-// shared KratosFlow component renders the flow.
+// Kratos self-service recovery flow, a public route under the landing shell (ADR-0304, ADR-0400).
 import { getTranslations } from "next-intl/server";
 import { KratosFlow } from "@/components/auth/KratosFlow";
 import { Link } from "@/i18n/navigation";

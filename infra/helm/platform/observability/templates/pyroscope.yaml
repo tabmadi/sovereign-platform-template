@@ -1,13 +1,8 @@
-# Pyroscope (ADR-0501 POC — continuous profiling). Single-binary monolith
-# (-target=all), filesystem storage on an emptyDir (POC; a real deployment uses the
-# off-cluster bucket like Loki/Tempo). Profiles are PUSHED here by the Alloy agent
-# (templates/alloy.yaml); Grafana queries it as the Pyroscope datasource. Ingress is
-# granted by the pyroscope CiliumNetworkPolicy in the network-policies chart.
+# Pyroscope (ADR-0501 POC — continuous profiling). Single-binary monolith (-target=all), filesystem storage on an
+# emptyDir (POC; a real deployment uses the off-cluster bucket like Loki/Tempo).
 {{- $py := .Values.pyroscope }}
-{{/* Config in a define so the Deployment stamps checksum/config and rolls on
-     config edits (same pattern as prometheus.yaml / otel-cluster.yaml). Without
-     it the analytics opt-out below sat in the ConfigMap while the running pod
-     kept the old config and kept phoning home — PolicyDropsDetected stayed red. */}}
+{{/* Config in a define so the Deployment stamps checksum/config and rolls on config edits. Without it the
+     analytics opt-out sits in the ConfigMap while the running pod keeps phoning home. */}}
 {{- define "observability.pyroscope.config" }}
     server:
       http_listen_port: 4040
@@ -46,11 +41,7 @@ spec:
       annotations:
         checksum/config: {{ include "observability.pyroscope.config" . | sha256sum }}
     spec:
-      # `restricted` (ADR-0200). The pyroscope image runs as 10001 and has no shell
-      # to check that with, so the UID is named rather than assumed: if upstream
-      # ever changes it, a named UID fails loudly at start instead of silently
-      # running the process as a user the image did not prepare. fsGroup matches so
-      # the emptyDir data dir below is writable.
+      # `restricted` (ADR-0200).
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

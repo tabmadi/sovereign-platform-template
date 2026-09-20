@@ -1,20 +1,5 @@
-## Admission/conversion webhooks are called BY the Kubernetes API server. Without
-## these allows a namespace-wide default-deny silently breaks cert issuance and
-## CNPG cluster reconciliation (the apiserver → webhook call times out).
-##
-## `host` and `remote-node` sit beside `kube-apiserver` for the reason 00-baseline
-## gives for the opposite direction: an API server running ON a cluster node
-## reaches a pod from that node's own address, which Cilium classifies as `host`
-## when it is the same node and `remote-node` when it is not — and that identity
-## takes precedence over `kube-apiserver`. With only `kube-apiserver` here, the
-## call is admitted exactly when the webhook pod happens to share a node with the
-## API server instance that made it.
-##
-## That intermittency is the whole difficulty. A webhook that works right after a
-## restart and times out an hour later reads as a flaky pod, and every layer
-## reports healthy: the pod is Running, the Service has endpoints, and the error
-## surfaces in a THIRD component's log as a failure to write its own resource.
-## Hubble names it in one line — `(remote-node) <> …:10250 Policy denied DROPPED`.
+## Admission and conversion webhooks are called by the Kubernetes API server, so a namespace-wide default-deny
+## blocks them without these allows.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -42,13 +27,8 @@ spec:
       toPorts:
         - ports: [{ port: "9443", protocol: TCP }]
 ---
-## Temporal Worker Controller (ADR-0302). Its WorkerResourceTemplate validating
-## webhook is always on — not optional like the WorkerDeployment one — so the
-## apiserver must reach 9443 or every WorkerResourceTemplate write hangs.
-##
-## Egress needs nothing here: the controller only talks to the Kubernetes API and
-## the Temporal frontend, both already allowed by 00-baseline (kube-apiserver /
-## host / remote-node, and intra-namespace to temporal-frontend).
+## Temporal Worker Controller (ADR-0302). Its WorkerResourceTemplate validating webhook is always on — not optional
+## like the WorkerDeployment one — so the apiserver must reach 9443 or every WorkerResourceTemplate write hangs.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

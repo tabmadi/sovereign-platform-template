@@ -1,24 +1,4 @@
 // Package apierr defines the platform-wide HTTP error format (ADR-0303).
-// Every service returns this shape on 4xx and 5xx responses, and so does the edge,
-// so a generated client has one error branch rather than two.
-//
-// The shape is [RFC 9457] problem details. Two members carry the weight:
-//
-//   - title is STABLE and does not vary with the instance. It is the status
-//     reason phrase, so a client can switch on it without parsing prose.
-//   - detail is instance-specific and safe to show a user. Never a stack trace, a
-//     query, or an internal hostname — see [Internal], which is where that rule is
-//     easiest to break.
-//
-// type stays "about:blank" unless two errors share a status code and a client has
-// to tell them apart. That case takes a URN through [Error.WithType], never a
-// dereferenceable URL: a fetchable type would put an error taxonomy into the flat
-// public URL namespace ADR-0306 keeps free of one.
-//
-// instance is deliberately absent. trace_id identifies the occurrence and reaches
-// the trace, where an instance URL reaches nothing.
-//
-// [RFC 9457]: https://www.rfc-editor.org/rfc/rfc9457
 package apierr
 
 import (
@@ -75,12 +55,8 @@ func (e *Error) WithValidation(errs ...ValidationError) *Error {
 	return e
 }
 
-// WithTrace stamps the trace-id of the active span, so a user-reported error
-// reaches its trace. It is a no-op outside a recording span, which keeps a unit
-// test from having to build a tracer to construct an error.
-//
-// This lives here rather than in each handler because a handler that forgets it
-// produces an error nobody can find, and there is no signal that it was forgotten.
+// WithTrace stamps the trace-id of the active span, and is a no-op outside a recording span.
+// It lives here because a handler that forgets it produces an error nobody can find, with no signal it was forgotten.
 func (e *Error) WithTrace(ctx context.Context) *Error {
 	sc := trace.SpanContextFromContext(ctx)
 	if sc.HasTraceID() {
@@ -100,7 +76,6 @@ func (e *Error) Write(w http.ResponseWriter) {
 	}
 }
 
-// WriteContext stamps the trace-id from ctx, then writes.
 func (e *Error) WriteContext(ctx context.Context, w http.ResponseWriter) {
 	e.WithTrace(ctx).Write(w)
 }
@@ -133,23 +108,15 @@ func NotFound(resource string) *Error {
 
 func Conflict(detail string) *Error { return New(http.StatusConflict, detail) }
 
-// Internal is the one helper whose detail is NOT safe to pass through from an
-// underlying error: a driver or a client message routinely carries a query, a
-// hostname, or a credential. The cause is logged and the response says nothing.
-// Pass the cause so it reaches the log; it never reaches the body.
+// Internal is the one helper whose detail is not safe to pass through: a driver message routinely carries a query,
+// a hostname, or a credential. The cause is logged and never reaches the body.
 func Internal(cause string) *Error {
 	slog.Error("apierr: internal", "cause", cause)
 	return New(http.StatusInternalServerError, "an internal error occurred")
 }
 
-// ServeError is the ogen server's ErrorHandler: what answers a request the
-// generated server rejected before any handler ran — a malformed body, a parameter
-// that failed the spec's own validation, a required header that is absent.
-//
-// Without it ogen writes a bare 500 and a plain-text body, so a client sees a
-// server fault for its own mistake and is told to retry a request that can never
-// succeed. Wiring it in makes every rejection an RFC 9457 problem with the trace
-// id, exactly like the ones handlers return.
+// ServeError is the ogen server's ErrorHandler, answering a request the generated server rejected before any
+// handler ran. Without it ogen writes a bare 500, so a client sees a server fault for its own mistake.
 func ServeError(ctx context.Context, w http.ResponseWriter, _ *http.Request, err error) {
 	e, ok := As(err)
 	if !ok {
@@ -158,14 +125,8 @@ func ServeError(ctx context.Context, w http.ResponseWriter, _ *http.Request, err
 	e.WriteContext(ctx, w)
 }
 
-// As unwraps err to an *Error if possible.
-//
-// It also recognises the errors the GENERATED server produces before a handler is
-// reached: a malformed body, a parameter that fails the spec's own validation, a
-// required header that is absent. Those are the client's mistake and belong in the
-// 4xx range, and every service's NewError funnels through here — without this they
-// arrive as an unrecognised error and get answered with a 500, which tells a caller
-// to retry a request that can never succeed.
+// As unwraps err to an *Error, and recognises the errors the generated server produces before a handler is
+// reached. Those are the client's mistake and belong in the 4xx range; unrecognised, they would be answered 500.
 func As(err error) (*Error, bool) {
 	var e *Error
 	if errors.As(err, &e) {

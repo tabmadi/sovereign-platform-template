@@ -1,17 +1,6 @@
-# Nightly supply-chain inventory (ADR-0104, ADR-0501): verify the SBOM attestation
-# of every image pinned in committed values and file what is in it to Loki.
-#
-# WHY NIGHTLY AND NOT PER BUILD. The build record is filed by `ci:sign` at the
-# moment an image is signed, and it says what was BUILT. This says what each
-# environment is POINTED AT, which changes on a promotion rather than on a build —
-# and has to be re-answered anyway as new CVEs appear against images that did not
-# change at all. A fixed set of images walked once a night is a fixed cost.
-#
-# WHY IT MAY FAIL AND NOBODY IS PAGED. The job goes red when something pinned has no
-# verifiable SBOM, because a nightly that reports success while half the fleet is
-# unverifiable is one nobody reads twice. It feeds no alert and sits outside the
-# L1→L2→L3 incident funnel (ADR-0501) — this is a research surface, and nobody is
-# woken because an SBOM is a day old.
+# Nightly supply-chain inventory (ADR-0104, ADR-0501): verify each pinned image's SBOM attestation and file what
+# is in it. Nightly rather than per build, because this says what an environment is pointed at, which changes on
+# a promotion and has to be re-answered as new CVEs appear. It goes red and pages nobody: a research surface.
 name: supply-chain
 
 on:

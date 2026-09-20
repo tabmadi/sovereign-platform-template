@@ -1,6 +1,4 @@
-// Kratos self-service settings flow (ADR-0304, ADR-0400). Requires a session —
-// Kratos redirects the browser flow to login when unauthenticated. The shared
-// KratosFlow component renders the flow.
+// Kratos self-service settings flow (ADR-0304, ADR-0400); Kratos redirects to login without a session.
 import { getTranslations } from "next-intl/server";
 import { KratosFlow } from "@/components/auth/KratosFlow";
 

@@ -1,19 +1,4 @@
 # Mail delivery, watched from both ends (ADR-0307, routed by ADR-0502).
-#
-# ADR-0307 names the signal that matters and it is not the agent's: "the identity
-# flow's completion rate — a verification mail that never lands shows up as a drop
-# there, before a support ticket". The agent's own metrics say a message was
-# accepted for delivery, which is exactly what a message that is later dropped
-# also looks like.
-#
-# So there are two rules here and they answer different questions. The submission
-# rule asks whether this platform managed to hand mail over. The completion rule
-# asks whether mail arrived, and it is the one that catches a correctly signed
-# message rejected by a receiver for a reason nothing on this side logs.
-#
-# Both are `ticket`. Mail failing is not a minutes-matter outage — it is hours of
-# users unable to verify — and no receiver reaches a human within minutes anyway
-# (ADR-0502).
 groups:
   - name: mail.submission
     rules:
@@ -31,16 +16,8 @@ groups:
             The courier cannot hand messages to the submission endpoint. Verification
             and recovery mail is not being sent at all — this is upstream of
             deliverability, so DNS and DKIM are not the place to look first.
-      # Transactions that start and do not finish. maddy exposes NO queue-depth
-      # series — this rule previously read `maddy_queue_length`, which does not
-      # exist in 0.9.5 and therefore never fired. The three counters below are
-      # everything the agent publishes, read off a running instance:
-      # started, aborted, and failed commands by SMTP code.
-      #
-      # An aborted transaction is one maddy accepted and could not complete, which
-      # is the closest thing to "the queue is not draining" that the agent will say.
-      # A ratio rather than a count, so a busy platform and a quiet one alert at the
-      # same sensitivity.
+      # Transactions that start and do not finish. maddy exposes NO queue-depth series — this rule previously read
+      # `maddy_queue_length`, which does not exist in 0.9.5 and therefore never fired.
       - alert: MailTransactionsAborting
         expr: |
           sum(rate(maddy_smtp_aborted_transactions[30m]))
@@ -54,10 +31,7 @@ groups:
             More than a tenth of submission transactions are not completing. A
             receiver is deferring or refusing: check the DMARC aggregate reports and
             whether the egress IP is listed anywhere before changing configuration.
-      # Permanent rejections, which are the ones no retry will fix. 5xx from the
-      # receiving side means the message is refused rather than delayed, and the
-      # enhanced code says why — `5.7.x` is policy, which is where a signing or
-      # reputation problem lands.
+      # Permanent rejections, which are the ones no retry will fix.
       - alert: MailPermanentlyRejected
         expr: |
           sum(rate(maddy_smtp_failed_commands{smtp_code=~"5.."}[30m])) > 0
@@ -72,14 +46,7 @@ groups:
 
   - name: mail.identity-flow
     rules:
-      # ADR-0307's named signal, and the one that survives a correctly configured
-      # agent. A verification mail that is accepted by maddy, signed, and then
-      # silently discarded by the receiver produces no error anywhere on this
-      # platform — the only trace is that identities stop completing verification.
-      #
-      # It reads the ratio of verifications completed to registrations started. The
-      # windows are hours rather than minutes because that is how long a person
-      # takes to open an email, and a shorter window would alert on lunch.
+      # ADR-0307's named signal, and the one that survives a correctly configured agent.
       - alert: IdentityVerificationCompletionDropped
         expr: |
           (

@@ -1,32 +1,5 @@
 #!/usr/bin/env bash
-# Emit the developer-portal spec projections the Scalar-rendered portals consume
-# (ADR-0303, ADR-0305, ADR-0400). Each projection is ONE merged OpenAPI document,
-# not a file per service: the flat /api/<resource> namespace (ADR-0306) hides
-# service topology, so the portal is a single unified reference grouped by resource
-# tag — no per-service document switcher.
-#
-# The audience ladder (ADR-0303) is a single per-operation label — cluster →
-# internal → public — resolved from the operation's own `x-audience`, else the
-# service default (`info.x-audience`), else the fail-closed `cluster`. Projections
-# are a threshold on that ladder:
-#   - internal.json  audience >= internal (edge surface). The dev portal (behind the
-#                    /devportal session gate) renders this — first-party + public ops.
-#   - public.json    audience == public only — the anonymous public docs portal's
-#                    data (ships with a public API). `cluster` (east-west) ops are in
-#                    neither: they bypass the edge and are documented in the READMEs.
-#
-# Merge is safe because the flat namespace makes paths globally unique and the
-# duplicated shared components (Problem, WorkflowHandle, Error) are identical across
-# specs, so a deep merge collapses them. `tags` are rebuilt from the operations that
-# remain, which prunes tags orphaned by the filtering.
-#
-# `x-*` specification extensions (incl. the resolved `x-audience`) are projection-time
-# inputs only — the renderer never reads them — so they are stripped from the emitted
-# specs. That keeps the artifacts lean and avoids editor JSON-schema false-positives
-# ("Property is not allowed"). The source specs keep their extensions.
-#
-# Outputs are generated artifacts: git-committed, Biome-ignored, drift-checked by
-# ci:gen. YAML → JSON so the browser renderer needs no YAML parser.
+# Emit the developer-portal spec projections Scalar consumes — one merged document per portal, not a file per service (ADR-0303, ADR-0306).
 set -euo pipefail
 
 shopt -s nullglob
@@ -51,14 +24,8 @@ envelope='.openapi = "3.1.0"
   | .servers = [{"url": "/api"}]
   | .tags = ([.paths[][].tags // [] | .[]] | unique | map({"name": .}))'
 drop_empty_paths='del(.paths.* | select(tag == "!!map" and length == 0))'
-# Drop component schemas no longer referenced by any surviving path once the
-# audience filter has removed operations. Without this, an all-`cluster` service
-# (e.g. authz) whose operations are all filtered out would still leak its request/
-# response schemas into the merged components — its paths are gone but its schemas
-# orphan. `$refs` is every `$ref` remaining in the document (paths and the schemas
-# themselves, so schema-to-schema references keep their targets); a schema absent
-# from that set is unreachable and pruned. Shared schemas (Problem, WorkflowHandle)
-# stay because surviving responses still reference them.
+# Drop schemas no longer referenced once the audience filter has removed operations: an all-`cluster` service would otherwise leak its schemas into the merged components.
+# `$refs` covers paths and the schemas themselves, so schema-to-schema references keep their targets.
 prune_orphan_schemas='([.. | select(tag == "!!map" and has("$ref")) | .["$ref"]]) as $refs
   | .components.schemas |= with_entries(.key as $k | select($refs | any_c(. == "#/components/schemas/" + $k)))'
 

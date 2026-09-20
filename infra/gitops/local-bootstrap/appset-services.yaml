@@ -1,19 +1,6 @@
-# Local Services ApplicationSet (ADR-0201, ADR-0205). Identical to
-# bootstrap/appset-services.yaml except the list generator carries a single
-# { env: local } element and the git-files generator reads the local service
-# values (infra/gitops/services/local/values/*.yaml). One Application per service,
-# named `local-service-<svc>` (env-prefix; grouped by the `local` AppProject).
-# The frontend is intentionally absent locally: it runs as a host process and is
-# wired through the frontend-dev EndpointSlice (the imperative tail of cluster:up full).
-#
-# sync-wave "6" holds this back until the whole local-platform tier (admission "0",
-# stores "2", telemetry "3", core "4"), local-secrets ("1"), and local-gateway ("5")
-# are all
-# Synced+Healthy — the same CNI-stability/middleware/DB-credential dependencies as
-# prod, plus the per-service Secrets that local-secrets's sops-operator
-# materialises. Without this, service pods raced Cilium/CoreDNS warm-up and the
-# local registry on every `cluster:up full` after a `cluster:stop`, landing in
-# CrashLoopBackOff.
+# Local Services ApplicationSet (ADR-0201, ADR-0205). Identical to bootstrap/appset-services.yaml except the list
+# generator carries a single { env: local } element and the git-files generator reads the local service values
+# (infra/gitops/services/local/values/*.yaml).
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -27,13 +14,7 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own
-  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
-  # within seconds, auto-sync comes back, and self-heal reverts whatever
-  # scripts/service-deploy.sh just installed — the deploy reports success and the
-  # cluster keeps running the committed image. `cluster:add` is the whole
-  # working-tree path (ADR-0600), so the field it pauses is the one field this set
-  # must not own.
+  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -50,11 +31,9 @@ spec:
                 - { path: "infra/gitops/services/{{ .env }}/values/*.yaml" }
   template:
     metadata:
-      # The file extension is trimmed off deliberately: the app name is the handle
-      # every local script forms from the service name (`local-service-orders`), and
-      # `filenameNormalized` alone leaves `orders.yaml` there — a name no caller
-      # guesses, so the pause-auto-sync step in service-deploy.sh silently missed
-      # and Argo reverted every working-tree deploy.
+      # The file extension is trimmed off deliberately: the app name is the handle every local script forms from the
+      # service name (`local-service-orders`), and `filenameNormalized` alone leaves `orders.yaml` there — a name no
+      # caller guesses, so the pause-auto-sync step in service-deploy.sh silently missed and Argo reverted every
       name: "{{ .env }}-service-{{ trimSuffix \".yaml\" .path.filename }}"
       labels:
         env: "{{ .env }}"

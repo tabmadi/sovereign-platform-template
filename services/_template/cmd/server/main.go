@@ -1,8 +1,6 @@
 //go:build _template
 
-// Server entry point for the template service. new-service.sh copies this file
-// when scaffolding a new service and strips the build tag. It registers the
-// ogen-generated server backed by the handlers package (ADR-0303).
+// Server entry point for the template service; new-service.sh strips the build tag and rewrites _template.
 package main
 
 import (

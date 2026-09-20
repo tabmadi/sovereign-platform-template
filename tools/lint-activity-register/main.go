@@ -1,42 +1,5 @@
-// Command lint-activity-register checks that every activity a workflow calls is
-// registered on the worker that serves its task queue (ADR-0302).
-//
-// A workflow names its activities as STRINGS:
-//
-//	workflow.ExecuteActivity(ctx, "SetOrderTotalActivity", orderID, total)
-//
-// That is deliberate — it keeps the workflow package from importing the activities
-// package, so a workflow's determinism is not hostage to what an activity happens to
-// pull in. The cost is that the compiler cannot see the connection at all. Add an
-// activity, call it from the saga, forget the `w.RegisterActivity` line, and
-// everything builds, every unit test passes (the test environment registers its own
-// stubs), and the failure appears only when a real workflow runs:
-//
-//	unable to find activityType=SetOrderTotalActivity.
-//	Supported types: [CreateOrderActivity, GrantOrderAccessActivity, ...]
-//
-// The workflow then fails, the saga compensates, and the order lands in `failed`
-// with nothing in any log to say why — the message is in the workflow history, which
-// nobody reads until they already suspect the answer. That is a costly failure for
-// a defect a linter can see in the syntax tree, which is what this is.
-//
-// # What it compares
-//
-// Per service: the activity names in `internal/workflows/*.go` against the
-// registrations in `cmd/worker/main.go`. A registration is either
-//
-//	w.RegisterActivity(acts.SetOrderTotalActivity)              → method name
-//	w.RegisterActivityWithOptions(fn, activity.RegisterOptions{Name: "…"})
-//
-// Test files are skipped: the Temporal test environment registers its own stubs, and
-// those stubs are exactly what makes this defect invisible to the unit tests.
-//
-// # What it does NOT check
-//
-// That the SIGNATURES agree. A mismatch there is a serialization error at run time,
-// and checking it means resolving the activity's type across packages — the gate
-// would be several times the size for a failure that at least produces a legible
-// message. The registration is the silent one.
+// Command lint-activity-register checks that every activity a workflow names is registered on the worker serving its
+// task queue (ADR-0302).
 package main
 
 import (
@@ -69,10 +32,8 @@ func main() {
 	checked := 0
 
 	for _, svc := range services {
-		// `_template` is the scaffold a new service is copied from: its whole tree is
-		// behind a `//go:build _template` tag and its registrations are commented
-		// examples, so it is deliberately in the state this gate reports. It is
-		// checked by lint:template-build instead, which builds it under that tag.
+		// `_template` is behind a `//go:build _template` tag with commented example registrations; lint:template-build
+		// checks it under that tag.
 		if strings.HasPrefix(filepath.Base(svc), "_") {
 			continue
 		}

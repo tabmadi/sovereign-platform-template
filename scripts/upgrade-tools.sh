@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Checks .mise.toml tools against latest available versions and optionally upgrades them.
-# Uses --bump to cross major/minor boundaries and write new versions back to .mise.toml.
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 

@@ -1,24 +1,5 @@
 #!/usr/bin/env bash
-# One-shot in-cluster deploy from the WORKING TREE (ADR-0200, ADR-0205) — the
-# occasional "I need my uncommitted code in the cluster for edge/auth/e2e testing"
-# case. No watch loop: the daily loop is native execution.
-# Builds the image(s), loads them into the kind node, and helm-upgrades the same
-# chart prod uses with the local values overlay.
-#
-#   mise run service:deploy -- <svc>
-#
-# Two kinds of deployable, one chart. A Go SERVICE lives in services/<name> and
-# builds server (and worker) images from one multi-stage Dockerfile parameterised by
-# SERVICE/APP_CMD. An APP lives in apps/<name>, builds a single image from its own
-# Dockerfile, and is a deployable exactly when it has a local values file — which is
-# what keeps apps/admin out of this path (it ships inside the lowdefy chart).
-# Everything after the build is identical, because both are the same Helm chart with
-# the same values layout, so the split is confined to resolving the source and the
-# build recipe.
-#
-# If the full tier (ArgoCD) manages this service, its auto-sync is paused first so
-# self-heal does not revert your local image; re-enable with:
-#   argocd app set local-service-<svc> --sync-policy automated   (or just cluster:up full)
+# One-shot in-cluster deploy from the working tree, for edge, auth and e2e testing (ADR-0200, ADR-0205). No watch loop: the daily loop is native execution.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/cluster.sh"
@@ -52,22 +33,9 @@ fi
 k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
-# Bring up what this service declares it needs, before deploying it (ADR-0205,
-# ADR-0600). Without this a deploy onto a bare base silently CrashLoops: orders
-# wants Temporal and OpenFGA, catalog's values mount openfga-creds and point at an
-# in-cluster OpenFGA URL, and every service chart mounts a <svc>-db secret. The
-# dependency list is the service's own — the same declaration its native tasks use
-# — so the two paths cannot disagree about what the service needs.
-#
-# This is the failure mode we explicitly chose not to inherit: Tilt lets you enable
-# a subset and documents that it does NOT consider dependencies, which turns "why
-# is my service CrashLooping" into a scavenger hunt.
-# Read the declaration straight out of the service's own config rather than asking
-# mise to resolve it — `mise tasks deps` only resolves from inside the service
-# directory, and grepping the source of truth keeps this script explicit.
-# Comment lines are excluded and the name must start with a letter: a prose
-# reference to `dep:*` in a comment otherwise matches with an EMPTY component name,
-# and dep-apply.sh then fails its usage guard on an argument nobody wrote.
+# Bring up what this service declares it needs (ADR-0205, ADR-0600): without it a deploy onto a bare base silently CrashLoops.
+# Read straight from the service's config — `mise tasks deps` only resolves from inside the service directory.
+# Comment lines are excluded and the name must start with a letter, or a prose `dep:*` matches with an empty component name.
 deps="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'dep:[a-z][a-z-]*' | sort -u || true)"
 # db-secrets is an in-cluster-only need: a natively-run service reads .env instead,
 # so it is not in the service's own task graph and is added on this path alone. An
@@ -75,14 +43,8 @@ deps="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'dep:[a-z][a-
 if [ "$KIND" = service ]; then
   deps="${deps} dep:db-secrets"
 fi
-# ONLY ON THE INNER LOOP. A `dep:*` is a lightweight STAND-IN — a plain Postgres,
-# `temporal server start-dev`, an in-memory OpenFGA (ADR-0600) — and the full tier
-# already runs the real component, deployed by Argo from the same charts production
-# uses. Applying a stand-in there does not add a missing dependency: it adds a
-# SECOND database beside CNPG's, in the same namespace, for a service whose values
-# point at the real one. Measured: `cluster:add -- analytics` on the full tier
-# created `deployment/postgres` next to a healthy CNPG cluster and then failed
-# waiting for it to roll out, so the service it was asked to deploy never got built.
+# Only on the inner loop: a `dep:*` is a stand-in (ADR-0600), and the full tier already runs the real component.
+# Applying one there adds a second database beside CNPG's for a service whose values point at the real one.
 if [ "$(cluster_tier)" = "full" ]; then
   echo "→ full tier: dependencies come from the platform charts, not stand-ins"
   deps=""
@@ -91,16 +53,8 @@ for dep in $deps; do
   bash scripts/dep-apply.sh "${dep#dep:}"
 done
 
-# The sibling services this one calls, from the same declaration (svc:*). In-cluster
-# they resolve by DNS, so they must be PRESENT — but they must not be port-forwarded
-# the way the native path forwards them, so this recurses into deploy rather than
-# calling svc-apply.sh. A deployed orders whose catalog is missing is the same
-# scavenger hunt as one whose Temporal is missing; only the symptom moves (a failing
-# checkout instead of a CrashLoop).
-#
-# DEPLOYING_SERVICES carries the visited set through the recursion. Service call
-# graphs are supposed to be acyclic, but nothing enforces that, and an accidental
-# cycle here would fork-bomb rather than fail — so it is cut off explicitly.
+# Siblings resolve by DNS in-cluster, so they must be present but not port-forwarded; this recurses into deploy rather than calling svc-apply.sh.
+# DEPLOYING_SERVICES carries the visited set: nothing enforces an acyclic call graph, and a cycle would fork-bomb.
 svcs="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'svc:[a-z][a-z-]*' | sort -u || true)"
 export DEPLOYING_SERVICES="${DEPLOYING_SERVICES:-} ${SVC}"
 for s in $svcs; do
@@ -119,29 +73,13 @@ for s in $svcs; do
   fi
 done
 
-# publish_image — get a locally built image onto the ACTIVE TIER's nodes.
-#
-# One mechanism for both tiers, because both are kind (ADR-0600): `kind load
-# docker-image` copies from the host's image store straight into every node of the
-# named cluster, so a three-node tier needs no registry round trip and no pull
-# credential for an image that already exists on this machine.
-#
-# This is the imperative path, where there is nothing to reconcile from git. What
-# Argo deploys still comes from the local registry by a `registry.localhost:5000`
-# reference, exactly as a deployed environment pulls from its own registry — that
-# path is cluster:up full's build_push, not this one.
+# One mechanism for both tiers, because both are kind (ADR-0600): `kind load docker-image` copies from the host's store into every node, with no registry round trip.
 publish_image() {
   kind load docker-image "$1" --name "$(cluster_name)" >/dev/null
 }
 
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
-# The repository carries the local registry's name even though nothing is pushed to
-# it: the image is `kind load`ed onto the node and the helm call below forces
-# `IfNotPresent`, so the name is never resolved over the network. It still has to be
-# an ALLOW-LISTED name — Kyverno's known-registry policy (ADR-0104) matches the
-# reference string against `<repo>:*` patterns built from image-allowlist.yaml, and a
-# bare `frontend:local-…` matches none of them. Admission then denies the pod, the
-# rollout times out, and the failure names the allow-list rather than this line.
+# The name is never resolved over the network, and must still be allow-listed: Kyverno matches the reference against `<repo>:*` patterns from image-allowlist.yaml (ADR-0104).
 REPO="${REGISTRY}:5000/${IMAGE}"
 WORKER_REPO="${REGISTRY}:5000/${SVC}-worker"
 SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
@@ -160,12 +98,7 @@ if [ "$KIND" = service ]; then
     --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     -f "${SVC_DIR}/Dockerfile" .
 else
-  # The app's Dockerfile takes its own build identity (SERVICE_VERSION) and, unlike
-  # a Go binary, bakes one env-specific value: `output: "standalone"` freezes
-  # next.config into server.js, so the server-action CSRF allowlist is decided at
-  # BUILD time. Prod builds leave it empty and rely on same-origin (ADR-0306); this
-  # image is local-only and pinned to one host anyway, so it is passed here from the
-  # same values file the pod reads it from at runtime — one origin, one source.
+  # `output: "standalone"` freezes next.config into server.js, so the server-action CSRF allowlist is decided at build time (ADR-0306).
   docker build -t "${REPO}:${TAG}" \
     --build-arg "SERVICE_VERSION=${REV}" \
     --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' "$VALUES")" \
@@ -194,10 +127,6 @@ if [ -n "$APP" ]; then
 fi
 
 echo "→ helm upgrade ${SVC} (working-tree image ${TAG})"
-# --take-ownership: when the full tier normally manages this service, its resources
-# are owned by ArgoCD (Server-Side Apply), not a Helm release. Helm 4 refuses to
-# adopt them without this flag. Auto-sync is already paused above, so taking
-# ownership for the local override is safe; a re-run of cluster:up full restores GitOps.
 h upgrade --install "$SVC" infra/helm/service -n "$NS" -f "$VALUES" \
   --take-ownership --force-conflicts --set image.pullPolicy=IfNotPresent "${SET[@]}" --timeout 5m
 k rollout restart "deploy/${SVC}-server"

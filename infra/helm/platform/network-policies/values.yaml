@@ -1,37 +1,16 @@
-# When true, allow the log/trace backends (loki/tempo) egress to external
-# HTTPS — needed in prod, where object storage is a real off-cluster S3 bucket
-# (ADR-0206). Local runs against the in-cluster store (covered by intra-namespace
-# egress), so it stays false and no pod reaches the internet at all.
+# When true, allow the log/trace backends (loki/tempo) egress to external HTTPS — needed in prod, where object
+# storage is a real off-cluster S3 bucket (ADR-0206). Local runs against the in-cluster store (covered by
+# intra-namespace egress), so it stays false and no pod reaches the internet at all.
 externalObjectStorage: false
 
-# The namespace the node-level OTel collector runs in (ADR-0200 — it needs hostPath
-# and hostPorts, and PSA's exception unit is the namespace). Every platform workload
-# exports telemetry to it, and the baseline's intra-namespace allow does not reach
-# across a namespace boundary, so this name appears in four rules in
-# templates/40-observability.yaml. It matches `namespace` in the otel-agent chart.
+# The namespace the node-level OTel collector runs in (ADR-0200 — it needs hostPath and hostPorts, and PSA's
+# exception unit is the namespace).
 otelAgentNamespace: otel-agent
 
 # The cluster's pod CIDR (kind's kubeadm default, 10.244.0.0/16 — ADR-0206).
-#
-# Used ONLY by the "stale peer" allows (20-temporal.yaml, 40-observability.yaml),
-# where a workload keeps dialling the IP of a pod that has since been deleted.
-# Cilium resolves a pod IP to an identity, and a deleted pod has none, so the
-# address falls back to the `world` identity and every identity-based allow —
-# including the baseline's intra-namespace rule — stops matching it. The traffic
-# is then denied, which is what fills PolicyDropsDetected after any rollout.
-#
-# Matching by CIDR is the only construct that survives that: `toEntities: cluster`
-# is identity-based and has the same blind spot. It is deliberately paired with a
-# tight port list at each use site, so it grants "may reach a pod address on the
-# ports this workload already uses", not "may reach the pod network".
-#
-# Override per env if the cluster is not on the kind default.
 podCIDR: "10.244.0.0/16"
 
-# Mirrors the gate in the mailpit chart (infra/helm/platform/mailpit). Both charts
-# read the same per-env overlay, so `mailpit.enabled: false` drops the sink and the
-# policy admitting Kratos to it together, rather than leaving a policy naming a
-# workload that is not there.
+# Mirrors the gate in the mailpit chart (infra/helm/platform/mailpit).
 mailpit:
   enabled: true
 
@@ -44,11 +23,7 @@ alertmanager:
 # policy file stops being read.
 maddyEnabled: false
 
-# Mirrors the gate in the edge-errors chart (infra/helm/platform/edge-errors). Both
-# read the same per-env overlay, so one flag drops the responder and the rule that
-# admits Traefik to it together — a rule naming an endpoint that does not exist
-# selects nothing, but it is also a claim about the platform that stopped being
-# true.
+# Mirrors the gate in the edge-errors chart (infra/helm/platform/edge-errors).
 edgeErrors:
   enabled: true
 
@@ -58,15 +33,10 @@ edgeErrors:
 forgejo:
   enabled: false
 
-# Whether zot mirrors the upstream registries (ADR-0105), which decides whether it
-# is allowed to reach them. On, because the zot chart enables its sync extension by
-# default; an environment that turns that extension off should turn this off with
-# it, so the registry keeps no egress it does not use.
+# Whether zot mirrors the upstream registries (ADR-0105), which decides whether it is allowed to reach them.
 registryMirror: true
 
-# Whether this environment issues PUBLIC certificates (ADR-0205), which decides
-# whether cert-manager may reach the CA and the DNS provider. Off by default and
-# turned on by the same per-env value that turns the issuer on, so the two cannot
-# disagree.
+# Whether this environment issues PUBLIC certificates (ADR-0205), which decides whether cert-manager may reach the
+# CA and the DNS provider.
 publicTls:
   enabled: false

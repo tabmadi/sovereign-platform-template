@@ -1,11 +1,4 @@
 // Package kratos is this service's client for the Kratos admin API.
-//
-// It exists as a package rather than as methods on the handlers because two
-// callers need it and they are not in the same process: the HTTP handlers read
-// and update identities for the console (ADR-0401), and the operator-registration
-// activity creates one (ADR-0304). Only authz may reach the admin API at all
-// (network-policies/30-ory.yaml), which is why every other component asks this
-// service rather than Kratos.
 package kratos
 
 import (
@@ -23,7 +16,6 @@ import (
 	authzsdk "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/authz"
 )
 
-// SchemaUserV1 is the Kratos identity schema id (user.v1.json).
 const SchemaUserV1 = "user_v1"
 
 // Admin is the admin-API client. The zero value is not usable; call New.
@@ -85,12 +77,9 @@ type address struct {
 	Status   string `json:"status"`
 }
 
-// Identity is the subset of a Kratos admin identity this service reads and
-// writes. schema_id and state are carried through unmodified on update — Kratos PUT
-// replaces the whole record, so dropping them would reset the identity. So is
-// metadata_public, which this service never edits and must not erase: the edge
-// builds X-Org-Id and X-Roles out of it (ADR-0304), so writing the record back
-// without it would silently unassign an operator's org on the next name change.
+// Identity is the subset this service reads and writes. schema_id, state and metadata_public are carried through
+// unmodified: Kratos PUT replaces the whole record, and the edge builds X-Org-Id and X-Roles out of
+// metadata_public (ADR-0304), so writing it back without them would unassign an operator's org.
 type Identity struct {
 	ID             string          `json:"id,omitempty"`
 	SchemaID       string          `json:"schema_id,omitempty"`
@@ -103,7 +92,6 @@ type Identity struct {
 	} `json:"traits"`
 }
 
-// Flatten projects the Kratos identity onto the admin-facing Identity shape.
 func (k *Identity) Flatten() authzsdk.Identity {
 	id := authzsdk.Identity{ID: k.ID, Email: k.Traits.Email, Operator: authzsdk.NewOptBool(k.Traits.Operator)}
 	if k.Traits.Name != "" {
@@ -112,10 +100,8 @@ func (k *Identity) Flatten() authzsdk.Identity {
 	return id
 }
 
-// ListIdentities reads GET /admin/identities and flattens each identity's
-// traits. Only per_page (page_size) is forwarded — this Kratos paginates by keyset,
-// where `page` is an opaque token, not a 1-based offset; a numeric page returns an
-// empty set. Zero perPage lets Kratos apply its own default.
+// ListIdentities: Only per_page is forwarded: this Kratos paginates by keyset, where `page` is an opaque token and a
+// numeric page returns an empty set.
 func (a *Admin) ListIdentities(ctx context.Context, perPage int) ([]authzsdk.Identity, error) {
 	u := a.baseURL + "/admin/identities"
 	q := url.Values{}
@@ -137,7 +123,6 @@ func (a *Admin) ListIdentities(ctx context.Context, perPage int) ([]authzsdk.Ide
 	return out, nil
 }
 
-// GetIdentity fetches one full identity by id.
 func (a *Admin) GetIdentity(ctx context.Context, id string) (*Identity, error) {
 	var out Identity
 	err := a.do(ctx, http.MethodGet, a.identityURL(id), nil, http.StatusOK, &out)
@@ -147,7 +132,6 @@ func (a *Admin) GetIdentity(ctx context.Context, id string) (*Identity, error) {
 	return &out, nil
 }
 
-// PutIdentity writes a full identity back (Kratos PUT replaces the record).
 func (a *Admin) PutIdentity(ctx context.Context, ident *Identity) (*Identity, error) {
 	body := *ident
 	body.ID = "" // id is the path, not part of the update body

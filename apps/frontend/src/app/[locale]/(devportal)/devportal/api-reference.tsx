@@ -6,11 +6,7 @@ import { ApiReferenceReact } from "@scalar/api-reference-react";
 // same-origin (style-src 'self'), no CDN.
 import "@scalar/api-reference-react/style.css";
 
-// Scalar mounts a Vue app into a ref on the client (ADR-0305/0014). One merged
-// document (gen:openapi-public) → a single unified sidebar grouped by resource
-// tag, not a per-service switcher: the flat /api namespace (ADR-0306) hides
-// service topology. Served same-origin under the /devportal session gate; the
-// built-in "try it" hits the real edge.
+// One merged document rather than a per-service switcher: the flat /api namespace hides service topology (ADR-0306). Served same-origin under the /devportal session gate.
 export function ApiReference() {
   return (
     <ApiReferenceReact

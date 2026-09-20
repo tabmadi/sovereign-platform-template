@@ -1,47 +1,5 @@
-# Platform ApplicationSets (ADR-0201). The platform tier is split into five
-# dependency layers, each its own ApplicationSet so ArgoCD can order them. Each
-# layer is named for the reason it must precede the next, and a chart belongs to
-# the last layer whose successors still resolve it:
-#
-#   admission (0) — namespaces + their PSA profile, kyverno, priority classes,
-#                   resource-governance, network-policies, cert-manager,
-#                   sops-operator, local-path. Admission is evaluated once, at
-#                   creation, so a policy arriving after the workload it gates has
-#                   already missed it; an operator must precede the CR it decrypts
-#                   (ADR-0202). Cilium and Argo CD are NOT here — both precede Argo
-#                   and are installed imperatively in every tier.
-#   stores (2)    — postgres, seaweedfs. Need the Secrets waves 0+1 produce, and
-#                   every layer below reads one of them.
-#   telemetry (3) — observability, alertmanager. Before the collector: otel-agent
-#                   exports to tempo and loki BY NAME, so a later agent would ship
-#                   to an address that does not resolve yet. After the stores,
-#                   because Loki and Tempo write to the buckets.
-#   core (4)      — zot, otel-agent, ory, edge-errors, mailpit, maddy, temporal,
-#                   temporal-worker-controller, openfga. Everything a SERVICE
-#                   resolves by name. zot is the exception and says so: no DNS
-#                   resolves it, but deployed nodes pull images from it.
-#   consoles (7)  — pgweb, headlamp, lowdefy. Nothing resolves a console
-#                   (ADR-0501). Last, because a wave that holds one makes every
-#                   later wave wait for a dashboard.
-#
-# WHY FIVE SETS AND NOT PER-CHART SYNC-WAVES: sync-waves on the Applications a
-# single ApplicationSet generates are INERT — those Applications are created by
-# the ApplicationSet controller, not synced as resources of a parent, so ArgoCD
-# never sequences them (it applies them all concurrently). Real ordering exists
-# only at the granularity of a root-app-of-apps child. Each set here is such a
-# child; its own sync-wave (the metadata annotation below, NOT the template one)
-# is what root honours. The gate is made real by the custom ApplicationSet health
-# check (infra/helm/platform/argocd/values.yaml), which reports a set Healthy
-# only once every Application it generated is Synced+Healthy — so wave 2 waits for
-# every wave-0/1 component to actually be up, and so on. Charts WITHIN a tier are
-# still applied concurrently and must tolerate that.
-#
-# Wave ladder (root children): -10 projects · 0 admission · 1 secrets · 2 stores ·
-# 3 telemetry · 4 core · 5 gateway · 6 services · 7 consoles.
-#
-# The five sets share an identical template body (the same auth valueFiles /
-# fileParameters wiring as before; non-Ory/OpenFGA charts ignore the extra keys).
-# Only the generator's directory list and the set's own sync-wave differ.
+# Platform ApplicationSets (ADR-0201). The platform tier is split into five dependency layers, each its own
+# ApplicationSet so ArgoCD can order them.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -55,13 +13,7 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own
-  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
-  # within seconds, auto-sync comes back, and self-heal reverts whatever
-  # scripts/platform-deploy.sh just installed — the deploy reports success and the
-  # cluster keeps running the committed image. `cluster:add` is the whole
-  # working-tree path (ADR-0600), so the field it pauses is the one field this set
-  # must not own.
+  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -77,18 +29,11 @@ spec:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               directories:
-                  # Namespaces + their Pod Security Admission profile (ADR-0200).
-                  # First in the base tier and sync-wave -1 inside it: a namespace
-                  # labelled after its pods are admitted governs nothing, because
-                  # PSA is an admission check.
+                  # Namespaces + their Pod Security Admission profile (ADR-0200). First in the base tier and sync-wave -1 inside it:
+                  # a namespace labelled after its pods are admitted governs nothing, because PSA is an admission check.
                 - { path: "infra/helm/platform/namespaces" }
-                  # The default StorageClass (ADR-0200). Base tier, and ahead of
-                  # the data tier by construction: a PVC created before a default
-                  # StorageClass exists stays Pending with no class to resolve, and
-                  # nothing re-binds it when one appears. Talos ships no
-                  # provisioner, so without this every stateful chart hangs at its
-                  # first volume. The laptop tier leaves it off — kind brings its
-                  # own.
+                  # The default StorageClass (ADR-0200). Base tier, and ahead of the data tier by construction: a PVC created before
+                  # a default StorageClass exists stays Pending with no class to resolve, and nothing re-binds it when one appears.
                 - { path: "infra/helm/platform/local-path" }
                   # Admission control (ADR-0104). In the BASE tier because a
                   # policy that arrives after the workloads it gates has already
@@ -97,47 +42,11 @@ spec:
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
-                  # ADR-0204 guardrails (PriorityClass, LimitRange, ResourceQuota,
-                  # PDB). Base tier because a LimitRange only defaults pods created
-                  # AFTER it exists, and the PriorityClasses must exist before any
-                  # workload names one — a pod naming a missing class is rejected.
+                  # ADR-0204 guardrails (PriorityClass, LimitRange, ResourceQuota, PDB).
                 - { path: "infra/helm/platform/resource-governance" }
                 - { path: "infra/helm/platform/temporal-worker-controller-crds" }
-                # CILIUM AND ARGO CD ARE DELIBERATELY NOT HERE, in any tier.
-                #
-                # Neither can be installed by the thing it is a prerequisite of:
-                # no pod schedules before the CNI exists, and Argo cannot apply
-                # its own first install. Both come up imperatively ahead of Argo
-                # (scripts/lib/cluster.sh and scripts/cluster.sh / the equivalent
-                # prod bootstrap), which is the one-time `kubectl apply` step
-                # ADR-0201 permits.
-                #
-                # Listing either here does not merely duplicate that install — it
-                # BREAKS it. Every Application this set generates targets the
-                # `platform` namespace, while Cilium runs in `kube-system` and
-                # Argo CD in `argocd`, and both charts' RBAC is CLUSTER-SCOPED:
-                # the rendered ClusterRoleBinding keeps its name and rebinds the
-                # subject to `platform:<sa>`, overwriting the correct binding.
-                #
-                # Measured on a three-node cluster, both faults reproduced from a
-                # clean install:
-                #
-                #   kubectl get clusterrolebinding cilium-operator -o \
-                #     jsonpath='{.subjects[0].namespace}'            -> platform
-                #   kubectl auth can-i get namespaces --as=system:\
-                #     serviceaccount:kube-system:cilium-operator      -> no
-                #
-                # on a cluster whose ClusterRole granted exactly that verb. The
-                # operator then crashloops on `namespaces "kube-system" is
-                # forbidden` while every agent still reports healthy; new pods
-                # stop getting identities and sit in ContainerCreating with no
-                # events at all.
-                #
-                # Argo CD fails the same way one level up — its own controller
-                # loses cluster access and reports
-                # `namespaces "platform" is forbidden: User
-                # "system:serviceaccount:argocd:argocd-application-controller"`,
-                # so every other Application in the set stops syncing.
+                # CILIUM AND ARGO CD ARE DELIBERATELY NOT HERE, in any tier. Neither can be installed by the thing it is a
+                # prerequisite of: no pod schedules before the CNI exists, and Argo cannot apply its own first install.
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
@@ -152,15 +61,12 @@ spec:
         targetRevision: master
         path: "{{ .path.path }}"
         helm:
-          # Stable Helm release name = chart basename, so resources are named the
-          # same under ArgoCD as under a direct `helm install <chart>` (a bare
-          # release name would prefix every resource with the app name and break
-          # in-cluster DNS / cross-component refs).
+          # Stable Helm release name = chart basename, so resources are named the same under ArgoCD as under a direct `helm
+          # install <chart>` (a bare release name would prefix every resource with the app name and break in-cluster DNS /
+          # cross-component refs).
           releaseName: "{{ .path.basename }}"
-          # Auth single-source (Phase 0.4): the Ory app pulls kratos/oathkeeper
-          # config from the canonical infra/auth tree; OpenFGA pulls its schema.
-          # Non-Ory/OpenFGA charts ignore these extra keys. The per-env file layers
-          # last so its host/dsn/secret overrides win (later valueFiles precede).
+          # Auth single-source (Phase 0.4): the Ory app pulls kratos/oathkeeper config from the canonical infra/auth tree;
+          # OpenFGA pulls its schema.
           valueFiles:
             # First, so anything below can still override it: the deletions of
             # upstream defaults that a wrapper chart's own values.yaml cannot
@@ -206,13 +112,7 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own
-  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
-  # within seconds, auto-sync comes back, and self-heal reverts whatever
-  # scripts/platform-deploy.sh just installed — the deploy reports success and the
-  # cluster keeps running the committed image. `cluster:add` is the whole
-  # working-tree path (ADR-0600), so the field it pauses is the one field this set
-  # must not own.
+  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -291,13 +191,7 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own
-  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
-  # within seconds, auto-sync comes back, and self-heal reverts whatever
-  # scripts/platform-deploy.sh just installed — the deploy reports success and the
-  # cluster keeps running the committed image. `cluster:add` is the whole
-  # working-tree path (ADR-0600), so the field it pauses is the one field this set
-  # must not own.
+  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -370,22 +264,13 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: core
   annotations:
-    # Wave 4: everything a service resolves by name — its identity provider, its
-    # authorization store, its workflow engine, the collector it ships telemetry to,
-    # and the mail sink the courier submits to. zot is here for the deployed shape
-    # rather than for DNS: nodes pull images from it, so it precedes anything that
-    # starts later, and it needs the wave-2 bucket.
+    # Wave 4: everything a service resolves by name — its identity provider, its authorization store, its workflow
+    # engine, the collector it ships telemetry to, and the mail sink the courier submits to.
     argocd.argoproj.io/sync-wave: "4"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own
-  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
-  # within seconds, auto-sync comes back, and self-heal reverts whatever
-  # scripts/platform-deploy.sh just installed — the deploy reports success and the
-  # cluster keeps running the committed image. `cluster:add` is the whole
-  # working-tree path (ADR-0600), so the field it pauses is the one field this set
-  # must not own.
+  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -404,28 +289,17 @@ spec:
                 # The registry (ADR-0105). Wave 3 rather than beside the store: it
                 # reads the bucket, so it starts after the data tier is Healthy.
                 - { path: "infra/helm/platform/zot" }
-                  # The forge (ADR-0102). Renders nothing unless an environment
-                  # enables it, which none do by default — deploying the forge that
-                  # hosts this repository from the Argo instance that syncs it is
-                  # the bootstrap circularity, and it is a decision rather than a
-                  # default.
+                  # The forge (ADR-0102).
                 - { path: "infra/helm/platform/forgejo" }
-                  # The public ACME issuer and the edge's wildcard certificates
-                  # (ADR-0205). Core tier, not base: a DNS-01 solver needs the
-                  # token the secrets tier (wave 1) delivers, and an Application
-                  # stays Progressing while an issuer it owns is not Ready — so
-                  # in the base tier it holds wave 0 open against a secret only a
-                  # later wave can produce.
+                  # The public ACME issuer and the edge's wildcard certificates (ADR-0205).
                 - { path: "infra/helm/platform/public-tls" }
                   # The node-level collector, in a namespace of its own because it
                   # is the one platform workload needing hostPath and hostPorts
                   # (ADR-0200). Same tier as the backends it exports to.
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
-                  # The edge's RFC 9457 error bodies (ADR-0305). Beside ory
-                  # because Oathkeeper is what raises most of the responses it
-                  # rewrites, and every denial the edge issues makes a subrequest
-                  # here.
+                  # The edge's RFC 9457 error bodies (ADR-0305). Beside ory because Oathkeeper is what raises most of the responses
+                  # it rewrites, and every denial the edge issues makes a subrequest here.
                 - { path: "infra/helm/platform/edge-errors" }
                   # The non-production mail sink Kratos's courier submits to
                   # (ADR-0307). Beside ory because it is only useful to it, and
@@ -492,20 +366,11 @@ metadata:
     app.kubernetes.io/component: consoles
   annotations:
     # Wave 7: LAST, and the rule is the whole reason — nothing resolves a console.
-    # These are read surfaces over the platform (ADR-0501), and the gateway's ops
-    # routes are IngressRoutes, which answer as soon as their backend appears. A wave
-    # that holds one makes every later wave wait for a dashboard.
     argocd.argoproj.io/sync-wave: "7"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own
-  # reconcile. Without this, `spec.syncPolicy` is re-applied from the template
-  # within seconds, auto-sync comes back, and self-heal reverts whatever
-  # scripts/platform-deploy.sh just installed — the deploy reports success and the
-  # cluster keeps running the committed image. `cluster:add` is the whole
-  # working-tree path (ADR-0600), so the field it pauses is the one field this set
-  # must not own.
+  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy

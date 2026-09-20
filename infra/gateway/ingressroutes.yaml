@@ -1,22 +1,8 @@
-# Shared Traefik IngressRoutes (ADR-0305, ADR-0306). Per-service /api/<svc> routes
-# are emitted by the service Helm chart (infra/helm/service/templates/ingressroute.yaml)
-# on the product apex. These are the cross-cutting OPS-TIER routes.
-#
-# Trust-tier split (ADR-0306): every operator dashboard lives on its own origin
-# `{tool}.ops.<host>`, never on a product path. HostRegexp keeps the manifests
-# host-agnostic (env parity, ADR-0205) — `^{tool}\.ops\..+` matches
-# {tool}.ops.dev.localtest.me locally and {tool}.ops.<apex> in every deployed env.
-# The `*.ops.<host>` wildcard cert (secret wildcard-ops-tls) covers all of them.
-#
-# Each route is behind the ops forward-auth (Oathkeeper validates an AAL2 operator
-# session and the per-tool `dashboard:<tool>#view` grant — ADR-0304/0017) and the
-# identity-header strip + security-headers middlewares.
+# Shared Traefik IngressRoutes (ADR-0305, ADR-0306). Per-service /api/<svc> routes are emitted by the service Helm
+# chart (infra/helm/service/templates/ingressroute.yaml) on the product apex.
 ---
-# Hubble UI (ADR-0206, ADR-0501) — Cilium network-flow visibility / service map
-# (service in kube-system, cross-namespace ref like Argo). Grafana owns detail
-# (RED/SLO/logs/traces/profiling); Hubble UI owns the interactive map + drop
-# investigation. Known trade-off (ADR-0501): it collapses workloads sharing
-# `app.kubernetes.io/name` (all Temporal roles → "temporal").
+# Hubble UI (ADR-0206, ADR-0501) — Cilium network-flow visibility / service map (service in kube-system,
+# cross-namespace ref like Argo).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -93,11 +79,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Argo CD (ADR-0201). server.insecure is on, so TLS terminates at Traefik and
-# argocd-server serves http on :80. Argo is installed into its own `argocd`
-# namespace (not `platform`), so the service ref is cross-namespace — the same
-# pattern as Hubble UI in kube-system. This needs Traefik allowCrossNamespace, on
-# locally via the committed Traefik chart (infra/helm/platform/traefik/values.yaml).
+# Argo CD (ADR-0201). server.insecure is on, so TLS terminates at Traefik and argocd-server serves http on :80.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -148,15 +130,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# SeaweedFS admin (ADR-0306, ADR-0207) — non-prod only, admin UI at root on
-# :23646, and the sole exposed surface of the store. The master and filer UIs are
-# diagnostic and are reached by port-forward: an origin per internal view
-# multiplies CSP, rate-limit and session surface for no capability this one lacks.
-#
-# This gate is the only one on the UI: `weed` is started without
-# `-admin.password`, so it registers no login (see the chart's `adminAuth`). The
-# network policy admits :23646 from the gateway's namespace alone, so the origin
-# cannot be reached around the gate from inside.
+# SeaweedFS admin (ADR-0306, ADR-0207) — non-prod only, admin UI at root on :23646, and the sole exposed surface
+# of the store.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -261,17 +236,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# zot's console (ADR-0105, ADR-0306). The SAME pod as the `registry` route below,
-# on a second origin with a different gate — which is the whole point of separating
-# them. A browser reaching the catalogue is an operator and belongs behind the ops
-# chain; a containerd pulling from it is not and cannot pass one.
-#
-# This origin targets the console-proxy port (5001), not the registry port. The
-# proxy adds the pull identity's credential so the operator the ops chain already
-# vouched for is not asked for a second login — an anonymousPolicy would smooth it
-# over too, but it opens every pull on `registry.<host>` to do it (ADR-0105). The
-# registry route below stays on 5000 and reaches zot directly, so the credential is
-# added on the console path alone.
+# zot's console (ADR-0105, ADR-0306). The SAME pod as the `registry` route below, on a second origin with a
+# different gate — which is the whole point of separating them.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -296,25 +262,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# The registry (ADR-0105), and the one origin at the edge that is NOT gated on an
-# operator session.
-#
-# Everything else here is a browser tool, so forward-auth to Oathkeeper is the
-# right gate. A registry client is not a browser: `docker login`, containerd and
-# BuildKit speak the OCI distribution spec's own Basic/Bearer challenge and follow
-# no redirect to a login page. Putting the ops chain in front of this route makes
-# every push and every pull fail with an HTML redirect the client cannot read.
-#
-# What guards it instead is zot's own htpasswd (`ci` may push, `cluster` may pull,
-# anonymous gets nothing — ADR-0105), which is an authentication the client can
-# actually satisfy. That is why the host is `registry.<host>` rather than
-# `registry.ops.<host>`: the `ops.` label is the scope of the operator cookie
-# (ADR-0306), and an origin that never sees that cookie must not sit inside it.
-#
-# Pulls BY THE CLUSTER do not come through here at all — a kubelet reaches the
-# Service directly, which is what the `host`/`remote-node` ingress allow in the
-# network policy is for. This route exists for the pipeline that pushes, and for a
-# person debugging what is in the registry.
+# The registry (ADR-0105), and the one origin at the edge that is NOT gated on an operator session. Everything
+# else here is a browser tool, so forward-auth to Oathkeeper is the right gate.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -333,17 +282,8 @@ spec:
   tls:
     secretName: wildcard-tls
 ---
-# The identity API (ADR-0304, ADR-0305). Kratos's self-service endpoints, on the
-# PRODUCT origin under `/auth`, because the session cookie is the product origin's.
-#
-# This route lived only in the local tier's edge file, so a deployed environment
-# had a login PAGE and nowhere for it to submit: the page redirects the browser to
-# `/auth/self-service/login/browser` to start a flow, and that path 404'd — which
-# reads as a broken frontend rather than a missing route. Every tier syncs this
-# directory, so it belongs here.
-#
-# The UI pages under `/auth/login` and friends are deliberately NOT matched: they
-# are the frontend's, and fall through to it.
+# The identity API (ADR-0304, ADR-0305). Kratos's self-service endpoints, on the PRODUCT origin under `/auth`,
+# because the session cookie is the product origin's.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

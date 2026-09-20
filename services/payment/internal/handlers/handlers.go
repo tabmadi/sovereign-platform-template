@@ -1,6 +1,4 @@
 // Package handlers implement the ogen-generated payment.Handler interface (ADR-0303).
-// Hand-written code imports the generated schema types and the sqlc store; it
-// never shadows them with parallel structs or inline SQL.
 package handlers
 
 import (
@@ -45,15 +43,9 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ payment.Handler = (*Handlers)(nil)
 
-// These four are the transport boundary (ADR-0003): the columns hold bare uuids and
-// the wire carries `charge_`/`order_` and the base32 form. An order id is minted by
-// orders and only carried here, so it is encoded under that service's prefix.
-//
-// The prefixes are literals, so encoding cannot fail on real input. Decoding cannot
-// either — every identifier reaching a handler has already matched the ChargeId or
-// OrderId pattern in the generated validator — and it still reports rather than
-// panics, because the validator and these calls are two places one spec edit can
-// separate.
+// These four are the transport boundary (ADR-0003). An order id is minted by orders and only carried here, so it
+// is encoded under that service's prefix.
+// They report rather than panic: the generated validator and these calls are two places one spec edit can separate.
 func chargeID(u pgtype.UUID) payment.ChargeId {
 	return payment.ChargeId(id.MustFrom("charge", uuid.UUID(u.Bytes)).String())
 }
@@ -62,10 +54,8 @@ func orderID(u pgtype.UUID) payment.OrderId {
 	return payment.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
 }
 
-// mintChargeID is where an identifier enters the system (ADR-0003). The service
-// holds it before the insert rather than reading it back from a column default, so
-// a write that never lands still has an identifier to log and to name in the
-// failure.
+// mintChargeID is where an identifier enters the system (ADR-0003). The service holds it before the insert, so a
+// write that never lands still has an identifier to name in the failure.
 func mintChargeID() (pgtype.UUID, error) {
 	v, err := id.New("charge")
 	if err != nil {
@@ -279,10 +269,8 @@ func (h *Handlers) NewError(ctx context.Context, err error) *payment.ErrorStatus
 	return &payment.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
-// wireAmount renders the stored amount for the wire (ADR-0300): the column is
-// `numeric` and the wire is a decimal STRING with its currency. It goes through
-// money.Amount so the value matches what the shared type would produce anywhere
-// else, rather than whatever the driver formats a numeric as.
+// wireAmount goes through money.Amount so the value matches what the shared type produces anywhere else, rather than
+// whatever the driver formats a numeric as (ADR-0300).
 func wireAmount(amount pgtype.Numeric, currency string) (payment.Money, error) {
 	raw, err := amount.Value()
 	if err != nil {
@@ -337,11 +325,8 @@ func (h *Handlers) insertCharge(
 	return created, nil
 }
 
-// requireReader authorises a single-charge read (ADR-0003): an unguessable
-// identifier is not an access control, so holding one grants nothing. `charge#read`
-// in model.fga resolves through the charge's order, so the buyer and the owning
-// org's admins reach it; an operator reaches every charge through the same
-// back-office grant the list uses. Both are Checker calls.
+// An unguessable identifier is not an access control (ADR-0003). `charge#read` resolves through the charge's order,
+// so the buyer and the owning org's admins reach it.
 func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {
@@ -357,10 +342,8 @@ func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	return h.requireOperator(ctx, "reading a charge against someone else's order")
 }
 
-// requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the
-// caller must be an authenticated operator. Reads (List/Get) and creating a
-// charge stay open; only the destructive refund is gated, matching catalog's
-// operator-write policy.
+// requireOperator gates a write on the shared Checker (ADR-0304). Reads and creating a charge stay open; only the
+// destructive refund is gated.
 func (h *Handlers) requireOperator(ctx context.Context, action string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {

@@ -1,25 +1,7 @@
 /**
- * Monetary amounts on the TypeScript side (ADR-0300, ADR-0100).
- *
- * The counterpart of `libs/go/money`, and deliberately much smaller. Go owns the
- * arithmetic because Go owns the totals; a browser adds nothing to a price it was
- * handed. What a client does with money is READ it and DISPLAY it, so that is what
- * this exports:
- *
- *     parseMoney   validate what arrived, and refuse what did not
- *     formatMoney  render it for a human, in their locale
- *
- * The amount stays a string the whole way through. It arrives as a string because
- * `JSON.parse` turns a JSON number into an IEEE-754 double, and 12.10 is not
- * representable as one — a price rendered from a double is wrong in the last place
- * often enough to be noticed and rarely enough to be unattributable. Nothing here
- * converts it to a `number` except inside {@link formatMoney}, where the value is
- * already destined for a string and the fraction has at most four places.
- *
- * There is no arithmetic here on purpose. A client that needs to multiply a price
- * by a quantity is a client computing a total the server will compute again, and
- * the two answers will differ the first time a rounding rule or a tax applies. The
- * server sends the total.
+ * Monetary amounts on the TypeScript side (ADR-0300, ADR-0100), and deliberately much smaller than libs/go/money.
+ * The amount stays a string throughout: `JSON.parse` turns a JSON number into an IEEE-754 double, and 12.10 is not one.
+ * There is no arithmetic here — a client computing a total is computing one the server will compute again.
  */
 
 /** The wire form of a monetary amount: the shared `Money` component of every spec. */
@@ -38,7 +20,6 @@ export class InvalidMoneyError extends Error {
   }
 }
 
-/** The same pattern the specs enforce, so this refuses exactly what a 400 would. */
 const AMOUNT_PATTERN = /^-?[0-9]+(\.[0-9]+)?$/;
 
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
@@ -51,13 +32,9 @@ const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const MAX_FRACTION_DIGITS = 4;
 
 /**
- * parseMoney validates an untrusted value and returns it as {@link Money}.
- *
- * Use it at the edge — on a response body, on a form value — and not on a value
- * this module already returned. What it catches is a contract drift: a field that
- * became a number, a currency that arrived lowercase, a null where the spec said
- * required. Those reach a component as `undefined` and render as "NaN" or "$0.00",
- * which looks like a price rather than like a bug.
+ * parseMoney validates an untrusted value and returns it as {@link Money}. Use it at the edge, not on a value
+ * this module returned. It catches contract drift — a field that became a number, a null where the spec said
+ * required — which otherwise reaches a component as `undefined` and renders as "NaN".
  */
 export function parseMoney(value: unknown): Money {
   if (typeof value !== "object" || value === null) {
@@ -90,26 +67,15 @@ export function parseMoney(value: unknown): Money {
 }
 
 /**
- * formatMoney renders an amount for a human: the currency's symbol, its own number
- * of minor digits, and the reader's grouping and decimal separators.
- *
- * The locale defaults to `undefined`, which is `Intl`'s "the runtime's locale". In
- * a Server Component that is the SERVER's locale, which is not the reader's — pass
- * the negotiated one explicitly on any surface where it matters. It is a parameter
- * rather than a module-level default because the correct value is per-request.
- *
- * `Intl.NumberFormat` decides the minor digits from the currency: two for EUR, zero
- * for JPY, three for KWD. Hardcoding two is the bug this call exists to avoid — it
- * renders ¥1000 as ¥10.00.
+ * formatMoney renders an amount for a human. The locale defaults to `Intl`'s runtime locale, which in a Server
+ * Component is the server's and not the reader's — pass the negotiated one where it matters.
+ * `Intl.NumberFormat` takes the minor digits from the currency: hardcoding two renders ¥1000 as ¥10.00.
  */
 export function formatMoney(value: Money, locale?: string): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: value.currency,
-    // A unit price can carry four decimal places while the currency has two. Letting
-    // the maximum float up to the amount's own precision shows the price that was
-    // charged rather than a rounded one, without padding whole amounts with zeros
-    // the currency does not use.
+    // A unit price can carry four decimal places while the currency has two, so the maximum floats up to the amount's own precision.
     maximumFractionDigits: Math.max(
       fractionDigits(value.amount),
       currencyDigits(value.currency, locale),

@@ -1,5 +1,4 @@
-// Temporal worker for authz.RegisterOperator (ADR-0302): the operator-creation
-// dual write (ADR-0304).
+// Temporal worker for authz.RegisterOperator — the operator-creation dual write (ADR-0302, ADR-0304).
 package main
 
 import (

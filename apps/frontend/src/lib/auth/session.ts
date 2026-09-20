@@ -1,16 +1,4 @@
 // Resolving the session cookie to an identity, server-side (ADR-0400, ADR-0304).
-//
-// A page route carries no injected identity header, and that is deliberate rather
-// than an omission: Oathkeeper's rules are written per API resource, so a page
-// matches none of them and gets a 404, and a catch-all rule would make two rules
-// match and Oathkeeper answer 500 — which `lint:api-wildcard` exists to prevent.
-// The shared service chart's ingressroute template says so where the middleware is
-// omitted.
-//
-// So the page asks Kratos directly. The proxy has already established that a
-// session cookie EXISTS before the request reaches a protected route; this
-// establishes whose it is, which is a different question and the only one an
-// authorization check can be built on.
 import "server-only";
 
 import { headers } from "next/headers";
@@ -34,12 +22,9 @@ type WhoamiResponse = {
 };
 
 /**
- * The current session, or null when there is none.
- *
- * Null is a legitimate answer and not an error: an expired cookie is the ordinary
- * case, and the caller decides whether that means `unauthorized()` or a public
- * render. A transport failure throws, because "Kratos is unreachable" and "you are
- * not signed in" must not look the same to a page deciding what to show.
+ * The current session, or null when there is none. Null is a legitimate answer: an expired cookie is ordinary,
+ * and the caller decides whether that means `unauthorized()` or a public render.
+ * A transport failure throws, because "Kratos is unreachable" must not look like "you are not signed in".
  */
 export async function getSession(): Promise<Session | null> {
   const cookie = (await headers()).get("cookie");

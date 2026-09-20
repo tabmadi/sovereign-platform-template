@@ -1,15 +1,4 @@
-// Command lint-api-audience is the audience↔exposure gate (ADR-0303). The audience
-// ladder — cluster → internal → public — is a per-operation label (resolved from the
-// operation's own x-audience, else the service default info.x-audience, else the
-// fail-closed `cluster`). A service is edge-exposed iff it has at least one operation
-// at `internal` or `public` (the edge surface); a `cluster`-only service is east-west
-// and must NOT have an /api route. This keeps the documented audience and the real
-// exposure boundary in lockstep — an edge contract is never published for an
-// unreachable service, and an edge service is never silently left all-cluster.
-//
-// Edge exposure is read from the canonical dev gitops values (ingress.resources is
-// identical across envs). A control-plane/decision service with no spec (e.g. authz,
-// ADR-0303) has no audience and is exempt: it simply has no openapi.yaml to glob.
+// Command lint-api-audience gates audience against exposure, failing closed at cluster (ADR-0303).
 package main
 
 import (
@@ -62,10 +51,6 @@ func main() {
 	_, _ = fmt.Fprintf(os.Stdout, "✓ %d API specs: x-audience matches edge exposure\n", len(specs))
 }
 
-// check reports problems when the audience ladder and real edge exposure disagree.
-// auds are the resolved effective audiences of every operation. A service is
-// edge-exposed iff any operation is internal or public; a cluster-only service is
-// east-west and must not have an /api route. Unknown audiences are also reported.
 func check(svc string, auds []string, exposed bool) []string {
 	problems := make([]string, 0, len(auds))
 	hasEdge := false

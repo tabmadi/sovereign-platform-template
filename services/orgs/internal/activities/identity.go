@@ -21,16 +21,9 @@ func kratosAdminURL() string {
 	return "http://ory-kratos-admin.platform.svc.cluster.local"
 }
 
-// SetIdentityOrgActivity records the personal org on the Kratos identity.
-//
-// This is where X-Org-Id comes from (ADR-0304): the edge templates that header out
-// of the identity's `metadata_public.org_id`, so an identity without it arrives at
-// every service as a user who belongs to no org — and an order, which must belong
-// to one, has nothing to be written against. The org existing in the orgs database
-// and in OpenFGA is not enough on its own; the edge reads neither.
-//
-// The value is the wire form (ADR-0003), because the header crosses a service
-// boundary like any other identifier.
+// SetIdentityOrgActivity: This is where X-Org-Id comes from (ADR-0304): the edge templates that header out of
+// `metadata_public.org_id`, so an identity without it reaches every service belonging to no org. The org existing in
+// the database and in OpenFGA is not enough — the edge reads neither. The value is the wire form (ADR-0003).
 func (a *Activities) SetIdentityOrgActivity(ctx context.Context, identityID, orgID string) error {
 	metadata, err := a.identityMetadata(ctx, identityID)
 	if err != nil {
@@ -41,10 +34,8 @@ func (a *Activities) SetIdentityOrgActivity(ctx context.Context, identityID, org
 	}
 	metadata["org_id"] = orgID
 
-	// One JSON Patch op replacing the whole object, built from the object that was
-	// just read: a patch on `/metadata_public/org_id` alone fails when the identity
-	// has no metadata yet, and a bare `add` of a fresh object would drop `roles`,
-	// which the frontend session reads.
+	// One op replacing the whole object: a patch on `/metadata_public/org_id` fails when the identity has no metadata,
+	// and a bare `add` would drop `roles`.
 	patch := []map[string]any{{"op": "add", "path": "/metadata_public", "value": metadata}}
 	err = a.kratosJSON(ctx, http.MethodPatch, a.identityURL(identityID), patch, http.StatusOK, nil)
 	if err != nil {

@@ -1,15 +1,4 @@
-// Command lint-prose enforces the banned-constructs table in ADR-0001 across every
-// committed Markdown file. The table is deliberately grep-shaped: intensifiers, hedges,
-// meta-commentary, dated headings, planned work, implementation status, and links to
-// untracked files are all mechanically detectable, so the rule that governs every
-// document in the repository stops resting on review alone.
-//
-// Two exemptions, both structural. ADR-0001 itself must name the constructs it bans,
-// so it is skipped whole. Fenced code blocks are content rather than prose: a banned
-// word inside a command or a config sample is a fact about that artefact.
-//
-// A line may opt out with a trailing `<!-- prose:allow -->`, which is the escape hatch
-// for a quotation whose wording is not ours to fix.
+// Command lint-prose enforces ADR-0001's banned-constructs table across every committed Markdown file.
 package main
 
 import (

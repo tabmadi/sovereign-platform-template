@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
-# Breaking-change DETECTION for the API contracts (ADR-0303). This labels; it does
-# not gate. A break is allowed — the point is that it is intentional and visible in
-# review rather than discovered by a consumer, so this exits 0 with findings and
-# writes them where the pull request can show them.
-#
-# BASE_REF names what the specs are compared against; it defaults to the
-# integration branch, as lint-commits.sh does.
+# Breaking-change detection for the API contracts (ADR-0303). It labels and does not gate: it exits 0 with findings.
 set -euo pipefail
 # shellcheck source=lib/log.sh
 source "$(dirname "$0")/lib/log.sh"

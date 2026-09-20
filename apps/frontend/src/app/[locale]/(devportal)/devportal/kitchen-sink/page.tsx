@@ -1,13 +1,4 @@
-// The rendered design catalogue (ADR-0400, ADR-0701). One page that renders the
-// brand and every primitive under src/components/ui/ once, in whichever theme the
-// viewer is in. The cheap alternative to a Storybook install, and — with Figma
-// gone — the only place the design system can be seen whole.
-//
-// Gated by the (devportal) Kratos session check (proxy.ts).
-//
-// Add one <Section> per primitive added under @/components/ui/. The e2e suite
-// discovers sections from `main section h2`, so a new section picks up its own axe
-// scan and visual baseline with no test edit.
+// The rendered design catalogue (ADR-0400, ADR-0701): the only place the design system can be seen whole.
 import { ArrowRightIcon, PlusIcon } from "lucide-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";

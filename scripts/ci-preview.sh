@@ -1,16 +1,5 @@
 #!/usr/bin/env bash
 # The pull-request preview environment (ADR-0205).
-#
-#   PREVIEW_PR=123 PREVIEW_REVISION=my-branch mise run ci:preview -- up
-#   PREVIEW_PR=123                            mise run ci:preview -- down
-#
-# A preview is the full local tier at one pull request's images and manifests. It
-# is not a fourth kind of environment and it is not a deployment target: nothing
-# is promoted from it, it holds the committed local secrets and test identities
-# like every other local tier, and it is destroyed with the run that made it.
-#
-# The slug is `pr-<number>` (ADR-0003), which is what keeps two previews on one
-# runner from sharing a cluster, a kube-context, or a state directory.
 set -euo pipefail
 
 verb="${1:-}"

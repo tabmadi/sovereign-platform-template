@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# OpenFGA model + assertion validation (ADR-0304). model.fga is the one source of
-# truth; model.json is a generated artifact the seed Job posts to the API. This
-# runs the store tests (fga.yaml) against the model AND asserts model.json is in
-# sync with model.fga, so a hand-edited DSL can never drift from the deployed JSON.
+# OpenFGA model and assertion validation (ADR-0304): runs the store tests against model.fga and asserts model.json is in step with it.
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 cd "$(cd "$(dirname "$0")/.." && pwd)"

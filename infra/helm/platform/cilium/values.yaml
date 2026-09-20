@@ -1,32 +1,11 @@
 cilium:
-  # kube-proxy is not installed (ADR-0206), so the agent addresses the API server
-  # directly rather than through a Service.
-  #
-  # KubePrism (ADR-0200): a per-node load balancer over every control-plane
-  # endpoint, which Talos serves on loopback at 7445. The agent survives losing
-  # whichever control plane it was pointed at, and a node running no API server of
-  # its own still has an address that resolves — which `127.0.0.1:6443` is not.
-  #
-  # The laptop tier is the exception and overrides this back to the API server's
-  # own loopback address, because kind is not Talos and has no KubePrism. That
-  # override lives in scripts/lib/cluster.sh rather than in the local overlay:
-  # a CNI has to exist before any pod schedules, so both local tiers install this
-  # chart IMPERATIVELY and the ApplicationSet never renders it there.
+  # kube-proxy is not installed (ADR-0206), so the agent addresses the API server directly rather than through a
+  # Service.
   kubeProxyReplacement: true
   k8sServiceHost: localhost
   k8sServicePort: 7445
 
-  # ADR-0200's third invariant: a pod gets no more kernel surface than it needs,
-  # and the agent is a pod. Upstream's default capability set includes SYS_MODULE,
-  # which lets the agent `modprobe` on a host that is missing a module — a
-  # capability that on Talos cannot work (the module set is fixed at image build,
-  # and anything extra is an Image Factory schematic, see infra/talos/) and that
-  # elsewhere lets a container load code into the kernel.
-  #
-  # The list is spelled in full because it REPLACES upstream's rather than
-  # subtracting from it; dropping one entry means naming the rest. Verified on both
-  # tiers with the agent running: no capability below is optional, and SYS_MODULE
-  # is not needed by either.
+  # ADR-0200's third invariant: a pod gets no more kernel surface than it needs, and the agent is a pod.
   securityContext:
     capabilities:
       ciliumAgent:
@@ -58,62 +37,19 @@ cilium:
     enabled: true
     type: wireguard
 
-  # Hubble gives per-flow network visibility without a sidecar (ADR-0206). It is
-  # the audit surface for internal header-trust (ADR-0305) and the source for the
-  # network-flow metrics scraped into Grafana. The flow engine (agent) + relay
-  # (aggregation API, used by the `hubble` CLI) stay ON.
-  #
-  # The standalone hubble-UI is ON (ADR-0501): it owns the interactive service
-  # map + live drop investigation, exposed auth-gated at hubble.ops.<host>
-  # (infra/gateway). Grafana owns everything else (RED/SLO/logs/traces/profiling).
-  # Known, accepted trade-offs (ADR-0501): upstream is in maintenance mode (last
-  # release v0.13.5, Apr 2024) and it collapses workloads sharing
-  # `app.kubernetes.io/name` into one card (all Temporal roles → "temporal").
-  # A full eBPF APM suite (Coroot) was evaluated for this slot and rejected —
-  # too much footprint (ClickHouse, node-agents, tracepoint shims) for a map.
+  # Hubble gives per-flow network visibility without a sidecar (ADR-0206). It is the audit surface for internal
+  # header-trust (ADR-0305) and the source for the network-flow metrics scraped into Grafana.
   hubble:
     enabled: true
     relay:
       enabled: true
     ui:
       enabled: true
-      # Served at the ROOT of the `hubble.ops.<host>` subdomain (gateway
-      # IngressRoute matches HostRegexp `^hubble\.ops\.`), not under a path prefix.
-      # hubble-ui's React Router is hardwired to basename `/` and never reads the
-      # `<base>` tag for routing, so a sub-path breaks client routing (404 on every
-      # route). Root-on-a-subdomain is the only layout it supports, so keep
-      # baseUrl at `/`.
+      # Served at the ROOT of the `hubble.ops.<host>` subdomain (gateway IngressRoute matches HostRegexp
+      # `^hubble\.ops\.`), not under a path prefix.
       baseUrl: /
-    # Flow metrics on the agent at :9965, scraped by the node-local OTel collector
-    # and surfaced in Grafana (ADR-0500, ADR-0501).
-    #
-    # `drop` — Cilium policy verdicts. Hubble UI shows live drops interactively;
-    # this metric exists for what the UI can't do — history and alerting
-    # (PolicyDropsDetected, infra/observability/alerts). This repo has been bitten
-    # by silent policy drops — the clusterwide metadata-deny regression, four
-    # default-deny bootstrap gaps, and a catalog/payment netpol block that silently
-    # broke every checkout.
-    #
-    # `flow` (every processed connection, the eBPF connection graph) stays OFF —
-    # evaluated for a Grafana Node-Graph service map and rejected (ADR-0501): with
-    # workload context the client side of most intra-cluster connections resolves to
-    # an empty label, so the map collapses into a single unnamed hub with no usable
-    # service-to-service edges (measured — 82/391 series with an empty source, zero
-    # platform→platform edges). Hubble UI resolves flows from the live relay stream (not these
-    # aggregated metrics) and does not suffer that collapse, which is why it keeps
-    # the service map while Grafana keeps everything else. `tcp` and especially
-    # `http` (per-request L7 cardinality on every agent) also stay OFF — real cost
-    # for detail the RED/trace signals already give.
-    #
-    # `drop` uses workload context so series name the Deployment (temporal-frontend vs
-    # temporal-history) rather than the shared app.kubernetes.io/name. It renders as a
-    # single combined `source`/`destination` label of the form "<namespace>/<workload>",
-    # NOT as separate source_workload/destination_workload labels — verified against a
-    # live agent; the drops dashboard PromQL depends on this.
-    #
-    # `dns` also stays OFF: Cilium only observes DNS at L7, so dns metrics never
-    # register without a DNS visibility/L7 policy on every pod. That is real scope
-    # and real cost for a low-value signal.
+    # Flow metrics on the agent at :9965, scraped by the node-local OTel collector and surfaced in Grafana (ADR-0500,
+    # ADR-0501).
     metrics:
       enabled:
         - "drop:sourceContext=workload;destinationContext=workload"

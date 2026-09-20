@@ -1,26 +1,21 @@
-# Local overrides for `cluster:up full`, consumed the same way the ArgoCD
-# ApplicationSet consumes dev/staging/prod values (ADR-0205): local diverges from
-# prod only through this overlay, layered over each platform chart's own values.
-# Locally the local platform ApplicationSet (infra/gitops/local-bootstrap) syncs
-# these from master; ordering/readiness is Argo's job (sync-waves).
+# Local overrides for `cluster:up full`, consumed the same way the ArgoCD ApplicationSet consumes dev/staging/prod
+# values (ADR-0205): local diverges from prod only through this overlay, layered over each platform chart's own
+# values.
 
-# --- Cilium (CNI): kind declines kube-proxy at create time, so the chart default
-# kubeProxyReplacement=true applies with no override. One operator replica (the
-# default 2 needs 2 nodes for anti-affinity). Cilium itself is installed
-# imperatively by cluster:up full before Argo runs and is excluded from the local
-# platform ApplicationSet, but these values keep parity if it is synced.
+#  Cilium (CNI): kind declines kube-proxy at create time, so the chart default kubeProxyReplacement=true
+# applies with no override.
 cilium:
   operator:
     replicas: 1
 
-# --- TLS (cert-manager): self-signed wildcard for *.dev.localtest.me + ops, in
+#  TLS (cert-manager): self-signed wildcard for *.dev.localtest.me + ops, in
 # the platform namespace where the edge IngressRoutes resolve the secrets. Same
 # cert-manager mechanism as deployed envs; only the issuer differs (ADR-0205).
 envHost: dev.localtest.me
 selfSigned:
   enabled: true
 
-# --- Data tier: instances=1 / small storage (laptop-sized) -----------------
+#  Data tier: instances=1 / small storage (laptop-sized)
 # Top-level `cluster:` — the postgres chart's own values schema has no
 # `postgres:` namespace wrapper (unlike the dependency subcharts below).
 cluster:
@@ -33,7 +28,7 @@ cluster:
 # `openfga:` namespace wrapper.
 replicas: 1
 
-# --- Ory (Kratos + Oathkeeper) --------------------------------------------
+#  Ory (Kratos + Oathkeeper)
 kratos:
   kratos:
     config:
@@ -77,17 +72,13 @@ kratos:
       session:
         cookie:
           domain: dev.localtest.me
-      # The sink (ADR-0307). `kratos-secrets.smtpConnectionURI` is what Kratos
-      # actually reads — the chart wires it to COURIER_SMTP_CONNECTION_URI, and an
-      # env var beats this file — so the two are kept identical rather than left to
-      # disagree about which sink is in use.
+      # The sink (ADR-0307).
       courier:
         smtp:
           connection_uri: "smtp://mailpit.platform.svc.cluster.local:1025/?disable_starttls=true"
-    # Cookie/cipher/system secrets + dsn come from the SOPS-managed `kratos-secrets`
-    # Secret (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via
-    # secret.enabled=false + nameOverride in infra/auth/kratos/values.yaml — never
-    # inline here (ADR-0202, Phase 5).
+    # Cookie/cipher/system secrets + dsn come from the SOPS-managed `kratos-secrets` Secret
+    # (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via secret.enabled=false + nameOverride in
+    # infra/auth/kratos/values.yaml — never inline here (ADR-0202, Phase 5).
 
 # Oathkeeper sends unauthenticated browser (text/html) requests to a login page.
 # Override the prod placeholder host so gated routes redirect to the local edge.
@@ -100,10 +91,9 @@ oathkeeper:
             config:
               to: https://dev.localtest.me:8443/auth/login
 
-# --- Observability: point Loki/Tempo at in-cluster SeaweedFS, single replica ---
-# Only the endpoint + http (insecure) differ from prod; the S3 credentials come
-# from the observability-bucket Secret via extraEnvFrom (wired in the chart values
-# for every env), so no inline keys here — same mechanism as dev/staging/prod.
+#  Observability: point Loki/Tempo at in-cluster SeaweedFS, single replica  Only the endpoint + http
+# (insecure) differ from prod; the S3 credentials come from the observability-bucket Secret via extraEnvFrom
+# (wired in the chart values for every env), so no inline keys here — same mechanism as dev/staging/prod.
 loki:
   loki:
     storage:
@@ -120,20 +110,12 @@ tempo:
           endpoint: "seaweedfs.platform.svc.cluster.local:8333"
           insecure: true
 
-# Prometheus' TSDB on a laptop. The default is sized for a deployed tier's series
-# count; the local tier runs one of everything and is torn down often, so it takes
-# the smallest volume that still holds a meaningful window rather than 20Gi of
-# node-local disk that never fills.
+# Prometheus' TSDB on a laptop.
 prometheus:
   storage:
     size: 5Gi
 
-# Keep every healthy trace locally. Prod/dev head-sample at 5% in the chart default
-# to cap volume, but on a laptop a developer needs to see the exact request they
-# just made stitch end-to-end (frontend → orders → catalog → payment) in Tempo — a
-# 1-in-20 chance of survival makes that useless, and the e2e trace assertion
-# (test/e2e/platform/purchase.spec.ts) would be non-deterministic. Merges over the base
-# collector config; the pipeline still runs the sampler, just at 100%.
+# Keep every healthy trace locally.
 opentelemetry-collector:
   config:
     processors:
@@ -149,11 +131,9 @@ grafana:
     server:
       root_url: "https://grafana.ops.dev.localtest.me:8443/"
 
-# --- Lowdefy admin console (ADR-0401) -------------------------------------
-# Repo-built image: pulled from the local registry (the CI stand-in) at the
-# stable `local` tag; Always so a cluster:up full re-run picks up a rebuild.
-# Namespaced under `lowdefy:` to avoid colliding with the openfga chart's
-# top-level `image` (both charts share this overlay).
+#  Lowdefy admin console (ADR-0401)  Repo-built image: pulled from the
+# local registry (the CI stand-in) at the stable `local` tag; Always so a cluster:up full re-run picks up a
+# rebuild.
 lowdefy:
   replicas: 1
   image:
@@ -161,45 +141,19 @@ lowdefy:
     tag: local
     pullPolicy: Always
 
-# --- Core ops tools: local wiring -----------------------------------------
-# Headlamp (ADR-0501) at headlamp.ops and pgweb (ADR-0401) at pgweb.ops are Core, on in
-# every env from their chart defaults. Only pgweb's local DSN is overlay-specific:
-# it points read-only at the in-cluster CNPG dev role (same dev:dev creds Kratos
-# uses locally). Headlamp needs no local override.
+#  Core ops tools: local wiring  Headlamp (ADR-0501) at headlamp.ops
+# and pgweb (ADR-0401) at pgweb.ops are Core, on in every env from their chart defaults.
 pgweb:
-  # The read-only role, not `dev` (ADR-0401). `dev` OWNS these tables, so pointing
-  # the inspector at it left pgweb's `--readonly` flag as the only thing between an
-  # operator and a write — one layer where the ADR states two, and the flag is the
-  # layer that does not apply to anyone who reaches the same database with psql.
+  # The read-only role, not `dev` (ADR-0401).
   databaseUrl: "postgres://readonly:readonly@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"
 
-# Admission control (ADR-0104). The local tier publishes no images and holds no
-# signing key, so both policies are absent by construction: `imagePrefix` is empty,
-# which renders neither. Kyverno itself still installs — the webhook, the CRDs and
-# the reports controller are the part worth having locally, because a policy that
-# is only ever exercised in CI is a policy nobody can debug.
+# Admission control (ADR-0104). The local tier publishes no images and holds no signing key, so both policies are
+# absent by construction: `imagePrefix` is empty, which renders neither.
 policies:
   imagePrefix: ""
   # Audit, not Enforce, and this is load-bearing rather than lenient.
-  #
-  # The allow-list policy renders here — the generated list is passed to every chart
-  # in the tier — and the inner loop's working-tree path (`cluster:add`) deploys
-  # NODE-RESIDENT images tagged `<service>:local-<timestamp>`, whose repository has
-  # no registry at all. Those cannot be in a list generated from committed values,
-  # and they should not be: a bare repository is exactly what the rule forbids
-  # everywhere it matters. Enforcing here would block the one path this tier exists
-  # for, so the local tier reports instead — which is the same information, minus
-  # the laptop where nothing can start.
-  #
-  # A deployed environment enforces, because nothing there deploys from a working
-  # tree.
   validationFailureAction: Audit
 
-# OFF locally, and this is the one component whose local source differs from the
-# deployed one (ADR-0600). Both local tiers are kind, which ships a provisioner and
-# a default StorageClass; installing this chart beside it puts TWO provisioners on
-# one default annotation, and which of them serves an unannotated PVC is then a
-# race. A deployed environment runs the chart, because Talos ships no provisioner
-# (ADR-0207).
+# OFF locally, and this is the one component whose local source differs from the deployed one (ADR-0600).
 localPath:
   enabled: false

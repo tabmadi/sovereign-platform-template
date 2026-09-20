@@ -1,23 +1,5 @@
-// Command lint-pii asserts that a column holding personal data carries its
-// `pii:<class>` comment in the migration set (ADR-0301, ADR-0300).
-//
-// The tag lives in the DDL so it travels with the schema and is readable from
-// pg_description, which is what lets erasure, export, and redaction enumerate their
-// targets by query rather than by memory. A tag nobody wrote is a row those
-// workflows silently miss.
-//
-// # What a linter can and cannot decide
-//
-// It cannot know what is personal data. What it CAN do is refuse to let a column
-// whose name is a well-known carrier of personal data pass without a DECISION —
-// either a `pii:<class>` tag or an explicit `pii:none` saying it was considered and
-// is not. Silence is the only outcome ruled out, because silence is
-// indistinguishable from nobody having looked.
-//
-// The consequence is deliberate: this catches the obvious cases and gives the
-// non-obvious ones no cover at all. A column named `notes` holding whatever a user
-// typed is personal data, and no linter will say so. The data-class registry
-// ADR-0301 names is the checklist for that.
+// Command lint-pii asserts that a column holding personal data carries its `pii:<class>` comment in the migration set
+// (ADR-0301, ADR-0300).
 package main
 
 import (
@@ -107,11 +89,8 @@ func main() {
 	_, _ = fmt.Fprintf(os.Stdout, summary, len(columns), len(migrations))
 }
 
-// scan reads every migration once, collecting declared columns and pii tags.
-//
-// Tags are collected across the whole service, because the migration that creates a
-// column and the one that later tags it need not be the same file — a dbmate
-// migration is immutable once applied, so a retrospective tag is a NEW migration.
+// scan reads every migration once. Tags are collected across the whole service: a dbmate migration is immutable, so a
+// retrospective tag is a new file.
 func scan(migrations []string) (map[string]string, map[string]string, []finding) {
 	columns := map[string]string{} // "service:table.column" -> file that declares it
 	tagged := map[string]string{}  // "service:table.column" -> class

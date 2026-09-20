@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
-# Shell formatter (ADR-0101). All glue in this repo is bash, so scripts get the
-# same formatting Go/TS do: shfmt over every shell script, in place. `-i 2` matches
-# the repo's 2-space style.
-#
-# A script rather than a one-line mise task, so it shares its file enumeration with
-# `lint:shell` (scripts/lib/repo-files.sh). The two disagreeing is how a repository
-# ends up formatted but unlinted.
+# Shell formatter: shfmt in place over every script, `-i 2` to match the repo's style (ADR-0101).
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 source "$(dirname "$0")/lib/repo-files.sh"

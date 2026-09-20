@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 # Generate this engineer's SOPS age key (ADR-0202). Idempotent.
-# The private key lives at ~/.config/sops/age/keys.txt and never leaves the laptop;
-# the public key is what you add to .sops.yaml (via PR), then run `sops updatekeys`.
 set -euo pipefail
 
 KEY_DIR="${SOPS_AGE_KEY_DIR:-$HOME/.config/sops/age}"

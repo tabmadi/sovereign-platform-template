@@ -1,21 +1,6 @@
 {{- if .Values.alertmanager.enabled }}
-## The page/ticket hygiene report (ADR-0502).
-##
-## ADR-0502 names alert fatigue as the failure mode that makes the routing tree
-## decoration: "a receiver that fires forty times a night is muted by its
-## recipient within a week". It gives the discipline — `page` only when a human
-## must act within minutes — and no mechanism for noticing the discipline has
-## slipped. This is that mechanism.
-##
-## It measures FIRING TIME, not fires-without-acknowledgement. The ADR's test is
-## about human action and nothing here can observe one: no paging receiver is
-## attached, so there is no acknowledgement to count. Total time firing is the
-## honest proxy available — a `page` that spent hours firing over a month either
-## describes a condition nobody acts on within minutes, or a condition that is
-## chronic. Both are demotion candidates, which is what the report proposes
-## rather than decides.
-##
-## It reports and never fails. A gate here would page about paging.
+## The page/ticket hygiene report (ADR-0502). ADR-0502 names alert fatigue as the failure mode that makes the
+## routing tree decoration: "a receiver that fires forty times a night is muted by its recipient within a week".
 apiVersion: batch/v1
 kind: CronJob
 metadata:

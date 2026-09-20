@@ -1,17 +1,4 @@
 // Component visual regression against committed baselines (ADR-0601, ADR-0400).
-//
-// The kitchen sink is the subject because it is where every primitive is composed
-// once (ADR-0400): a primitive's rendering is pinned here rather than re-pinned in
-// every route that uses it, so a diff names the primitive rather than the page.
-//
-// Section by section rather than one full-page shot. A single baseline for the
-// whole page turns any change to any primitive into one enormous diff, which is
-// the shape a reviewer approves without reading.
-//
-// THE BASELINES ARE PRODUCED BY THE FIRST RUN against `cluster:up full` and
-// committed with the change that introduced them; an intentional UI change updates
-// them in the same pull request. A run with no baseline fails rather than passing
-// silently, which is Playwright's default and the behaviour this gate wants.
 import { expect, test } from "@playwright/test";
 import { kitchenSinkSections } from "../fixtures/a11y";
 import { BASE_URL, USER_STATE } from "../fixtures/env";

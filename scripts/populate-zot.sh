@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
 # Mirror the first-party images into the FULL tier's in-cluster zot (ADR-0105).
-#
-#   mise run cluster:populate-zot
-#
-# The nodes pull from the host container `registry.localhost` because a
-# `*.localtest.me` name does not resolve inside a node, so the in-cluster zot —
-# the registry a deployed environment runs — never sees an image and its
-# `zot.ops` console reads empty. This copies the repo's own images (everything
-# tagged `:local`, which is exactly what `stage_images` built) from the host
-# container into the in-cluster zot, so its push, object-store, and console path is
-# exercised locally rather than only in a deployed environment. The upstream mirror
-# images are left where they are — the nodes' pull path is unchanged.
-#
-# Called as the `populatezot` stage of `cluster:up full` after the platform is
-# healthy, and runnable on its own. Best-effort: a copy failure is a warning, never
-# a failed bring-up, because the console is a convenience and the node pull path
-# does not depend on it.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/cluster.sh"

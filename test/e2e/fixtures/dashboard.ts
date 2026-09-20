@@ -1,16 +1,8 @@
-// Shared "Gated" stage helpers (ADR-0306 edge authz). Each ops dashboard is
-// checked with request contexts (no browser): unauthenticated is denied, a bare
-// AAL1 product session is forbidden, and only the AAL2 operator holding the
-// per-tool grant passes Oathkeeper. Accept:*/* takes Oathkeeper's json error
-// branch (401/403) rather than the html login redirect.
+// Shared staged helpers for the gated ops dashboards (ADR-0306).
 import { type APIRequestContext, expect, request } from "@playwright/test";
 import { OPERATOR_STATE, USER_STATE, opsURL } from "./env";
 
-// The local resolver occasionally answers a *.ops.<host> lookup with a transient
-// EAI_AGAIN under the load of a full suite run (many contexts + port-forwards),
-// surfacing as a spurious gated-check failure rather than a real authz result. A
-// DNS/connection blip is not the signal these tests exist to catch, so retry the
-// bare request a few times; a genuine 401/403/200 returns immediately.
+// The local resolver answers a *.ops lookup with a transient EAI_AGAIN under suite load, which is not the signal these tests catch. A genuine 401/403/200 returns immediately.
 async function statusFor(
   tool: string,
   storageState?: string,
@@ -52,15 +44,9 @@ export async function expectAal1Forbidden(tool: string): Promise<void> {
   expect([403, 302, 303]).toContain((await statusFor(tool, USER_STATE)).status);
 }
 
-// The operator passes when the answer came from the TOOL rather than from the gate
-// in front of it. A 200 is that answer, and so is a redirect the tool sends to its
-// own origin — a tool that carries its own login sends one, and the shell it lands
-// on is what the sibling render test asserts. Reading only the status would call
-// that a failure, having just proved the grant worked.
-//
-// It cannot be confused with a denial. Oathkeeper answers this Accept with 401/403,
-// and its html branch redirects to the product apex's /auth/login — a different
-// origin, which is exactly what this checks.
+// A 200 is the tool answering, and so is a redirect the tool sends to its own origin — reading only the status
+// would call that a failure having just proved the grant worked.
+// It cannot be confused with a denial: Oathkeeper's html branch redirects to a different origin.
 export async function expectOperatorAllowed(tool: string): Promise<void> {
   const { status, location } = await statusFor(tool, OPERATOR_STATE);
   if (status === 200) {

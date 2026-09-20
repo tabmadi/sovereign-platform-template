@@ -1,10 +1,4 @@
 # Machine config applied to every node, whatever its role (ADR-0200).
-#
-# This is not a playbook. There is no converge step and no drift to correct: the
-# machine config IS the node, and the two cannot diverge because there is no
-# interface through which they could. What a hardening role used to assert — no
-# root SSH, no password auth — is not asserted here because Talos has no SSH, no
-# shell, and no user accounts to log in as.
 machine:
   install:
     # The disk Talos installs itself to. `/dev/sda` is the common case on plain
@@ -28,19 +22,13 @@ machine:
       enabled: true
       port: 7445
 
-  # KubeSpan is OFF — the third of ADR-0200's Cilium invariants. It builds a
-  # WireGuard mesh between nodes at the OS layer, and Cilium already encrypts all
-  # east-west pod traffic with WireGuard (ADR-0206). Two mesh implementations over
-  # one link is double encapsulation, halved MTU, and two places to look when a
-  # packet goes missing.
+  # KubeSpan is OFF — the third of ADR-0200's Cilium invariants. It builds a WireGuard mesh between nodes at the OS
+  # layer, and Cilium already encrypts all east-west pod traffic with WireGuard (ADR-0206).
   network:
     kubespan:
       enabled: false
 
-  # The sysctls the platform depends on. `ip_forward` and the bridge netfilter
-  # knobs are Kubernetes' own requirements; the inotify limits are the ones a node
-  # running many pods exhausts silently — the symptom is a container that never
-  # starts with no error naming the cause.
+  # The sysctls the platform depends on.
   sysctls:
     net.ipv4.ip_forward: "1"
     net.bridge.bridge-nf-call-iptables: "1"

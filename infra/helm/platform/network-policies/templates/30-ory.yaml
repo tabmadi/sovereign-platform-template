@@ -1,13 +1,4 @@
-## Kratos — identity APIs. Public (4433) is reached by Oathkeeper (session
-## checks) and the edge gateway (login/registration flows); admin (4434) by the
-## authz service — its server reads and updates identities for the Lowdefy admin
-## console, and its worker creates them in the operator-registration workflow
-## (ADR-0401, ADR-0304). One rule covers both: the selector names the service, not
-## a component, because both halves are the same trust decision. Cilium enforces on the pod
-## containerPort, not the Service port (ory-kratos-admin:80 → 4434). The orgs
-## worker reaches admin too: it owns the post-registration process (ADR-0304) and
-## writes the new personal org back onto the identity, which is where the edge
-## builds X-Org-Id from.
+## Kratos identity APIs: public 4433 is reached by Oathkeeper for session checks, admin 4434 only by authz.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -20,18 +11,6 @@ spec:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: oathkeeper }
         # The frontend, for `/sessions/whoami` on a PAGE render (ADR-0400).
-        #
-        # Page routes deliberately do not pass through Oathkeeper — its rules are
-        # written per API resource, a page matches none of them and gets a 404, and
-        # a catch-all rule would make two rules match and Oathkeeper answer 500
-        # (which is what lint:api-wildcard exists to prevent). So a page has no
-        # injected identity header, and resolving the session cookie to an identity
-        # is the frontend's own call to Kratos.
-        #
-        # Without this rule that call has nowhere to go: the shared service chart's
-        # ingressroute template has asserted this design in a comment for a while,
-        # and the policy never admitted it — so it worked under `next dev` on a
-        # laptop and would have hung in a pod.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: frontend }
       toPorts:
         - ports: [{ port: "4433", protocol: TCP }]
@@ -43,10 +22,7 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: authz }
       toPorts:
         - ports: [{ port: "4434", protocol: TCP }]
-    # The orgs WORKER only — the server never calls Kratos. Without this the
-    # RegisterUser workflow's third activity times out against the admin API and
-    # retries until the workflow fails, leaving every new identity without the
-    # org_id the edge needs, and therefore unable to place an order at all.
+    # The orgs WORKER only — the server never calls Kratos.
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: platform
@@ -54,48 +30,8 @@ spec:
             component: worker
       toPorts:
         - ports: [{ port: "4434", protocol: TCP }]
-  # No egress rules: the baseline (00-baseline.yaml) already grants Kratos DNS,
-  # intra-namespace reach (Postgres, the orgs registration webhook) and the API
-  # server, which is everything it needs. Kratos has no world egress.
-  #
-  # It used to have one. The password method ran the HaveIBeenPwned breach check,
-  # which does a k-anonymity range lookup against api.pwnedpasswords.com on every
-  # registration, password login and password change, and that needed a toFQDNs
-  # allow on 443 plus an L7 DNS rule (toFQDNs only works if Cilium proxies the DNS
-  # answer). ADR-0304 turned the check off by default — a platform on a closed
-  # company network cannot reach HIBP, and Kratos' `ignore_network_errors` default
-  # makes an unreachable check accept the password silently rather than fail.
-  #
-  # To re-enable it in an env that does have the egress, set
-  # `haveibeenpwned_enabled: true` + `max_breaches: 0` in
-  # infra/auth/kratos/values.yaml and restore both rules here:
-  #
-  #   egress:
-  #     # The wildcard DNS rule is REQUIRED and is not a second hole: toFQDNs only
-  #     # works if Cilium sees the DNS answer, and matching `*` keeps every other
-  #     # in-cluster name resolvable (an L7 DNS rule scoped to just the HIBP name
-  #     # makes Cilium proxy kratos' DNS and drop every service lookup).
-  #     - toEndpoints:
-  #         - matchLabels:
-  #             k8s:io.kubernetes.pod.namespace: kube-system
-  #             k8s-app: kube-dns
-  #       toPorts:
-  #         - ports:
-  #             - { port: "53", protocol: UDP }
-  #             - { port: "53", protocol: TCP }
-  #           rules:
-  #             dns:
-  #               - matchPattern: "*"
-  #     # toFQDNs, not `toEntities: world` — one hostname on one port, pinned by
-  #     # Cilium's DNS proxy to whatever IPs HIBP's CDN answers with.
-  #     - toFQDNs:
-  #         - matchName: "api.pwnedpasswords.com"
-  #       toPorts:
-  #         - ports: [{ port: "443", protocol: TCP }]
-  #
-  # Note the CDN answers with a 30s TTL and `tofqdns-idle-connection-grace-period`
-  # is 0s, so an IP leaves the allow set the moment its TTL expires: expect
-  # occasional POLICY_DENIED bursts on reused connections if you do re-enable it.
+  # No egress rules: the baseline (00-baseline.yaml) already grants Kratos DNS, intra-namespace reach (Postgres, the
+  # orgs registration webhook) and the API server, which is everything it needs.
 ---
 ## Oathkeeper — the edge auth gate. Traefik forwards through the proxy (4455) and
 ## queries the decision API (4456).

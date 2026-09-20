@@ -1,7 +1,4 @@
-// Command gostyle runs this repo's custom style analyzers — checks that
-// gofmt/gofumpt/golangci-lint can't express because they're layout-based
-// rather than purely structural. Add more analyzers to the Analyzers slice
-// as they come up.
+// Command gostyle runs the layout-based style analyzers golangci-lint cannot express.
 package main
 
 import (
@@ -12,12 +9,8 @@ import (
 	"golang.org/x/tools/go/analysis/multichecker"
 )
 
-// callArgsAnalyzer checks that every call's argument list is laid out as
-// either entirely single-line (foo(x, y)) or fully exploded with one argument
-// per line (foo(\n\tx,\n\ty,\n)) — never a partial mix of the two. gofmt
-// preserves whatever line breaks the source already had for a call's
-// arguments, so nothing in gofmt/gofumpt/golangci-lint catches an
-// inconsistent in-between layout on its own.
+// callArgsAnalyzer checks that a call's arguments are all on one line or one per line, never a mix.
+// gofmt preserves whatever breaks the source had, so nothing upstream catches the in-between layout.
 var callArgsAnalyzer = &analysis.Analyzer{
 	Name: "callargs",
 	Doc:  "a call's arguments must be either all on one line or fully exploded one per line",

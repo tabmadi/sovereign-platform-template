@@ -1,29 +1,21 @@
-# CNPG operator defaults. The Cluster CR for the shared instance is rendered
-# from templates/cluster.yaml; per-database tenancy is configured per-service.
+# CNPG operator defaults. The Cluster CR for the shared instance is rendered from templates/cluster.yaml;
+# per-database tenancy is configured per-service.
 cloudnative-pg:
   fullnameOverride: cnpg-operator
   monitoring:
-    # No Prometheus Operator on this platform — metrics flow through the OTel
-    # Collector into Prometheus (ADR-0500), and the PodMonitor CRD
-    # (monitoring.coreos.com/v1) the operator would install is absent, so a
-    # PodMonitor here would reference a CRD that does not exist.
+    # No Prometheus Operator on this platform — metrics flow through the OTel Collector into Prometheus (ADR-0500),
+    # and the PodMonitor CRD (monitoring.coreos.com/v1) the operator would install is absent, so a PodMonitor here
+    # would reference a CRD that does not exist.
     podMonitorEnabled: false
 
 cluster:
   name: postgres
-  # Render the Cluster/Pooler CRs. The helm-direct local bring-up sets this false
-  # for a first pass (operator + CRDs only) so the CRs don't race CRD registration;
-  # the GitOps path leaves it true and orders via sync-waves.
+  # Render the Cluster and Pooler CRs. The helm-direct local bring-up sets this false on a first pass, so the
+  # CRs do not race CRD registration; the GitOps path leaves it true and orders via sync-waves.
   create: true
   instances: 3
   imageName: ghcr.io/cloudnative-pg/postgresql:17.2
-  # Measured 2026-07-26 under the ADR-0601 load suite: 373Mi working set, 267m CPU
-  # peak (490m during the e2e suite). No cpu limit — a checkpoint or autovacuum is
-  # precisely the burst that CFS throttling turns into query latency (ADR-0204).
-  #
-  # shared_buffers is Postgres's own memory governor and is NOT derived from this
-  # limit, so raising the limit alone does not make Postgres use more; it only stops
-  # the kernel killing it. Tune both together or neither.
+  # Measured 2026-07-26 under the ADR-0601 load suite: 373Mi working set, 267m CPU peak (490m during the e2e suite).
   resources:
     requests: { cpu: "200m", memory: "512Mi" }
     limits:   { memory: "1Gi" }
@@ -31,30 +23,16 @@ cluster:
   storage:
     size: 20Gi
     storageClass: ""    # defaults to the cluster's default StorageClass (ADR-0207)
-  # CNPG provisions one app database (`database`/`owner`) per Cluster; the
-  # platform needs one per service plus kratos/temporal/openfga, so the rest
-  # are created via postInitApplicationSQL, owned by the same app role.
-  #
-  # These run ONCE, at cluster bootstrap. Adding a line here does nothing to a
-  # cluster that already exists — a service whose database is missing fails to
-  # start, and the fix is a manual `CREATE DATABASE` against the running cluster,
-  # not a re-sync. `lint:service-databases` is what stops a new service reaching a
-  # deployed environment without its line being here in the first place.
+  # CNPG provisions one app database (`database`/`owner`) per Cluster; the platform needs one per service plus
+  # kratos/temporal/openfga, so the rest are created via postInitApplicationSQL, owned by the same app role.
   initdb:
     database: orders
-    # ONE role owns every database, and its name appears in three places that have
-    # to agree: here, the `username` of the `postgres-superuser` Secret, and the
-    # user in every DSN the same SopsSecret carries. CNPG creates the role this
-    # field names; a DSN naming a different one gets
-    # `password authentication failed`, which reads as a wrong password rather
-    # than as a role that was never created.
+    # ONE role owns every database, and its name appears in three places that have to agree: here, the `username` of
+    # the `postgres-superuser` Secret, and the user in every DSN the same SopsSecret carries.
     owner: dev
     secretName: postgres-superuser
-    # Cluster-global, so it belongs at bootstrap rather than in any one service's
-    # migrations: the read-only inspector role ADR-0401 requires, created without a
-    # login. `managed.roles` below attaches the password and the login right, so no
-    # credential appears in committed SQL. What the role may READ is granted per
-    # database by each service's migrations, because that changes with the schema.
+    # Cluster-global, so it belongs at bootstrap rather than in any one service's migrations: the read-only inspector
+    # role ADR-0401 requires, created without a login.
     postInitSQL:
       - "CREATE ROLE readonly NOLOGIN"
     # One line per database. The chart renders each into a CREATE DATABASE owned

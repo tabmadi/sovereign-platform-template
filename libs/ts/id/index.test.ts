@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { formatId, InvalidIdError, isId, isValidPrefix, parseId, prefixOf } from "./index";
 
-// The published TypeID vectors, identical to the ones libs/go/id asserts. Checking
-// both implementations against the STANDARD rather than against each other is what
-// makes them interoperable — two implementations of the same private encoding agree
-// with each other perfectly and with nothing else.
+// The published TypeID vectors, identical to the ones libs/go/id asserts. Checking both against the standard
+// rather than against each other is what makes them interoperable.
 const VECTORS: ReadonlyArray<readonly [uuid: string, suffix: string]> = [
   ["00000000-0000-0000-0000-000000000000", "00000000000000000000000000"],
   ["00000000-0000-0000-0000-000000000001", "00000000000000000000000001"],

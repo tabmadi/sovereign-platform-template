@@ -1,6 +1,4 @@
-// Temporal Web UI operator dashboard (ADR-0306) — gated at temporal.ops.<host>
-// (dashboard:temporal#view) and the namespace view renders behind a real AAL2
-// operator session.
+// The Temporal Web UI operator dashboard, gated at the ops origin (ADR-0306).
 import { expect, test } from "@playwright/test";
 import {
   expectAal1Forbidden,

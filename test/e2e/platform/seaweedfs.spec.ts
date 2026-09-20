@@ -1,7 +1,4 @@
-// SeaweedFS admin operator dashboard (ADR-0306, ADR-0207) — non-prod object store,
-// gated at seaweedfs.ops.<host> (dashboard:seaweedfs#view) and rendering behind a
-// real AAL2 operator session. The admin UI carries no login of its own, so the
-// edge gate is the only thing this asserts on the way in.
+// The SeaweedFS admin dashboard: non-prod object store, gated at the ops origin (ADR-0306, ADR-0207).
 import { expect, test } from "@playwright/test";
 import {
   expectAal1Forbidden,

@@ -1,14 +1,7 @@
-// Observability query helpers for the end-to-end signal-correlation gauge
-// (ADR-0500). The three backends are cluster-internal (only Grafana is edge-
-// exposed), so the suite reaches Tempo/Loki/Prometheus through short-lived
-// port-forwards (fixtures/kube.ts) and queries their native HTTP APIs directly.
-//
-// These functions are deliberately poll-friendly: OTLP export is batched and the
-// stores ingest asynchronously, so callers wrap them in expect.poll / toPass.
+// Query helpers for the end-to-end signal-correlation gauge (ADR-0500).
 import { expect } from "@playwright/test";
 import { type PortForward, portForward } from "./kube";
 
-// The three signal stores, each on its own local port while a test runs.
 export const TEMPO_PORT = 13200;
 export const LOKI_PORT = 13100;
 export const PROM_PORT = 19090;
@@ -26,10 +19,7 @@ export async function forwardObservability(): Promise<ObsForwards> {
   return { stop: () => pfs.forEach((p) => p.stop()) };
 }
 
-// tempoTraceServices fetches a trace by id and returns the distinct
-// resource.service.name values across its spans (empty if the trace is not yet
-// queryable). This is the cross-service stitch assertion: a checkout trace must
-// carry spans from orders, catalog and payment under one id.
+// The cross-service stitch assertion: a checkout trace must carry spans from orders, catalog and payment under one id. Empty if the trace is not yet queryable.
 export async function tempoTraceServices(traceId: string): Promise<string[]> {
   const res = await fetch(`http://127.0.0.1:${TEMPO_PORT}/api/traces/${traceId}`);
   if (!res.ok) {
@@ -91,10 +81,7 @@ export async function lokiServicesForTrace(traceId: string, windowSec = 900): Pr
   return [...svcs];
 }
 
-// promSeriesCount runs an instant query for a metric and returns how many series
-// matched. Prometheus escapes OTLP names to the classic underscore form, so callers
-// pass e.g. "orders_checkouts_started_total" (the name is quoted into the selector,
-// which is valid PromQL for any metric name).
+// Prometheus escapes OTLP names to the classic underscore form, so callers pass e.g. "orders_checkouts_started_total".
 export async function promSeriesCount(metric: string): Promise<number> {
   const q = encodeURIComponent(`{"${metric}"}`);
   const res = await fetch(`http://127.0.0.1:${PROM_PORT}/api/v1/query?query=${q}`);

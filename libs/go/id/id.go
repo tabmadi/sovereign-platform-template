@@ -1,34 +1,4 @@
 // Package id generates and encodes entity identifiers (ADR-0003).
-//
-// The value is a UUIDv7 ([RFC 9562]) and the surface form is the [TypeID]
-// convention: a type prefix, an underscore, and the UUID in 26 characters of
-// Crockford base32.
-//
-//	order_01j8xk7m3q0000000000000000
-//	{prefix}_{UUIDv7 in 26 characters of base32}
-//
-// Two properties are being bought at once, and they pull in opposite directions:
-//
-//   - UUIDv7 is time-ordered, so a primary-key index appends rather than fragments.
-//     That is why storage keeps the bare uuid column.
-//   - The prefix names the type at every boundary, so a value in a support ticket
-//     says what it is, a log line is greppable by type, and a function signature
-//     cannot accept an order_ where a product_ belongs.
-//
-// The conversion happens at the TRANSPORT boundary and nowhere else. Storage sees
-// [ID.UUID]; the wire sees [ID.String]. Generation is here rather than a Postgres
-// default so the service holds the identifier before the insert — an identifier the
-// database mints is one the caller cannot log, trace, or return until the write
-// succeeds.
-//
-// An identifier is opaque to a consumer ([AIP-122]): nothing outside this package
-// parses, orders, or constructs one. And an unguessable identifier is not an
-// authorisation control — every read and mutation is authorised as though the
-// identifier were public, because it is (ADR-0304).
-//
-// [RFC 9562]: https://www.rfc-editor.org/rfc/rfc9562
-// [TypeID]: https://github.com/jetify-com/typeid
-// [AIP-122]: https://google.aip.dev/122
 package id
 
 import (
@@ -74,12 +44,8 @@ var decodeTable = func() [256]byte {
 	return t
 }()
 
-// ID is a type-prefixed UUIDv7. The zero value is not a valid identifier.
-//
-// The receivers are mixed deliberately, which recvcheck flags: UnmarshalText must
-// take a pointer to satisfy encoding.TextUnmarshaler, and everything else takes a
-// value so that id.MustNew("order").String() works on a non-addressable result.
-// Making them uniformly pointers would break that call at every use site.
+// ID is a type-prefixed UUIDv7, and the zero value is not a valid identifier. The receivers are mixed so that
+// id.MustNew("order").String() works on a non-addressable result.
 //
 //nolint:recvcheck // encoding.TextUnmarshaler requires the pointer receiver
 type ID struct {
@@ -166,7 +132,6 @@ func ParseAny(s string) (ID, error) {
 	return ID{prefix: prefix, uuid: u}, nil
 }
 
-// ValidatePrefix reports whether a prefix is well-formed.
 func ValidatePrefix(prefix string) error {
 	switch {
 	case prefix == "":
@@ -188,7 +153,6 @@ func ValidatePrefix(prefix string) error {
 	return nil
 }
 
-// Prefix is the type this identifier names.
 func (i ID) Prefix() string { return i.prefix }
 
 // UUID is the stored value: what goes in the uuid column, and nowhere else.

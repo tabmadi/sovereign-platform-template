@@ -1,11 +1,4 @@
-// The language picker (ADR-0400). A reader's explicit choice, which is why it
-// writes the locale cookie the proxy then prefers over `Accept-Language`.
-//
-// `router.replace` with a locale rather than a hand-built href: the navigation
-// helpers own the prefix rule, so the default locale drops its prefix and the others
-// keep theirs without this component knowing which is which. It replaces rather than
-// pushes, so switching language does not fill the back button with the same page in
-// three languages.
+// The language picker (ADR-0400): a reader's explicit choice, which outranks negotiation.
 "use client";
 
 import { useParams } from "next/navigation";

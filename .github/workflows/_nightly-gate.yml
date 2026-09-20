@@ -1,14 +1,6 @@
-# Shared activity gate for the nightly cluster:up full suites (e2e.yml, perf.yml).
-#
-# Both nightlies cost a ~17min full-platform bring-up. Re-running them against a
-# commit that already passed last night buys nothing: the code is identical, so a
-# red is either flake or upstream drift, and a green is a result you already have.
-# On a project that pauses for a few weeks that is every single night.
-#
-# This IS a reusable `workflow_call` workflow rather than a composite action,
-# because it is a whole job with an output that two workflows gate on — the case
-# workflow_call is actually for. Toolchain setup, which must splice into a caller's
-# job, is a composite action instead (.github/actions/setup).
+# Shared activity gate for the nightly full-tier suites. Re-running them against a commit that already passed
+# buys nothing: a red is flake or upstream drift, and a green is a result already held.
+# A reusable `workflow_call` rather than a composite action: it is a whole job with an output two workflows gate on.
 name: nightly-gate
 
 on:

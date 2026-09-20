@@ -1,28 +1,5 @@
-// Command lint-resource-governance is the ADR-0204 gate: it renders every chart and
-// checks the declared resources against the guardrails in
-// infra/helm/platform/resource-governance BEFORE they reach a cluster.
-//
-// It exists because the interesting failures here are all admission-time and
-// cluster-wide. A LimitRange `min` above what a third-party chart declares REJECTS
-// that pod — during development this repo's own kube-system LimitRange was one
-// `helm template` away from rejecting Cilium's install-cni-binaries initContainer
-// (10Mi against a 16Mi floor), which would have left every node without pod
-// networking and no way to repair it from inside. A ResourceQuota whose cap sits
-// below the namespace's steady-state requests wedges a bring-up the same way. Both
-// are invisible in review and obvious from the rendered manifests, which is exactly
-// what a linter is for.
-//
-// Checks, in the order they are reported:
-//
-//  1. REJECTION — no container's declared request falls below a LimitRange min, and
-//     no limit above a max. This is the cluster-breaking class.
-//  2. COVERAGE — every container ends up with CPU+memory requests and a memory
-//     limit, whether declared or defaulted by the namespace's LimitRange.
-//  3. CPU LIMITS — ADR-0204 sets CPU limits only where throttling is desired, so any
-//     new one must be added to the allow-list here with a reason.
-//  4. QUOTA HEADROOM — the summed requests/limits per namespace fit inside that
-//     namespace's ResourceQuota, with utilisation printed so tightening the cap is an
-//     informed choice rather than a guess.
+// Command lint-resource-governance renders every chart and checks its declared resources against the guardrails
+// before they reach a cluster (ADR-0204).
 package main
 
 import (
@@ -61,10 +38,8 @@ const sharedValues = "infra/gitops/platform/shared-values.yaml"
 // CPU limits ADR-0204 tolerates, each with the reason it survives. A container not
 // listed here may not carry one.
 var cpuLimitAllowList = map[string]string{
-	// Upstream default that resists deletion: a `null` at
-	// crds.migration.podResources is applied but not removed, and renders as an
-	// explicit `cpu: null` the API server reads as zero. Runs once, after an
-	// upgrade, to migrate CRDs — throttling delays that and nothing else.
+	// Upstream hook Job whose `podResources: null` renders as `cpu: null`, which the API server reads as a limit of
+	// zero.
 	"kyverno/kyverno-migrate-resources/kyverno-cli": "upstream hook Job, undeletable default, runs once",
 	// Runs once at pod start to copy CNI binaries: throttling delays startup only.
 	"cilium/cilium/install-cni-binaries": "upstream init container, startup-only",
@@ -242,10 +217,8 @@ type chartDeps struct {
 	} `yaml:"dependencies"`
 }
 
-// hasSubchart reports whether charts/ already holds that dependency, as a vendored
-// .tgz of exactly the pinned version or as an unpacked directory. Matching the
-// version rather than the name is what makes a Chart.yaml bump re-vendor instead of
-// silently rendering the stale subchart still sitting in charts/.
+// Matches the pinned version, not the name, so a Chart.yaml bump re-vendors rather than rendering the stale subchart
+// in charts/.
 func hasSubchart(dir, name, version string) bool {
 	base := filepath.Join(dir, "charts")
 	st, dirErr := os.Stat(filepath.Join(base, name))
@@ -256,16 +229,8 @@ func hasSubchart(dir, name, version string) bool {
 	return tgzErr == nil
 }
 
-// ensureDeps vendors a chart's subcharts when charts/ does not already hold them.
-// A fresh checkout has none — the .tgz files are gitignored — and `helm template`
-// refuses to render a chart whose declared dependencies are missing, which is a lint
-// that passes on every developer machine and fails on every CI runner.
-//
-// `update`, not `build`: nothing in this repo runs `helm repo add`, and `build`
-// rejects a repository it has no local name for while `update` resolves the URL
-// directly. That is the same call scripts/cluster-full.sh and cilium-install.sh make.
-// Skipped whenever the subcharts are present, so the usual local run neither reaches
-// the network nor rewrites Chart.lock.
+// `update`, not `build`: nothing here runs `helm repo add`, and `build` rejects a repository it has no local name
+// for.
 func ensureDeps(ctx context.Context, dir, name string) error {
 	raw, err := os.ReadFile(filepath.Join(dir, "Chart.yaml"))
 	if err != nil {
@@ -303,15 +268,8 @@ func render(ctx context.Context, root, dir, name string) ([]entry, error) {
 	if ns == "" {
 		ns = "platform"
 	}
-	// `--namespace` is not cosmetic: without it helm renders with Release.Namespace
-	// = "default", so every chart stamping `namespace: {{ .Release.Namespace }}`
-	// reports the wrong namespace, matches no LimitRange, and makes the coverage
-	// check fire on every container in the repo.
-	// The shared deletions file, because it is part of what the cluster actually
-	// gets: the ApplicationSets pass it to every platform chart, and it is the only
-	// place a subchart's default can be REMOVED rather than replaced (Helm honours a
-	// `null` deletion in a `-f` file and ignores one in a wrapper chart's own
-	// values.yaml). Rendering without it checks a chart nobody deploys.
+	// Without `--namespace` helm renders Release.Namespace as "default", so every chart matches no LimitRange.
+	// The shared deletions file is the only place a subchart default can be removed rather than replaced.
 	extra := chartExtraArgs[name]
 	args := make([]string, 0, 7+len(extra))
 	args = append(args, "template", name, dir, "--namespace", ns)
@@ -330,10 +288,6 @@ func render(ctx context.Context, root, dir, name string) ([]entry, error) {
 	return decodeWorkloads(string(stdout), name, ns), nil
 }
 
-// decodeWorkloads walks a multi-document helm render. A decode error ends the walk
-// rather than failing the lint: it means either end-of-stream or a document whose
-// shape the `workload` struct does not describe (a ConfigMap, a CRD), and neither is
-// a resource-governance problem.
 func decodeWorkloads(rendered, chart, defaultNS string) []entry {
 	var entries []entry
 	dec := yaml.NewDecoder(strings.NewReader(rendered))
@@ -416,10 +370,8 @@ func collectPlatformCharts(ctx context.Context, root string) []entry {
 	return all
 }
 
-// collectServices renders the shared service chart ONCE PER SERVICE. A single render
-// undercounts the platform namespace by ~8 containers, and the quota check is only
-// worth having if the total is right. Worker presence is derived from the source tree
-// so a new service cannot silently escape the budget.
+// Renders once per service; a single render undercounts the platform namespace and the quota check is only worth
+// having if the total is right.
 func collectServices(ctx context.Context, root string) []entry {
 	svcDirs, err := filepath.Glob(filepath.Join(root, "services/*"))
 	if err != nil {
@@ -540,11 +492,8 @@ func checkCPULimits(all []entry) int {
 	fail := 0
 	for _, e := range all {
 		limit, present := e.res.Limits["cpu"]
-		// A PRESENT key with an empty value is `cpu: null` in the rendered YAML,
-		// which is not the same as an absent limit: the API server reads it as a
-		// limit of zero and rejects the pod ("requests … must be less than or equal
-		// to cpu limit of 0"). It is what a failed `null` deletion leaves behind, so
-		// it looks like success everywhere except the cluster.
+		// A present key with an empty value renders as `cpu: null`, which the API server reads as a limit of zero and
+		// rejects.
 		if present && limit == "" {
 			outf("✗ %s sets an EMPTY cpu limit (`cpu: null`); the API server reads that as 0, not as absent", e.label)
 			outf("  a values-file `null` did not delete the upstream key here")

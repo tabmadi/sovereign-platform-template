@@ -1,13 +1,4 @@
-// Committed deterministic test identities (ADR-0601). Provisioned the same way in
-// CI and locally — nothing is hand-seeded. `operator` mirrors OpenFGA `user:alice`
-// (an AAL2 operator in group:operator); `user` mirrors `user:bob` (a bare AAL1
-// product user with no ops grant). See infra/auth/openfga/fga.yaml.
-//
-// `reset` splits the lifecycle: the identities the e2e suite logs in as are
-// recreated per run for determinism (fresh password-only identity => the same
-// login -> enrol -> AAL2 path). `admin` is the human's day-to-day full-tier
-// account, so it is created-if-missing and left alone once it exists — an e2e run
-// must not wipe a developer's session and TOTP.
+// The committed deterministic test identities, provisioned the same way everywhere (ADR-0601).
 export type TestIdentity = {
   label: "operator" | "user" | "admin";
   email: string;

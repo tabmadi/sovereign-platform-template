@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
-# Conventional Commit gate over a commit RANGE (ADR-0103). The lefthook `commit-msg`
-# hook checks one message as it is written; this checks the range a pull request
-# proposes, which is the only place a rebase or a cherry-pick can smuggle a bad
-# message past the hook.
-#
-# BASE_REF names the branch the range is measured against. CI sets it to the pull
-# request's base; locally it defaults to the integration branch, so the range is
-# "what this working branch adds". An empty range passes, which is what a checkout
-# sitting on the base itself should do.
+# Conventional Commit gate over a commit range (ADR-0103), which is where a rebase or cherry-pick can smuggle a bad message past the commit-msg hook.
 set -euo pipefail
 # shellcheck source=lib/log.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"

@@ -1,19 +1,4 @@
-// The full purchase scenario, end to end through the real UIs (ADR-0601) — the
-// gauge no single-service test covers: two humans, two apps, the checkout saga and
-// the observability plane, all exercised in one path.
-//
-//   1. an OPERATOR adds a product in the Lowdefy admin console (lowdefy.ops);
-//   2. a fresh SHOPPER self-service registers on the storefront and logs in;
-//   3. the shopper checks out that product on /panel/checkout — POST /orders starts
-//      the Checkout saga (catalog lookup → payment charge → confirm, ADR-0302) and
-//      the page polls the order to a terminal status;
-//   4. the checkout is observable: the order's trace stitched across orders, catalog
-//      and payment (Tempo), proving the request was tracked end to end.
-//
-// The two personas are deliberate: product authoring is operator-only (catalog
-// gates writes on group:operator), buying is any authenticated user. Only when the
-// edge, both apps, all three services, Temporal and the OTel plane are healthy does
-// this go green — which is exactly why it's the release gate.
+// The full purchase scenario, end to end through the real UIs (ADR-0601).
 import { expect, test } from "@playwright/test";
 import { BASE_URL, OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { portForward } from "../fixtures/kube";
@@ -76,15 +61,7 @@ test.describe("full purchase scenario", () => {
     }
   });
 
-  // Step 1: the operator authors the product through the admin console. Reuses the
-  // saved AAL2 operator session; the generated "add product" page writes to catalog
-  // east-west (the same path admin.spec's CRUD covers).
-  //
-  // Tagged @smoke because step 2 is, and step 2 cannot run without it: it hands
-  // over `productId` through the closure below. `test:smoke` selects by --grep,
-  // which filters at the individual-test level and does not follow that
-  // dependency — so tagging only step 2 made the smoke lane fail on a bare
-  // `expect(productId).toBeTruthy()` while the full run stayed green.
+  // @smoke because step 2 is, and step 2 hands over `productId` through the closure. `test:smoke` selects by --grep, which filters per test and does not follow that dependency.
   test.describe("operator adds a product", () => {
     test.use({ storageState: OPERATOR_STATE });
 
@@ -113,13 +90,7 @@ test.describe("full purchase scenario", () => {
   test("shopper registers, checks out, and the order is traced end to end @smoke", async ({
     browser,
   }) => {
-    // The config's 60s default is a per-STEP budget, and this test is four steps
-    // whose own waits already add up past it: the saga has 60s to reach a terminal
-    // status and Tempo 90s to make the trace searchable, because a span is only
-    // queryable once the ingester has flushed it. Under the default the test dies
-    // mid-poll and reports the timeout rather than what it was waiting for, which
-    // reads as a broken checkout. The budget is the sum of the waits below plus the
-    // two auth flows in front of them.
+    // The config's 60s default is a per-step budget, and this test's own waits exceed it: the saga has 60s to settle and Tempo 90s to make the trace searchable.
     test.setTimeout(240_000);
     expect(productId, "product from step 1").toBeTruthy();
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
@@ -142,13 +113,7 @@ test.describe("full purchase scenario", () => {
       await ctx.close();
     }
 
-    // Observability: find the order the checkout created (newest for this product),
-    // then assert its trace stitched across all three services in Tempo — the
-    // request was tracked end to end. The deep log/metric correlation is asserted
-    // deterministically in observability.spec.ts.
-    // Listing every order is operator-gated (ADR-0304), so this asserts the console's
-    // service identity the way the console itself does. Port-forwarded, so the edge
-    // never sees — and never strips — the header.
+    // Listing every order is operator-gated (ADR-0304), so this asserts the console's service identity the way the console does. Port-forwarded, so the edge never strips the header.
     const ordersRes = await fetch(`http://127.0.0.1:${ORDERS_PORT}/orders`, {
       headers: { "x-user-id": "admin-console" },
     });

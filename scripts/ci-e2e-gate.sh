@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
-# Decide whether a pull request pays for the smoke suite, as a forge step-output
-# assignment (ADR-0102, ADR-0601).
-#
-# The suite was opt-in, by the `e2e-smoke` label. That is the right default for a
-# one-service change — the unit and handler tests already cover it, and a cluster
-# bring-up is ~17 minutes — and the wrong one for a change that spans services,
-# which is precisely the class no test below the e2e level can see. A cross-service
-# regression that reaches master then waits for the nightly, which is the largest
-# row in docs/reference/detection-latency.md.
-#
-# So the label still forces the suite on, and a PR touching MORE THAN ONE service
-# now gets it without anyone remembering to ask. `tools/affected` already computes
-# that set for the publish matrices, so this is a policy over an existing signal
-# rather than new detection.
-#
-# Inputs, both from the workflow: LABELED is whether the `e2e-smoke` label is
-# present; BASE_REF is the branch the PR merges into.
+# Decide whether a pull request pays for the smoke suite, as a forge step-output assignment (ADR-0102, ADR-0601).
 set -euo pipefail
 
 cd "$(cd "$(dirname "$0")/.." && pwd)"

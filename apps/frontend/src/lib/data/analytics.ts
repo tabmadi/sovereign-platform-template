@@ -1,8 +1,4 @@
 // The analytics seam (ADR-0400, ADR-0700, ADR-0701).
-//
-// The analytics service is `x-audience: cluster` and has no `/api` route, so the
-// only path to it is east-west from a server component. That makes this module
-// server-only, and it is the only place the internal client is constructed.
 import { summary as fixtureSummary } from "@/fixtures/analytics";
 import { createInternalClient } from "@/lib/server-fetch/internal";
 import { fixturesEnabled } from "./mode";

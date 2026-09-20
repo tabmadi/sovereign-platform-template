@@ -1,34 +1,9 @@
-# Capacity + saturation alerts (ADR-0500). Native Prometheus rule-file format —
-# mounted into Prometheus via the `prometheus-alerts` ConfigMap (see
-# service-availability.yaml for the delivery path).
-#
-# These answer TWO questions that are routinely conflated, and both have to be
-# asked because either one can stop the platform on its own:
-#
-#   1. SCHEDULER capacity — sum(requests) vs node allocatable. When this fills,
-#      Kubernetes refuses to place new pods even though real usage may be ~5%.
-#      Measured on the local tier: 1.11 CPU requested against 0.55 in use, i.e.
-#      the requests are the binding constraint long before the hardware is.
-#   2. REAL saturation — actual usage vs capacity. This is what OOM-kills pods
-#      and throttles CPU.
-#
-# Sources are the metrics the platform already collects (ADR-0500: Prometheus
-# scrapes nothing): `k8s_node_*` from the kubeletstats receiver on the node-local
-# collector, `k8s_node_allocatable_*` from the k8s_cluster receiver on
-# otel-cluster, `k8s_container_*_request*` likewise. No node_exporter and no
-# kube-state-metrics — both would duplicate the above under a second set of names.
-#
-# Thresholds are deliberately EARLIER than kubelet's own. This cluster pins
-# eviction-hard to 2% and image-gc-high to 98% (scripts/cluster.sh) so a
-# near-full developer disk does not evict the platform — which also means kubelet
-# will not warn in time. These rules are the warning.
+# Capacity + saturation alerts (ADR-0500). Native Prometheus rule-file format — mounted into Prometheus via the
+# `prometheus-alerts` ConfigMap (see service-availability.yaml for the delivery path).
 groups:
   - name: capacity.disk
     rules:
-      # Threshold: the condition that has actually bitten this project (a full
-      # host disk). 15% is chosen against the 2% eviction floor, not the stock
-      # 10-15% one — there needs to be room to react, and reclaiming space on a
-      # a kind node means pruning images and build cache, not deleting a file.
+      # Threshold: the condition that has actually bitten this project (a full host disk).
       - alert: NodeDiskSpaceLow
         expr: |
           100 * k8s_node_filesystem_available_bytes / k8s_node_filesystem_capacity_bytes < 15
@@ -42,10 +17,7 @@ groups:
             Reclaim with `docker builder prune -af`, `docker image prune -a`, and
             `crictl rmi --prune` inside the node; a local registry also never
             garbage-collects on its own (`registry garbage-collect`).
-      # Predictive: catches steady growth that a threshold only reports once it is
-      # already an incident. Retention-driven growth (Prometheus TSDB, Loki
-      # chunks, Tempo blocks) is exactly this shape — slow, monotonic, and
-      # invisible until the cliff.
+      # Predictive: catches steady growth that a threshold only reports once it is already an incident.
       - alert: NodeDiskSpaceFillingUp
         expr: |
           predict_linear(k8s_node_filesystem_available_bytes[6h], 24 * 3600) < 0

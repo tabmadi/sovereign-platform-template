@@ -1,18 +1,7 @@
 # The control-plane role's machine config (ADR-0200), applied on top of common.yaml.
-#
-# All three nodes carry this. Day one is a three-node control plane with etcd on
-# every member and every workload scheduled across the same set; a worker joins
-# later with patches/worker.yaml and changes nothing here.
 cluster:
-  # Cilium is the CNI and there is no kube-proxy (ADR-0206). Both of these must be
-  # set BEFORE the cluster bootstraps.
-  #
-  # Setting them on a running cluster does not undo what bootstrap already did:
-  # Talos applies its default manifests once and then leaves them, so flannel and
-  # kube-proxy keep running while the config claims neither exists. Two CNIs then
-  # contend for the dataplane, which presents as intermittent pod-to-pod failure
-  # rather than as an error. On an existing cluster the DaemonSets have to be
-  # deleted explicitly after the patch.
+  # Cilium is the CNI and there is no kube-proxy (ADR-0206). Both of these must be set BEFORE the cluster
+  # bootstraps.
   network:
     cni:
       name: none

@@ -1,17 +1,4 @@
-// The registration → personal-org flow (ADR-0304, ADR-0302). Kratos owns identities;
-// `orgs` owns tenancy, and the two are joined by exactly one wire: the blocking
-// `after` web_hook on the self-service registration flow
-// (infra/auth/kratos/values.yaml) → POST /identity-created → the RegisterUser
-// Temporal workflow → personal org + admin membership + the OpenFGA `org#admin`
-// tuple.
-//
-// This is the gauge for a seam with no unit-test equivalent — it spans Kratos, the
-// edge, the orgs server, Temporal, the orgs worker and OpenFGA, and every one of
-// them has to be up for an org to appear. It also pins the boundary that is easy to
-// misread: identities created through the Kratos ADMIN API (fixtures/bootstrap.ts,
-// scripts/ops-grant.sh) do NOT run self-service flows, so they get no org. Seeing
-// seeded identities with an empty orgs list is correct; seeing a *registered* user
-// with no org is the regression this catches.
+// The registration to personal-org flow (ADR-0304, ADR-0302): Kratos owns identities, orgs owns the org.
 import { expect, test } from "@playwright/test";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { register, registerExpectingRejection } from "../fixtures/kratos";
@@ -19,16 +6,11 @@ import { portForward } from "../fixtures/kube";
 
 const KRATOS_ADMIN = "http://127.0.0.1:4434";
 
-// Unique per run: Kratos enforces email uniqueness globally.
 const EMAIL = `signup-${Date.now()}@e2e.localtest.me`;
 
-// The personal org is named generically ("Personal workspace"), NOT by the email:
-// an org is a tenant whose name is shown to every member the user later invites, so
-// an email there would leak PII (activities.CreatePersonalOrgActivity, ADR-0301).
-// The registrant's assertable link to their org is therefore the OpenFGA admin
-// tuple (org:<id>#admin@user:<id>), which is also dual-write leg 2 — the exact seam
-// this test guards. Local forward port 18080 (not 8080: the local edge maps host 8080 to the
-// edge); the key is the cluster:up full preshared key.
+// The personal org is named generically, not by the email, which would leak PII to every member invited later
+// (ADR-0301). The registrant's assertable link is the OpenFGA admin tuple, which is dual-write leg 2.
+// Local forward port 18080, because the local edge maps host 8080 to the edge.
 const PERSONAL_ORG_NAME = "Personal workspace";
 const OPENFGA_LOCAL_PORT = Number(process.env.OPENFGA_LOCAL_PORT ?? 18080);
 const OPENFGA_TOKEN = process.env.OPENFGA_TOKEN ?? "localdevkey";
@@ -70,11 +52,7 @@ async function adminOrgIds(identityId: string): Promise<string[]> {
   return (body.objects ?? []).map((o) => o.replace(/^org:/, ""));
 }
 
-// Unlike the admin import path used by the bootstrap fixture, self-service
-// registration DOES enforce the password policy (haveibeenpwned, min_password_length
-// 12, identifier_similarity_check). Keep it long, unbreached, and dissimilar to the
-// address — a policy rejection would fail as "no org appeared" and read as an orgs
-// bug rather than a bad fixture.
+// Self-service registration enforces the password policy, unlike the admin import path. A policy rejection would fail as "no org appeared" and read as an orgs bug.
 const PASSWORD = "Tr0ubadour-Fjord-Lantern-9!";
 
 test.describe("self-service registration", () => {
@@ -101,12 +79,7 @@ test.describe("self-service registration", () => {
   });
 
   test("registering a new identity creates its personal org @smoke", async ({ browser, page }) => {
-    // Sign up from a clean, anonymous context — the way a human would. `storageState:
-    // undefined` is load-bearing, not decoration: browser.newContext() INHERITS the
-    // describe-level test.use({ storageState }), so without the override this context
-    // carries the operator's ory_kratos_session, and Kratos bounces an already
-    // authenticated visitor off the registration flow to the landing page — the form
-    // never renders and the failure reads as a missing field.
+    // `storageState: undefined` is load-bearing: newContext() inherits the describe-level `test.use`, and Kratos bounces an already authenticated visitor off the registration flow.
     const anon = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
     try {
       await register(await anon.newPage(), EMAIL, PASSWORD);
@@ -124,12 +97,8 @@ test.describe("self-service registration", () => {
     }
     expect(identityId, "registered identity must exist in Kratos").toBeTruthy();
 
-    // The org is eventually-consistent: the blocking web_hook only ENQUEUES
-    // RegisterUser; cmd/worker runs the two dual-write legs (app-DB org + the OpenFGA
-    // org#admin tuple) out of band. Poll the authz plane until the new identity
-    // admins exactly one org. A timeout means the workflow never completed (worker
-    // down, or a failed OpenFGA leg) — the regression this test guards; a failed
-    // enqueue is blocking and would already have failed `register` above.
+    // The blocking web_hook only enqueues RegisterUser; the worker runs the two dual-write legs out of band.
+    // A timeout means the workflow never completed, which is the regression this guards.
     const fgaPf = await portForward("openfga", OPENFGA_LOCAL_PORT, 8080);
     let orgId = "";
     try {
@@ -142,11 +111,7 @@ test.describe("self-service registration", () => {
       fgaPf.stop();
     }
 
-    // Acceptance gauge (ADR-0601): the new org renders in the admin console, addressed
-    // by id (its name is the generic PERSONAL_ORG_NAME, shared across registrants).
-    // Clean it up through the console: not just tidiness — the changelist grid
-    // paginates at 20 rows client-side (orgs.yaml), so a leftover row per run would
-    // eventually push new orgs off the first page.
+    // Cleaned up through the console: the changelist grid paginates at 20 rows client-side, so a leftover row per run would push new orgs off the first page (ADR-0601).
     await page.goto(`${opsURL("lowdefy")}/orgs_edit?id=${orgId}`);
     const del = page.getByRole("button", { name: "Delete", exact: true });
     await expect(del).toBeVisible({ timeout: 15_000 });
@@ -155,19 +120,9 @@ test.describe("self-service registration", () => {
   });
 });
 
-// The password policy is enforced by Kratos config that is INJECTED into the chart
-// (`infra/auth/kratos/values.yaml` → Helm `--set-file`, ADR-0304). If that injection
-// ever breaks, Kratos falls back to its own defaults and the platform silently
-// accepts weaker passwords than the ADR claims — a config-delivery failure with no
-// unit-test equivalent, which is why this is an e2e.
-//
-// This used to assert the HaveIBeenPwned breach check instead. ADR-0304 turned that
-// check off by default (it needs world egress, and Kratos' `ignore_network_errors`
-// makes an unreachable HIBP accept the password silently), so the assertion moved to
-// the rule that is always on. If you re-enable the breach check for an environment,
-// restore the breached-password test alongside it — `passwordpassword` is the useful
-// fixture: 16 chars, so it clears the length rule, and dissimilar to the identifier,
-// so only the breach check can reject it.
+// The password policy is Kratos config injected into the chart (ADR-0304); if that injection breaks, Kratos
+// falls back to its own defaults and accepts weaker passwords than the ADR claims.
+// The breach check is off by default, so this asserts the rule that is always on.
 test.describe("password policy", () => {
   // Register anonymously. Explicit, not inherited: this describe is a sibling of
   // the operator-scoped one above, and an authenticated visitor is bounced off the

@@ -1,12 +1,5 @@
-// Package buildinfo exposes the identity of the running binary (ADR-0103): the
-// git SHA it was built from, the release version, and the build time. It lets
-// "what is actually deployed" be answered from the artifact itself, not inferred
-// from an image tag or a ConfigMap — which is the whole point, since those can
-// drift from the binary they claim to describe.
-//
-// Values are injected at build time via -ldflags -X (see the service Dockerfiles).
-// When unset — e.g. `go run` or a `go build` without ldflags — they fall back to
-// the Go VCS stamp from debug.ReadBuildInfo so local runs still self-report.
+// Package buildinfo exposes the identity of the running binary — git SHA, release version, build time — so what is
+// deployed is answered from the artifact (ADR-0103).
 package buildinfo
 
 import "runtime/debug"
@@ -44,12 +37,10 @@ func init() {
 	}
 }
 
-// Info is the structured build identity, e.g. for the /version admin endpoint.
 type Info struct {
 	Version string `json:"version"`
 	SHA     string `json:"sha"`
 	BuiltAt string `json:"builtAt"`
 }
 
-// Get returns the current build identity.
 func Get() Info { return Info{Version: Version, SHA: SHA, BuiltAt: BuiltAt} }

@@ -1,6 +1,4 @@
 // Package handlers implement the ogen-generated catalog.Handler interface (ADR-0303).
-// Hand-written code imports the generated schema types and the sqlc store; it
-// never shadows them with parallel structs or inline SQL.
 package handlers
 
 import (
@@ -39,14 +37,9 @@ func New(db *pgxpool.Pool, checker authz.Checker) *Handlers {
 
 var _ catalog.Handler = (*Handlers)(nil)
 
-// productID and storedID are the transport boundary (ADR-0003): the column holds a
-// bare uuid and the wire carries `product_` and the base32 form. Nothing between
-// the two surfaces sees the other's shape.
-//
-// The prefix is a literal, so encoding cannot fail on real input. Decoding cannot
-// either — every identifier reaching a handler has already matched the ProductId
-// pattern in the generated validator — and it still reports rather than panics,
-// because the validator and this call are two places one spec edit can separate.
+// productID and storedID are the transport boundary (ADR-0003): the column holds a bare uuid and the wire
+// carries `product_` and the base32 form. Both report rather than panic, because the generated validator and
+// this call are two places one spec edit can separate.
 func productID(u pgtype.UUID) catalog.ProductId {
 	return catalog.ProductId(id.MustFrom("product", uuid.UUID(u.Bytes)).String())
 }
@@ -62,10 +55,8 @@ func mintID() (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
 }
 
-// wirePrice renders the stored amount for the wire (ADR-0300): the column is
-// `numeric` and the wire is a decimal STRING with its currency. It goes through
-// money.Amount rather than formatting the numeric directly, so the value on the
-// wire is the one the shared type would produce anywhere else.
+// wirePrice goes through money.Amount rather than formatting the numeric directly, so the wire value is the one the
+// shared type would produce anywhere else (ADR-0300).
 func wirePrice(price pgtype.Numeric, currency string) (catalog.Money, error) {
 	raw, err := price.Value()
 	if err != nil {

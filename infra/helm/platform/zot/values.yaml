@@ -1,15 +1,7 @@
-# Values namespaced under `zot:` so this chart shares the platform
-# ApplicationSet's single per-env values overlay without key collisions. A
-# top-level key here would be read by every OTHER chart's render of the same
-# file — and, worse, this chart would ignore the per-environment override that
-# names it, which is how a production-disabled component stays enabled.
+# Values namespaced under `zot:` so this chart shares the platform ApplicationSet's single per-env values overlay
+# without key collisions.
 zot:
-  # zot — the image registry (ADR-0105).
-  #
-  # `enabled` is the umbrella gate. The local tier sets it false: the inner loop
-  # pushes to the shared local registry at `registry.localhost:5000`, which exists
-  # so a working-tree image never needs a registry the cluster has to authenticate
-  # to (ADR-0600).
+  # zot — the image registry (ADR-0105). `enabled` is the umbrella gate.
   enabled: true
 
   image:
@@ -27,35 +19,13 @@ zot:
     # off-cluster production store is reached over TLS, which is why this is a value
     # rather than a constant.
     secure: false
-    # Untagged manifests unreferenced by a signature or an environment's values are
-    # collected on a schedule (ADR-0105). `gcDelay` is the grace an in-flight push
-    # gets before its blobs count as garbage — shorter than a slow push and the
-    # push collects its own layers.
+    # Untagged manifests unreferenced by a signature or an environment's values are collected on a schedule
+    # (ADR-0105).
     gc: true
     gcDelay: 1h
     gcInterval: 24h
 
   # PULL-THROUGH MIRRORING of the upstream registries (ADR-0105).
-  #
-  # This is the answer to a problem that is not really about registries: on a
-  # proxied or firewalled network, every layer that pulls an image needs its own
-  # egress configuration — each Talos node, each kind node, each build host. Point
-  # them all at zot instead and exactly ONE component talks to the internet for
-  # images. The firewall rule becomes one entry and the node configuration becomes
-  # none.
-  #
-  # `onDemand` rather than a poll: zot fetches an image the first time something
-  # asks for it and caches it thereafter. Nothing has to be preloaded, and no list
-  # of images has to be derived and kept current — which is the part that rots.
-  #
-  # Docker Hub is `onDemand` ONLY and must never be polled: it rate-limits pulls
-  # and does not support catalog listing, so a poll walks a catalog that is not
-  # there and spends the rate limit finding out. zot's own documentation says so.
-  #
-  # What this does NOT do, and the docs say so plainly: it covers IMAGE pulls. The
-  # build path still needs egress for base images and language modules, and
-  # non-image traffic — ACME, mail delivery, DMARC reports — is unaffected. This
-  # reduces the layers that need a proxy; it does not remove the proxy.
   sync:
     enabled: true
     # Under `/var/lib/zot`, which is the emptyDir the deployment already mounts —
@@ -77,14 +47,9 @@ zot:
         onDemand: true
         tlsVerify: true
 
-  # Credentials, both halves, from one SOPS-encrypted Secret (ADR-0105, ADR-0202):
-  #
-  #   htpasswd                 bcrypt lines for the two identities below
-  #   AWS_ACCESS_KEY_ID        the store credential zot reads and writes S3 with
-  #   AWS_SECRET_ACCESS_KEY
-  #
-  # bcrypt specifically: zot loads an apr1 file without complaint, reports the right
-  # number of users, and then refuses every password (observed 2026-08-19 on 2.1.20).
+  # Credentials, both halves, from one SOPS-encrypted Secret (ADR-0105, ADR-0202): htpasswd bcrypt lines for the two
+  # identities below AWS_ACCESS_KEY_ID the store credential zot reads and writes S3 with AWS_SECRET_ACCESS_KEY
+  # bcrypt specifically: zot loads an apr1 file without complaint, reports the right number of users, and then
   credentialsSecret: zot-credentials
 
   # The two identities ADR-0105 names. Anonymous gets nothing — no policy, so a
@@ -93,38 +58,12 @@ zot:
     pushUser: ci
     pullUser: cluster
 
-  # The web console (ADR-0306). zot serves the UI and the search API it reads from
-  # on the SAME port as the distribution API, so this adds a browser surface to a
-  # listener that already exists rather than a second one.
-  #
-  # It is reached at `zot.ops.<host>` behind the ops forward-auth, never at
-  # `registry.<host>`: that origin stays outside the ops label because a registry
-  # client follows no redirect to a login page (ADR-0306).
-  #
-  # `search` is not decoration — the UI is a client of it and renders an empty
-  # catalogue without it. zot's CVE scanning is a sub-key of the same extension and
-  # is deliberately left off: it downloads a vulnerability database on a schedule,
-  # which is egress this component would otherwise not need, and scanning images is
-  # admission control's job (ADR-0104).
+  # The web console (ADR-0306). zot serves the UI and the search API it reads from on the SAME port as the
+  # distribution API, so this adds a browser surface to a listener that already exists rather than a second one.
   console:
     enabled: true
 
-  # A login-free path to the console, on top of the ops gate (ADR-0306). Every
-  # other ops dashboard serves anonymously once the edge has proved an AAL2
-  # operator; the console cannot, because its access policy is one configuration
-  # for one process and the only anonymous lever — `anonymousPolicy: [read]` —
-  # opens every pull on `registry.<host>` at the same time (ADR-0105). zot has no
-  # per-route knob and neither Traefik nor Oathkeeper can inject a Secret-sourced
-  # header, so the credential is presented for the browser by a tiny reverse proxy
-  # in this pod (see the deployment). The `zot.ops` origin routes to it; the
-  # `registry.<host>` origin still reaches zot directly and is unchanged.
-  #
-  # The proxy authenticates as the `pullUser` above — the console needs read, which
-  # is what the pull identity already has, so this mints no second identity. The
-  # pre-encoded `Authorization` value is `consoleAuthorization` in the same Secret,
-  # and it MUST match that user's htpasswd password. On by default wherever the
-  # console is; a deployed environment that fronts the console differently turns it
-  # off here and the `zot.ops` route falls back to the console's own htpasswd.
+  # A login-free path to the console, on top of the ops gate (ADR-0306).
   consoleAuth:
     enabled: true
     image:

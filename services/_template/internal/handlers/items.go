@@ -1,10 +1,6 @@
 //go:build _template
 
-// Handlers implement the ogen-generated server Handler interface from
-// libs/go/sdks/<svc> (ADR-0303). Copy this file when scaffolding a new service;
-// new-service.sh strips the build tag and rewrites _template → <svc>.
-// Hand-written code imports the generated schema types and the sqlc store; it
-// never shadows them with parallel structs or inline SQL.
+// Handlers implement the ogen-generated server Handler interface (ADR-0303).
 package handlers
 
 import (
@@ -28,13 +24,9 @@ func New(db *pgxpool.Pool) *Handlers { return &Handlers{q: store.New(db)} }
 
 var _ tmpl.Handler = (*Handlers)(nil)
 
-// itemID and mintID are the transport boundary (ADR-0003): the column holds a bare
-// uuid and the wire carries `item_` and the base32 form. Rename the prefix with the
-// resource — it is the singular of the collection noun, so /orders yields "order".
-//
-// Minting here rather than in a column default is what lets a handler log the
-// identifier of a write that never lands. The prefix is a literal, so encoding
-// cannot fail on real input.
+// itemID and mintID are the transport boundary (ADR-0003): the column holds a bare uuid and the wire carries
+// `item_` and the base32 form. Minting here rather than in a column default is what lets a handler log the
+// identifier of a write that never lands.
 func itemID(u pgtype.UUID) tmpl.ItemId {
 	return tmpl.ItemId(id.MustFrom("item", uuid.UUID(u.Bytes)).String())
 }

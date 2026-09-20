@@ -1,20 +1,5 @@
 #!/usr/bin/env bash
 # Local act runner that bakes the mise toolchain into one base image.
-#
-#   mise run act:local               # build base image if stale, then run the PR gate
-#   mise run act:local -- --rebuild  # force a fresh image build
-#   mise run act:local -- -j build   # run a single job against the base image
-#
-# act runs every pull_request job in its own container, and every job used to
-# re-install the full ~30-tool mise toolchain from scratch: 8 containers × ~2.8 GB,
-# plus a long cold start, on every run. This bakes the toolchain into one image
-# once and runs act with -P ubuntu-latest=<image>, so every job shares a single
-# read-only layer and starts with the tools already on PATH.
-#
-# The image is rebuilt only when its inputs change: the root .mise.toml, or the
-# mise version CI pins in .github/actions/setup/action.yml. The proxy and the
-# GitHub token are build args, needed to fetch and verify the tools during the
-# bake, and are never persisted into the image.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"

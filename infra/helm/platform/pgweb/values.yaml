@@ -1,5 +1,5 @@
-# Values namespaced under `pgweb:` so this chart shares the platform
-# ApplicationSet's single per-env values overlay without key collisions.
+# Values namespaced under `pgweb:` so this chart shares the platform ApplicationSet's single per-env values
+# overlay without key collisions.
 pgweb:
   # Core (ADR-0401): deployed in every environment. The gate stays here so a
   # project can drop pgweb by setting `enabled: false` in an env overlay, like
@@ -15,10 +15,8 @@ pgweb:
   service:
     port: 80
 
-  # Postgres DSN pgweb connects to. Empty by default; each env's overlay supplies
-  # it, and it MUST name the `readonly` role rather than a schema owner (ADR-0401).
-  # The role is created by the postgres chart and granted SELECT by each service's
-  # migrations; pgweb's own `--readonly` flag is the second layer, not the first.
+  # Postgres DSN pgweb connects to. Empty by default; each env's overlay supplies it, and it MUST name the
+  # `readonly` role rather than a schema owner (ADR-0401).
   databaseUrl: ""
 
   # The deployed shape: the parts of the DSN that are not secret, plus the Secret

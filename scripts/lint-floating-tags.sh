@@ -12,12 +12,9 @@ scan() {
   local pattern="$1"
   shift
   local hits
-  # word-splitting the path list into separate grep args is intentional here.
+  # image-refs.txt is generated from the charts, where a floating tag is an upstream chart's choice restated; this gate covers the values a human writes.
+  # Word-splitting the path list into separate grep args is intentional.
   # shellcheck disable=SC2068
-  # image-refs.txt is GENERATED from the charts (scripts/gen-image-allowlist.sh). A
-  # floating tag there is an upstream chart's choice, restated — this gate is on the
-  # values a human writes, and the generated file has to keep the reference the chart
-  # actually renders or the registry warm would miss the image the node then cannot pull.
   hits=$(grep -RInE --exclude-dir=node_modules --exclude=image-refs.txt "$pattern" $@ 2>/dev/null || true)
   if [[ -n "$hits" ]]; then
     echo "✗ $label:"
@@ -26,9 +23,7 @@ scan() {
   fi
 }
 
-# infra/local is in the list because the inner loop is where a floating tag does
-# its quietest damage: nobody reviews a dev stand-in, and a version that moved
-# under one engineer and not another produces a bug neither can reproduce. The
+# infra/local is in the list because nobody reviews a dev stand-in, and a version that moved under one engineer and not another is a bug neither can reproduce.
 # Temporal stand-in sat on `latest` for exactly as long as this gate did not look.
 paths=(Dockerfile infra/helm infra/local .github/workflows .mise.toml services apps)
 

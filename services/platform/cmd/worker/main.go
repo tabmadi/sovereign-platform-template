@@ -1,23 +1,4 @@
 // The platform worker (ADR-0302, ADR-0301).
-//
-// It owns the work that belongs to the platform rather than to any one service:
-// the periodic obligations several ADRs decide, and the erasure, export and
-// retention processes that cross every store.
-//
-// # Why this deployable exists
-//
-// A DR drill, a retention pass, a cardinality audit and a quarterly review are each
-// decided by an ADR that names no owner. Hanging them off catalog or orders would
-// put a service in charge of work outside its domain — what the process-owner rule
-// exists to prevent — and a Kubernetes CronJob is forbidden for business-meaningful
-// work by ADR-0302. So they get a worker, and it is worker-only: no HTTP surface,
-// because it answers no requests.
-//
-// ADR-0301 rejects "a dedicated erasure service calling each owning service's API".
-// This is not that. The objection there was to a service reimplementing retries,
-// timers and state against a Temporal that is already Core; everything here gets
-// all three from Temporal. What lives in this process is the workflow, not a second
-// orchestrator.
 package main
 
 import (

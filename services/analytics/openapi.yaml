@@ -1,25 +1,15 @@
 openapi: 3.1.0
 info: { title: analytics, version: 0.1.0, description: Marketing event store and consent record., x-audience: cluster }
 servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
-#
-# `x-audience: cluster` — east-west only, and therefore NO /api edge route at all
-# (ADR-0303). Nothing in a browser reaches this service: marketing events arrive
-# from the collector's routing connector, and the consent control writes through
-# the frontend's server-side fetcher, which is a call from the Next pod rather than
-# from the page. That is what keeps the event store off the public edge entirely —
-# a public write path to it would be an unauthenticated way to fill the table.
-# No `x-admin` marker anywhere. ADR-0700 puts the analytics panel on the product
-# origin as a route group behind the marketing group's own grant, not in the
-# operator console — marketing never receives an ops-tier account.
+# `x-audience: cluster` — east-west only, with no /api edge route (ADR-0303): a public write path to the event
+# store would be an unauthenticated way to fill the table.
+# No `x-admin` marker: ADR-0700 puts the panel on the product origin, not in the operator console.
 tags: [{ name: analytics }, { name: consent }]
 paths:
   /analytics/events:
     post:
       operationId: recordEvents
-      # Written by the collector's routing connector, never by a browser (ADR-0700).
-      # The browser emits through Faro; the collector splits `marketing.*` out of the
-      # logs pipeline and delivers here, which is what keeps marketing events out of
-      # Loki and lets the backend change without a frontend release.
+      # Written by the collector's routing connector, never by a browser (ADR-0700), which is what keeps marketing events out of Loki.
       description: Record a batch of marketing events.
       tags: [analytics]
       requestBody:
@@ -62,10 +52,7 @@ paths:
   /analytics/funnels/{funnel}/rollup:
     post:
       operationId: computeFunnelRollup
-      # Driven by a Temporal Schedule (ADR-0302, infra/temporal/schedules.yaml), not
-      # by a person and not by a browser. The computation belongs HERE rather than in
-      # the platform worker because the events are this service's store and no other
-      # service reads it directly.
+      # Driven by a Temporal Schedule (ADR-0302), and it belongs here because the events are this service's store and no other service reads it directly.
       description: |
         Recompute a funnel's rollup over a window, one bucket per day.
 

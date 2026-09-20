@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
-# Auth single-source lint. Two rules, one subject: authentication is defined in
-# exactly one place and enforced by the real stack.
-#
-#  1. The auth CONFIG lives exactly once, in the canonical infra/auth tree, and is
-#     injected into the Ory umbrella chart at install time (Helm `-f` overlays +
-#     `--set-file`; ArgoCD valueFiles + fileParameters). This guard fails CI if any
-#     of it is re-inlined back into the chart values, which is how the copies
-#     silently diverged before.
-#  2. The frontend carries no development-only auth CODE (ADR-0600). Local work
-#     against mocked data still logs in for real via the `edge` profile, so a
-#     session bypass, a synthetic session object, or a NODE_ENV branch in the app's
-#     auth path has no reason to exist — and principle 9 predicts what happens to
-#     one that does.
+# Auth single-source lint: authentication is defined in exactly one place and enforced by the real stack (ADR-0305).
 set -euo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -42,16 +30,8 @@ for f in \
   fi
 done
 
-# --- 2. No development-only auth code in the frontend (ADR-0600) -------------
-# Scope is the WHOLE application, not just its authn gate and auth library. Those
-# two are where a bypass belongs if it exists at all, which is exactly why nobody
-# puts one there: it goes in a server action, a fetcher, or a layout, where it
-# reads like a convenience. The rule says the application carries no
-# development-only authentication code, so the linter reads the application.
-#
-# Widening is safe because the patterns below are narrow — they name a bypass
-# outright, or pair NODE_ENV with an auth word on the same line. Comments are
-# dropped so this file's own prose, and the ADR pointers in the app, do not trip it.
+# Scope is the whole application (ADR-0600): a bypass goes in a server action or a layout, where it reads like a convenience.
+# Comments are dropped so this file's prose and the app's ADR pointers do not trip it.
 AUTH_PATHS=(apps/frontend/src)
 # An environment-conditional branch is only a finding when it is conditioning the
 # SESSION — proxy.ts legitimately relaxes the CSP for `next dev`, which grants

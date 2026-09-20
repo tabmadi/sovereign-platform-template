@@ -1,9 +1,5 @@
-// Package authmw reads the trusted identity headers injected by the edge
-// (Oathkeeper — ADR-0305, ADR-0304): X-User-Id, X-Org-Id, X-Roles. Token
-// validation happens once at the edge; services never parse a JWT. authmw turns
-// those headers into a typed Principal on the request context. Service-to-service
-// calls forward the same headers, so handlers read identity one way regardless
-// of origin. Authorisation is a separate concern (libs/go/authz Checker).
+// Package authmw turns the identity headers the edge injects — X-User-Id, X-Org-Id, X-Roles — into a typed Principal
+// on the request context (ADR-0305, ADR-0304).
 package authmw
 
 import (
@@ -21,12 +17,9 @@ const (
 	HeaderRoles  = "X-Roles"
 )
 
-// anonymousSubject is what the edge's anonymous authenticator puts in X-User-Id
-// for a caller with no session (`subject: guest` in infra/auth/oathkeeper/
-// values.yaml). It arrives in the same header a real identity does, so a service
-// that only checks the header is non-empty treats every guest as a logged-in user
-// named `guest` — and would hand them anything ever granted to `user:guest`.
-// Changing the value there changes it here; the two are one decision.
+// What the edge's anonymous authenticator puts in X-User-Id for a caller with no session. It arrives in the same
+// header a real identity does, so checking the header is non-empty treats every guest as a signed-in user.
+// The value lives in infra/auth/oathkeeper/values.yaml; the two are one decision.
 const anonymousSubject = "guest"
 
 type ctxKey int
@@ -40,12 +33,10 @@ type Principal struct {
 	Roles  []string
 }
 
-// Authenticated reports whether the edge resolved a real user (vs. anonymous).
 func (p *Principal) Authenticated() bool {
 	return p != nil && p.UserID != "" && p.UserID != anonymousSubject
 }
 
-// HasRole reports whether the principal carries role.
 func (p *Principal) HasRole(role string) bool {
 	if p == nil {
 		return false

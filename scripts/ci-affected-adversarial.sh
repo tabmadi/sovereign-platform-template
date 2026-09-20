@@ -1,22 +1,5 @@
 #!/usr/bin/env bash
 # Adversarially test affected-detection (ADR-0101, ADR-0601).
-#
-#   mise run ci:affected-adversarial
-#
-# `tools/affected` decides which services CI builds, tests and publishes. Everything
-# downstream trusts it, and its failure mode is the quiet one: a service it does not
-# name is a service nothing ran against, and the pull request goes green. ADR-0101
-# calls it the most load-bearing tooling in the repo and mitigates it with unit
-# tests — which check the classifier against a list of paths someone wrote down,
-# which is the same list the classifier was written from.
-#
-# So this asks the question from the other side. For every service, in a scratch
-# worktree, break that service and assert the manifest names it. The break is a real
-# edit to a real file in a real git tree, and the manifest comes from the real
-# command CI runs.
-#
-# The scratch worktree is what makes it safe to run anywhere: nothing touches the
-# working tree, and the worktree is removed on the way out, including on failure.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -37,16 +20,7 @@ step "creating a scratch worktree at ${BASE}"
 git worktree add --quiet --detach "$work/tree" "$BASE"
 base_sha="$(git -C "$work/tree" rev-parse HEAD)"
 
-# The classifier under test is the WORKING TREE's, built to a BINARY outside the
-# worktree.
-#
-# Both halves matter. Building from the working tree means the version under test is
-# the one being edited, which in CI is the same file and locally is the change you
-# are making to the classifier itself. And building it OUT of the worktree means it
-# does not appear in the diff being classified — `tools/` is a global trigger, so a
-# copy of the tool inside the tree makes every probe come back `global: true`, which
-# this check accepts as "selected". It passed a deliberately sabotaged classifier
-# exactly once before that was noticed.
+# Built from the working tree, to a binary outside it: `tools/` is a global trigger, so a copy of the classifier inside the tree makes every probe come back `global: true`.
 step "building the classifier under test"
 go build -o "$work/affected" ./tools/affected
 
@@ -69,10 +43,6 @@ for dir in services/*/; do
 
   printf '\n<!-- affected-detection probe -->\n' >>"$work/tree/$target"
   git -C "$work/tree" add "$target" >/dev/null
-  # --no-verify: lefthook's commit-msg hook enforces conventional commits, and this
-  # commit exists for one `git diff` inside a scratch worktree that is deleted
-  # seconds later. Asking it to be a well-formed changelog entry is asking the
-  # probe to satisfy a rule about history it never joins.
   git -C "$work/tree" -c user.email=ci@local -c user.name=ci \
     commit --quiet --no-verify -m "chore: perturb ${svc}"
 

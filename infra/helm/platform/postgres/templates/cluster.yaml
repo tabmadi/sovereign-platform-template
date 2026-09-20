@@ -11,11 +11,7 @@ metadata:
 spec:
   instances: {{ .Values.cluster.instances }}
   imageName: {{ .Values.cluster.imageName }}
-  # ADR-0204. Postgres is the one component where the memory REQUEST matters as
-  # much as the limit: CNPG derives nothing from it, but the scheduler uses it to
-  # decide whether the node can host the instance at all, and a database that gets
-  # evicted takes every service with it. platform-critical priority for the same
-  # reason — it must be the last thing standing.
+  # ADR-0204.
   resources: {{- toYaml .Values.cluster.resources | nindent 4 }}
   priorityClassName: {{ .Values.cluster.priorityClassName }}
   storage:
@@ -35,13 +31,7 @@ spec:
         - {{ . | quote }}
         {{- end }}
       {{- end }}
-      # The owner is named ONCE, in `initdb.owner`, and every statement below is
-      # rendered from it. Spelling it into the SQL as well is a duplication that
-      # fails silently: CNPG creates the role the superuser Secret names, and a
-      # `CREATE DATABASE … OWNER <other>` then aborts the whole
-      # postInitApplicationSQL run. What that looks like is a Postgres that came
-      # up healthy with exactly one database, and every consumer failing its own
-      # connection with a message about ITS database or ITS password.
+      # The owner is named ONCE, in `initdb.owner`, and every statement below is rendered from it.
       postInitApplicationSQL:
         {{- $owner := .Values.cluster.initdb.owner }}
         {{- range .Values.cluster.initdb.databases }}

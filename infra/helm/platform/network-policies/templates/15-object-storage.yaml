@@ -27,11 +27,8 @@ spec:
             k8s:io.kubernetes.pod.namespace: platform
             app.kubernetes.io/name: postgresql
             app.kubernetes.io/component: database
-        # zot keeps every image, and every signature and SBOM attached to one, in
-        # this store (ADR-0105) — it reads the bucket before it can serve a single
-        # pull. Missing here, it hangs for the S3 client's whole timeout and then
-        # exits with a status and no message, having logged only
-        # `parsing storage and initializing`.
+        # zot keeps every image, and every signature and SBOM attached to one, in this store (ADR-0105) — it reads the
+        # bucket before it can serve a single pull.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app: zot }
       toPorts:
         - ports: [{ port: "8333", protocol: TCP }]
@@ -65,24 +62,15 @@ spec:
     - fromEntities: [host, remote-node]
       toPorts:
         - ports: [{ port: "5000", protocol: TCP }]
-    # The gateway: 5000 for the push route an environment exposes to its pipeline,
-    # and 5001 for the console origin, whose login-free proxy rides in the zot pod
-    # on that port (zot chart `consoleAuth`, ADR-0306). The kubelet rule above stays
-    # 5000 only — a node pulls from the registry, never through the console.
+    # The gateway: 5000 for the push route an environment exposes to its pipeline, and 5001 for the console origin,
+    # whose login-free proxy rides in the zot pod on that port (zot chart `consoleAuth`, ADR-0306).
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:
         - ports: [{ port: "5000", protocol: TCP }, { port: "5001", protocol: TCP }]
   {{- if .Values.registryMirror }}
-  # Egress to the upstream registries, which is the MIRROR itself (ADR-0105): a
-  # pull-through cache that cannot reach upstream is a cache that can only serve
-  # what was pushed to it directly. This is the one component whose world egress
-  # is its purpose rather than a side effect, and it is what makes every other
-  # layer's egress unnecessary — the whole point of pointing the nodes here.
-  #
-  # Denied, it does not fail loudly: zot authenticates the pull, logs
-  # `sync: syncing image` and then `failed to get upstream image manifest
-  # details`, and the client sees a request that never returns.
+  # Egress to the upstream registries, which is the MIRROR itself (ADR-0105): a pull-through cache that cannot reach
+  # upstream is a cache that can only serve what was pushed to it directly.
   egress:
     - toEntities: [world]
       toPorts:

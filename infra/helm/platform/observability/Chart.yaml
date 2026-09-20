@@ -16,27 +16,7 @@ type: application
 version: "2026.9.0"
 appVersion: "1.0.0"
 
-# Subcharts are vendored under charts/ and rendered directly — there is no
-# `dependencies:` block on purpose. ArgoCD's repo-server runs `helm dependency
-# build` whenever dependencies are declared, and that always fetches the repo
-# index over the network; behind the local privoxy edge that call wedges and the
-# app never renders. Vendoring + no dependencies keeps rendering fully offline.
-# Provenance (name @ version, source repo), matching the tgz files in charts/:
-#   loki                     7.0.0    https://grafana.github.io/helm-charts
-#   tempo                    1.24.4   https://grafana.github.io/helm-charts
-#   grafana                  10.5.15  https://grafana.github.io/helm-charts
-# Refresh a subchart with: helm pull <repo>/<name> --version <v> -d charts/
-# NOTE: charts/loki-7.0.0.tgz is repacked from upstream with its bundled minio,
-# rollout-operator and grafana-agent-operator grandchild charts removed (Helm
-# won't honor their disable conditions two levels deep). After a fresh `helm
-# pull loki`, re-strip those three dirs from charts/ before repacking.
-# NOTE: charts/tempo-1.24.4.tgz is repacked too — its values.yaml receivers and
-# templates/_ports.tpl are trimmed to OTLP + metrics only (the jaeger/zipkin/
-# opencensus/otlp-legacy receiver ports are unused; the OTel collector ships
-# traces over OTLP). Re-apply both edits after a fresh `helm pull tempo`.
+# Subcharts are vendored under charts/ and rendered directly — there is no `dependencies:` block on purpose.
 
-# Prometheus runs as a hand-written Deployment (templates/prometheus.yaml), not a
-# subchart: the Core metrics floor is one prom/prometheus process with a local TSDB
-# and native OTLP ingest — no Helm dependency, no object storage. The horizontally
-# scalable, bucket-backed variant is the Mimir Scale swap (docs/operational-surface.md),
-# added per-project when a measured signal demands it, not shipped by default.
+# Prometheus runs as a hand-written Deployment (templates/prometheus.yaml), not a subchart: the Core metrics floor
+# is one prom/prometheus process with a local TSDB and native OTLP ingest — no Helm dependency, no object storage.

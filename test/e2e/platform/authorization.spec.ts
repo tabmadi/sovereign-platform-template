@@ -1,13 +1,4 @@
-// Who may read an order (ADR-0003, ADR-0304). The rule under test is the one that
-// is invisible until someone tries: an unguessable identifier is not an access
-// control, so holding an order id grants nothing. The order's own buyer reads it
-// through the `order#read` tuple the checkout saga writes; another signed-in buyer
-// is refused; a caller with no session is refused before any lookup happens.
-//
-// This has to be an e2e. The decision spans the edge (which injects the identity
-// headers), the orders service (which calls the Checker), OpenFGA (which resolves
-// the tuple) and the Temporal saga (which wrote it) — a handler test can assert the
-// call is made, and nothing below this level can assert the answer is right.
+// Who may read an order (ADR-0003, ADR-0304): an unguessable identifier is not an access control.
 import { expect, test, type BrowserContext, type Browser } from "@playwright/test";
 import { BASE_URL, OPERATOR_STATE } from "../fixtures/env";
 import { passwordLogin, register } from "../fixtures/kratos";
@@ -32,11 +23,7 @@ async function signedIn(browser: Browser, who: { email: string; password: string
   return ctx;
 }
 
-// createProduct mints the one product this spec buys, as the operator — creating a
-// product is operator-gated (ADR-0304), which is why it needs the stored operator
-// session rather than either buyer's.
-//
-// The price is a Money object, not an integer of minor units (ADR-0300).
+// Creating a product is operator-gated (ADR-0304), so this needs the stored operator session rather than either buyer's. The price is a Money object, not minor units (ADR-0300).
 async function createProduct(browser: Browser): Promise<string> {
   const ops = await browser.newContext({ ignoreHTTPSErrors: true, storageState: OPERATOR_STATE });
   try {
@@ -50,12 +37,7 @@ async function createProduct(browser: Browser): Promise<string> {
   }
 }
 
-// checkout places an order as whoever this context is signed in as.
-//
-// It retries because the org is eventually consistent: registration only ENQUEUES
-// the RegisterUser workflow, and an order belongs to the org the buyer acts through
-// (ADR-0304), so a checkout that lands before the workflow finishes is correctly
-// refused. Retrying is the assertion that it becomes possible, not a sleep.
+// It retries because the org is eventually consistent: registration only enqueues RegisterUser, and an order belongs to the org the buyer acts through (ADR-0304). Retrying is the assertion, not a sleep.
 async function checkout(ctx: BrowserContext, productId: string): Promise<string> {
   let orderId = "";
   await expect(async () => {
@@ -84,10 +66,7 @@ test.describe("order read authorization", () => {
   test.beforeAll(async ({ browser }) => {
     anonymous = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
 
-    // This spec buys its OWN product rather than the first one in the catalog. A
-    // fresh cluster has an empty catalog, so depending on someone else's fixture
-    // made the first `mise run e2e` after a bring-up fail here and pass on every
-    // run after — which reads as a flake and is a missing setup step.
+    // This spec buys its own product: a fresh cluster has an empty catalog, so depending on another fixture fails the first run after a bring-up and passes on every one after.
     productId = await createProduct(browser);
 
     buyer = await signedIn(browser, BUYER);
@@ -111,11 +90,7 @@ test.describe("order read authorization", () => {
       }
     }
 
-    // Delete both buyers. A registration per run that nobody removes is not
-    // tidiness: the admin console's identity changelist paginates client-side, so
-    // accumulated test identities push the seeded pair off the first page and
-    // admin.spec's "seeded identities appear" assertion starts failing — a failure
-    // that reads as a broken console and is actually this spec's litter.
+    // Delete both buyers: the identity changelist paginates client-side, so accumulated test identities push the seeded pair off the first page and admin.spec starts failing.
     const pf = await portForward("ory-kratos-admin", 4434, 80);
     try {
       for (const who of [BUYER, OTHER]) {

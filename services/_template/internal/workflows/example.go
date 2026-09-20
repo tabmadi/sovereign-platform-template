@@ -9,7 +9,6 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-// Example is the template workflow. Replace with the service's real workflow.
 func Example(ctx workflow.Context, input string) (string, error) {
 	ao := workflow.ActivityOptions{ScheduleToCloseTimeout: 30 * time.Second}
 	ctx = workflow.WithActivityOptions(ctx, ao)

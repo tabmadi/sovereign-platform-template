@@ -4,30 +4,17 @@
 # Inner-loop config comes from .env (copy .env.example). Absent, tasks still run —
 # the service just falls back to its in-cluster defaults.
 [env]
-# The port this service binds when run natively. Register it in scripts/lib/ports.sh
-# FIRST and copy the number here — `mise run lint:ports` fails if the two disagree,
-# or if two services claim the same port. In-cluster is unaffected: the chart sets
-# no PORT, so pods still bind :8080.
+# The port this service binds natively. Register it in scripts/lib/ports.sh first and copy the number here; `mise run lint:ports` fails if the two disagree.
 PORT = "80XX"
 _.file = ".env"
 
 [tasks.env]
-# Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why
-# it stops rather than continuing). Hidden: it runs as a dependency.
+description = "Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why it stops rather than continuing)."
 hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
-# Dependency components this service needs in the cluster (ADR-0205, ADR-0600).
-# Declare them here, with the service — the service knows its own dependencies and
-# a named profile never can. mise resolves the graph: the shared cluster:up edge
-# is deduped, independent components come up in parallel, and each one fast-exits
-# when already Ready. Trim this list to what the service actually reads: drop
-# dep:temporal if it has no worker, dep:postgres if it has no DATABASE_URL.
-#
-# Add `svc:<other>` for every OTHER SERVICE this one calls over HTTP. That is the
-# same declaration in the other direction — infrastructure vs. siblings — and it is
-# what makes the callee answer on the local port your <OTHER>_URL defaults to. Skip
-# it and the service starts cleanly, then fails on the first call that leaves it.
+# Dependency components this service needs in the cluster (ADR-0205, ADR-0600). Trim to what the service reads.
+# Add `svc:<other>` for every other service this one calls over HTTP, which is what makes the callee answer on the local port <OTHER>_URL defaults to.
 [tasks.server]
 description = "Run the HTTP server against the locally port-forwarded deps"
 depends = ["env", "dep:postgres", "dep:openfga", "dep:temporal"]

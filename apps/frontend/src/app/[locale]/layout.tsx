@@ -17,14 +17,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-// The document root lives here rather than in a root layout, because `lang` and
-// `dir` are per-locale and only this segment knows the locale. Every route is under
-// `[locale]`; `app/api/*` are route handlers and need no layout.
-//
-// Two fonts, one variable. Inter has no Persian coverage, so a fa reader on Inter
-// gets the browser's fallback for every glyph — the layout is translated and the
-// typography is not. Each font declares the SAME custom property and the locale
-// picks which one is loaded, so `--font-sans` in theme.css stays a single token.
+// The document root lives here because `lang` and `dir` are per-locale and only this segment knows the locale.
+// Two fonts, one variable: Inter has no Persian coverage, so each font declares the same custom property and
+// the locale picks which is loaded, leaving `--font-sans` a single token.
 const inter = Inter({ subsets: ["latin"], variable: "--font-app", display: "swap" });
 const vazirmatn = Vazirmatn({ subsets: ["arabic"], variable: "--font-app", display: "swap" });
 

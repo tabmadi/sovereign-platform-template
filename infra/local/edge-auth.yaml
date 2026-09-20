@@ -1,11 +1,5 @@
-# Local-only edge wiring for the Kratos login flow (ADR-0305/0010/0014). Unlike
-# prod, the frontend is NOT deployed in-cluster locally — it runs on the host via
-# `next dev`. Serving it (and the Kratos public API) from the same origin as the
-# edge, https://dev.localtest.me:8443, is what keeps the ory_kratos_session cookie
-# on the host Oathkeeper checks for the gated routes. The cookie is domain-scoped
-# to dev.localtest.me (set in the kratos values), so it also covers subdomains
-# like hubble.ops.dev.localtest.me. Applied by scripts/cluster.sh
-# (NOT infra/gateway, which ArgoCD syncs to prod).
+# Local-only edge wiring for the Kratos login flow (ADR-0305/0010/0014). Unlike prod, the frontend is NOT deployed
+# in-cluster locally — it runs on the host via `next dev`.
 ---
 # Selector-less Service for the host `next dev`. There is no host-alias record for
 # the host, so scripts/cluster.sh attaches an EndpointSlice pointing at the docker
@@ -21,14 +15,8 @@ spec:
       port: 3000
       targetPort: 3000
 ---
-# Catch-all → host `next dev`. This is the LAST RESORT: an explicit low priority,
-# not Traefik's default rule-length ordering, is what guarantees it. Without it the
-# ordering is incidental — it happens to work today because the flat
-# /api/<resource> and /internal routes are longer prefixes and the *.ops.<host>
-# routes match by Host, but an in-cluster frontend route (which matches on the same
-# `/` with a Host()) would be competing on rule length alone. Traefik treats a
-# route with no explicit priority as having priority == rule length, so pinning
-# this one to 1 puts it below every real route permanently.
+# Catch-all → host `next dev`. This is the LAST RESORT: an explicit low priority, not Traefik's default
+# rule-length ordering, is what guarantees it.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

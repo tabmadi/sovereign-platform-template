@@ -1,13 +1,4 @@
-# Browser telemetry ingest (ADR-0500, ADR-0400). The frontend's Grafana Faro
-# agent POSTs RUM, JS errors, and web traces to /api/rum from both anonymous
-# (landing) and authenticated users, so this route is intentionally
-# unauthenticated — no Oathkeeper ForwardAuth — and forwards straight to the
-# OTel Collector's `faro` receiver (port wired in
-# infra/helm/platform/otel-agent/values.yaml). The path is vendor-neutral: it
-# names the concern (RUM), not the agent, so the ingest tool can change without
-# breaking the URL. The receiver uses a catch-all handler, so the beacon path is
-# accepted as-is. A per-project rate-limit middleware can be added here if abuse
-# of the public endpoint becomes a concern.
+# Browser telemetry ingest (ADR-0500, ADR-0400).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -22,10 +13,9 @@ spec:
         - name: security-headers
       services:
         - name: otel-collector
-          # The collector runs apart from the rest of the platform (ADR-0200), so
-          # this is a cross-namespace service reference and needs Traefik's
-          # `allowCrossNamespace` — already on, for the Hubble and Argo CD routes
-          # in ingressroutes.yaml.
+          # The collector runs apart from the rest of the platform (ADR-0200), so this is a cross-namespace service
+          # reference and needs Traefik's `allowCrossNamespace` — already on, for the Hubble and Argo CD routes in
+          # ingressroutes.yaml.
           namespace: otel-agent
           port: 8027
   tls:

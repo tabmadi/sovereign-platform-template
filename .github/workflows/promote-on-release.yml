@@ -1,8 +1,5 @@
-# Tag-driven prod promotion (ADR-0201, ADR-0103). Triggered by a repo-wide CalVer
-# release tag (vYYYY.0M.MICRO) cut by `mise run release`. A release pins EVERY
-# prod service/app to the release commit — by digest, the strongest immutable
-# identity — labels the images with the CalVer, opens the prod-bump PR, and (once
-# merged + synced) gates on the rollout completing.
+# Tag-driven prod promotion (ADR-0201, ADR-0103), triggered by the CalVer tag `mise run release` cuts.
+# It pins every prod service to the release commit by digest, labels the images, opens the bump PR, and gates on the rollout.
 name: promote-on-release
 
 on:
@@ -50,10 +47,7 @@ jobs:
           delete-branch: true
           labels: auto-merge
 
-      # Rollout gate (ADR-0201, ADR-0103): "Argo Healthy" already means the new
-      # ReplicaSet is available, but a release must not report success until prod
-      # has actually converged on the release commit. The task explains what it
-      # needs to be armed and says so loudly when it is not.
+      # "Argo Healthy" already means the new ReplicaSet is available, but a release must not report success until prod has converged on the release commit (ADR-0201, ADR-0103).
       - name: Verify prod rollout
         env:
           SHA: ${{ steps.rel.outputs.sha }}

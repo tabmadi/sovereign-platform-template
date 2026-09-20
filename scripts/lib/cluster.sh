@@ -1,12 +1,4 @@
 # shellcheck shell=bash
-# The local cluster (ADR-0600): identity, shared helpers, and one function per
-# bring-up stage. Source it, don't execute — scripts/cluster.sh is the entrypoint.
-#
-# A stage is convergent: it checks its own post-condition, returns when it holds,
-# and otherwise makes it hold. That is what lets one `up` verb create, resume and
-# repair a cluster. `forced <stage>` skips the fast-exit, which is all `heal` is.
-#
-# A tier is a stage list, not a branch (ADR-0205). The lists live in cluster.sh.
 
 # shellcheck disable=SC2317  # the guard's `return` is reached when re-sourced.
 if [[ -n "${__CLUSTER_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi
@@ -16,10 +8,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# This machine's egress, written by proxy:setup and absent on a direct network. It is
-# loaded rather than computed: kind reads the proxy variables from its own environment
-# and is the only thing that can add the node's name to NO_PROXY, which the API server
-# call inside the node needs — without it `kind create` aborts on an EOF.
+# Loaded, not computed: kind reads the proxy variables from its own environment and is the only thing that can add the node's name to NO_PROXY, without which `kind create` aborts on an EOF.
 if [ -f "$ROOT/infra/local/proxy.local.env" ]; then
   set -a
   # shellcheck source=/dev/null
@@ -31,30 +20,12 @@ NS="${NS:-platform}"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 KIND_CONFIG="infra/local/kind.yaml"
 REGISTRY="registry.localhost"
-# Where the mirror keeps its blobs. A path, always — never a named volume, and never
-# conditionally one or the other.
-#
-# A volume was the obvious local choice and it bought one property: surviving
-# `cluster:down`. A path under the cache directory has the same property, and it has
-# one a volume cannot: a forge cache can restore it, because it is a directory rather
-# than something under /var/lib/docker. Warming from scratch is the dominant cost of
-# `cluster:up` and the reason a runner reaches Docker Hub's pull limit, so carrying it
-# between runs is what makes the job fast and reliable at once.
-#
-# Both at once was the mistake. The first version defaulted to a volume and let CI
-# pass a path, which made two code paths through one function: root or caller, mkdir
-# or not, volume or bind. CI then broke on the branch a developer never runs —
-# the directory did not exist, docker created it as root, and zot could not write its
-# own store. One path is fewer conditionals AND the parity ADR-0205 asks for: what CI
-# exercises is what you run.
+# A path, never a named volume: a forge cache can restore a directory, and warming from scratch is the dominant cost of `cluster:up` (ADR-0205).
 ZOT_DATA="${ZOT_DATA:-${XDG_CACHE_HOME:-$HOME/.cache}/zot/${REGISTRY}}"
 ZOT_IMAGE="ghcr.io/project-zot/zot-linux-amd64:v2.1.20"
 FORCE="${FORCE:-}"
 
-# Validated at source time, not inside cluster_ctx: the functions are called as
-# `$(cluster_ctx)`, where an exit kills only the subshell and the caller carries on
-# against whatever the current kube-context happens to be. Empty is allowed here and
-# resolved below, once the functions the resolution needs exist.
+# Validated at source time: the functions are called as `$(cluster_ctx)`, where an exit kills only the subshell.
 case "${TIER:-}" in
 "" | base | full) ;;
 *) fail "'${TIER}' is not a tier — use \"base\" or \"full\"" ;;
@@ -114,25 +85,9 @@ detect_tier() {
   fi
 }
 
-# WHICH TIER a script acts on, for every script that is not cluster.sh.
-#
-# Only cluster.sh chooses a tier: it takes one as an argument and creates it. Every
-# other script here acts on a cluster someone else already brought up, and naming a
-# tier is not its call to make — so the default is read off the machine rather than
-# fixed to a constant. A constant is wrong half the time and wrong silently: with
-# `base` hardcoded, a script run against a live full tier resolved to context
-# `kind-platform`, every kubectl in it failed against a context that does not exist,
-# and the failure read as "the platform is down" while the platform served traffic.
-#
-# Precedence, highest first:
-#
-#   TIER in the environment  a caller naming a tier on purpose, including a stopped
-#                            one. cluster.sh exports it so its stages inherit it.
-#   TIER_FROM_ARGV=1         cluster.sh, which parses the tier out of argv after
-#                            this file is sourced, and whose bare `up` means base.
-#   the tier that is up      the only cluster there is to act on.
-#   base                     nothing is up, or both are: the tier the docs create
-#                            first, so "not created" names the command to run.
+# Which tier a script acts on. Precedence: TIER in the environment, then TIER_FROM_ARGV=1 for cluster.sh,
+# then the tier that is up, then base. A hardcoded default is wrong silently — every kubectl fails against
+# a context that does not exist, and reads as "the platform is down".
 if [ -z "${TIER:-}" ] && [ -z "${TIER_FROM_ARGV:-}" ]; then
   TIER="$(detect_tier || true)"
 fi
@@ -182,10 +137,7 @@ require_cluster() {
     fail "cluster $(cluster_ctx) is not reachable — run '$(up_hint)' first"
 }
 
-# The Application managing a service, or nothing. The committed ApplicationSet named
-# apps after the values FILE and now trims the extension, so both spellings are live
-# in clusters bootstrapped from different commits; guessing one silently leaves
-# auto-sync unpaused, and Argo reverts the deploy that just reported success.
+# The committed ApplicationSet named apps after the values file and now trims the extension, so both spellings are live; guessing one leaves auto-sync unpaused and Argo reverts the deploy.
 argo_service_app() {
   local name
   for name in "local-service-${1}" "local-service-${1}.yaml"; do
@@ -196,33 +148,18 @@ argo_service_app() {
   done
 }
 
-# ── Stages ────────────────────────────────────────────────────────────────────
-
 # zot, the registry every environment runs (ADR-0105), as a host container beside
 # both clusters. It mirrors the upstreams on demand, so nothing is preloaded and no
 # image list has to be maintained. Host-level: it survives cluster delete/recreate.
 stage_registry() {
-  # The upstream credentials zot syncs with, outside the repository on purpose: it
-  # holds a token, and a secret in the working tree is one the secret scan has to be
-  # taught to ignore (ADR-0202). Written every time, `{}` when the environment
-  # carries nothing, so the mount always resolves and zot never starts against a
-  # missing file.
+  # Outside the repository because it holds a token (ADR-0202). Written every time, `{}` when the environment carries nothing, so the mount always resolves.
   local creds="${XDG_RUNTIME_DIR:-/tmp}/zot-sync-creds-${REGISTRY}.json"
-  # Docker creates a missing bind-mount source as a ROOT-OWNED DIRECTORY. Start the
-  # registry once while this file is absent — a cleared runtime dir, a container
-  # removed and recreated — and the path becomes a directory that every later run
-  # dies on, with `Is a directory` and no hint of which path or why. Replacing a
-  # non-file here costs one stat and makes the stage self-healing.
+  # Docker creates a missing bind-mount source as a root-owned directory, which every later run then dies on.
   [ ! -e "$creds" ] || [ -f "$creds" ] || rm -rf "$creds"
   if [ -n "${DOCKERHUB_USERNAME:-}" ] && [ -n "${DOCKERHUB_TOKEN:-}" ]; then
     printf '{"registry-1.docker.io":{"username":"%s","password":"%s"}}\n' \
       "$DOCKERHUB_USERNAME" "$DOCKERHUB_TOKEN" >"$creds"
-    # Which of the two limits applies is the first question any throttled warm
-    # raises, and the answer is not otherwise visible: an authenticated sync and an
-    # anonymous one produce the same 429, and zot reports both to the client as a
-    # 404. Saying which was configured turns "is the secret reaching zot" from a
-    # guess into a line in the log. The username is not a secret; the token is never
-    # printed.
+    # An authenticated sync and an anonymous one produce the same 429, which zot reports as a 404, so the mode is not otherwise visible. The token is never printed.
     detail "docker hub sync authenticated as ${DOCKERHUB_USERNAME}"
   else
     printf '{}\n' >"$creds"
@@ -242,20 +179,9 @@ stage_registry() {
 
   if ! docker inspect "$REGISTRY" >/dev/null 2>&1; then
     step "creating the local registry '${REGISTRY}:5000' (zot)"
-    # zot runs as root and writes its store at mode 0600. On a docker volume nobody
-    # cares; on a host path it produces a directory the invoking user cannot read,
-    # and a cache that archives nothing while reporting success. Running as the
-    # caller is what makes the store portable, and zot needs no privilege it gives
-    # up — measured: it serves, syncs, and writes blobs unchanged.
-    # Before docker, not after. A bind mount whose source is missing is created by
-    # the daemon as root, and zot — running as the caller below — then cannot write
-    # its own store: it exits into its usage text, the restart policy loops it, and
-    # every pull returns nothing. Measured in CI as 51 images at "HTTP 000" over
-    # fifteen minutes, from a directory that did not exist.
+    # Before docker, not after: a bind mount whose source is missing is created by the daemon as root, and zot then cannot write its own store.
     mkdir -p "$ZOT_DATA"
-    # As the caller, so the store belongs to whoever ran this and a forge cache can
-    # archive it. zot defaults to root and writes mode 0600 throughout, which is a
-    # store nothing else can read.
+    # As the caller, so a forge cache can archive the store; zot defaults to root and writes mode 0600 throughout.
     # The image's default command names a config.json; this config is YAML.
     docker run -d --restart=always --name "$REGISTRY" \
       -p 127.0.0.1:5000:5000 \
@@ -268,14 +194,7 @@ stage_registry() {
     step "starting the local registry '${REGISTRY}'"
     docker start "$REGISTRY" >/dev/null
   fi
-  # A restarting registry is one every pull misses, and the failure lands later, on
-  # a pod.
-  #
-  # ANSWERING, not merely running. `--restart=always` keeps a container that exits
-  # immediately in the `running` state between attempts, so a state check passes
-  # against a registry that never serves a byte — and the first thing to notice is
-  # the warm, fifty-one images later, reporting "HTTP 000" for all of them with no
-  # explanation. Asking the API is the same wait and names the fault in seconds.
+  # Answering, not merely running: `--restart=always` keeps a container that exits immediately in the `running` state, so a state check passes against a registry that never serves a byte.
   local waited=0
   until [ "$(curl -s -o /dev/null -w '%{http_code}' --noproxy '*' --max-time 5 \
     "http://127.0.0.1:5000/v2/" 2>/dev/null)" = 200 ]; do
@@ -286,18 +205,9 @@ $(docker logs --tail 15 "$REGISTRY" 2>&1 | sed 's/^/    /')"
   done
 }
 
-# Fill zot with every third-party image the cluster will pull, BEFORE the cluster
-# exists (ADR-0105).
-#
-# zot's on-demand sync copies a whole image before it answers the manifest request,
-# so a cold pull costs tens of seconds. Left to the cluster, ~18 pods request their
-# images at once, zot saturates, and every one of them exceeds containerd's pull
-# deadline and backs off — while zot goes on caching images nobody is waiting for
-# any more. Warming is the same work, done once, sequentially, with nothing waiting.
-#
-# The list is generated and committed (`mise run gen:image-allowlist`), from the same
-# render that produces Kyverno's allow-list, so the warm set and the admitted set
-# cannot disagree.
+# Fill zot with every third-party image the cluster will pull, before the cluster exists (ADR-0105).
+# zot's on-demand sync copies a whole image before answering the manifest request, so ~18 pods asking at once
+# exceed containerd's pull deadline. The list is generated with Kyverno's allow-list, so the two cannot disagree.
 stage_warm() {
   local refs="infra/local/image-refs.txt" total warmed=0 fetched=0
   local missed=()
@@ -305,10 +215,7 @@ stage_warm() {
   # the failure report can find THAT image's lines in the registry log.
   local missed_paths=()
   [ -f "$refs" ] || fail "${refs} is missing — run 'mise run gen:image-allowlist'"
-  # The tier's share of the list, by its first column. A base bring-up runs no
-  # ArgoCD and therefore none of what ArgoCD deploys, so fetching the observability
-  # stack, Temporal and Kyverno before creating it spends minutes and a third-party
-  # pull quota on images the cluster will never ask for.
+  # The tier's share of the list, by its first column: a base bring-up runs no ArgoCD and none of what ArgoCD deploys.
   local wanted
   wanted="$(mktemp)"
   awk -v tier="$TIER" '
@@ -360,16 +267,8 @@ stage_warm() {
     fi
 
     detail "· ${ref}"
-    # Three attempts, the same allowance the build+push loop below gives a push.
-    # Answering this manifest makes zot stream the whole image from upstream, so a
-    # miss is usually a truncated read or a rate-limited registry rather than a
-    # reference that does not exist — and one such miss used to fail the bring-up
-    # after every other image had already been cached.
-    #
-    # The status is captured rather than left to `-f`, which collapses every HTTP
-    # error into exit 22 and is why a missed image could never say WHY. A 429 means
-    # the upstream is throttling and the wait is the fix; a 404 means the reference
-    # is wrong and no number of retries will help. The summary prints it.
+    # Three attempts: answering this manifest makes zot stream the whole image, so a miss is usually a truncated read or a rate limit.
+    # The status is captured rather than left to `-f`, which collapses every HTTP error into exit 22. A 429 is throttling; a 404 is a wrong reference.
     status=000
     for attempt in 1 2 3; do
       status="$(curl -s -o /dev/null -w '%{http_code}' --noproxy '*' --max-time 900 \
@@ -393,15 +292,8 @@ stage_warm() {
   ok "registry warm: ${warmed} already cached, ${fetched} fetched"
   if [ "${#missed[@]}" -gt 0 ]; then
     printf '    · %s\n' "${missed[@]}" >&2
-    # zot answers 404 both for "no such tag" and for "my sync of it failed", and only
-    # its own log separates the two. Without this the caller sees a 404 and has to
-    # guess — which is how a rate limit, a proxy refusal and a genuinely wrong
-    # reference all arrive looking identical.
-    # Filtered to the repositories that missed, NOT the tail. The warm walks the list
-    # in file order, so a miss on an early image is thousands of log lines behind the
-    # successful sync of the last one — a tail reports whichever image happened to be
-    # warmed last, which is never the one that failed. That is what made every
-    # previous report of this failure unreadable.
+    # zot answers 404 both for "no such tag" and for "my sync of it failed", and only its own log separates the two.
+    # Filtered to the repositories that missed, not the tail: the warm walks in file order, so an early miss is thousands of lines back.
     local -a miss_pat=()
     local p own errors
     for p in "${missed_paths[@]}"; do miss_pat+=(-e "$p"); done
@@ -410,10 +302,7 @@ stage_warm() {
     errors="$(printf '%s\n' "$own" |
       grep -iE '"level":"(error|warn)"|denied|unauthorized|toomanyrequests|rate.?limit|error' |
       tail -20 || true)"
-    # Three outcomes, and they point at three different fixes. An error names the
-    # upstream's refusal. Lines with no error mean zot tried and gave up quietly —
-    # a truncated read, usually. No lines at all mean it never attempted the sync,
-    # which puts the fault in the reference rather than in the network.
+    # Three outcomes: an error names the upstream's refusal, lines with no error mean zot gave up quietly, and no lines mean it never attempted the sync.
     if [ -n "$errors" ]; then
       printf '%s\n' "$errors" | sed 's/^/      /' >&2
     elif [ -n "$own" ]; then
@@ -481,10 +370,8 @@ stage_cni() {
     return 0
   fi
 
-  # The one value the local tiers override. The CONTAINER NAME, because loopback is
-  # the API server on the control plane only (a worker's agent would never connect)
-  # and a node's docker IP moves across restarts. It resolves through docker's
-  # embedded DNS from the host netns the agent runs in, so it needs no CNI.
+  # The container name, because loopback is the API server on the control plane only and a node's docker IP moves across restarts.
+  # It resolves through docker's embedded DNS from the host netns, so it needs no CNI.
   local apiserver
   apiserver="$(cluster_name)-control-plane"
   step "installing Cilium (apiserver ${apiserver}:6443)"
@@ -496,19 +383,13 @@ stage_cni() {
     --timeout 5m
   k wait --for=condition=Ready node --all --timeout=600s
 
-  # hubble-peer is backed by the agent's own hostPort. On a stop/start the agent
-  # goes briefly NotReady, Cilium quarantines the sole backend, and — because LB
-  # state is restored from the pinned bpf map — never re-reconciles it, wedging
-  # hubble-relay for good. The chart exposes no knob for this.
+  # hubble-peer is backed by the agent's hostPort. On a stop/start Cilium quarantines the sole backend and never re-reconciles it, wedging hubble-relay. The chart exposes no knob.
   k -n kube-system patch svc hubble-peer --type merge \
     -p '{"spec":{"publishNotReadyAddresses":true}}' >/dev/null
   ok "Cilium installed; node Ready"
 }
 
-# `dev.localtest.me` is public DNS pointing at 127.0.0.1 — right on the host, wrong
-# in a pod, where it is the pod's own loopback. Rewriting the NAME (rather than
-# using a Service DNS name) keeps the request carrying the host and SNI the
-# IngressRoutes match on and the wildcard cert is issued for.
+# `dev.localtest.me` is public DNS pointing at 127.0.0.1 — right on the host, wrong in a pod. Rewriting the name keeps the host and SNI the IngressRoutes match on.
 stage_coredns() {
   local corefile patched
   corefile="$(k -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}')"
@@ -559,10 +440,7 @@ stage_edge() {
   k -n kube-system rollout status deploy/traefik --timeout=300s
 }
 
-# Per-machine edge glue, deliberately not GitOps-managed: the catch-all `/` route to
-# a host-run frontend, and an EndpointSlice pointing at the docker-bridge gateway —
-# the only host address a pod can dial. The gateway moves across restarts, so this
-# is re-stamped on every start rather than only at bring-up.
+# Per-machine edge glue, deliberately not GitOps-managed. The docker-bridge gateway moves across restarts, so this is re-stamped on every start.
 stage_glue() { # [<name> <port>]
   k get crd ingressroutes.traefik.io >/dev/null 2>&1 ||
     fail "traefik.io CRDs are not registered — bring the cluster up first"
@@ -602,12 +480,7 @@ stage_postgres() {
   k -n "$NS" rollout status deploy/postgres --timeout=180s
 }
 
-# cert-manager and the self-signed wildcard issuer. TWO passes, because one release
-# cannot satisfy both orderings Helm gives us neither of: the CRDs are TEMPLATES of
-# the subchart, so a single render validates this chart's own cert-manager.io/v1
-# objects against an API server that has never heard of that group; and the webhook
-# must be admitting before the Certificates apply. Argo needs neither — sync-waves
-# order the issuers after the CRDs.
+# Two passes: the CRDs are templates of the subchart, so a single render validates cert-manager.io/v1 objects against an API server that has never heard of the group.
 stage_certs() {
   step "installing cert-manager + the self-signed wildcard issuer"
   chart_deps infra/helm/platform/cert-manager
@@ -648,10 +521,7 @@ stage_middlewares() {
 # Kratos's secrets from the committed local SOPS bundle, with the dsn pointed at the
 # stand-in Postgres instead of CNPG.
 stage_secrets() {
-  # The template ships ONE local age key, so every generated project would share it
-  # until someone noticed. This mints a per-project key and re-encrypts the bundle;
-  # a project that already has its own is left alone. Ahead of the decrypt, which
-  # afterwards needs a key this repository no longer holds.
+  # The template ships one local age key, so this mints a per-project one and re-encrypts the bundle. Ahead of the decrypt, which afterwards needs a key this repository no longer holds.
   bash scripts/rotate-local-age-key.sh
 
   step "materialising kratos-secrets from the committed local SOPS bundle"
@@ -696,17 +566,10 @@ stage_sopskey() {
     --dry-run=client -o yaml | k apply -f - >/dev/null
 }
 
-# Build + push the repo's images to the local registry — the local stand-in for CI.
-# Argo then pulls them exactly as prod pulls from ghcr, the registry host being the
-# only difference (ADR-0205). Must precede the root app, or Argo creates pods for
-# images that do not exist.
+# Must precede the root app, or Argo creates pods for images that do not exist.
 stage_images() {
   local reg="registry.localhost:5000"
-  # Docker picks HTTP-vs-HTTPS by resolving the registry name against its
-  # insecure-registry CIDRs, so pushing to `registry.localhost` works only where NSS
-  # maps *.localhost to loopback. 127.0.0.1 is insecure on every daemon. Both names
-  # address the same container and blobs are keyed by repo path, so the overlays
-  # keep the cluster-facing name.
+  # Docker picks HTTP-vs-HTTPS from its insecure-registry CIDRs, so `registry.localhost` works only where NSS maps *.localhost to loopback. 127.0.0.1 is insecure on every daemon.
   local push_reg="127.0.0.1:5000"
   local rev
   rev="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
@@ -728,10 +591,7 @@ stage_images() {
   }
 
   step "building + pushing repo images to ${reg}"
-  # DERIVED from the values files: the services ApplicationSet generates one
-  # Application per file, so a file with no image built for it is an Application
-  # stuck in ImagePullBackOff, and the tier is "full" in name only. A hand-written
-  # list drifts the moment a service is added or grows a worker, and it did.
+  # Derived from the values files: the ApplicationSet generates one Application per file, so a file with no image built for it is stuck in ImagePullBackOff.
   local values svc
   for values in infra/gitops/services/local/values/*.yaml; do
     svc="$(basename "$values" .yaml)"
@@ -759,13 +619,8 @@ stage_images() {
 # ArgoCD, which cannot sync itself into existence. Excluded from the local platform
 # ApplicationSet, so this release is authoritative.
 stage_argocd() {
-  # The CNI stage cycles the pod network on every run, restarting Kyverno with it.
-  # Its webhook is failurePolicy: Fail, so while the admission controller is unready
-  # EVERY apply is rejected — starting with Argo's own pre-upgrade hook Job, which
-  # fails on a connection-refused naming a webhook and nothing suggesting a wait.
-  # Keyed on the DEPLOYMENT, not the namespace: the namespaces stage creates the
-  # kyverno namespace in the prelude, so a first bring-up has one before Argo has
-  # installed anything into it.
+  # Kyverno's webhook is failurePolicy: Fail, so while the admission controller is unready every apply is rejected.
+  # Keyed on the deployment, not the namespace: the namespaces stage creates the kyverno namespace in the prelude.
   if k -n kyverno get deploy kyverno-admission-controller >/dev/null 2>&1; then
     step "waiting for the Kyverno admission webhook to serve"
     k -n kyverno rollout status deploy/kyverno-admission-controller --timeout=300s
@@ -809,15 +664,8 @@ stage_rootapp() {
   kubectl --kubeconfig "$kubeconfig" config set-context --current --namespace argocd >/dev/null
   ac() { KUBECONFIG="$kubeconfig" argocd --core "$@"; }
 
-  # `cluster:stop` freezes a sync mid-flight; on resume the controller reattaches to
-  # that operation and reuses the task plan (sync-waves included) it computed back
-  # then, which can never converge against changed manifests. Terminating the
-  # operation forces a fresh plan against current git.
-  # What is actually wrong, for the case where waiting longer is not the answer.
-  # `argocd app wait` reports only that it timed out, so a bring-up that fails here
-  # produced sixty minutes of silence and a cancelled job — the reason lived in pod
-  # events nobody printed. Measured: the nightly suite spent 75 minutes reaching a
-  # timeout that named no application.
+  # `cluster:stop` freezes a sync mid-flight; on resume the controller reuses the task plan it computed then, which can never converge against changed manifests.
+  # `argocd app wait` reports only that it timed out, so the reason lives in pod events nothing prints.
   dump_unhealthy() {
     local app ns
     warn "applications that did not reach Synced + Healthy:"
@@ -845,10 +693,7 @@ stage_rootapp() {
     warn "[$*] did not converge in ${timeout}s — terminating their operations (likely stale from a cluster:stop) and re-syncing"
     for app in "$@"; do ac app terminate-op "$app" || true; done
     for app in "$@"; do ac app sync "$app" --timeout "$timeout"; done
-    # HALF the budget on the retry. The first wait already proved the set does not
-    # settle on its own; a second full-length wait doubles the cost of the same
-    # answer, and doubling was what turned a failure into a job the forge killed
-    # before it could report anything.
+    # Half the budget on the retry: the first wait already proved the set does not settle on its own.
     ac app wait "$@" --sync --health --operation --timeout "$((timeout / 2))" && return 0
     dump_unhealthy
     fail "ArgoCD did not converge. The applications and pod events above are the reason; \`kubectl --context $(cluster_ctx) -n <ns> describe pod <pod>\` has the rest."
@@ -861,21 +706,14 @@ stage_rootapp() {
   while :; do
     apps="$(ac app list -o name)"
     # shellcheck disable=SC2086  # newline-separated names, intentional split
-    # 900, not 1800. With the mirror warmed every image is a local pull, so an
-    # application that has not settled in fifteen minutes is stuck rather than slow —
-    # and the old budget plus its retry exceeded the job's own timeout, which is how
-    # the suite reported a cancellation instead of a diagnosis.
+    # 900, not 1800. With the mirror warmed every image is a local pull, so an application that has not settled in fifteen minutes is stuck rather than slow.
     wait_apps 900 $apps
     [ "$(ac app list -o name)" = "$apps" ] && break
   done
   ok "all ArgoCD applications Synced + Healthy"
 }
 
-# Fill the in-cluster zot's catalogue with the first-party images (ADR-0105). The
-# nodes pull from the host container, so the in-cluster registry a deployed
-# environment runs would otherwise sit empty locally and its `zot.ops` console read
-# as broken. Best-effort: the console is a convenience and no pod's start depends on
-# it, so a copy failure warns and the bring-up carries on.
+# Fill the in-cluster zot's catalogue with the first-party images (ADR-0105). Best-effort: no pod's start depends on it.
 stage_populatezot() {
   bash "$(dirname "${BASH_SOURCE[0]}")/../populate-zot.sh" ||
     warn "populate-zot did not complete — the in-cluster zot console may be empty (non-fatal)"

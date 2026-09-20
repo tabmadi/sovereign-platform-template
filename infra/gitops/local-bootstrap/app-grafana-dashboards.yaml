@@ -1,17 +1,4 @@
-# Local Grafana dashboards Application (ADR-0500, ADR-0205). Local counterpart to
-# bootstrap/app-grafana-dashboards.yaml: the chart at infra/observability/dashboards
-# generates the `grafana-dashboards` ConfigMap from the *.json beside it for the
-# observability chart to mount (dashboardsConfigMaps.default). Its template globs,
-# so adding a dashboard is adding the file. Makes dashboards-as-code flow through
-# GitOps locally too, rather than through an imperative `kubectl create configmap`
-# at bootstrap. Synced by the local root-app, which recurses
-# infra/gitops/local-bootstrap.
-#
-# Grouped by the `local` AppProject (appproject.yaml), like every other local app.
-#
-# Sync-wave 2 (data-tier slot): the ConfigMap must exist BEFORE the core tier
-# (wave 3) starts Grafana, which mounts it as a volume. A plain ConfigMap is Healthy
-# the moment it applies, so wave 3 is not delayed.
+# Local Grafana dashboards Application (ADR-0500, ADR-0205).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

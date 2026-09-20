@@ -51,7 +51,6 @@ func (c resourceChecker) Allowed(_ context.Context, _, _, resource string) (bool
 // orgObject is the OpenFGA object the read gate checks.
 var orgObject = "org:" + string(testOrgID)
 
-// A single org read, exercised through every principal that can ask for it.
 func TestGetOrgAuthz(t *testing.T) {
 	t.Parallel()
 

@@ -1,17 +1,5 @@
-# Policy-drop alert (ADR-0500, ADR-0501). Native Prometheus rule-file format —
-# mounted into Prometheus via the `prometheus-alerts` ConfigMap (see
-# service-availability.yaml header for the delivery path).
-#
-# Hubble UI shows drops live but keeps no history and pages no one; the
-# hubble_drop_total metric (Cilium values, `drop` Hubble metric) exists exactly
-# for this alert + the hubble-drops dashboard. This repo has repeatedly been
-# bitten by silent NetworkPolicy drops (clusterwide metadata-deny regression,
-# default-deny bootstrap gaps, a catalog/payment netpol block that broke every
-# checkout), so any sustained POLICY_DENIED verdict is page-worthy.
-#
-# Labels: Hubble metrics carry a single combined `source`/`destination` label of
-# the form "<namespace>/<workload>" (workload = Deployment), not separate
-# source_workload/destination_workload labels.
+# Policy-drop alert (ADR-0500, ADR-0501). Native Prometheus rule-file format — mounted into Prometheus via the
+# `prometheus-alerts` ConfigMap (see service-availability.yaml header for the delivery path).
 groups:
   - name: network.policy-drops
     rules:

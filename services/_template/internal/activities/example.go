@@ -1,6 +1,6 @@
 //go:build _template
 
-// Activities are idempotent and short (ADR-0302). One per file.
+// Activities are idempotent and short, one per file (ADR-0302).
 package activities
 
 import "context"

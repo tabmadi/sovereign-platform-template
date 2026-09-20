@@ -1,29 +1,5 @@
 #!/usr/bin/env bash
-# Add ONE opt-in local dependency component on top of `cluster:up` (ADR-0205,
-# ADR-0600). Backs the `dep:*` mise tasks, which services declare for themselves:
-#
-#   # services/orders/.mise.toml
-#   [tasks.server]
-#   depends = ["dep:postgres", "dep:temporal", "dep:openfga"]
-#
-# Components are label slices of the shared `infra/local/deps.yaml`, never forks of
-# it — `kubectl apply` honours `--selector`, so a component is a SELECTION.
-#
-# ── Why one script and not one per component ──────────────────────────────────
-# THE GUARD IS THE WHOLE POINT. mise resolves the dependency graph — it dedupes
-# diamonds and parallelises independent edges — but it has no cluster-state
-# awareness. Its `sources`/`outputs` staleness skipping is keyed on FILES, and "is
-# Temporal already Ready?" is not a file. So without a fast-exit, every
-# `mise run server` re-pays a full apply + rollout wait for every dependency, and
-# the model ends up slower than the one it replaced.
-#
-# That guard is the one piece of Garden this repo does not get for free (ADR-0600:
-# Garden does status checks natively). Hand-rolling it per component would mean one
-# missing check silently costing the inner loop its speed, so it lives here, once,
-# and every component inherits it.
-#
-#   mise run dep:temporal          # via the graph, the normal path
-#   bash scripts/dep-apply.sh temporal   # directly, same thing
+# Add one opt-in local dependency component on top of `cluster:up`, backing the `dep:*` tasks services declare (ADR-0205, ADR-0600).
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -66,7 +42,6 @@ db-secrets)
   ;;
 esac
 
-# ── The guard ─────────────────────────────────────────────────────────────────
 # `rollout status --timeout=0` returns non-zero rather than blocking when the
 # Deployment is not yet complete, which is exactly the "up or not?" question.
 if [ "$kind" = deploy ]; then

@@ -9,23 +9,15 @@ metadata:
   namespace: platform
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    # Drift anchor for the grants (the seed Job below is a `hook: Sync`, which Argo
-    # excludes from OutOfSync detection — so a dashboards-only change would never
-    # trigger a sync and the hook would never re-run). Hashing the list onto this
-    # tracked ConfigMap makes any grant change mutate a tracked resource → OutOfSync
-    # → auto-sync → the Sync hook fires. The model already drifts via data below.
+    # Drift anchor for the grants (the seed Job below is a `hook: Sync`, which Argo excludes from OutOfSync detection
+    # — so a dashboards-only change would never trigger a sync and the hook would never re-run).
     seed.openfga/dashboards-checksum: {{ .Values.seed.dashboards | toJson | sha256sum }}
     seed.openfga/service-operators-checksum: {{ .Values.seed.serviceOperators | toJson | sha256sum }}
 data:
   model.json: |
 {{ .Values.seed.model | indent 4 }}
 ---
-# Seed Job (ADR-0300, ADR-0306). Runs after OpenFGA is Ready (sync-wave 2, after
-# the Deployment's default wave 0). One shell container drives the HTTP API with
-# curl + jq: ensure the `platform` store (list → find-by-name → else create),
-# write the model, then apply the ops grants. Idempotent — store find-or-create,
-# a fresh model version, and duplicate-tolerant tuple writes make it safe to
-# re-run on every sync. No fga CLI (its image is distroless and cannot script).
+# Seed Job (ADR-0300, ADR-0306). Runs after OpenFGA is Ready (sync-wave 2, after the Deployment's default wave 0).
 apiVersion: batch/v1
 kind: Job
 metadata:

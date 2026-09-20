@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-# Pin every prod values file to a release commit BY DIGEST, and label the images
-# with the CalVer (ADR-0103, ADR-0201). A digest cannot be re-pushed, so a pod
-# cannot silently run different code under the same reference; the CalVer is a
-# human-facing label on the image and never what a values file references.
-#
-# REPO is the registry namespace, SHA the release commit, VER the CalVer tag.
+# Pin every prod values file to a release commit by digest, and label the images with the CalVer (ADR-0103, ADR-0201). A digest cannot be re-pushed.
 set -euo pipefail
 # shellcheck source=lib/log.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"

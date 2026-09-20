@@ -1,44 +1,16 @@
 // Kratos session gate + per-request CSP nonce (ADR-0304, ADR-0400, ADR-0305).
-// (landing) is public except for /auth/*; the other route groups require a
-// session. The frontend never validates JWTs — Oathkeeper does that at the edge
-// for /api/* calls. Here we only check that a Kratos session cookie is present,
-// forward the session id as a header, and set a strict per-request CSP whose
-// nonce the root layout applies to first-party scripts.
-//
-// This file handles exactly ONE half of access control: no session, at navigation
-// time. That is the half a redirect fits, because signing in is the remedy and
-// nothing is lost by redirecting before anything renders. It knows nothing about
-// permissions, and must not: a user who is signed in and not allowed keeps their
-// URL and is shown a 403 in place (src/lib/auth/denial.ts, app/forbidden.tsx).
-// Redirecting that user to the login flow sends them round a loop that ends where
-// it started, minus the address they needed.
 import { match as matchLocale } from "@formatjs/intl-localematcher";
 import { type NextRequest, NextResponse } from "next/server";
 import { isLocale, LOCALE_COOKIE, type Locale, routing } from "@/i18n/routing";
 
 const SESSION_COOKIE = "ory_kratos_session";
 
-// Route groups that require an authenticated Kratos session.
-// `/analytics` is here for the session half only. The route group performs the
-// AUTHORITATIVE check itself (ADR-0700): this redirects someone with no session to
-// sign in, which is a better first experience than a 403, and the layout decides
-// whether a signed-in person may actually read funnels.
+// `/analytics` is here for the session half only: the route group performs the authoritative check itself (ADR-0700), and a redirect beats a 403 as a first experience.
 const PROTECTED = ["/panel", "/devportal", "/analytics"];
 
-// The /auth/* pages and the Kratos flow each one starts. A Kratos browser flow
-// cannot begin on our side: Kratos has to set its CSRF cookie on the user's
-// browser and hand back a flow id, so the browser must visit it.
-//
-// Issuing that redirect HERE, rather than from the page, is a measured LCP fix
-// (ADR-0400). Middleware runs before rendering, so it answers with a real 307 and
-// no HTML. From the page it cannot: `loading.tsx` puts the route behind a Suspense
-// boundary, Next flushes the shell before the redirect is known, and the response
-// is a 200 carrying an in-stream redirect — a full document render, a paint of the
-// loading fallback, and only then the navigation. That fallback was measuring as
-// the LCP element of /auth/login.
-//
-// The path segment is not always the flow name: /auth/register starts Kratos's
-// `registration` flow.
+// A Kratos browser flow cannot begin on our side: Kratos sets its CSRF cookie and hands back a flow id.
+// Issuing the redirect here rather than from the page is a measured LCP fix (ADR-0400).
+// The path segment is not always the flow name: /auth/register starts `registration`.
 const AUTH_FLOWS: Record<string, string> = {
   login: "login",
   register: "registration",
@@ -47,33 +19,18 @@ const AUTH_FLOWS: Record<string, string> = {
   settings: "settings",
 };
 
-// Flows that a user WITH a live session has no business starting. Kratos refuses
-// them (`session_already_available`) and answers by sending the browser to
-// `default_browser_return_url`, so without this the back button after a successful
-// sign-in silently teleports the user to the landing page: the stack still holds
-// /auth/login?flow=<consumed id>, and revisiting it starts a fresh flow.
-//
-// `settings` and `verification` are deliberately absent — both are meaningful
-// while signed in (MFA enrolment, confirming an address), and both need a session.
+// Kratos refuses these with `session_already_available` and sends the browser to the return URL, so without this
+// the back button after sign-in teleports the user to the landing page.
+// `settings` and `verification` are absent: both are meaningful while signed in.
 const SIGNED_IN_HAS_NO_FLOW = new Set(["login", "register", "recovery"]);
 
 // Telemetry ingest origin for connect-src. Same-origin (/api/rum via Traefik)
 // by default; override when RUM ships to a distinct host.
 const INGEST_ORIGIN = process.env.NEXT_PUBLIC_OTEL_INGEST_ORIGIN ?? "";
 
-// # Why the locale is resolved here and not by next-intl's middleware
-//
-// next-intl ships one, and it does this job well — but it OWNS the rewrite, and so
-// does this file. Two middlewares cannot both rewrite a request, and the CSP nonce
-// below has to travel on the rewritten request's headers
-// (`NextResponse.next/rewrite({ request: { headers } })`), which a second
-// middleware's response discards. The auth redirects are the other half: a German
-// reader whose session expired must land on `/de/auth/login`, and only something
-// that already knows the locale can build that URL. So the locale is resolved once,
-// here, and `i18n/request.ts` reads it back off the `[locale]` route segment.
-//
-// What is NOT hand-rolled is the matching itself: `Accept-Language` is parsed and
-// matched with the same RFC 4647 lookup library next-intl uses internally.
+// next-intl's middleware owns the rewrite, and so does this file; two cannot both rewrite, and the CSP nonce
+// must travel on the rewritten request's headers, which a second middleware's response discards.
+// The matching itself is not hand-rolled: RFC 4647 lookup, the same library next-intl uses.
 
 /** Split a pathname into its locale prefix, if any, and the rest. */
 function splitLocale(pathname: string): { prefix: Locale | null; rest: string } {
@@ -85,10 +42,8 @@ function splitLocale(pathname: string): { prefix: Locale | null; rest: string } 
 }
 
 /**
- * The locale for a request with no prefix: the cookie a previous visit wrote, then
- * the browser's own preference, then the default. A cookie beats `Accept-Language`
- * deliberately — an explicit choice in the language picker outranks a header the
- * reader never set.
+ * The locale for a request with no prefix: the cookie a previous visit wrote, then the browser's preference,
+ * then the default. A cookie beats `Accept-Language`: an explicit choice outranks a header the reader never set.
  */
 function negotiateLocale(req: NextRequest): Locale {
   const fromCookie = req.cookies.get(LOCALE_COOKIE)?.value;
@@ -124,11 +79,7 @@ function makeNonce(): string {
 
 function contentSecurityPolicy(nonce: string): string {
   const connectSrc = ["'self'", INGEST_ORIGIN].filter(Boolean).join(" ");
-  // Production: a strict nonce + strict-dynamic policy. `next dev` can't satisfy
-  // it — it injects un-nonced inline HMR/fast-refresh scripts and needs eval(),
-  // and strict-dynamic makes the browser ignore 'unsafe-inline' — so the dev
-  // server gets an inline-permissive policy instead. Production never uses eval
-  // or un-nonced inline scripts, so it keeps the strict form.
+  // `next dev` injects un-nonced inline HMR scripts and needs eval, and strict-dynamic makes the browser ignore 'unsafe-inline', so the dev server gets an inline-permissive policy.
   const scriptSrc =
     process.env.NODE_ENV === "production"
       ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"]
@@ -147,11 +98,7 @@ function contentSecurityPolicy(nonce: string): string {
   ].join("; ");
 }
 
-// A `return_to` is attacker-controllable, so only a same-site absolute path is
-// ever followed: "//evil.example" is a protocol-relative URL the browser treats as
-// another origin, and a bare relative path could escape the app. Kratos applies its
-// own `allowed_return_urls` check on the flow side; this is the same guard on ours,
-// because this function also reads the parameter back off a URL Kratos never saw.
+// A `return_to` is attacker-controllable, so only a same-site absolute path is followed. Kratos applies its own check on the flow side; this function also reads the parameter off a URL Kratos never saw.
 function safeReturnTo(raw: string | null): string | null {
   if (!raw?.startsWith("/") || raw.startsWith("//")) {
     return null;
@@ -160,10 +107,7 @@ function safeReturnTo(raw: string | null): string | null {
 }
 
 export function proxy(req: NextRequest) {
-  // Locale first: every decision below is made on the path WITHOUT its locale
-  // prefix, and every redirect is written back with it. Doing it the other way
-  // round is how `/de/panel` ends up unprotected and `/de/auth/login` ends up
-  // redirecting a German reader into English.
+  // Locale first: every decision below is made on the path without its prefix. The other way round is how `/de/panel` ends up unprotected.
   const { prefix, rest } = splitLocale(req.nextUrl.pathname);
   const locale = prefix ?? negotiateLocale(req);
   const path = rest === "" ? "/" : rest;
@@ -174,32 +118,15 @@ export function proxy(req: NextRequest) {
   const authSegment = path.startsWith("/auth/") ? path.slice("/auth/".length) : "";
   const flowKind = AUTH_FLOWS[authSegment];
 
-  // Already signed in, and asking for a flow that only makes sense signed out.
-  // Answering here rather than letting Kratos answer keeps the user inside the app
-  // and keeps whatever `return_to` the URL carries; Kratos would discard it.
-  //
-  // **Unless the URL carries a flow id.** A signed-in user IS sent back here with
-  // one for the case this rule would otherwise break: step-up. An operator with a
-  // second factor logs in with a password, gets an aal1 session, and Kratos issues
-  // an aal2 login flow — so the browser arrives at /auth/login WITH a session and
-  // WITH a flow, and bouncing it home means the second factor can never be
-  // presented. The symptom is a login that appears to succeed and lands on the
-  // home page, with every ops origin still answering 401.
-  //
-  // A flow id is Kratos deciding this flow is wanted, and that decision outranks
-  // this shortcut.
+  // Answering here keeps the user inside the app and keeps whatever `return_to` the URL carries.
+  // Unless the URL carries a flow id: an operator stepping up to aal2 arrives with a session and a flow, and bouncing it home means the second factor can never be presented.
   const hasFlow = req.nextUrl.searchParams.get("flow") !== null;
   if (flowKind && hasSession && !hasFlow && SIGNED_IN_HAS_NO_FLOW.has(authSegment)) {
     const back = safeReturnTo(req.nextUrl.searchParams.get("return_to")) ?? localised("/", locale);
     return NextResponse.redirect(new URL(back, req.url));
   }
 
-  // An /auth/* page with no flow id yet: send the browser to Kratos to start one.
-  // With a flow id, fall through — the page renders it server-side.
-  //
-  // The Kratos path is NOT localised: `/auth/self-service/*` is Kratos's own URL
-  // space behind Traefik (ADR-0306), not a route this app renders. The `return_to`
-  // it carries is ours, and that one keeps its prefix.
+  // An /auth/* page with no flow id: send the browser to Kratos to start one. The Kratos path is not localised — `/auth/self-service/*` is Kratos's URL space behind Traefik (ADR-0306).
   if (flowKind && !hasFlow) {
     const start = new URL(`/auth/self-service/${flowKind}/browser`, req.url);
     const returnTo = safeReturnTo(req.nextUrl.searchParams.get("return_to"));

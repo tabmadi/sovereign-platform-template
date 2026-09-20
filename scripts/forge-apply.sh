@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
 # Reconcile infra/forge/branch-protection.yaml into the forge (ADR-0102).
-#
-#   FORGE_URL=https://forge.example.com FORGE_REPO=owner/repo \
-#   FORGE_TOKEN=… mise run forge:apply
-#
-# Idempotent: the branch protection is created on the first run and patched on
-# every one after, so running it twice changes nothing and running it after a UI
-# edit puts the committed value back — which is the point of the file existing.
-#
-# What the API cannot set is REPORTED rather than skipped silently. Forgejo's
-# fork-run approval is a repository setting with no API surface in every release,
-# and a script that quietly leaves it unset produces a repo that reads as
-# protected and executes a stranger's code on the runner.
 set -euo pipefail
 # shellcheck source=lib/log.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
@@ -51,7 +39,6 @@ fi
 [[ "$code" =~ ^2 ]] || fail "forge refused the branch protection (HTTP ${code})"
 detail "$(yq -r '.protection.status_check_contexts | join(", ")' "$CONFIG") required"
 
-# ── What this script cannot reconcile ───────────────────────────────────────
 if [[ "$(yq -r '.actions.approval_for_outside_collaborators' "$CONFIG")" == "true" ]]; then
   warn "fork-run approval is a repository setting with no API: confirm it is on"
   detail "${url}/${repo}/settings/actions — approval required for outside collaborators"

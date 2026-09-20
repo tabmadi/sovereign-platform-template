@@ -1,6 +1,5 @@
-// authz — the ops-tier edge authorizer (ADR-0306). A tiny internal HTTP service
-// (no DB, no edge route) that Oathkeeper's remote_json authorizer calls to decide
-// per-tool operator dashboard access via libs/go/authz's OpenFGA Checker.
+// authz is the ops-tier edge authorizer Oathkeeper's remote_json authorizer calls: no database, no edge route
+// (ADR-0306).
 package main
 
 import (
@@ -57,10 +56,8 @@ func run() error {
 	// OpenFGA dependency.
 	fineGrained := os.Getenv("OPS_FINE_GRAINED") == "true"
 
-	// The Temporal client, for the one mutation this service owns. It is a hard
-	// dependency of startup rather than a lazy dial: `createOperator` cannot be
-	// served at all without it, and a service that accepts the request and then
-	// discovers it has nowhere to send it has already told the caller yes.
+	// A hard dependency of startup rather than a lazy dial: a service that accepts `createOperator` and then discovers
+	// it has nowhere to send it has already told the caller yes.
 	tc, err := temporalmw.NewClient(serviceName)
 	if err != nil {
 		return fmt.Errorf("temporal: %w", err)

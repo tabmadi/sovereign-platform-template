@@ -1,24 +1,5 @@
 #!/usr/bin/env bash
 # Every TypeScript workspace member is copied into the frontend image build.
-#
-#   mise run lint:workspace-copies
-#
-# `bun install` resolves the workspace list BEFORE installing anything, so a member
-# named in the root package.json and absent from the build context fails the install
-# outright with "Workspace not found". The frontend Dockerfile's deps stage already
-# says a new member needs a line — and two were added without one, which is why this
-# is a gate now rather than a comment.
-#
-# The failure is expensive out of proportion to its size: it does not appear in any
-# lint or test, only when the image is built, which on the full tier is minutes into
-# a cluster bring-up.
-#
-# GLOB members (`libs/ts/sdks/*`) are checked differently, not exempted. They used
-# to be, on the theory that the SDKs are generated rather than committed — but they
-# ARE committed, like every generated artefact here, so bun resolves each one and
-# fails the install without its manifest. A glob cannot be enumerated in a COPY
-# without reintroducing the drift this gate exists to catch, so what is required is
-# that the glob's PARENT directory is copied wholesale.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"

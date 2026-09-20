@@ -1,6 +1,4 @@
-// Package observability is the single entry point for logs, metrics, traces,
-// and continuous profiles (ADR-0500). Service code calls obs.Init in main and
-// gets every signal wired through the OTel Collector.
+// Package observability is the single entry point for logs, metrics, traces, and continuous profiles (ADR-0500).
 package observability
 
 import (
@@ -41,8 +39,8 @@ type Config struct {
 	AdminAddr    string // default: :9090
 }
 
-// Init wires up tracing, metrics, logs, pprof, and slog. The returned shutdown
-// function must be called from main to flush all signals.
+// Init wires up tracing, metrics, logs, pprof, and slog. The returned shutdown function must be called from main to
+// flush all signals.
 //
 //nolint:funlen // ADR-0500: the single documented wiring point; kept linear on purpose.
 func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) {
@@ -53,12 +51,8 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		cfg.AdminAddr = ":9090"
 	}
 
-	// Install the W3C trace-context + baggage propagator globally. otelhttp (server
-	// handler in httpmw.Chain and the client transport on outbound calls) reads the
-	// GLOBAL propagator, which otherwise defaults to a no-op — so without this every
-	// service would extract nothing inbound and inject nothing outbound, starting a
-	// fresh root span per hop and breaking end-to-end traces. Set unconditionally
-	// (even when exporters are disabled) so context still threads through HTTP.
+	// otelhttp reads the global propagator, which otherwise defaults to a no-op — every service would then start a
+	// fresh root span per hop. Set unconditionally, so context threads through HTTP even with exporters disabled.
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}),
 	)
@@ -81,10 +75,8 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		local = true
 	}
 
-	// service.version (release) + service.build.sha (precise, always-unique) come
-	// from the baked-in build identity (ADR-0103), so every trace/log/metric
-	// self-reports which binary emitted it — answering "what's actually running"
-	// in Grafana without a bespoke endpoint.
+	// service.version and service.build.sha come from the baked-in build identity (ADR-0103), so every signal
+	// self-reports which binary emitted it.
 	res, err := resource.New(
 		ctx,
 		resource.WithAttributes(
@@ -99,11 +91,8 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		return nil, fmt.Errorf("resource: %w", err)
 	}
 
-	// All three signals share one OTLP/gRPC endpoint ($OTEL_EXPORTER_OTLP_ENDPOINT,
-	// the collector's :4317). Logs use otlploggrpc — not otlploghttp — for exactly
-	// that reason: the HTTP log exporter would POST to :4317 (the gRPC port) and
-	// every export would fail with "malformed HTTP response", so logs never reached
-	// Loki. gRPC keeps the port correct and the endpoint uniform across signals.
+	// All three signals share one OTLP/gRPC endpoint. Logs use otlploggrpc, not otlploghttp, which would POST to the
+	// gRPC port and fail every export with "malformed HTTP response".
 	var traceOpts []otlptracegrpc.Option
 	var metricOpts []otlpmetricgrpc.Option
 	var logOpts []otlploggrpc.Option
@@ -207,7 +196,6 @@ func StartSpan(ctx context.Context, name string) (context.Context, trace.Span) {
 	return otel.Tracer("service").Start(ctx, name)
 }
 
-// Counter returns (or creates) a named counter on the service meter.
 func Counter(name string, opts ...metric.Int64CounterOption) metric.Int64Counter {
 	c, err := otel.Meter("service").Int64Counter(name, opts...)
 	if err != nil {
@@ -217,18 +205,9 @@ func Counter(name string, opts ...metric.Int64CounterOption) metric.Int64Counter
 	return c
 }
 
-// ObservableGauge registers a gauge whose value is READ on each export rather than
-// pushed by the caller.
-//
-// This is the right shape for a quantity that already exists somewhere and is
-// expensive to compute — a table's row count, a queue's depth — because the SDK
-// decides how often to ask. A counter would be wrong (the value is not a sum of
-// events) and a manually-set gauge would need its own ticker, which is a second
-// schedule to reason about.
-//
-// The callback runs on the exporter's own goroutine with the export context, so it
-// must respect that context and must not block: a slow callback delays every metric
-// in the batch, not just this one.
+// ObservableGauge registers a gauge read on each export rather than pushed, which is right for a quantity that
+// already exists and is expensive to compute. The callback runs on the exporter's goroutine with the export
+// context, so it must not block: a slow callback delays every metric in the batch.
 func ObservableGauge(
 	name string,
 	observe func(context.Context) (int64, error),

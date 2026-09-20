@@ -1,11 +1,4 @@
 # shellcheck shell=bash
-# Shared human-output vocabulary for scripts (ADR-0001). Source it, don't execute:
-#   source "$(dirname "$0")/lib/log.sh"
-# Then: step "doing X"; ok "done"; warn "heads up"; fail "fatal" (fail exits 1).
-#
-# This is formatting only — it swallows no errors and hides no failures, so it is
-# compatible with the "explicit scripts, no magic" rule. The four symbols are the
-# fixed vocabulary; nothing here alters control flow except `fail`, which exits.
 
 # Avoid re-defining if sourced twice.
 if [[ -n "${__LOG_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi

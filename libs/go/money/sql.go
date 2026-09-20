@@ -6,16 +6,9 @@ import (
 	"fmt"
 )
 
-// The database and wire surfaces (ADR-0100, ADR-0303).
-//
-// Both carry the amount as a STRING and the currency as a separate column or
-// member. Neither carries a float at any point: a numeric column read into a
-// float64 has already lost the property the numeric column existed to provide.
-//
-// The currency is NOT part of the scanned value, because a Postgres numeric holds
-// only the amount. A table storing money carries two columns — amount numeric(19,4)
-// and currency char(3) — and the store composes them. [Amount.Scan] therefore
-// produces an amount whose currency the caller must supply through [Amount.WithCurrency].
+// The database and wire surfaces (ADR-0100, ADR-0303). Both carry the amount as a string and never a float.
+// The currency is not part of the scanned value: a Postgres numeric holds only the amount, so [Amount.Scan]
+// produces an amount whose currency the caller supplies through [Amount.WithCurrency].
 
 // Value implements driver.Valuer: the amount as a decimal string, which pgx sends
 // to a numeric column without an intermediate float.
@@ -75,11 +68,8 @@ type wire struct {
 	Currency string `json:"currency"`
 }
 
-// MarshalJSON writes {"amount": "1299.00", "currency": "EUR"}.
-//
-// The amount is a string on purpose. A JSON number is an IEEE-754 double by the
-// time a TypeScript client reads it, and no Go-side type prevents that — the wire
-// form is what decides it.
+// MarshalJSON writes {"amount": "1299.00", "currency": "EUR"}. The amount is a string: a JSON number is an IEEE-754
+// double by the time a TypeScript client reads it.
 func (a Amount) MarshalJSON() ([]byte, error) {
 	if !a.Valid() {
 		return []byte("null"), nil

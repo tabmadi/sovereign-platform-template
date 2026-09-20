@@ -1,21 +1,4 @@
-// Command lint-api-prefixes enforces resource-prefix ownership across the API
-// namespace (ADR-0303, ADR-0306).
-//
-// All edge-exposed specs share one flat `/api` namespace, so which service owns a
-// resource is a hidden routing detail: two services cannot both claim `/orders`.
-// ADR-0306 names the edge route table — `ingress.resources` in the committed dev
-// values — as the ownership registry, so that is what this reads. Dev is the
-// canonical copy; the route table is identical across environments.
-//
-// Two failures are reported, and they are different defects:
-//
-//  1. Collision — two services declare the same resource. A name collision is a
-//     genuine domain-modelling conflict, which is why it is a hard failure rather
-//     than a first-writer-wins rule.
-//  2. Drift between the registry and the spec — a service routes a resource its
-//     spec has no path for, or serves a top-level path it never routed. Either way
-//     the published contract and the reachable surface disagree, which is the same
-//     class of defect lint-api-audience catches at the service level.
+// Command lint-api-prefixes enforces resource-prefix ownership across the flat /api namespace (ADR-0303, ADR-0306).
 package main
 
 import (
@@ -130,11 +113,8 @@ var httpMethods = map[string]bool{
 	"patch": true, "options": true, "head": true, "trace": true,
 }
 
-// servedPrefixes is the set of top-level path segments the spec exposes AT THE
-// EDGE. A path whose every operation resolves to `x-audience: cluster` is
-// east-west — the Kratos identity webhook into orgs is the standing example — so
-// it is deliberately unrouted and must not read as drift. Audience resolves per
-// operation: its own x-audience, else the service default, else `cluster`.
+// servedPrefixes is the set of top-level segments the spec exposes at the edge. A path resolving entirely to
+// `x-audience: cluster` is east-west — the Kratos identity webhook into orgs — and is deliberately unrouted.
 func servedPrefixes(spec string) (map[string]bool, error) {
 	data, err := os.ReadFile(spec)
 	if err != nil {

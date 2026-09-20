@@ -6,10 +6,7 @@ paths:
   /authorize:
     post:
       operationId: authorize
-      # Ops-tier decision for Oathkeeper's remote_json authorizer: 200 = allow,
-      # 403 = deny. The request shape mirrors the remote_json payload in
-      # infra/auth/oathkeeper/access-rules.json (that config remains the caller's
-      # contract; this spec is authz's own view of the same shape).
+      # Ops-tier decision for Oathkeeper's remote_json authorizer: 200 allows, 403 denies. The caller's contract is infra/auth/oathkeeper/access-rules.json.
       description: Ops-tier authorization decision for Oathkeeper's remote_json authorizer.
       tags: [authorize]
       requestBody:
@@ -25,20 +22,13 @@ paths:
   /identities:
     get:
       operationId: listIdentities
-      # Changelist target (ADR-0401): the console's Users page. The list is served from
-      # Kratos admin (GET /admin/identities), which only authz may reach
-      # (network-policies/30-ory.yaml) — the console fetches it through here, never
-      # directly. Adding a create op here would scaffold an "add user" page; we don't
-      # want that (operator creation stays the dedicated createOperator action), so the
-      # tag exposes list + get + update only → admin-gen emits a changelist + an edit
-      # page, no add page.
+      # The console's Users page (ADR-0401). Only authz may reach Kratos admin (network-policies/30-ory.yaml), so the
+      # console fetches through here. list + get + update only — a create op would scaffold an "add user" page, and
+      # operator creation stays the dedicated createOperator action.
       description: List identities (product users and operators) from Kratos, paginated.
       tags: [identities]
-      # per_page caps the Kratos admin page (page_size); the generated changelist
-      # paginates client-side in the grid within that window. No page offset: this
-      # Kratos uses keyset pagination where `page` is an opaque page-token, not a
-      # 1-based number, so forwarding a numeric page returns an empty set. For counts
-      # beyond one page, raise per_page (or wire the grid to keyset page_token).
+      # per_page caps the Kratos admin page; the changelist paginates client-side within that window.
+      # No page offset: this Kratos uses keyset pagination, so forwarding a numeric page returns an empty set.
       parameters:
         - { name: per_page, in: query, required: false, description: Page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 250 } }
       responses:
@@ -84,16 +74,9 @@ paths:
   /authorize/relation:
     post:
       operationId: checkRelation
-      # East-west only, and that is the decision rather than an oversight: this
-      # answers "may this subject do this to this object" for a first-party caller
-      # that has already established who the subject is. Exposing it at the edge
-      # would let a client ask about a subject that is not itself.
-      #
-      # It exists because a Checker is a Go library (libs/go/authz) and the
-      # frontend is not Go. ADR-0700's analytics panel must perform an
-      # AUTHORITATIVE check in the render layer rather than trust that a session
-      # exists, and this is how a non-Go caller reaches the same decision the
-      # services make.
+      # East-west only: this answers "may this subject do this to this object" for a first-party caller that has
+      # already established who the subject is, and at the edge a client could ask about a subject that is not itself.
+      # It exists because a Checker is a Go library and the frontend is not Go (ADR-0700).
       x-audience: cluster
       description: Check one relation for one subject against one object.
       tags: [authorize]
@@ -118,11 +101,7 @@ paths:
         description: The operator to create.
         content: { application/json: { schema: { $ref: "#/components/schemas/OperatorInput" } } }
       responses:
-        # 202 and a handle, not 200 and the operator. Creating one is a dual write —
-        # a Kratos identity and an OpenFGA grant — and ADR-0304 puts an
-        # authz-relevant pair in a workflow, so the identity does not exist yet when
-        # this returns. Every other authz-relevant mutation on this platform answers
-        # the same way (orders, payment).
+        # 202 and a handle, not 200 and the operator: creating one is a dual write, and ADR-0304 puts an authz-relevant pair in a workflow, so the identity does not exist yet.
         "202":
           description: The operator registration was accepted and is running.
           content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowHandle" } } }

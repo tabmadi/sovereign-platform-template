@@ -1,7 +1,4 @@
-// Playwright globalSetup: run the Go preflight readiness gate before any browser
-// starts (ADR-0601). A non-zero exit aborts the run with "infra down" rather than
-// letting every browser test fail opaquely. Set E2E_SKIP_PREFLIGHT=1 to bypass
-// when iterating against a known-good cluster.
+// Playwright globalSetup: the Go preflight readiness gate, before any browser starts (ADR-0601).
 import { execFileSync } from "node:child_process";
 
 export default function globalSetup(): void {

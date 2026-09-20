@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Scaffold a new service from services/_template/ (ADR-0101).
-# Usage: scripts/new-service.sh <name>
 set -euo pipefail
 
 NAME="${1:?usage: $0 <service-name>}"

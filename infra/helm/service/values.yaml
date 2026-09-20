@@ -1,6 +1,4 @@
 # Default values for a backend service. Every per-env values file overrides on top.
-# See ADR-0101 (layout), ADR-0201 (chart shape), ADR-0302 (Temporal worker),
-# ADR-0300 (migrations), ADR-0304 (auth), ADR-0500 (observability).
 
 # Required: the service slug (used for resource names and label values).
 name: ""
@@ -21,49 +19,19 @@ worker:
     tag: ""             # SAME sha as the server image (dev/staging)
     digest: ""          # SAME digest as the server image (prod)
   replicas: 1
-  # ADR-0204, sized from measurement (2026-07-26, ADR-0601 load suite).
-  #
-  # The cpu LIMIT that used to be here (500m) is deliberately GONE. Measured peaks:
-  # catalog-server 118m, orders-worker 174m, payment-worker 122m — but those were at
-  # only ~128 req/s, so 500m was within reach of a real workload, and a throttled Go
-  # service shows up as tail latency with no error and no OOM to point at. CPU
-  # contention is handled by the request below plus the `product` PriorityClass.
-  #
-  # The memory REQUEST went 64Mi -> 128Mi because 64Mi was simply wrong:
-  # payment-server measured 86Mi, i.e. 134% of its own request, which lets the
-  # scheduler overcommit the node and then evict it.
+  # ADR-0204, sized from measurement (2026-07-26, ADR-0601 load suite). There is no cpu limit: CPU contention
+  # is handled by the request below plus the `product` PriorityClass.
   resources:
     requests: { cpu: "100m", memory: "128Mi" }
     limits:   { memory: "384Mi" }
 
-  # Graceful drain on rollout (ADR-0302). On SIGTERM the worker stops polling and
-  # waits up to stopTimeoutSeconds for its in-flight Activities to finish; the SDK
-  # default is 0s, i.e. abandon them and let every one time out and retry.
-  #
-  # terminationGracePeriodSeconds is DERIVED (stopTimeoutSeconds + the buffer
-  # below) rather than configured separately, because the invariant that kubelet
-  # must wait strictly longer than the worker is the whole point: set the grace
-  # period lower and SIGKILL lands mid-drain, which is the exact failure the stop
-  # timeout exists to prevent. Raise the buffer, not the grace period.
+  # Graceful drain on rollout (ADR-0302). On SIGTERM the worker stops polling and waits up to stopTimeoutSeconds for
+  # its in-flight Activities to finish; the SDK default is 0s, i.e.
   stopTimeoutSeconds: 25
   terminationGraceBufferSeconds: 10
 
-  # Worker Deployment Versioning (ADR-0302). Pins each Workflow Execution to the
-  # Deployment Version that started it, so a deploy cannot break work already in
-  # flight and workflow.GetVersion patching is not needed.
-  #
-  # When on, the worker is a `WorkerDeployment` CR and the Temporal Worker
-  # Controller (infra/helm/platform/temporal-worker-controller) reconciles one
-  # Deployment per Build ID. That is what makes the pin real: the previous
-  # version keeps its pods until Temporal reports it Drained, so a Workflow
-  # pinned to it still has somewhere to run. A plain rolling Deployment deletes
-  # those pods the moment the rollout finishes, which strands exactly the work
-  # versioning was meant to protect.
-  #
-  # Turning this OFF is a real decision, not a default: unversioned workers make
-  # every Workflow-code change a potential non-determinism error for executions
-  # that predate the deploy. It exists as a switch because a service that needs
-  # Temporal sessions cannot use versioning (the SDK forbids the combination).
+  # Worker Deployment Versioning (ADR-0302). Pins each Workflow Execution to the Deployment Version that started it,
+  # so a deploy cannot break work already in flight and workflow.GetVersion patching is not needed.
   versioning:
     enabled: true
     # Promote a new version as soon as its pods are ready. See the template for
@@ -77,32 +45,18 @@ worker:
       deleteDelay: 24h
 
 server:
-  # Off for a deployable that owns processes rather than an API — the platform
-  # worker is the first (ADR-0302). Every other service leaves this alone: a
-  # service with no HTTP surface is the exception, and one that accidentally had
-  # none would be a service nobody can call.
+  # Off for a deployable that owns processes rather than an API — the platform worker is the first (ADR-0302).
   enabled: true
   replicas: 2
   port: 8080
   adminPort: 9090       # pprof + livez/readyz + metrics (ADR-0500). Set to null for
-                        # a workload with no second port (the frontend).
-  # The Go service contract (ADR-0500): deep readiness on the admin port, shallow
-  # liveness. Override only for a workload that genuinely cannot serve these — see
-  # the note in templates/deployment-server.yaml.
+                        # a workload with no second port (the frontend). The Go service contract (ADR-0500): deep readiness on the admin
+                        # port, shallow liveness.
   probes:
     readiness: { httpGet: { path: /readyz, port: admin }, initialDelaySeconds: 2, timeoutSeconds: 4 }
     liveness:  { httpGet: { path: /livez,  port: admin }, periodSeconds: 30 }
-  # ADR-0204, sized from measurement (2026-07-26, ADR-0601 load suite).
-  #
-  # The cpu LIMIT that used to be here (500m) is deliberately GONE. Measured peaks:
-  # catalog-server 118m, orders-worker 174m, payment-worker 122m — but those were at
-  # only ~128 req/s, so 500m was within reach of a real workload, and a throttled Go
-  # service shows up as tail latency with no error and no OOM to point at. CPU
-  # contention is handled by the request below plus the `product` PriorityClass.
-  #
-  # The memory REQUEST went 64Mi -> 128Mi because 64Mi was simply wrong:
-  # payment-server measured 86Mi, i.e. 134% of its own request, which lets the
-  # scheduler overcommit the node and then evict it.
+  # ADR-0204, sized from measurement (2026-07-26, ADR-0601 load suite). There is no cpu limit: CPU contention
+  # is handled by the request below plus the `product` PriorityClass.
   resources:
     requests: { cpu: "100m", memory: "128Mi" }
     limits:   { memory: "384Mi" }
@@ -112,10 +66,7 @@ server:
 migrations:
   enabled: true
 
-# Temporal wiring for a versioned worker. `connectionRef` names the `Connection`
-# CR the platform chart renders once (infra/helm/platform/temporal-worker-
-# controller); the controller reads the frontend address from there and injects
-# it into the worker pods, so the endpoint is defined in exactly one place.
+# Temporal wiring for a versioned worker.
 temporal:
   connectionRef: "platform-temporal"
   namespace: "default"
@@ -131,11 +82,7 @@ otel:
   # Per-env GitOps values may override (e.g. "staging"); local flips it to "local".
   deployEnv: "prod"
 
-# Ingress through Traefik (ADR-0305, ADR-0306). The API is a flat resource
-# namespace: `resources` lists the resource segments this service owns at the
-# edge; each becomes a `/api/<resource>` route and the shared `/api` prefix is
-# stripped, so the service serves them at root and its identity stays out of the
-# URL. Exactly one service may own a given resource (CI-linted, ADR-0303).
+# Ingress through Traefik (ADR-0305, ADR-0306).
 ingress:
   enabled: true
   host: ""              # set per env, e.g. dev.example.com
@@ -160,10 +107,8 @@ podSecurityContext:
   runAsNonRoot: true
   runAsUser: 65532      # distroless static "nonroot"
   fsGroup: 65532
-  # The sixth requirement of the `restricted` Pod Security Standard, and the one
-  # this chart was missing: without it every pod here fails admission the moment a
-  # namespace is labelled `enforce: restricted` (ADR-0200). Set at pod level so it
-  # covers the migration initContainer too, which has no securityContext of its own.
+  # The sixth requirement of the `restricted` Pod Security Standard, and the one this chart was missing: without it
+  # every pod here fails admission the moment a namespace is labelled `enforce: restricted` (ADR-0200).
   seccompProfile:
     type: RuntimeDefault
 

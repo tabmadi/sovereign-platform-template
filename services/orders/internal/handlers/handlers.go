@@ -1,6 +1,4 @@
 // Package handlers implement the ogen-generated orders.Handler interface (ADR-0303).
-// Hand-written code imports the generated schema types and the sqlc store; it
-// never shadows them with parallel structs or inline SQL.
 package handlers
 
 import (
@@ -47,16 +45,9 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ orders.Handler = (*Handlers)(nil)
 
-// These three are the transport boundary (ADR-0003): the columns hold bare uuids
-// and the wire carries `order_`/`product_` and the base32 form. A product id is
-// minted by catalog and only carried here, so it is encoded under catalog's prefix;
-// decoding one is the checkout saga's job, since that is where the insert happens.
-//
-// The prefixes are literals, so encoding cannot fail on real input. Decoding cannot
-// either — every identifier reaching a handler has already matched the OrderId
-// pattern in the generated validator — and it still reports rather than panics,
-// because the validator and these calls are two places one spec edit can
-// separate.
+// These three are the transport boundary (ADR-0003). A product id is minted by catalog and only carried here,
+// so it is encoded under catalog's prefix; decoding one is the checkout saga's job.
+// They report rather than panic: the generated validator and these calls are two places one spec edit can separate.
 func orderID(u pgtype.UUID) orders.OrderId {
 	return orders.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
 }
@@ -65,10 +56,8 @@ func productID(u pgtype.UUID) orders.ProductId {
 	return orders.ProductId(id.MustFrom("product", uuid.UUID(u.Bytes)).String())
 }
 
-// mintOrderID is where an identifier enters the system (ADR-0003). The service
-// holds it before the insert rather than reading it back from a column default, so
-// a write that never lands still has an identifier to log and to name in the
-// failure.
+// mintOrderID is where an identifier enters the system (ADR-0003). The service holds it before the insert, so a write
+// that never lands still has an identifier to name in the failure.
 func mintOrderID() (pgtype.UUID, error) {
 	v, err := id.New("order")
 	if err != nil {
@@ -145,10 +134,8 @@ func (h *Handlers) Checkout(
 		return nil, err
 	}
 	oid := string(orderID(key))
-	// Tag the root span with the order id so a specific checkout is addressable in
-	// Tempo (TraceQL `{ .order.id = "<id>" }`) — the anchor the e2e uses to pull the
-	// exact end-to-end trace and assert it stitched across catalog + payment. The
-	// wire form is what a reader has in hand, so it is what the attribute carries.
+	// Tags the root span so a checkout is addressable in Tempo by TraceQL. The wire form is what a reader has in hand,
+	// so it is what the attribute carries.
 	span.SetAttributes(attribute.String("order.id", oid))
 	_, err = h.tc.ExecuteWorkflow(
 		ctx,
@@ -311,11 +298,8 @@ func (h *Handlers) NewError(ctx context.Context, err error) *orders.ErrorStatusC
 	return &orders.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
-// requireReader authorises a single-order read (ADR-0003): an unguessable
-// identifier is not an access control, so holding one grants nothing. `order#read`
-// in model.fga resolves the buyer and the admins of the owning org; an operator
-// reaches every order through the same back-office grant the lists use. Both are
-// Checker calls — neither reads a role out of a header.
+// An unguessable identifier is not an access control, so holding one grants nothing (ADR-0003). `order#read`
+// resolves the buyer and the owning org's admins; both are Checker calls, and neither reads a role from a header.
 func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {
@@ -331,10 +315,8 @@ func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	return h.requireOperator(ctx, "reading an order placed by someone else")
 }
 
-// requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the
-// caller must be an authenticated operator. Reads (List/Get) and starting a
-// checkout stay open; only the destructive cancel is gated, matching catalog's
-// operator-write policy.
+// requireOperator gates a write on the shared Checker (ADR-0304). Reads and starting a checkout stay open; only the
+// destructive cancel is gated.
 func (h *Handlers) requireOperator(ctx context.Context, action string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {

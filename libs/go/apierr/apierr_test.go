@@ -13,10 +13,8 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
 )
 
-// The wire shape is the contract (ADR-0303), and it is what the generated clients
-// and the edge both parse. Asserting the marshalled JSON rather than the struct is
-// deliberate: a renamed tag is invisible to a struct-level assertion and breaks
-// every consumer.
+// Asserting the marshalled JSON rather than the struct: a renamed tag is invisible to a struct-level assertion and
+// breaks every consumer (ADR-0303).
 func TestProblemWireShape(t *testing.T) {
 	t.Parallel()
 

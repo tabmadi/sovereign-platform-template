@@ -1,7 +1,4 @@
-// Headlamp k8s debug UI operator dashboard (ADR-0501) — opt-in, gated at
-// headlamp.ops.<host> (dashboard:headlamp#view) and the SPA renders behind a real AAL2
-// operator session. Read-only via the built-in `view` ClusterRole; the gauge
-// asserts the shell paints, not any post-connect view.
+// The Headlamp Kubernetes debug dashboard: opt-in, gated at the ops origin (ADR-0501, ADR-0306).
 import { expect, test } from "@playwright/test";
 import {
   expectAal1Forbidden,

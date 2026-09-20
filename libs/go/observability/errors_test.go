@@ -9,11 +9,8 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
 )
 
-// The fingerprint's whole job is stability (ADR-0503): the same fault yields the
-// same value across occurrences and releases, and two faults do not collide.
-// These tests pin the properties that a change to the frame-selection rule would
-// break, because nothing else can see such a break — a drifted fingerprint looks
-// like a new fault, which is exactly what a fingerprint exists to deny.
+// These pin the fingerprint's stability (ADR-0503). Nothing else can see a break: a drifted fingerprint looks like a
+// new fault.
 
 func failOne() error           { return errors.New("boom") }
 func failTwo() error           { return errors.New("boom") }
@@ -50,13 +47,8 @@ func TestFingerprintSeparatesDistinctFaults(t *testing.T) {
 	}
 }
 
-// A known and accepted merge: two errors with the SAME normalised message,
-// recorded from the same place, are one fault.
-//
-// Go's errors carry no creation stack, so nothing distinguishes them — and the
-// merge is usually right, because a message is written once at the site that
-// raises it. It is asserted rather than left implicit so that a future change to
-// the frame rule has to decide about this case deliberately.
+// A known merge: two errors with the same normalised message from the same place are one fault, because Go's
+// errors carry no creation stack. Asserted so a change to the frame rule has to decide about it deliberately.
 func TestIdenticalMessagesFromOneRecordSiteMerge(t *testing.T) {
 	t.Parallel()
 	if observability.Fingerprint(failOne()) != observability.Fingerprint(failTwo()) {

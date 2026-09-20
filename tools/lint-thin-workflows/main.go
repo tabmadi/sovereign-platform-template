@@ -1,18 +1,5 @@
-// Command lint-thin-workflows enforces ADR-0102's rule that workflow YAML checks
-// out, sets up the toolchain, and calls `mise run ci:*` — pipeline logic is not
-// written in YAML.
-//
-// The gate is on `run:` steps only. A `uses:` step delegates to an action and
-// carries no logic of its own, so checkout, the composite setup action, and the
-// docker and pull-request actions are outside the rule rather than allow-listed
-// exceptions to it.
-//
-// A `run:` block may contain, per line: a `mise run` invocation, `set -euo
-// pipefail`, or a comment. A trailing redirect into $GITHUB_OUTPUT or $GITHUB_ENV
-// is permitted on a `mise run` line, because passing a value between steps is
-// forge plumbing rather than logic — the task still decides what the value is.
-// Everything else is logic that belongs in a task: the point is that a pipeline
-// can be reproduced locally and survives the move to another forge (ADR-0102).
+// Command lint-thin-workflows enforces that workflow YAML checks out, sets up the toolchain, and calls `mise run
+// ci:*` (ADR-0102).
 package main
 
 import (

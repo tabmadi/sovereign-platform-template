@@ -1,16 +1,5 @@
 #!/usr/bin/env bash
-# Guard the inner loop's one silent failure (ADR-0205). Run from a service
-# directory, as a dependency of that service's `server`/`worker`/`migrate` tasks.
-#
-# mise TOLERATES a missing `_.file = ".env"` — it does not warn, it just resolves
-# no environment. So on a fresh clone `mise run server` used to start with an unset
-# DATABASE_URL and die somewhere inside the pgx driver, which tells you nothing
-# about the actual problem ("you never copied .env.example").
-#
-# Seeding alone is not enough either: `_.file` is read when mise LOADS the config,
-# before any task runs, so a copy made here cannot be picked up by the run that
-# made it. Hence seed-then-stop — the next invocation has a real environment, and
-# the message says so rather than leaving you to guess.
+# Guard the inner loop's one silent failure (ADR-0205). Run from a service directory, as a dependency of its server/worker/migrate tasks.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"

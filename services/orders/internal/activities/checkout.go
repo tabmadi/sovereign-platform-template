@@ -1,7 +1,4 @@
 // Package activities for the Checkout saga (ADR-0302).
-// All cross-service calls go through HTTP via the generated client surface
-// (here: raw http.Client — replace with the ogen client in libs/go/sdks/<service>
-// when `mise run gen` produces the typed clients).
 package activities
 
 import (
@@ -41,10 +38,8 @@ func New(db *pgxpool.Pool, granter authz.Granter) *Activities {
 	return &Activities{
 		DB:      db,
 		Granter: granter,
-		// otelhttp transport injects the W3C traceparent on every outbound call, so
-		// the catalog/payment server spans stitch under this activity's span (which
-		// Temporal's tracing interceptor already links to the checkout workflow).
-		// Without it the cross-service hop starts a detached root trace.
+		// otelhttp injects the W3C traceparent on every outbound call, so the catalog and payment server spans stitch under
+		// this activity's. Without it the hop starts a detached root trace.
 		HTTP:       &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)},
 		CatalogURL: env("CATALOG_URL", "http://catalog-server.platform.svc.cluster.local"),
 		PaymentURL: env("PAYMENT_URL", "http://payment-server.platform.svc.cluster.local"),
@@ -59,11 +54,8 @@ func env(k, def string) string {
 	return def
 }
 
-// CreateOrderActivity is dual-write leg 1 (ADR-0304): the application-DB write.
-// The identifier is minted by the handler and passed in, so the insert is keyed on
-// a value that does not change between attempts — `on conflict (id) do nothing`
-// then makes a retry re-run rather than duplicate, and the empty result it returns
-// is the second attempt, not a failure.
+// CreateOrderActivity: Dual-write leg 1 (ADR-0304). The identifier is minted by the handler, so `on conflict (id) do
+// nothing` makes a retry re-run rather than duplicate, and its empty result is the second attempt.
 func (a *Activities) CreateOrderActivity(ctx context.Context, in workflows.CheckoutInput) error {
 	orderID, err := id.Parse("order", in.OrderID)
 	if err != nil {
@@ -84,10 +76,8 @@ func (a *Activities) CreateOrderActivity(ctx context.Context, in workflows.Check
 			ID:        pgtype.UUID{Bytes: orderID.UUID(), Valid: true},
 			ProductID: pgtype.UUID{Bytes: productID.UUID(), Valid: true},
 			Quantity:  in.Quantity,
-			// The currency the order is priced in. The total starts at zero and the
-			// saga sets it once catalog has answered; the currency comes from the
-			// same answer, so an order can only ever be priced in the currency its
-			// product carries.
+			// The total starts at zero and the saga sets it once catalog has answered, so an order can only be priced in the
+			// currency its product carries.
 			Currency:       defaultCurrency,
 			OwnerID:        pgtype.Text{String: in.OwnerID, Valid: true},
 			OrgID:          pgtype.UUID{Bytes: orgID.UUID(), Valid: true},
@@ -103,11 +93,8 @@ func (a *Activities) CreateOrderActivity(ctx context.Context, in workflows.Check
 	return nil
 }
 
-// GrantOrderAccessActivity is dual-write leg 2 (ADR-0304): the OpenFGA write that
-// makes the row readable. Two tuples, because `order#read` is `owner or write from
-// org` — the buyer reads their own order, and the org's admins read every order
-// placed through it. Grant treats an already-present tuple as success, so a retry
-// of either write is safe.
+// GrantOrderAccessActivity: Dual-write leg 2 (ADR-0304). Two tuples, because `order#read` is `owner or write from
+// org`. Grant treats an already-present tuple as success, so a retry of either write is safe.
 func (a *Activities) GrantOrderAccessActivity(ctx context.Context, orderID, ownerID, orgID string) error {
 	err := a.Granter.Grant(ctx, "user:"+ownerID, "owner", "order:"+orderID)
 	if err != nil {
@@ -120,10 +107,8 @@ func (a *Activities) GrantOrderAccessActivity(ctx context.Context, orderID, owne
 	return nil
 }
 
-// LookupProductActivity calls catalog. Returns the product's price as the shared
-// money type, which is what crosses the wire in both directions (ADR-0300) — an
-// activity result is a boundary like any other, and a bare number here would put
-// the scale back in the caller's head.
+// LookupProductActivity: Returns the price as the shared money type (ADR-0300): an activity result is a boundary like
+// any other, and a bare number would put the scale back in the caller's head.
 func (a *Activities) LookupProductActivity(ctx context.Context, productID string) (money.Amount, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, a.CatalogURL+"/products/"+productID, nil)
 	resp, err := a.HTTP.Do(req)
@@ -151,7 +136,6 @@ func (a *Activities) LookupProductActivity(ctx context.Context, productID string
 	return price, nil
 }
 
-// SetOrderTotalActivity records what the saga priced the order at.
 func (a *Activities) SetOrderTotalActivity(ctx context.Context, orderID string, total money.Amount) error {
 	parsed, err := id.Parse("order", orderID)
 	if err != nil {

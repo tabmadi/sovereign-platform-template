@@ -1,11 +1,4 @@
 // 401 fallback (ADR-0400). Rendered by `unauthorized()` from lib/auth/denial.ts.
-//
-// Reached when a session runs out DURING a page — the proxy already turns a
-// session-less navigation into a 307 before anything renders, so this is the case
-// the proxy cannot catch. That difference is why this is a page and not a redirect:
-// at navigation time nothing is lost by redirecting, but here the user may be
-// mid-form, and bouncing the document would discard what they typed. Signing in is
-// offered as a link they choose to follow.
 import { useTranslations } from "next-intl";
 import { SignInAgain } from "./sign-in-again";
 

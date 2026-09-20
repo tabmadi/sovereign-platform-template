@@ -1,6 +1,4 @@
 # Per-env platform overrides (ADR-0201).
-# Top-level `cluster:` — the postgres chart's own values schema has no
-# `postgres:` namespace wrapper (unlike the dependency subcharts below).
 cluster:
   instances: 3
   storage: { size: 50Gi }
@@ -43,11 +41,7 @@ lowdefy:
 localPath:
   enabled: true
 
-# The wildcard host this environment serves, and the ACME account that certifies
-# it (ADR-0205). Both are placeholders an adopter replaces: the certificates are
-# derived from the host, and Let's Encrypt sends expiry warnings and account
-# recovery to the address. Neither has a default a template could pick, so the
-# chart fails the render rather than issuing a certificate for `*.`.
+# The wildcard host this environment serves, and the ACME account that certifies it (ADR-0205).
 envHost: dev.example.com
 publicTls:
   enabled: true
@@ -55,14 +49,7 @@ publicTls:
   acme:
     email: ops@example.com
 
-# Identity, at this environment's host. The canonical auth config (infra/auth) is
-# written against a placeholder, and every one of these is a URL a BROWSER is sent
-# to — so an environment that does not override them redirects its operators to a
-# domain it does not own, and the failure is a login page that never loads rather
-# than anything naming the wrong host.
-#
-# TOTP and WebAuthn are domain-bound on top of that: a second factor enrolled
-# against the wrong relying party cannot be presented to this one.
+# Identity, at this environment's host.
 kratos:
   kratos:
     config:

@@ -99,7 +99,6 @@ func TestCoarseClaimGate(t *testing.T) {
 	}
 }
 
-// The optional fine gate adds a per-tool OpenFGA check on top of the coarse gate.
 func TestFineGrainedGate(t *testing.T) {
 	t.Parallel()
 	// alice holds o11y but not map.
@@ -120,10 +119,8 @@ func TestFineGrainedGate(t *testing.T) {
 	}
 }
 
-// fakeKratos stands in for the Kratos admin identity API so the identity handlers can
-// be tested without a live Kratos: list returns a fixed page, get returns one full
-// identity (schema_id/state included), and put echoes back the body it received after
-// recording it for the caller to assert on.
+// fakeKratos stands in for the Kratos admin identity API: list returns a fixed page, get returns one full identity,
+// and put echoes the body it received.
 func fakeKratos(t *testing.T, gotPut *map[string]any) *httptest.Server {
 	t.Helper()
 	full := map[string]any{

@@ -1,10 +1,4 @@
-// Package handlers implements the ogen-generated analytics.Handler interface
-// (ADR-0303, ADR-0700).
-//
-// The endpoints are internal: the collector's routing connector writes events
-// here, and the consent control writes decisions. No browser calls this service
-// directly — the browser emits through Faro, which is what keeps the frontend
-// ignorant of the topology and lets this store be replaced without a release.
+// Package handlers implements the ogen-generated analytics.Handler interface (ADR-0303, ADR-0700).
 package handlers
 
 import (
@@ -33,10 +27,8 @@ import (
 // what the visitor did rather than a difference in what may be stored.
 const stateGranted = "granted"
 
-// maxRollupBuckets bounds one pass. A schedule that drifted, or a retry that
-// widened its window, would otherwise ask the rollup to scan the whole events
-// table — which is the scan the rollup exists to avoid. Roughly a quarter, which is
-// wider than any scheduled pass and narrow enough to stay a bounded query.
+// maxRollupBuckets bounds one pass, so a drifted schedule cannot ask the rollup to scan the whole events table.
+// Roughly a quarter.
 const maxRollupBuckets = 92
 
 type Handlers struct {
@@ -54,16 +46,9 @@ func New(db *pgxpool.Pool, defs *funnels.Set, log *slog.Logger) *Handlers {
 
 var _ analytics.Handler = (*Handlers)(nil)
 
-// RecordEvents stores a batch, and drops it whole if the session has no grant.
-//
-// This is ADR-0700's SECOND enforcement point, and it exists because the first one
-// runs on a client the platform does not control. The browser wrapper refuses to
-// emit without a recorded grant; this refuses to store what arrives anyway. Either
-// alone is a policy, and both together are a control.
-//
-// A drop is not an error. The caller is the collector, which cannot fix a missing
-// grant and must not retry — so the response reports how many were stored and how
-// many were not, and a non-zero `dropped` is a client worth looking at.
+// RecordEvents stores a batch, and drops it whole if the session has no grant — ADR-0700's second enforcement
+// point, because the first runs on a client the platform does not control.
+// A drop is not an error: the collector cannot fix a missing grant and must not retry.
 func (h *Handlers) RecordEvents(ctx context.Context, req *analytics.EventBatch) (*analytics.RecordResult, error) {
 	granted, err := h.hasGrant(ctx, req.SessionID)
 	if err != nil {
@@ -88,12 +73,8 @@ func (h *Handlers) RecordEvents(ctx context.Context, req *analytics.EventBatch) 
 	return &analytics.RecordResult{Stored: stored, Dropped: 0}, nil
 }
 
-// SummariseEvents answers the panel's first question: what is happening at all.
-//
-// It is read-only and carries no authorization of its own, which is deliberate and
-// is why the service is east-west (ADR-0700). The panel that calls it performs the
-// authoritative check in its render layer, against `analytics_panel:funnels`; this
-// service is not reachable from a browser, so there is no second caller to gate.
+// SummariseEvents: Read-only and carrying no authorization of its own (ADR-0700): the panel performs the
+// authoritative check in its render layer, and this service is not reachable from a browser.
 func (h *Handlers) SummariseEvents(
 	ctx context.Context, params analytics.SummariseEventsParams,
 ) ([]analytics.EventSummary, error) {
@@ -116,13 +97,8 @@ func (h *Handlers) SummariseEvents(
 	return out, nil
 }
 
-// RecordConsent writes the decision and returns it as recorded.
-//
-// Every field is there to make the consent DEMONSTRABLE later (GDPR Art. 7(1)):
-// the purpose text's version, because consent is to a stated purpose and a changed
-// purpose is a new consent; and the signal's source, because a `gpc` row is a
-// refusal nobody was prompted for and that distinction is the difference between
-// honouring a prior signal and ignoring one.
+// RecordConsent: Every field makes the consent demonstrable later (GDPR Art. 7(1)): the purpose version, because a
+// changed purpose is a new consent, and the source, because a `gpc` row is a refusal nobody was prompted for.
 func (h *Handlers) RecordConsent(ctx context.Context, req *analytics.ConsentInput) (*analytics.Consent, error) {
 	params := store.UpsertConsentParams{
 		SessionID:      req.SessionID,
@@ -147,10 +123,8 @@ func (h *Handlers) RecordConsent(ctx context.Context, req *analytics.ConsentInpu
 	}, nil
 }
 
-// GetConsent reads the decision on file. A session with no row is a session that
-// has not answered, which is a 404 rather than an invented refusal: the control
-// needs to tell "has not been asked" from "said no", because it prompts for one
-// and must never prompt for the other.
+// GetConsent: A session with no row has not answered, which is a 404 rather than an invented refusal: the control
+// prompts for one and must never prompt for the other.
 func (h *Handlers) GetConsent(ctx context.Context, params analytics.GetConsentParams) (*analytics.Consent, error) {
 	row, err := h.q.GetConsent(ctx, params.SessionID)
 	if err != nil {
@@ -202,15 +176,9 @@ func fromText(v pgtype.Text) analytics.OptString {
 	return analytics.NewOptString(v.String)
 }
 
-// ComputeFunnelRollup recomputes one funnel's rollup over a window (ADR-0700).
-//
-// Driven by a Temporal Schedule (ADR-0302), and idempotent by construction: each
-// bucket is REPLACED, so a pass over a window that is still filling is the normal
-// case rather than a hazard. The most recent bucket is always incomplete.
-//
-// The window is bounded here rather than trusted from the caller. A schedule that
-// drifted, or a retry that widened its window, would otherwise ask this to scan
-// the whole events table — which is exactly the scan the rollup exists to avoid.
+// ComputeFunnelRollup: Driven by a Temporal Schedule and idempotent by construction: each bucket is replaced, so a
+// pass over a window that is still filling is the normal case (ADR-0700, ADR-0302). The window is bounded here rather
+// than trusted from the caller.
 func (h *Handlers) ComputeFunnelRollup(
 	ctx context.Context, req *analytics.RollupWindow, params analytics.ComputeFunnelRollupParams,
 ) (*analytics.RollupResult, error) {
@@ -247,7 +215,6 @@ func (h *Handlers) ComputeFunnelRollup(
 	}, nil
 }
 
-// GetFunnelRollup reads a funnel's computed buckets.
 func (h *Handlers) GetFunnelRollup(
 	ctx context.Context, params analytics.GetFunnelRollupParams,
 ) ([]analytics.FunnelRollupRow, error) {
@@ -285,13 +252,8 @@ func (h *Handlers) GetFunnelRollup(
 	return out, nil
 }
 
-// hasGrant answers whether this session's events may be stored.
-//
-// The two failure modes must not be confused, and confusing them is what a first
-// version of this did: a session with NO ROW never answered, and the answer is a
-// plain no. Any other error is the database being unreachable, and treating that
-// as "no consent" would silently discard every event during an outage — a data
-// loss that looks exactly like a working consent gate.
+// A session with no row never answered, and the answer is a plain no. Any other error is the database being
+// unreachable, and reading that as "no consent" would discard every event during an outage.
 func (h *Handlers) hasGrant(ctx context.Context, sessionID string) (bool, error) {
 	row, err := h.q.GetConsent(ctx, sessionID)
 	if errors.Is(err, pgx.ErrNoRows) {

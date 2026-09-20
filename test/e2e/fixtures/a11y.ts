@@ -1,17 +1,4 @@
 // Accessibility scanning for the e2e suite (ADR-0400, ADR-0601). One toolchain:
-// axe runs inside the browser Playwright already drives, so there is no second
-// runner and no second definition of "the app is up".
-//
-// The gate is `serious` or `critical` only. `moderate` and `minor` are reported in
-// the failure message when something else already failed, but they do not fail a
-// merge on their own: axe's lower impact levels include findings that are correct
-// by construction on a page fragment, and a gate that cries wolf is a gate people
-// learn to re-run until it passes.
-//
-// A green axe run is NOT WCAG conformance (ADR-0400): it catches the
-// machine-checkable subset. Meaningful alt text, reading order, and whether a flow
-// is completable by keyboard are not detectable by a tool. This gate prevents
-// regressions in the part a machine can see, and nothing more.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 
@@ -76,10 +63,8 @@ export async function expectNoA11yViolations(
 }
 
 /**
- * Every `<section>` on the kitchen-sink page, by its heading text. A primitive's
- * conformance is proven once here rather than re-proven in every consumer
- * (ADR-0400), so the scan is per section: a failure names the primitive rather
- * than the page.
+ * Every `<section>` on the kitchen-sink page, by its heading text. A primitive's conformance is proven once
+ * here rather than in every consumer (ADR-0400), so the scan is per section and a failure names the primitive.
  */
 export async function kitchenSinkSections(page: Page): Promise<string[]> {
   return page.locator("main section h2").allInnerTexts();

@@ -1,15 +1,4 @@
-// Lowdefy admin console ops dashboard (ADR-0401, ADR-0306). Same staged gauge as
-// the other ops tools: gated at the edge (unauthenticated / AAL1 / AAL2 operator
-// holding dashboard:lowdefy#view), then the Lowdefy app paints behind a real AAL2
-// session.
-//
-// Beyond "paints", the products suite drives a full create → list → edit → delete
-// round-trip through the generated Django-admin pages. That exercise is deliberate:
-// the console reaches each service east-west (bypassing the /api edge), so it only
-// works when the service NetworkPolicy admits the lowdefy pod and the grid binds the
-// response body (`_request: list.data`). A paint-only check (a static grid header is
-// visible) passes even when the grid is empty because the request timed out — the
-// exact regression this suite now guards against.
+// The Lowdefy admin console ops dashboard, on the same staged gauge as the others (ADR-0401, ADR-0306).
 import { expect, test } from "@playwright/test";
 import {
   expectAal1Forbidden,
@@ -50,10 +39,7 @@ test.describe("lowdefy ops dashboard", () => {
     });
   });
 
-  // The products resource wired to a live catalog service: a full CRUD round-trip
-  // through the generated changelist / add / edit pages. This is the data gauge —
-  // if the console cannot reach catalog, or the grid binds the HTTP envelope instead
-  // of its body, the created row never appears and the test fails.
+  // The data gauge: if the console cannot reach catalog, or the grid binds the HTTP envelope instead of its body, the created row never appears.
   test.describe("products CRUD", () => {
     test.use({ storageState: OPERATOR_STATE });
 
@@ -99,14 +85,9 @@ test.describe("lowdefy ops dashboard", () => {
     });
   });
 
-  // The identities resource wired to Kratos through authz: the changelist and edit
-  // page (ADR-0401). Unlike products, the rows come from Kratos admin (GET
-  // /admin/identities) via authz — a path that only works when authz can reach the
-  // Kratos admin API (network-policies/30-ory.yaml) and the deployed authz image
-  // actually serves /identities. A paint-only check would pass on an empty grid; this
-  // asserts the seeded bootstrap identities are present — the exact "I open Identities
-  // and see nothing" regression — then edits one to exercise the PUT write path
-  // (authz gates writes on the console's operator X-User-Id → OpenFGA group:operator).
+  // Rows come from Kratos admin via authz, a path that works only when authz can reach the Kratos admin API
+  // (network-policies/30-ory.yaml). A paint-only check would pass on an empty grid, so this asserts the seeded
+  // identities are present, then edits one to exercise the PUT write path (ADR-0401).
   test.describe("identities", () => {
     test.use({ storageState: OPERATOR_STATE });
 
@@ -139,10 +120,7 @@ test.describe("lowdefy ops dashboard", () => {
       await page.goto(`${admin}/identities`);
       await expect(page.getByText(renamed)).toBeVisible({ timeout: 30_000 });
 
-      // Revert so the shared operator identity is left as we found it. Only when there
-      // was a name to restore: the form (and Kratos schema) reject an empty name, and
-      // the seeded operator has none — a per-run unique rename left behind is harmless
-      // since every assertion above keys on the email, never the name.
+      // Revert so the shared operator identity is left as found, and only when there was a name: the form rejects an empty one.
       if (original) {
         await page.getByText(OPERATOR.email).first().click();
         await expect(page).toHaveURL(/identities_edit\?id=/, { timeout: 15_000 });
@@ -153,20 +131,14 @@ test.describe("lowdefy ops dashboard", () => {
     });
   });
 
-  // Operator management: the generated createOperator page starts the
-  // RegisterOperator workflow (authz POST /operators), which creates the Kratos
-  // identity and grants group:operator membership in OpenFGA as two activities
-  // (ADR-0304).
+  // The generated createOperator page starts the RegisterOperator workflow, which creates the Kratos identity and grants group:operator membership as two activities (ADR-0304).
   test.describe("create operator", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test.afterAll(async () => {
       const pf = await portForward("ory-kratos-admin", 4434, 80);
       try {
-        // Poll rather than read once. The endpoint returns 202 the moment the
-        // workflow starts, so the identity does not exist yet when the assertion
-        // above passes — a single read here would usually find nothing and leave
-        // the identity behind for whatever runs next to trip over.
+        // Poll rather than read once: the endpoint returns 202 the moment the workflow starts, so a single read would usually find nothing and leave the identity behind.
         const deadline = Date.now() + 30_000;
         while (Date.now() < deadline) {
           const res = await fetch(

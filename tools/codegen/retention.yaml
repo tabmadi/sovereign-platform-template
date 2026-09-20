@@ -1,17 +1,5 @@
-# Retention per data class (ADR-0301).
-#
-# The classes are `tools/lint-pii`'s vocabulary, which is also the vocabulary the
-# `pii:<class>` tags in every migration use. This file adds the two things a tag
-# cannot carry, because both are decisions rather than facts about a column:
-#
-#   period    how long data of this class is kept.
-#   disposal  what happens at the end of it — `delete` or `anonymise`. ADR-0301
-#             makes this a per-CATEGORY decision recorded here, never a per-request
-#             one, because a request that could choose would be a request that can
-#             erase an audit obligation.
-#
-# `docs/reference/data-classes.md` is generated from this plus the tags themselves,
-# so the registry is a view over two sources rather than a third copy of either.
+# Retention per data class (ADR-0301). `period` is how long the class is kept; `disposal` is `delete` or `anonymise`.
+# ADR-0301 makes disposal a per-category decision, never a per-request one.
 classes:
   none:
     period: n/a

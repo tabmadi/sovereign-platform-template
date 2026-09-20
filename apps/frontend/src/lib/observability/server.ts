@@ -1,5 +1,4 @@
-// Server-side logger (ADR-0500, ADR-0400). Structured JSON to stdout via pino,
-// enriched with the active span's trace_id when available.
+// Server-side logger (ADR-0500, ADR-0400): structured JSON to stdout via pino.
 import "server-only";
 
 import pino from "pino";

@@ -1,41 +1,4 @@
 // Command lint-money enforces the monetary-value rule (ADR-0100, ADR-0300).
-//
-// The rule is one sentence: a monetary amount is the shared money type, never a
-// floating-point number — `numeric` in the database, a string in the OpenAPI
-// schema, and a string on the wire. What makes it worth a gate rather than a review
-// note is that every violation of it COMPILES, passes its tests, and produces a
-// number that is correct in the examples anyone writes by hand. `price float64`
-// round-trips 19.99 through a unit test and loses a cent on the ninety-third order.
-//
-// So this reads the three surfaces the rule names, plus TypeScript:
-//
-//	OpenAPI     a money-ish property is `$ref: Money`, not a number and not an
-//	            integer of minor units.
-//	Go          no float32/float64 field or variable with a money-ish name, and no
-//	            `Cents` identifier outside the money package itself.
-//	TypeScript  no money-ish `number`, and no `_cents` field.
-//
-// # What is a "money-ish name"
-//
-// A vocabulary, not a type system. The gate cannot know that `weight` is not money
-// and `principal` is, so it works from the words this domain actually uses for
-// money and accepts that a new one has to be added here. That is the correct
-// failure mode: adding a word is a one-line edit in a review that is already about
-// money, and the alternative — inferring it — is a gate that fires on `total_count`
-// and gets bypassed within a month.
-//
-// # What this does NOT check, and why
-//
-// The database columns. `services/*/migrations/` still holds the `_cents` integer
-// columns the money conversion left behind: ADR-0300 requires expand, then the code
-// switch, then contract, with a deploy boundary in between, so the old columns
-// outlive the code that read them by design. Flagging them would make this gate red
-// for the entire correct execution of the migration it exists to support.
-//
-// Nothing is lost by the omission. A column is only reachable through a Go struct
-// field or an OpenAPI property, and both of those are checked here — a new integer
-// money column cannot be introduced without also introducing something this gate
-// rejects.
 package main
 
 import (
@@ -54,10 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// moneyWords is the vocabulary. A property, field, or variable whose name contains
-// one of these as a whole word is treated as monetary.
-// wordAmount and wordPrice are named because they appear in the vocabulary, in the
-// Money component's own members, and in the report.
+// moneyWords is the vocabulary: a name containing one of these as a whole word is monetary.
 const (
 	wordAmount = "amount"
 	wordPrice  = "price"
@@ -76,10 +36,7 @@ var moneyWords = []string{
 	"total",
 }
 
-// countWords end an identifier that counts something rather than valuing it.
-// `total_count`, `total_items` and `amount_of_rows` all contain a money word and
-// none of them are money — this is the exception that keeps the vocabulary usable
-// on a codebase that also has quantities.
+// countWords end an identifier that counts rather than values. `total_count` and `amount_of_rows` are not money.
 var countWords = []string{
 	"bytes",
 	"count",
@@ -248,10 +205,8 @@ func walkYAML(n *yaml.Node, fn func(key string, value *yaml.Node)) {
 	}
 }
 
-// goSkip are the trees this cannot say anything useful about: the money package
-// implements the type (its own fields are `big.Int`, and FromMinorUnits exists
-// precisely to read a legacy cents column), generated SDKs and stores mirror a spec
-// and a schema that are checked at their source, and vendored code is not ours.
+// goSkip are trees this cannot speak to: the money package implements the type, generated code mirrors a checked
+// source, and vendored code is not ours.
 var goSkip = []string{
 	"libs/go/money",
 	// This file names the thing it forbids, in the pattern and in the explanation

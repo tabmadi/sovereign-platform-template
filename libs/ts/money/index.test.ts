@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { formatMoney, InvalidMoneyError, parseMoney } from "./index";
 
-/** Hoisted so the pattern is compiled once rather than per call. */
 const JSON_NUMBER_MESSAGE = /JSON number/;
 
 describe("parseMoney", () => {

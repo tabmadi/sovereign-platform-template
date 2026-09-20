@@ -8,11 +8,8 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
-// TestInitSetsGlobalPropagator guards the end-to-end tracing regression: otelhttp
-// (the server handler in httpmw and the client transport on outbound calls) reads
-// the GLOBAL propagator, which defaults to a no-op. If Init forgets to install a
-// TraceContext propagator, cross-service traces silently stop stitching. Run in the
-// exporter-disabled path so no OTel Collector is needed.
+// otelhttp reads the global propagator, which defaults to a no-op, so a forgotten TraceContext propagator stops
+// cross-service traces stitching silently. Run in the exporter-disabled path, so no collector is needed.
 func TestInitSetsGlobalPropagator(t *testing.T) {
 	t.Setenv("OTEL_SDK_DISABLED", "true")
 

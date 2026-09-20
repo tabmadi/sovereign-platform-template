@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
 # Node-confinement lint (ADR-0100 §runtime, ADR-0601 §Node escape hatch).
-#
-# Node is a sanctioned test-only runtime: it drives the Playwright e2e/visual
-# runner and nothing else. The whole npm world therefore lives exactly once, in
-# the repo-root test/e2e/ workspace. This guard fails CI if it leaks anywhere else —
-# an npm lockfile outside test/e2e/, or test/e2e/ being pulled into the Bun workspace
-# (which would make `bun install` manage it). Bun (bun.lock*) stays the runtime
-# for apps/ and libs/.
 set -euo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd)"
 

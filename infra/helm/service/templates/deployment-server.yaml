@@ -16,10 +16,7 @@ spec:
         component: server
     spec:
       {{- with .Values.imagePullSecrets }}
-      # The registry authenticates every pull (ADR-0105) and a kubelet holds no
-      # credential of its own. Node-level auth is not the alternative: containerd 2
-      # ignores it once a hosts.d config path is set, and the pull then fails with
-      # `no basic auth credentials` on a node whose configuration contains them.
+      # The registry authenticates every pull (ADR-0105) and a kubelet holds no credential of its own.
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -63,14 +60,8 @@ spec:
             {{- range .Values.secrets.envFrom }}
             - secretRef: { name: {{ . }} }
             {{- end }}
-          # readiness = deep (deps pinged) → gates Service traffic without restarting;
-          # liveness = shallow (process alive) → never dep-aware (ADR-0500).
-          #
-          # Overridable because not every workload this chart deploys is a Go service
-          # with an admin port: the frontend is a Next standalone server with one
-          # port and no /readyz. The DEFAULTS are the Go contract, so overriding is a
-          # deliberate act by the one values file that needs to (ADR-0205 — same
-          # chart everywhere, differences expressed as values, never as a fork).
+          # readiness = deep (deps pinged) → gates Service traffic without restarting; liveness = shallow (process alive) →
+          # never dep-aware (ADR-0500).
           readinessProbe: {{- toYaml .Values.server.probes.readiness | nindent 12 }}
           livenessProbe: {{- toYaml .Values.server.probes.liveness | nindent 12 }}
           resources: {{- toYaml .Values.server.resources | nindent 12 }}

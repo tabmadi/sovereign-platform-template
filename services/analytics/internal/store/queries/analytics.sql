@@ -30,10 +30,8 @@ insert into events (
 values ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: SummariseEvents :many
--- One row per event name over a window, with the distinct sessions that produced
--- it. This is the shape every funnel question starts from, and it is a plain
--- aggregate rather than a window function because the first question a panel
--- answers is "what is happening at all".
+-- One row per event name over a window with its distinct sessions — a plain aggregate, because the first
+-- question a panel answers is what is happening at all.
 select
   name,
   count(*) as occurrences,
@@ -45,17 +43,9 @@ order by occurrences desc
 limit 50;
 
 -- name: FunnelStepFirstSeen :many
--- Each session's FIRST occurrence of each named step within the window.
---
--- The ordering that makes a funnel a funnel is not done here. This returns one row
--- per session and step, and the caller walks a session's steps in the definition's
--- order, keeping only those whose first occurrence is at or after the previous
--- step's. Doing it in SQL would mean a query whose shape depends on the number of
--- steps — which sqlc cannot generate and a reviewer cannot read — and this shape
--- serves a funnel of any length.
---
--- `name = any($3::text[])` rather than a join against the definitions: the funnels
--- are committed configuration, not a table (infra/analytics/funnels.yaml).
+-- Each session's first occurrence of each named step in the window; the caller walks them in definition order,
+-- because in SQL the query's shape would depend on the number of steps. `name = any($3::text[])` rather than a
+-- join: the funnels are committed configuration, not a table (infra/analytics/funnels.yaml).
 select
   session_id,
   name,
@@ -99,13 +89,9 @@ where
 order by bucket_start desc, step_index asc;
 
 -- name: CountEventsSince :one
--- Rows in the events table from a point in time, for the deferral trigger that
--- watches the store's growth (ADR-0700, docs/reference/deferral-register.md).
---
--- Bounded by `occurred_at` rather than counting the whole table: `events` is
--- partitioned by month, so a bounded count touches the current partition and a
--- `count(*)` over everything would scan every month ever written — which is the
--- cost this metric exists to warn about, paid on every scrape.
+-- Rows in the events table from a point in time, for the deferral trigger watching the store's growth (ADR-0700).
+-- Bounded by `occurred_at`: `events` is partitioned by month, so a `count(*)` over everything would scan every
+-- month ever written, on every scrape.
 select count(*)::bigint as rows_since
 from events
 where occurred_at >= $1;

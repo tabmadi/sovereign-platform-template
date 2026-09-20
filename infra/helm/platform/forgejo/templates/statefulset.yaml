@@ -74,10 +74,7 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
-            # NOT read-only. Forgejo writes repositories, its own config file, and
-            # the SSH host keys into /data at startup; a read-only root with an
-            # emptyDir per writable path would be a longer list than the volume it
-            # replaces, and the volume is persistent for a reason.
+            # NOT read-only.
             readOnlyRootFilesystem: false
           volumeMounts:
             - { name: data, mountPath: /data }

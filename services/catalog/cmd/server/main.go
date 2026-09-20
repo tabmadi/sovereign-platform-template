@@ -1,5 +1,4 @@
-// catalog — product CRUD. The simplest shop service: pure HTTP + Postgres,
-// no workflows. Demonstrates the OpenAPI → ogen server → handlers → sqlc path.
+// catalog is product CRUD over HTTP and Postgres, with no workflows: the OpenAPI → ogen → handlers → sqlc path.
 package main
 
 import (

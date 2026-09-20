@@ -1,22 +1,5 @@
-// Package workflows saga (ADR-0302). The owning service is orders, even though the
-// data lives in catalog and payment — process-owner rule.
-//
-// Steps:
-//  1. CreateOrderActivity      — local DB write
-//  2. GrantOrderAccessActivity — the matching OpenFGA tuples
-//  3. LookupProductActivity    — HTTP call to catalog
-//  4. ChargeActivity           — HTTP call to payment (starts that service's
-//     Charge workflow; we poll the returned handle)
-//  5. MarkOrderStatusActivity  — local DB write
-//
-// 1 and 2 are the authz dual write (ADR-0304): the row and the tuples that say who
-// may read it are separate activities of one workflow, so the pair cannot
-// half-apply. They are here rather than in the handler for that reason — an order
-// nobody can read is the failure this shape exists to prevent. The handler mints
-// the identifier before starting the workflow, so a retry re-inserts the same row.
-//
-// On failure between 4 and 5 there's no compensation — payment owns its own
-// retry logic. If charge fails, we mark the order failed.
+// Package workflows holds the checkout saga (ADR-0302). orders owns it by the process-owner rule, though the data
+// lives in catalog and payment.
 package workflows
 
 import (
@@ -75,10 +58,8 @@ func Checkout(ctx workflow.Context, in CheckoutInput) (CheckoutResult, error) {
 		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, statusFailed).Get(ctx, nil)
 		return CheckoutResult{Status: statusFailed}, fmt.Errorf("checkout: lookup product: %w", err)
 	}
-	// Money multiplication, not a bare integer product: the shared type carries the
-	// currency and the scale, so the total cannot silently become a different unit
-	// (ADR-0300). Deterministic — it is integer arithmetic on big.Int, no clock and
-	// no rounding mode in play for a whole-number factor.
+	// Money multiplication, not a bare integer product: the shared type carries the currency and scale (ADR-0300).
+	// Deterministic — integer arithmetic with no clock and no rounding mode.
 	total := price.Mul(int64(in.Quantity))
 
 	err = workflow.ExecuteActivity(ctx, "SetOrderTotalActivity", in.OrderID, total).Get(ctx, nil)

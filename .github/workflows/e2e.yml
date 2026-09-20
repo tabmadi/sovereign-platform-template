@@ -1,19 +1,6 @@
-# End-to-end + visual acceptance (ADR-0601). Every full-platform e2e shares one
-# expensive prerequisite — a running cluster:up full — so cadence is set per
-# environment to amortise the bring-up, and these jobs are NOT part of ci:affected
-# (every e2e crosses service boundaries by nature):
-#   - full  — nightly + pre-release (and manual). Every dashboard + visual baseline.
-#   - smoke — per-PR, opt-in via the `e2e-smoke` label, for risky changes only.
-#
-# The nightly is activity-gated (see the `gate` job): a dormant repo re-testing an
-# unchanged commit every night is noise, not signal.
-#
-# NOTE: cluster:up full is heavy (~16GB RAM), which is the whole of a standard
-# GitHub-hosted runner (4 vCPU / 16GB). It does fit — the nightly perf lane brings
-# the full platform up on ubuntu-latest in ~17min — but with no headroom, so the
-# bring-up is the slowest and most fragile part of these jobs. A larger runner buys
-# margin, not capability; move to one if bring-up flakiness (not test failures)
-# becomes the common red.
+# End-to-end and visual acceptance (ADR-0601). Every full-platform e2e needs a `cluster:up full`, so cadence is
+# per environment and these jobs are not part of ci:affected. The nightly is activity-gated.
+# cluster:up full is ~16GB, the whole of a standard runner: a larger one buys margin, not capability.
 name: e2e
 
 on:
@@ -62,15 +49,9 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      # Authenticated Docker Hub pulls for zot's on-demand sync. Anonymous pulls are
-      # limited per source IP and this runner shares one with the whole forge, so the
-      # warm stage fails on images it never pulled itself. Unset on a fork, where the
-      # secrets do not resolve and the sync falls back to anonymous.
-      # Restore-only. The warm set is identical for both tiers today, and the
-      # lighthouse job is the single writer: it reaches the end of the warm before
-      # anything first-party exists, so its entry holds third-party images alone.
-      # A full-tier bring-up pushes its own images midway through `cluster:up`, so a
-      # save from here would cache artefacts that change on every commit.
+      # Authenticated Docker Hub pulls for zot's sync: anonymous pulls are limited per source IP, which this runner
+      # shares with the whole forge. Unset on a fork, where the secrets do not resolve.
+      # Restore-only: the lighthouse job is the single writer, and a full-tier bring-up would cache first-party images.
       - name: Restore the registry mirror
         uses: actions/cache/restore@v4
         with:
@@ -100,10 +81,7 @@ jobs:
         if: always()
         run: mise run cluster:down
 
-  # Does this pull request pay for a bring-up? The `e2e-smoke` label says yes; so
-  # does a change that spans more than one service, which is the class no test below
-  # the e2e level can see (ADR-0601 §Cadence). The policy is a task, not an
-  # expression, because it reads the affected manifest (ADR-0102).
+  # A change spanning more than one service is the class no test below the e2e level can see (ADR-0601). A task, not an expression, because it reads the affected manifest (ADR-0102).
   pr-gate:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -135,15 +113,9 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      # Authenticated Docker Hub pulls for zot's on-demand sync. Anonymous pulls are
-      # limited per source IP and this runner shares one with the whole forge, so the
-      # warm stage fails on images it never pulled itself. Unset on a fork, where the
-      # secrets do not resolve and the sync falls back to anonymous.
-      # Restore-only. The warm set is identical for both tiers today, and the
-      # lighthouse job is the single writer: it reaches the end of the warm before
-      # anything first-party exists, so its entry holds third-party images alone.
-      # A full-tier bring-up pushes its own images midway through `cluster:up`, so a
-      # save from here would cache artefacts that change on every commit.
+      # Authenticated Docker Hub pulls for zot's sync: anonymous pulls are limited per source IP, which this runner
+      # shares with the whole forge. Unset on a fork, where the secrets do not resolve.
+      # Restore-only: the lighthouse job is the single writer, and a full-tier bring-up would cache first-party images.
       - name: Restore the registry mirror
         uses: actions/cache/restore@v4
         with:

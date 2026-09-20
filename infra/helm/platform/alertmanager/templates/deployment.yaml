@@ -6,14 +6,8 @@ metadata:
   namespace: platform
   labels: { app.kubernetes.io/name: alertmanager }
   annotations:
-    # The config is a ConfigMap mount, and a mounted ConfigMap changing does not
-    # restart the pod — Alertmanager would serve the old routing tree until
-    # something else evicted it. Roll on a config change, the same way the
-    # Prometheus Deployment does for its rule files.
-    #
-    # Rendered through `include`, not `.Files.Get`: .Files cannot read anything
-    # under templates/, so the Get form returns the empty string and the checksum
-    # is a constant — an annotation that looks like a roll trigger and is not.
+    # The config is a ConfigMap mount, and a mounted ConfigMap changing does not restart the pod — Alertmanager would
+    # serve the old routing tree until something else evicted it.
     checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
 spec:
   replicas: {{ .Values.alertmanager.replicas }}

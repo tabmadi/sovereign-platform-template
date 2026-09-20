@@ -1,16 +1,6 @@
-# The k6 island (ADR-0601). Same containment idiom as test/e2e/.mise.toml (Node)
-# and apps/admin (Lowdefy's pnpm): the tool is pinned NEXT TO the only code that
-# uses it, not in the root [tools], so a developer running `lint`, `test` or
-# `cluster:up full` never installs a load generator they are not using.
-#
-# Unlike the e2e island, this one adds no runtime. k6 is a single static Go binary
-# that executes the scenarios on its own embedded JS engine (Sobek) — there is no
-# Node here, no package.json, no lockfile, and no node_modules, and there must
-# never be: scripts/lint-node-scope.sh asserts npm lives only in test/e2e/.
-#
-# Tasks live here rather than at the root because mise tools flow DOWN a config
-# tree and never up — a root task cannot see this k6. The root keeps thin `perf*`
-# delegates so `mise run perf` stays the entrypoint for humans and CI.
+# The k6 island (ADR-0601), pinned next to the only code that uses it so a developer running `lint` or `test` never installs a load generator.
+# k6 is a single static Go binary on its own JS engine: no Node, no package.json, no node_modules, and scripts/lint-node-scope.sh asserts that.
+# Tasks live here because mise tools flow down a config tree and never up; the root keeps thin `perf*` delegates.
 [tools]
 "aqua:grafana/k6" = "2.1.0"
 

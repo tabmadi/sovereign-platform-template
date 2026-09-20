@@ -1,18 +1,5 @@
 #!/usr/bin/env bash
 # Give this project its own local-tier age key (ADR-0202, ADR-0205).
-#
-#   mise run secrets:age:local          # rotate only if the key is still the template's
-#   mise run secrets:age:local -- --force
-#
-# The local tier's private key is COMMITTED, which ADR-0202 permits because it
-# decrypts throwaway values in a cluster holding no real data. What the exemption
-# does not permit is every project generated from this template sharing one key —
-# that is a default credential, and it stays harmless only while each project keeps
-# remembering the key is throwaway. The first person to encrypt something real to it
-# has no way to know that reasoning ever existed.
-#
-# So the key is rotated on first use. `cluster:up` calls this before it decrypts
-# anything, and a project that has already rotated is left alone.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -52,10 +39,7 @@ old="$(mktemp)"
 both="$(mktemp)"
 trap 'rm -f "$tmp" "$old" "$both"' EXIT
 
-# The OLD key has to outlive the overwrite below. `sops updatekeys` re-encrypts to
-# the new recipient set, but it must DECRYPT the file first, and only the old key
-# can do that — rotating the file on disk before re-encrypting would strand every
-# value in it.
+# The old key has to outlive the overwrite: `sops updatekeys` must decrypt the file before re-encrypting to the new recipients.
 cp "$KEY_FILE" "$old"
 
 # `age-keygen -o` REFUSES to overwrite an existing file, and mktemp has already

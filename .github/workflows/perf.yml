@@ -1,23 +1,6 @@
-# Load & performance (ADR-0601). Shares the e2e workflow's expensive prerequisite —
-# a running cluster:up full — and the same reasoning about cadence, but answers a
-# different question: not "is it correct" but "what does it cost and where does it
-# break". These jobs are NOT part of ci:affected and never implicitly gate a merge.
-#
-#   load  — nightly + pre-release, activity-gated (_nightly-gate.yml): the baseline
-#           number, tracked over time, but not re-measured on an idle repo.
-#   smoke — per-PR, opt-in via the `perf-smoke` label. ~30s of actual load; it
-#           proves the scenarios still run against the current API, nothing more.
-#
-# A threshold breach here is a PERFORMANCE REGRESSION TO TRIAGE, not a broken
-# build: the budgets in test/perf/scenarios/*.js are deliberately looser than the
-# ADR-0500 service SLOs, and a CI runner is a noisy place to measure. Read a red
-# nightly next to the previous night's, not in isolation.
-#
-# NOTE: cluster:up full is heavy (~16GB RAM) — the whole of a standard GitHub-hosted
-# runner — and here it shares that runner with the load generator, so k6 and the
-# platform contend for the same cores. Absolute numbers from CI are not capacity
-# figures (ADR-0601);
-# they are a series to diff against yesterday's.
+# Load and performance (ADR-0601): shares the e2e workflow's full-tier prerequisite, is not part of ci:affected,
+# and never gates a merge. A threshold breach is a regression to triage, not a broken build — k6 shares the
+# runner with the platform, so CI numbers are a series to diff rather than capacity figures.
 name: perf
 
 on:
@@ -66,15 +49,9 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      # Authenticated Docker Hub pulls for zot's on-demand sync. Anonymous pulls are
-      # limited per source IP and this runner shares one with the whole forge, so the
-      # warm stage fails on images it never pulled itself. Unset on a fork, where the
-      # secrets do not resolve and the sync falls back to anonymous.
-      # Restore-only. The warm set is identical for both tiers today, and the
-      # lighthouse job is the single writer: it reaches the end of the warm before
-      # anything first-party exists, so its entry holds third-party images alone.
-      # A full-tier bring-up pushes its own images midway through `cluster:up`, so a
-      # save from here would cache artefacts that change on every commit.
+      # Authenticated Docker Hub pulls for zot's sync: anonymous pulls are limited per source IP, which this runner
+      # shares with the whole forge. Unset on a fork, where the secrets do not resolve.
+      # Restore-only: the lighthouse job is the single writer, and a full-tier bring-up would cache first-party images.
       - name: Restore the registry mirror
         uses: actions/cache/restore@v4
         with:
@@ -119,15 +96,9 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      # Authenticated Docker Hub pulls for zot's on-demand sync. Anonymous pulls are
-      # limited per source IP and this runner shares one with the whole forge, so the
-      # warm stage fails on images it never pulled itself. Unset on a fork, where the
-      # secrets do not resolve and the sync falls back to anonymous.
-      # Restore-only. The warm set is identical for both tiers today, and the
-      # lighthouse job is the single writer: it reaches the end of the warm before
-      # anything first-party exists, so its entry holds third-party images alone.
-      # A full-tier bring-up pushes its own images midway through `cluster:up`, so a
-      # save from here would cache artefacts that change on every commit.
+      # Authenticated Docker Hub pulls for zot's sync: anonymous pulls are limited per source IP, which this runner
+      # shares with the whole forge. Unset on a fork, where the secrets do not resolve.
+      # Restore-only: the lighthouse job is the single writer, and a full-tier bring-up would cache first-party images.
       - name: Restore the registry mirror
         uses: actions/cache/restore@v4
         with:

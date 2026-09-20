@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Lint every OpenAPI spec under services/ (ADR-0303). Each spec is fully
-# self-contained: shared shapes (the Error response, the workflow handle) are
-# declared in each spec's own components rather than via cross-file $refs, to
-# keep specs portable across the codegen (ogen) and linting (vacuum) tools.
+# Lint every OpenAPI spec under services/ (ADR-0303). Each spec is self-contained, with shared shapes declared in its own components rather than cross-file $refs.
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 

@@ -11,35 +11,21 @@ import (
 )
 
 type Querier interface {
-	// Rows in the events table from a point in time, for the deferral trigger that
-	// watches the store's growth (ADR-0700, docs/reference/deferral-register.md).
-	//
-	// Bounded by `occurred_at` rather than counting the whole table: `events` is
-	// partitioned by month, so a bounded count touches the current partition and a
-	// `count(*)` over everything would scan every month ever written — which is the
-	// cost this metric exists to warn about, paid on every scrape.
+	// Rows in the events table from a point in time, for the deferral trigger watching the store's growth (ADR-0700).
+	// Bounded by `occurred_at`: `events` is partitioned by month, so a `count(*)` over everything would scan every
+	// month ever written, on every scrape.
 	CountEventsSince(ctx context.Context, occurredAt pgtype.Timestamptz) (int64, error)
-	// Each session's FIRST occurrence of each named step within the window.
-	//
-	// The ordering that makes a funnel a funnel is not done here. This returns one row
-	// per session and step, and the caller walks a session's steps in the definition's
-	// order, keeping only those whose first occurrence is at or after the previous
-	// step's. Doing it in SQL would mean a query whose shape depends on the number of
-	// steps — which sqlc cannot generate and a reviewer cannot read — and this shape
-	// serves a funnel of any length.
-	//
-	// `name = any($3::text[])` rather than a join against the definitions: the funnels
-	// are committed configuration, not a table (infra/analytics/funnels.yaml).
+	// Each session's first occurrence of each named step in the window; the caller walks them in definition order,
+	// because in SQL the query's shape would depend on the number of steps. `name = any($3::text[])` rather than a
+	// join: the funnels are committed configuration, not a table (infra/analytics/funnels.yaml).
 	FunnelStepFirstSeen(ctx context.Context, arg FunnelStepFirstSeenParams) ([]FunnelStepFirstSeenRow, error)
 	GetConsent(ctx context.Context, sessionID string) (GetConsentRow, error)
 	// The panel's read: one funnel over a range of buckets, in bucket then step order,
 	// which is the order it renders.
 	GetFunnelRollup(ctx context.Context, arg GetFunnelRollupParams) ([]GetFunnelRollupRow, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) error
-	// One row per event name over a window, with the distinct sessions that produced
-	// it. This is the shape every funnel question starts from, and it is a plain
-	// aggregate rather than a window function because the first question a panel
-	// answers is "what is happening at all".
+	// One row per event name over a window with its distinct sessions — a plain aggregate, because the first
+	// question a panel answers is what is happening at all.
 	SummariseEvents(ctx context.Context, occurredAt pgtype.Timestamptz) ([]SummariseEventsRow, error)
 	// A decision replaces the previous one for the session and keeps the row, because
 	// withdrawal is a state rather than a deletion: erasing it would erase the evidence

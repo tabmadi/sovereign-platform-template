@@ -1,11 +1,5 @@
-## Egress to the node-level OTel collector, which runs in its own namespace
-## (ADR-0200 — hostPath and hostPorts, so PSA keeps it apart). The baseline's
-## intra-namespace allow covered this while the agent shared this namespace and does
-## not now; without this rule every platform workload's OTLP export is denied, and
-## the symptom is telemetry that simply stops rather than an error anyone sees.
-##
-## Namespace-wide on the source side because the sources ARE the namespace: every
-## workload emits. The ports are the two OTLP receivers and nothing else.
+## Egress to the node-level OTel collector, which runs in its own namespace (ADR-0200: hostPath and hostPorts).
+# so PSA keeps it apart).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -36,10 +30,8 @@ spec:
       toPorts:
         - ports: [{ port: "3100", protocol: TCP }]
 ---
-## Prometheus — OTLP metrics push from BOTH collectors (the DaemonSet agent and
-## the otel-cluster singleton), queries from Grafana (all 9090). otel-cluster
-## missing here is exactly what the ClusterStateMetricsAbsent alert fires on —
-## its push was netpol-dropped from 2026-07-23's first deploy until this rule.
+## Prometheus — OTLP metrics push from BOTH collectors (the DaemonSet agent and the otel-cluster singleton),
+## queries from Grafana (all 9090).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -60,15 +52,7 @@ spec:
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
 ---
-## otel-cluster → Kyverno's metrics (ADR-0104, ADR-0500). The only cross-namespace
-## scrape in this repo, and it needs an EGRESS rule because the baseline allows
-## reaching `platform` and nothing else — Kyverno runs in its own namespace, since
-## it excludes the namespace it lives in from every policy.
-##
-## Measured: with the scrape config and no rule, the collector discovers all four
-## controllers and every scrape fails. The symptom is an empty admission dashboard
-## and an alert that never fires, which is the same shape as the prometheus rule
-## below it — that push was netpol-dropped from the day it was written.
+## otel-cluster → Kyverno's metrics (ADR-0104, ADR-0500).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -106,9 +90,6 @@ spec:
         - ports: [{ port: "3200", protocol: TCP }]
 ---
 ## Pyroscope — profile pushes from the Alloy agent, queries from Grafana (4040).
-## The scrape path (Alloy → service admin ports) needs no rule here: services grant
-## platform-namespace ingress to their admin port, and the baseline policy grants
-## intra-namespace egress (ADR-0501 POC).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -124,20 +105,7 @@ spec:
       toPorts:
         - ports: [{ port: "4040", protocol: TCP }]
 ---
-## Alloy — the pprof scraper (ADR-0501). Its egress to live pods is already
-## covered by the baseline's intra-namespace rule; this adds the same reachability
-## by CIDR so a target that was deleted between two service-discovery refreshes
-## does not read as `world` and get denied.
-##
-## Same root cause as the temporal stale-member allow (20-temporal.yaml), but a
-## much shorter window: Alloy re-resolves its targets within a minute or two, so
-## these drops never sustain the 10m PolicyDropsDetected needs. They do, however,
-## land on the overview dashboard's drop tile — which is scoped to POLICY_DENIED
-## and reddens above 0.01/s — after every rollout, and a tile that flickers red
-## during routine deploys is a tile people learn to ignore.
-##
-## Scoped to the admin port only: that is the pprof/metrics endpoint services
-## expose (values.yaml server.adminPort), and it is the only port Alloy scrapes.
+## Alloy — the pprof scraper (ADR-0501).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

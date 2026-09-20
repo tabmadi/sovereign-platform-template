@@ -1,10 +1,4 @@
-// Server component fetches through the data seam (ADR-0400, ADR-0701). A direct
-// fetch() to a service URL is lint-forbidden, and so is reaching for the generated
-// SDK from here: `lib/data/` is the only module that resolves a data source, which
-// is what lets a screen be designed against a fixture and promoted by one import.
-//
-// The table is plain semantic markup, so it renders in this server component —
-// there is no client child and no collection to build in the browser.
+// A server component reading through the data seam (ADR-0400, ADR-0701).
 import { formatMoney } from "@libs/money";
 import { getTranslations } from "next-intl/server";
 import {

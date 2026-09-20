@@ -2,11 +2,7 @@ openapi: 3.1.0
 info:
   title: Template service
   version: 0.1.0
-  # Audience ladder (ADR-0303): cluster → internal → public, a widening boundary
-  # (service-to-service → first-party edge → third-party edge). Fail-closed default
-  # is `cluster` (east-west, no edge route). Raise it — here on `info` for the whole
-  # service, or per-operation — to `internal` (first-party edge) or `public`
-  # (third-party edge), and declare a matching `ingress.resources` route.
+  # Audience ladder (ADR-0303): cluster → internal → public, fail-closed at `cluster`. Raise it here or per operation, and declare a matching `ingress.resources` route.
   x-audience: cluster
   description: |
     Skeleton OpenAPI spec. Copy this file when scaffolding a new service
@@ -32,10 +28,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Item" }
-                # Every 2xx response schema carries an `example` (CI-linted, ADR-0600):
-                # it is what the API mock serves the UI and what the developer portal
-                # renders. A list needs its own — the item schema's example says
-                # nothing about how many rows come back.
+                # Every 2xx response schema carries an `example` (ADR-0600): it is what the API mock serves and what the portal renders. A list needs its own.
                 example:
                   - { id: item_01kztpb93repgs8w9k8cj837vr, name: First item, created_at: "2026-08-12T09:30:00Z" }
                   - { id: item_01kztpfex0ew4atkhwb6zev40b, name: Second item, created_at: "2026-08-12T09:31:00Z" }
@@ -146,9 +139,7 @@ components:
       pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
       example: "2026-08-12T09:30:00Z"
     # <<< shared-components
-    # A wire identifier (ADR-0003): the singular collection noun, an underscore, and
-    # the UUIDv7 in 26 characters of Crockford base32. The stored column stays a bare
-    # `uuid` — rename this schema and its prefix along with the resource.
+    # A wire identifier (ADR-0003): the singular collection noun, an underscore, and the UUIDv7 in Crockford base32. The stored column stays a bare `uuid`.
     ItemId:
       type: string
       description: |

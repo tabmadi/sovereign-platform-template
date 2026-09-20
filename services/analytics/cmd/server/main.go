@@ -1,10 +1,4 @@
 // analytics — the marketing event store and the consent record (ADR-0700).
-//
-// An ordinary first-party service, which is the decision rather than an accident:
-// a platform component pays the full resource, supply-chain, network-policy and
-// backup tax, and a service inherits all of it from the template. Putting the
-// store here is also what makes an erasure workflow able to reach the rows, which
-// it could not do inside a vendored product.
 package main
 
 import (
@@ -55,30 +49,19 @@ func run() error {
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
-	// The funnel definitions are committed configuration, loaded at START rather
-	// than per request: a malformed definition should stop the service coming up,
-	// not surface as a rollup that is quietly wrong. Delivered to the pod as a
-	// ConfigMap mount; the default is the in-repo path, for running natively.
+	// Loaded at start, not per request: a malformed definition should stop the service coming up rather than surface as
+	// a rollup that is quietly wrong.
 	defs, err := funnels.Load(envOr("FUNNELS_PATH", defaultFunnelsPath))
 	if err != nil {
 		return fmt.Errorf("funnels: %w", err)
 	}
 	slog.Info("funnel definitions loaded", "count", defs.Len())
 
-	// The store's growth, as a gauge (ADR-0700). This is the series the deferral
-	// register's ClickHouse row was waiting on: the trigger is "the events table
-	// sustaining more than about 10M rows per month", and until something emitted
-	// it the row read `uncollected` — measurable in principle, gathered by nothing.
-	//
-	// Scoped to the CURRENT MONTH, which is both what the trigger asks and what
-	// keeps the query cheap: `events` is partitioned by month, so this touches one
-	// partition rather than scanning every month ever written.
+	// The store's growth, as a gauge (ADR-0700) — the series the deferral register's ClickHouse trigger waits on.
 	registerStorageGauge(store.New(db))
 
-	// No OpenFGA client. The panel that reads this store is authorised in the render
-	// layer against the marketing group (ADR-0700); the write path here is reached
-	// only by the collector and the consent control, both east-west, and its own
-	// gate is the consent record rather than a relationship.
+	// No OpenFGA client: the panel is authorised in its render layer (ADR-0700), and the write path here is east-west
+	// with the consent record as its gate.
 	api, err := analytics.NewServer(
 		handlers.New(db, defs, slog.Default()),
 		// A request the generated server rejects before a handler runs — a malformed
@@ -131,11 +114,8 @@ func envOr(key, fallback string) string {
 	return v
 }
 
-// registerStorageGauge publishes the current month's event-row count.
-//
-// Scoped to the current MONTH, which is both what ADR-0700's trigger asks and what
-// keeps the query cheap: `events` is partitioned by month, so this reads one
-// partition rather than scanning every month ever written.
+// registerStorageGauge publishes the current month's event-row count. `events` is partitioned by month, so this reads
+// one partition rather than every month ever written.
 func registerStorageGauge(q *store.Queries) {
 	observability.ObservableGauge(
 		"analytics_events_rows_current_month",

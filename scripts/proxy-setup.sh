@@ -1,23 +1,5 @@
 #!/usr/bin/env bash
-# Converge THIS MACHINE for a firewalled network, once, before any cluster command
-# (docs/guide/http-proxy.md). Nothing in scripts/cluster.sh knows this ran: on a
-# direct network it exits 0 saying so, and the cluster commands are the same either way.
-#
-#   mise run proxy:setup            apply every fix that does not need root
-#   mise run proxy:setup -- --check diagnose only
-#
-# Proxy values are a property of your machine, so the repo carries none. What makes
-# this worth a script is the address arithmetic: the settings are read from four
-# places — host shell, build container, cluster node, cluster pod — and a loopback
-# proxy has a DIFFERENT address in each. Getting one wrong never names the proxy; it
-# produces a hung pull, a build that cannot reach a package registry, or an Argo app
-# stuck at Unknown.
-#
-# The node's containerd is deliberately absent from that list. It pulls only from the
-# local zot, which reaches the proxy through the docker daemon (step 1), so one
-# component holds image egress (ADR-0105). Step 1 is therefore the one that matters
-# for images: get it wrong and `cluster:up` fails while warming the registry, before
-# it creates a cluster.
+# Converge this machine for a firewalled network, once, before any cluster command (docs/guide/http-proxy.md). On a direct network it exits 0.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -98,11 +80,7 @@ else
 fi
 
 step "step 1b — the environment cluster:up runs kind in"
-# kind reads the proxy variables from its own environment, and is the only thing that
-# can add the node's name to the node's NO_PROXY. The node's kubeadm dials the API
-# server BY NAME, and no CIDR exempts a hostname, so without this `kind create` sends
-# that call to the proxy and aborts on an EOF. The address is the host's, because
-# everything that reads this file runs on the host.
+# kind is the only thing that can add the node's name to the node's NO_PROXY, and kubeadm dials the API server by name, which no CIDR exempts.
 if ((APPLY)); then
   mkdir -p "$(dirname "$PROXY_ENV")"
   cat >"$PROXY_ENV" <<EOF
@@ -156,10 +134,7 @@ else
 fi
 
 step "step 4 — ArgoCD's repo-server (git and chart repositories, full tier only)"
-# The repo-server does not exist until a full tier has been brought up, so the value
-# is written to an overlay the argocd stage reads whenever it installs. That is what
-# lets this script run BEFORE the first cluster, which is the order it is documented
-# in — patching the live Deployment alone would only ever fix the second bring-up.
+# The repo-server does not exist until a full tier has been brought up, so the value goes to an overlay the argocd stage reads on every install.
 if ! repo_want="$(addr_from_network kind)"; then
   gap "cannot read the kind network gateway"
 elif ((APPLY)); then

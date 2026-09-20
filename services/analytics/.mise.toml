@@ -4,15 +4,12 @@ PORT = "8086"
 _.file = ".env"
 
 [tasks.env]
-# Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why
-# it stops rather than continuing). Hidden: it runs as a dependency.
+description = "Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why it stops rather than continuing)."
 hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
 [tasks.server]
-# No OpenFGA and no Temporal. The panel that reads this store is authorised in the
-# render layer (ADR-0700), not here; the rollup `Schedule` that would need a worker
-# is not built, because nothing owns platform-periodic work yet.
+description = "No OpenFGA and no Temporal."
 depends = ["env", "dep:postgres"]
 run = "go run ./cmd/server"
 

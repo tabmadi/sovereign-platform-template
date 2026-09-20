@@ -1,9 +1,7 @@
 {{- if .Values.ingress.enabled }}
 {{- if .Values.ingress.resources }}
-# Flat-API routing (ADR-0306): the edge routes each /api/<resource> the service
-# owns and strips the shared /api prefix, so the service mounts its resources at
-# root (e.g. /products) and the service topology stays hidden from the URL.
-# Applied AFTER oathkeeper-forward-auth so Oathkeeper still matches on /api/.
+# Flat-API routing (ADR-0306): the edge routes each /api/<resource> the service owns and strips the shared /api
+# prefix, so the service mounts its resources at root (e.g.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -15,13 +13,7 @@ spec:
       - /api
 ---
 {{- end }}
-# Traefik IngressRoute (ADR-0305, ADR-0306). Traefik fronts the edge:
-# /api/<resource> traffic passes through the Oathkeeper ForwardAuth middleware,
-# which validates the Kratos session / Hydra JWT and injects the trusted identity
-# headers the service reads. Static browser-security headers are stamped on every
-# response. Which service owns a resource is a routing detail here, not a URL: a
-# resource can move between services without a URL change (CI lints that no two
-# x-audience specs claim the same resource — ADR-0303).
+# Traefik IngressRoute (ADR-0305, ADR-0306).
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -33,27 +25,12 @@ spec:
     - kind: Rule
       match: {{ include "service.ingressMatch" . }}
       middlewares:
-        # Anti-spoofing (ADR-0305): strip any client-supplied identity headers
-        # BEFORE anything downstream, so a client cannot inject X-User-* on an
-        # anonymous route. On an API route Oathkeeper re-adds the authoritative
-        # values; on a page route nothing does, which is the point.
+        # Anti-spoofing (ADR-0305): strip any client-supplied identity headers BEFORE anything downstream, so a client
+        # cannot inject X-User-* on an anonymous route.
         - name: strip-identity-headers
           namespace: platform
 {{- if .Values.ingress.resources }}
-        # Forward-auth belongs to the API surface only. Oathkeeper's rules are
-        # written per resource (`/api/<{products,orders,…}>`), so a request to a
-        # PAGE matches no rule and Oathkeeper answers 404 — which is exactly what
-        # the in-cluster frontend did on every route it served, in every
-        # environment. The rules cannot simply grow a catch-all either: two
-        # matching rules make Oathkeeper 500, which is what tools/lint-api-wildcard
-        # exists to prevent.
-        #
-        # Nothing is lost by omitting it. A page's identity comes from the Kratos
-        # session cookie, read server-side through /sessions/whoami
-        # (src/lib/auth/session.ts) — never from injected headers — and every /api
-        # call the page makes is authenticated by the rule on that route. The local
-        # edge glue has always routed the frontend this way; this makes the chart
-        # match the configuration that works.
+        # Forward-auth belongs to the API surface only.
         - name: oathkeeper-forward-auth
           namespace: platform
 {{- end }}

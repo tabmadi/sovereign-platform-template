@@ -11,9 +11,8 @@ appVersion: "1.8.0"
 
 dependencies:
   # The CRDs are NOT here — they are their own base-tier chart
-  # (infra/helm/platform/temporal-worker-controller-crds), because this chart
-  # renders a `Connection` custom resource and Helm cannot validate a CR against
-  # a CRD being installed in the same release. See that chart's description.
+  # (infra/helm/platform/temporal-worker-controller-crds), because this chart renders a `Connection` custom resource
+  # and Helm cannot validate a CR against a CRD being installed in the same release.
   - name: temporal-worker-controller
     version: "0.27.0"
     repository: oci://docker.io/temporalio

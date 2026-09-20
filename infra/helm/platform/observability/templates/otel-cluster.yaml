@@ -1,25 +1,5 @@
-# Cluster-state metrics collector (ADR-0501 follow-up) — a 1-replica Deployment
-# running ONLY the k8s_cluster receiver, which watches the Kubernetes API and
-# emits desired/observed state as OTLP metrics: deployment desired vs available
-# replicas, container restart counts, and container CPU/memory limits in real
-# bytes/cores (what lets the Applications dashboard show used-vs-limit and the
-# workload-health alerts fire on missing replicas).
-#
-# Why not fold this into the otel-collector DaemonSet: k8s_cluster is a
-# CLUSTER-scoped watch — inside the DaemonSet every node's agent would emit an
-# identical full copy of the cluster state (N nodes → N duplicate series). It
-# needs exactly one instance, hence this hand-written singleton, following the
-# same pattern as prometheus.yaml/alloy.yaml (the vendored collector subchart
-# cannot be instantiated twice without a `dependencies:` block, which Chart.yaml
-# deliberately avoids — see the offline-rendering note there).
-#
-# Deliberately NOT a Headlamp replacement: live pod status / events / drill-down
-# stays in Headlamp. This exists for what a live UI cannot do — history,
-# alerting, and joining limits next to usage on the dashboards.
-#
-# No new NetworkPolicy: the baseline policy already allows platform pods
-# API-server egress (same as Alloy's pod discovery) and intra-namespace egress
-# for the OTLP push to Prometheus.
+# Cluster-state metrics collector (ADR-0501 follow-up) — a 1-replica Deployment running ONLY the k8s_cluster
+# receiver, which watches the Kubernetes API and emits desired/observed state as OTLP metrics:
 {{- $oc := .Values.otelCluster }}
 apiVersion: v1
 kind: ServiceAccount
@@ -27,10 +7,8 @@ metadata:
   name: otel-cluster
   labels: { app.kubernetes.io/name: otel-cluster, app.kubernetes.io/part-of: observability }
 ---
-# Cluster-scoped read-only watch on the objects the k8s_cluster receiver reports
-# on, plus what the k8sattributes processor needs to resolve pods → workloads
-# (pods, namespaces, replicasets). Name is prefixed to avoid colliding with the
-# DaemonSet collector's ClusterRole.
+# Cluster-scoped read-only watch on the objects the k8s_cluster receiver reports on, plus what the k8sattributes
+# processor needs to resolve pods → workloads (pods, namespaces, replicasets).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -82,32 +60,11 @@ subjects:
       k8s_cluster:
         auth_type: serviceAccount
         collection_interval: 30s
-        # Node allocatable — the denominator for "how close is the cluster to
-        # full?". This is a DIFFERENT question from real utilisation, and it is
-        # usually the one that bites first: the scheduler admits pods against
-        # sum(requests) vs allocatable, so a cluster can refuse new pods while
-        # actual CPU sits at 5% (measured here: 1.11 cores requested against 0.55
-        # in use). kubeletstats gives the usage side; nothing was emitting the
-        # capacity side, so an overcommit alert was impossible to express.
-        #
-        # ephemeral-storage is included on purpose: it is the node filesystem the
-        # kubelet evicts on, and this cluster deliberately pins eviction-hard to
-        # 2% (scripts/cluster.sh), which means kubelet gives almost no
-        # warning of its own.
+        # Node allocatable — the denominator for "how close is the cluster to full?".
         allocatable_types_to_report: [cpu, memory, ephemeral-storage, storage, pods]
-      # Platform-component exporters (ADR-0501 follow-up): postgres (the CNPG
-      # instance manager's built-in exporter on :9187) and the Temporal server
-      # roles (:9090) already publish Prometheus metrics — this scrapes what
-      # exists rather than instrumenting anything. Lives HERE and not in the
-      # DaemonSet for the same reason k8s_cluster does: these are cluster-scoped
-      # targets, and N node agents would scrape N duplicate copies. Prometheus
-      # itself still scrapes nothing (ADR-0500) — this re-exports over OTLP.
-      # Discovery is label-selected pods, with a keep on the container port
-      # NAMED `metrics` — that is what skips temporal-web/admintools (no such
-      # port) and pins the exporter port on multi-port pods. The prometheus
-      # receiver sets service.name from the job name, so these series land as
-      # service_name="postgres"/"temporal" — the identity the dashboards and
-      # the Loki/kubeletstats signals already agree on.
+      # Platform-component exporters (ADR-0501 follow-up): postgres (the CNPG instance manager's built-in exporter on
+      # :9187) and the Temporal server roles (:9090) already publish Prometheus metrics — this scrapes what exists
+      # rather than instrumenting anything.
       prometheus/exporters:
         config:
           scrape_configs:
@@ -123,17 +80,8 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: metrics
-            # maddy's delivery counters (ADR-0307). Gated on the chart's own flag:
-            # maddy is production-only, and a job discovering nothing in every other
-            # environment is a scrape error per interval rather than a no-op.
-            #
-            # Three series exist and no more — started, aborted, and failed commands
-            # by SMTP code. There is no queue-depth metric, which is why the mail
-            # alerts do not reference one.
-            #
-            # They also register LAZILY: an instance that has handled no mail
-            # publishes none of them, so this job legitimately returns an empty
-            # scrape on a healthy idle platform.
+            # maddy's delivery counters (ADR-0307). Gated on the chart's own flag: maddy is production-only, and a job
+            # discovering nothing in every other environment is a scrape error per interval rather than a no-op.
 {{- if .Values.maddy.enabled }}
             - job_name: maddy
               scrape_interval: 30s
@@ -149,21 +97,6 @@ subjects:
                   regex: metrics
 {{- end }}
             # Prometheus's own TSDB metrics (ADR-0500's cardinality defence 2).
-            # Nothing observed the metrics store itself: `prometheus_*` was absent
-            # from its own TSDB, so the active-series ceiling could not be
-            # alerted on and the Mimir deferral trigger had no signal.
-            #
-            # Scraped HERE rather than by a self-scrape config, which would break
-            # the invariant that the only path into Prometheus is an OTLP push.
-            # The port is named `http` rather than `metrics`, so this job carries
-            # its own keep rather than sharing the one below.
-            #
-            # The metric allow-list is not an optimisation. Prometheus publishes
-            # hundreds of series about itself, and importing all of them to watch
-            # the cardinality ceiling would be the monitoring equivalent of
-            # burning the evidence: four series answer the questions the ADR
-            # asks — how full is the store, are rules silently failing to
-            # evaluate, and is the handoff to Alertmanager working.
             - job_name: prometheus
               scrape_interval: 60s
               kubernetes_sd_configs:
@@ -192,21 +125,8 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: metrics
-            # Kyverno (ADR-0104), in its OWN namespace — it excludes the namespace
-            # it runs in from every policy, so it cannot share `platform`. That is
-            # why this job names the namespace explicitly where the two above
-            # inherit the release's.
-            #
-            # It is in the write path of every API write this cluster accepts, so
-            # "is it up" is not an operational nicety: a controller that is down
-            # either blocks every pod creation (the fail-closed webhook) or admits
-            # everything unverified (the fail-open one), and neither announces
-            # itself. The alert on these series is in
-            # infra/observability/alerts/admission.yaml.
-            #
-            # The port name differs by controller — `metrics-port` on the admission
-            # controller, `metrics` on the other three — so the keep regex accepts
-            # both rather than silently dropping the one that matters most.
+            # Kyverno (ADR-0104), in its OWN namespace — it excludes the namespace it runs in from every policy, so it cannot
+            # share `platform`.
             - job_name: kyverno
               scrape_interval: 30s
               kubernetes_sd_configs:
@@ -220,12 +140,9 @@ subjects:
                   action: keep
                   regex: "metrics(-port)?"
     processors:
-      # Same workload-identity mapping the DaemonSet's kubernetesAttributes
-      # preset applies: associate pod-scoped resources by k8s.pod.uid and derive
-      # service.name/service.namespace from the pod's app.kubernetes.io/* labels
-      # — so these series land in Prometheus with the SAME promoted
-      # service_name/service_namespace labels every dashboard groups by, and
-      # service.instance.id keeps per-pod series distinct after promotion.
+      # Same workload-identity mapping the DaemonSet's kubernetesAttributes preset applies: associate pod-scoped
+      # resources by k8s.pod.uid and derive service.name/service.namespace from the pod's app.kubernetes.io/* labels —
+      # so these series land in Prometheus with the SAME promoted service_name/service_namespace labels every dashboard
       k8sattributes:
         auth_type: serviceAccount
         passthrough: false
@@ -240,12 +157,8 @@ subjects:
             - service.namespace
             - service.name
             - service.instance.id
-      # Deployment/statefulset-scoped resources (k8s.deployment.desired/available)
-      # have no pod for k8sattributes to associate, so fill service.name/namespace
-      # from the workload identity itself. This works because the template's
-      # convention names each Deployment after its service (app.kubernetes.io/name);
-      # `where … == nil` keeps it a fallback — pod-scoped resources already
-      # labelled above pass through untouched.
+      # Deployment/statefulset-scoped resources (k8s.deployment.desired/available) have no pod for k8sattributes to
+      # associate, so fill service.name/namespace from the workload identity itself.
       transform/workload_identity:
         metric_statements:
           - context: resource
@@ -253,28 +166,16 @@ subjects:
               - set(attributes["service.name"], attributes["k8s.deployment.name"]) where attributes["service.name"] == nil and attributes["k8s.deployment.name"] != nil
               - set(attributes["service.name"], attributes["k8s.statefulset.name"]) where attributes["service.name"] == nil and attributes["k8s.statefulset.name"] != nil
               - set(attributes["service.namespace"], attributes["k8s.namespace.name"]) where attributes["service.namespace"] == nil and attributes["k8s.namespace.name"] != nil
-              # Deployment names carry a ROLE suffix the pod-label identity does
-              # not: repo services deploy as <service>-server/<service>-worker
-              # (both pods label app.kubernetes.io/name=<service>), and the
-              # Temporal chart's roles all label name=temporal. Without this
-              # strip the deployment-scoped series (desired/available) land as
-              # orders-server/orders-worker/temporal-frontend/… — entities that
-              # exist NOWHERE else, splitting each workload into ghost rows.
-              # Per-deployment granularity is NOT lost: k8s.deployment.name is
-              # promoted to a label by Prometheus (promote_resource_attributes),
-              # which is also what keeps the merged series distinct.
+              # Deployment names carry a ROLE suffix the pod-label identity does not: repo services deploy as
+              # <service>-server/<service>-worker (both pods label app.kubernetes.io/name=<service>), and the Temporal chart's
+              # roles all label name=temporal.
               - replace_pattern(attributes["service.name"], "-(server|worker|frontend|history|matching|web|admintools)$$", "") where attributes["k8s.deployment.name"] != nil or attributes["k8s.statefulset.name"] != nil
               # CNPG's pooler Deployment (postgres-pgbouncer-rw) joins the
               # postgres identity its pods already resolve to via
               # app.kubernetes.io/instance.
               - replace_pattern(attributes["service.name"], "^postgres-pgbouncer-.*$$", "postgres") where attributes["k8s.deployment.name"] != nil
-      # Scraped-exporter fixups. service.namespace: the prometheus receiver only
-      # sets service.name (from the job), so fill the namespace half of the
-      # identity pair the dashboards filter on. delete_key service_name:
-      # Temporal's own metrics carry a `service_name` label (frontend/history/
-      # matching/worker) that would collide with the promoted resource label and
-      # fragment the workload identity — drop it; the same value survives in the
-      # `type` label for per-role breakdowns.
+      # Scraped-exporter fixups. service.namespace: the prometheus receiver only sets service.name (from the job), so
+      # fill the namespace half of the identity pair the dashboards filter on.
       transform/exporters:
         metric_statements:
           - context: resource
@@ -300,10 +201,9 @@ subjects:
           receivers: [k8s_cluster]
           processors: [memory_limiter, k8sattributes, transform/workload_identity, batch]
           exporters: [otlphttp/prometheus]
-        # Separate pipeline: scraped series must NOT pass k8sattributes /
-        # transform/workload_identity (their identity comes from the scrape job,
-        # not pod association) and the k8s_cluster series must not lose their
-        # datapoint attributes to delete_key.
+        # Separate pipeline: scraped series must NOT pass k8sattributes / transform/workload_identity (their identity
+        # comes from the scrape job, not pod association) and the k8s_cluster series must not lose their datapoint
+        # attributes to delete_key.
         metrics/exporters:
           receivers: [prometheus/exporters]
           processors: [memory_limiter, transform/exporters, batch]

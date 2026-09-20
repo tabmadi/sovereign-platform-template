@@ -2,9 +2,6 @@ package main
 
 import "testing"
 
-// The vocabulary match is on words, not substrings. Both directions matter: a
-// substring match makes `pricing_enabled` a monetary field and the gate gets
-// bypassed; too strict a match misses `unitPrice` and the gate does nothing.
 func TestIsMoneyName(t *testing.T) {
 	t.Parallel()
 

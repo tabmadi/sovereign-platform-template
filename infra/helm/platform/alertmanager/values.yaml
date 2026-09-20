@@ -1,5 +1,4 @@
-# Values namespaced under `alertmanager:` so this chart shares the platform
-# overlay with its siblings (ADR-0205).
+# Values namespaced under `alertmanager:` so this chart shares the platform overlay with its siblings (ADR-0205).
 
 # The hygiene report runs promtool, which ships in the Prometheus image. Pinned
 # here rather than read from the observability chart: a chart renders from its
@@ -15,10 +14,8 @@ alertmanager:
   replicas: 1
   httpPort: 9093
 
-  # Alertmanager holds notification state (what has fired, what is silenced) on
-  # disk. One replica on an emptyDir: the state is a de-duplication cache, and
-  # losing it re-notifies rather than loses an alert. HA is a three-peer gossip
-  # cluster, which is a scale decision this platform has not taken.
+  # Alertmanager holds notification state (what has fired, what is silenced) on disk. One replica on an emptyDir:
+  # the state is a de-duplication cache, and losing it re-notifies rather than loses an alert.
   resources:
     requests: { cpu: "20m", memory: "64Mi" }
     limits:   { memory: "256Mi" }
@@ -40,18 +37,7 @@ alertmanager:
   webhook:
     url: ""
 
-  # The heartbeat path, and a SEPARATE seam from the webhook above. The Watchdog
-  # is a dead man's switch (ADR-0502): it fires every repeat interval forever, so
-  # a destination shared with `page` puts a contentless message in front of
-  # whoever is on call, every five minutes, between the alerts that matter. That
-  # is the alert fatigue ADR-0502 names as the failure mode.
-  #
-  # Its consumer is a machine with the inverted contract — quiet while pings
-  # arrive, loud when they stop (Dead Man's Snitch, Healthchecks.io, Cronitor, or
-  # any endpoint that times out). Empty here like the webhook: the seam ships
-  # wired to nothing, and the in-cluster watchdogCheck CronJob covers the
-  # "Alertmanager up but not routing" case either way. What only an external
-  # consumer covers is the cluster going down with its own watcher.
+  # The heartbeat path, and a SEPARATE seam from the webhook above.
   watchdogWebhook:
     url: ""
 

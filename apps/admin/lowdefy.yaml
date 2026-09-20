@@ -2,11 +2,7 @@
 # hand- or LLM-written; the OpenAPI-driven generator (tools/admin-gen, emitting
 # _generated/) is added only when the page count justifies it.
 name: platform-admin
-# `local` (not a pinned semver) skips Lowdefy's startup npm version check
-# (dist/utils/validateVersion.js short-circuits on 'local'), which otherwise makes a
-# raw axios GET to registry.npmjs.org and logs "Failed to check for latest Lowdefy
-# version." on every boot in an air-gapped/proxied cluster. The image pins the actual
-# version via LOWDEFY_VERSION (apps/admin/Dockerfile), so nothing is unpinned here.
+# `local` rather than a pinned semver skips Lowdefy's startup version check, which otherwise makes a raw request to registry.npmjs.org on every boot. The image pins LOWDEFY_VERSION.
 lowdefy: local
 
 # Lowdefy 5 requires every block/connection to be declared as a plugin, pinned to
@@ -21,24 +17,13 @@ plugins:
 
 config:
   homePageId: dashboard
-  # Served at the root of its own ops origin lowdefy.ops.<host> (ADR-0306), not
-  # under a product path. basePath is omitted: Lowdefy requires it to start with
+  # Served at the root of its own ops origin (ADR-0306). basePath is omitted: Lowdefy requires it to start with
   # "/" while Next.js rejects exactly "/", so the only root-valid setting is unset.
-  # No Lowdefy auth/session store — access is gated upstream at the ops edge
-  # (Oathkeeper: AAL2 operator holding dashboard:lowdefy#view, ADR-0401/0017).
-  # Pages are public to Lowdefy; only authorized operators ever reach this origin.
+  # No Lowdefy auth store — access is gated upstream at the ops edge (ADR-0401).
 
-# One REST connection per service, id == service name so the generated pages
-# (tools/admin-gen, ADR-0401) resolve their connectionId directly. Pages call the
-# service in-cluster, bypassing the /api edge; auth is enforced upstream (ADR-0401).
-#
-# Identity for writes: a service's write handlers gate on an operator identity
-# (authmw X-User-Id → OpenFGA group:operator, ADR-0305/0010). Lowdefy has no
-# server operator to relay the operator's inbound X-User-Id, so the console asserts
-# a fixed service-account identity `user:admin-console`, which the OpenFGA seed
-# grants group:operator#member (infra/helm/platform/openfga). This is the ADR-0305
-# header-trust model: only the console can reach these server ports (NetworkPolicy
-# allowFrom: [lowdefy]), so only it can assert this header. Reads ignore identity.
+# One REST connection per service, id equal to the service name, so the generated pages resolve connectionId directly (ADR-0401).
+# Writes gate on an operator identity, and Lowdefy has no server operator to relay one, so the console asserts a
+# fixed `user:admin-console` the OpenFGA seed grants group:operator. Only the console can reach these ports (ADR-0305).
 connections:
   - id: catalog
     type: AxiosHttp

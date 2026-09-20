@@ -1,8 +1,4 @@
 // The funnel surface (ADR-0700).
-//
-// Everything rendered here arrives through the data seam (ADR-0701), which reaches
-// the analytics service east-west: it is `x-audience: cluster` and has no `/api`
-// route, so there is no path from a browser to the event store at all.
 
 import { getTranslations } from "next-intl/server";
 import {

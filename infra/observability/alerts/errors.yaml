@@ -1,25 +1,9 @@
 # Error-rate alerts (ADR-0503 owns the signal, ADR-0502 routes it).
-#
-# These read `errors_total{service_name, kind}` and nothing else. The fingerprint
-# that says WHICH fault is deliberately absent here: it is high-cardinality and is
-# structured metadata on the log, never a metric label (ADR-0500). An alert says
-# how much is failing; the dashboard says what.
-#
-# Both are `ticket`. `page` asserts a human acts within minutes and no receiver
-# reaches one (ADR-0502), so a paging error alert would lie about itself. When a
-# paging receiver exists, the burst rule is the one that gets promoted — it is the
-# one that means "this started just now".
 groups:
   - name: errors
     rules:
-      # A sustained rate, relative to the service's own traffic. An absolute
-      # threshold cannot work across services whose request rates differ by orders
-      # of magnitude: it is either noise for the busiest or silence for the
-      # quietest.
-      #
-      # The `> 0` denominator guard is the same one the SLO rules carry, for the
-      # same reason: a service with no traffic has no error ratio, and 0/0 is a NaN
-      # that compares false everywhere and renders as a broken panel.
+      # A sustained rate, relative to the service's own traffic. An absolute threshold cannot work across services whose
+      # request rates differ by orders of magnitude: it is either noise for the busiest or silence for the quietest.
       - alert: ServiceErrorRateHigh
         expr: |
           sum by (service_name) (rate(errors_total[5m]))

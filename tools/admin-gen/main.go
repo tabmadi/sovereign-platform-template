@@ -1,22 +1,4 @@
-// Command admin-gen scaffolds the Lowdefy admin pages (ADR-0401) from the service
-// OpenAPI specs (ADR-0303). It emits apps/admin/_generated/<service>/ — a small set
-// of pages per resource and per action — a shared navigation menu, and a pages.yaml
-// manifest the root lowdefy.yaml references. Output is REST-connector pages only:
-// every mutation goes through the service Go API, never raw SQL (the ADR-0401
-// write-path invariant).
-//
-// The surface a service gets is driven by two markers on its spec:
-//   - a tag with `x-admin: crud`  → a Django-admin-style resource: a list (changelist)
-//     page, and — only when the matching operations exist — a separate "add" page
-//     (POST returning 201; an async 202 workflow create is intentionally skipped) and
-//     a separate "edit" page (PUT/DELETE, prefilled from GET /{id} when present).
-//   - an operation with `x-admin: action` → a single button/form action page.
-//
-// Every page is a PageSiderMenu, so the generated menu renders as a persistent left
-// nav across the whole console. Pages call the service in-cluster (connectionId ==
-// service name) using the raw spec paths, so the output is independent of the /api
-// edge prefix. The AxiosHttp connection returns the HTTP envelope, so response bodies
-// are read at `.data` (e.g. a list grid binds `_request: list.data`).
+// Command admin-gen scaffolds the Lowdefy admin pages from the service OpenAPI specs (ADR-0401, ADR-0303).
 package main
 
 import (
@@ -520,11 +502,8 @@ func buttonSpacing() map[string]any {
 	return map[string]any{"marginTop": 16, "marginRight": 8}
 }
 
-// requestButton runs reqID on click, then the follow-up steps — a success toast
-// and/or a navigation. A failed request throws and halts the chain (ADR-0601), so
-// the follow-ups only run on success. Feedback is a transient DisplayMessage toast
-// rather than a state-gated block: Lowdefy only hides a block on a strictly-false
-// visible, which an unset flag never yields, so a toast is both simpler and correct.
+// Lowdefy hides a block only on a strictly-false `visible`, which an unset flag never yields, so feedback is a
+// transient toast.
 func requestButton(id, label, reqID, btnType string, danger bool, follow ...map[string]any) block {
 	b := block{ID: id, Type: typeButton, Style: buttonSpacing(), Properties: map[string]any{keyTitle: label}}
 	if btnType != "" {
@@ -573,13 +552,8 @@ func (d *doc) columnDefs(schema yaml.Node) []any {
 	return defs
 }
 
-// inputsFor is the form side of the same case. A dotted block id is nested state in
-// Lowdefy, so `price.amount` and `price.currency` assemble the object the request
-// payload already reads as `price` — the two fields a human fills, and the one
-// object the API takes.
-//
-// The amount is a TextInput and not a NumberInput deliberately: a NumberInput hands
-// back a JavaScript number, which is the double the string form exists to avoid.
+// A dotted block id is nested state in Lowdefy, so `price.amount` assembles the object the payload reads as `price`.
+// The amount is a TextInput: a NumberInput hands back a double, which is what the string form exists to avoid.
 func inputsFor(f prop) []block {
 	if !f.isMoney() {
 		return []block{input(f.Name, f.Name, f.Type)}
@@ -591,10 +565,7 @@ func inputsFor(f prop) []block {
 }
 
 func input(state, label, typ string) block {
-	// Lowdefy's `label` is an OBJECT, not a string: a bare string is ignored and the
-	// field falls back to labelling itself with its own block id. That was invisible
-	// while every id was already the field name ("price" labelled `price`), and
-	// stopped being invisible the moment a money field's id became `price.amount`.
+	// Lowdefy's `label` is an object; a bare string is ignored and the field labels itself with its own block id.
 	b := block{ID: state, Properties: map[string]any{"label": map[string]any{"title": headerName(label)}}}
 	switch typ {
 	case "integer", "number":
@@ -728,17 +699,10 @@ func (r *resource) classify(o op) {
 
 type prop struct {
 	Name, Type, Format string
-	// Ref is the component this property points at, when it is a $ref rather than an
-	// inline type. It is what makes a shared shape recognisable here: `Money` is an
-	// object, and an object rendered by the default path is a TextInput that posts
-	// "[object Object]".
-	Ref string
+	Ref                string
 }
 
-// isMoney reports whether the property is the shared Money component (ADR-0300):
-// an amount as a decimal STRING plus its currency. It is the one shared shape this
-// generator special-cases, because it is the one that is structurally an object and
-// semantically a single field a human types into.
+// isMoney reports whether the property is the shared Money component — a decimal string plus its currency (ADR-0300).
 func (p prop) isMoney() bool { return path.Base(p.Ref) == "Money" }
 
 // props resolves a schema node to its ordered properties, following a $ref into

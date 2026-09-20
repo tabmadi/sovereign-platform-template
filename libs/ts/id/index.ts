@@ -1,39 +1,21 @@
 /**
- * Entity identifiers on the TypeScript side (ADR-0003).
- *
- * The counterpart of `libs/go/id`: a UUIDv7 (RFC 9562) carried on the wire in the
- * TypeID form — a type prefix, an underscore, and the UUID in 26 characters of
- * Crockford base32.
- *
- *     order_01j8xk7m3q0000000000000000
- *     {prefix}_{UUIDv7 in 26 characters of base32}
- *
- * The two implementations are checked against the same published TypeID vectors
- * rather than against each other, so neither can drift into a private encoding that
- * only its own round-trip test accepts.
- *
- * A consumer treats an identifier as opaque (AIP-122): nothing here orders or
- * constructs one from parts. Parsing exists to VALIDATE what arrived and to name
- * its type — a client that has to build an identifier is a client the API failed.
+ * Entity identifiers on the TypeScript side (ADR-0003): a UUIDv7 carried in TypeID form.
+ * Checked against the published TypeID vectors, never against libs/go/id, so neither can drift into a private encoding.
+ * A consumer treats an identifier as opaque (AIP-122): parsing exists to validate what arrived and name its type.
  */
-
 /** Crockford base32 in TypeID's ordering: no i, l, o, or u. */
 const ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
 
-/** 128 bits at 5 bits per character needs 25.6 characters; the first carries the 3 spare bits. */
 const ENCODED_LENGTH = 26;
 
-/** The same 63-character bound a DNS label imposes, which is the tightest downstream. */
 const MAX_PREFIX_LENGTH = 63;
 
-/** Hoisted so the pattern is compiled once rather than per call. */
 const PREFIX_PATTERN = /^[a-z_]+$/;
 const HEX_UUID_PATTERN = /^[0-9a-f]{32}$/;
 const HYPHEN_PATTERN = /-/g;
 
 const DECODE = new Map<string, number>([...ALPHABET].map((character, value) => [character, value]));
 
-/** A parsed identifier: its type and the underlying UUID in canonical hyphenated form. */
 export type ParsedId = {
   readonly prefix: string;
   /** Canonical 8-4-4-4-12 lowercase hex, the form a `uuid` column holds. */
@@ -61,11 +43,8 @@ export function isValidPrefix(prefix: string): boolean {
 }
 
 /**
- * Parse a wire identifier, requiring the expected type.
- *
- * Passing `expectedPrefix` is the point of the whole convention: it is what stops an
- * `order_` reaching a function that wanted a `product_`. Omit it only where the type
- * genuinely is not known ahead of time.
+ * Parse a wire identifier, requiring the expected type. Passing `expectedPrefix` is what stops an `order_`
+ * reaching a function that wanted a `product_`; omit it only where the type is not known ahead of time.
  */
 export function parseId(value: string, expectedPrefix?: string): ParsedId {
   const separator = value.lastIndexOf("_");

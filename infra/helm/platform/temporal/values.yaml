@@ -1,24 +1,5 @@
 temporal:
-  # `restricted` (ADR-0200). This chart spreads the security context across five
-  # independent places — `server` (one pod block shared by all four roles, plus a
-  # containerSecurityContext per role), `web`, `admintools` and `schema` (which is
-  # the two Jobs) — and every one of them ships either empty or half-filled. The
-  # same four settings therefore appear five times below; there is no single key
-  # that reaches them all.
-  #
-  # 1000 is the `temporal` user in both server and admin-tools images. `server`
-  # already ran as it and simply never asserted runAsNonRoot, which is the field
-  # that turns "we set a UID" into something the API server can check.
-  # Off, because this chart pins a 1.31 server (see Chart.yaml) and these exist
-  # only for 1.29-era images — upstream's own values say so.
-  #
-  # Leaving them on breaks the deployment under GitOps rather than merely adding
-  # a file. The shim ConfigMap is a Helm PRE-INSTALL HOOK, while the Deployments
-  # mount it for their whole life: with Helm the hook object lingers and the mount
-  # resolves, but Argo CD tracks a hook outside the application's resources and
-  # prunes it, so every server pod then sits in ContainerCreating on
-  # `configmap "temporal-shims" not found` — with the Application reporting
-  # Synced, because from Argo's side everything it tracks IS applied.
+  # `restricted` (ADR-0200).
   shims:
     dockerize: false
     elasticsearchTool: false
@@ -26,37 +7,18 @@ temporal:
     securityContext:
       runAsNonRoot: true
       seccompProfile: { type: RuntimeDefault }
-    # No phone-home. Every Temporal server role starts a version checker that
-    # resolves and dials version-info.temporal.io (CloudFront) on 443; under
-    # default-deny egress that is dropped, and it is the second-largest source of
-    # PolicyDropsDetected noise after the Ory binaries. Confirmed the hard way, by
-    # putting an L7 DNS visibility policy on the temporal pods and reading the query
-    # off the wire — the name appears nowhere in the chart or the server config,
-    # only in the binary's env table as TEMPORAL_VERSION_CHECK_DISABLED.
-    #
-    # Set on `server` (not a single role) so it lands on frontend/history/matching/
-    # worker alike: the checker is per-process, exactly like Ory's SQA_OPT_OUT,
-    # where kratos-only was not enough and oathkeeper kept tripping the alert.
+    # No phone-home.
     additionalEnv:
       - name: TEMPORAL_VERSION_CHECK_DISABLED
         value: "true"
-    # ADR-0204, sized from measurement (2026-07-26, ADR-0601 checkout load @40 VUs).
-    # Baseline for every role; the per-role blocks below override where measurement
-    # says the roles differ, which they do by an order of magnitude.
-    #
-    # NOTE this chart (temporal-1.4.0) exposes no `priorityClassName` at all, per role
-    # or globally. Temporal therefore inherits `platform-critical` from the
-    # PriorityClass globalDefault rather than declaring it — see
-    # infra/helm/platform/resource-governance/values.yaml for why the default was
-    # pointed that way instead of at `product`.
+    # ADR-0204, sized from measurement (2026-07-26, ADR-0601 checkout load @40 VUs). Baseline for every role; the
+    # per-role blocks below override where measurement says the roles differ, which they do by an order of magnitude.
     resources:
       requests: { cpu: "100m", memory: "192Mi" }
       limits:   { memory: "512Mi" }
     frontend:
-      # The container half of `restricted`, identical for all four server roles and
-      # for web/admintools/schema below — so it is written once as a YAML anchor and
-      # aliased. Helm merges values files, not anchors, so an anchor only works
-      # WITHIN this file; that is exactly the scope needed here.
+      # The container half of `restricted`, identical for all four server roles and for web/admintools/schema below — so
+      # it is written once as a YAML anchor and aliased.
       containerSecurityContext: &restrictedContainer
         allowPrivilegeEscalation: false
         capabilities:
@@ -68,16 +30,8 @@ temporal:
         limits:   { memory: "512Mi" }
     history:
       containerSecurityContext: *restrictedContainer
-      # THE HEAVIEST CPU CONSUMER IN THE CLUSTER. Measured 2121m — 2.1 cores — and
-      # 647Mi during a 40-VU checkout run, against roughly 20m at rest. It owns
-      # workflow mutable state and shard ownership, so every workflow transition is
-      # its work.
-      #
-      # This is the single strongest argument for ADR-0204's no-CPU-limits rule: a
-      # naive 500m limit here (the value our service chart used to carry) would
-      # throttle it to a quarter of its measured need and surface as checkout
-      # settle-time collapsing, with no OOM and no error to point at. Verify with
-      # `mise run perf:stress` and the load-test dashboard's settle panel.
+      # THE HEAVIEST CPU CONSUMER IN THE CLUSTER. Measured 2121m — 2.1 cores — and 647Mi during a 40-VU checkout run,
+      # against roughly 20m at rest.
       resources:
         requests: { cpu: "500m", memory: "768Mi" }
         limits:   { memory: "1536Mi" }
@@ -94,58 +48,15 @@ temporal:
       resources:
         requests: { cpu: "50m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
-    # Never overlap an old and a new pod of the same role. At startup each role
-    # freezes the set of peers that heartbeated in the last 20s into ringpop's
-    # discover provider and re-dials the dead ones forever (the long version is in
-    # network-policies/templates/20-temporal.yaml). With the chart default
-    # maxSurge 25%, which rounds up to 1 on a single-replica Deployment, the
-    # incoming pod always captures the outgoing one and inherits a permanent dead
-    # peer. maxSurge 0 costs a few seconds of unavailability per role on rollout
-    # and stops a rollout minting stale peers at all.
-    #
-    # This is a mitigation, not the fix: an eviction, OOM kill or node reboot
-    # replaces a pod without consulting the strategy, so stale peers can still
-    # appear. temporal-stale-peer-ingress is what makes them harmless.
-    #
-    # RESET RUNBOOK — clearing peers already accumulated. Nothing resets an
-    # in-process list but a restart of the process holding it, and every role has to
-    # go at once or the survivors re-seed the newcomers. Scaling to 0 does not work
-    # under GitOps: ArgoCD self-heals the replica count back to 1 inside the wait.
-    # What works, verified on the local cluster:
-    #
-    #   kubectl -n platform delete pod --force --grace-period=0 \
-    #     -l app.kubernetes.io/name=temporal
-    #   kubectl -n platform exec postgres-1 -c postgres -- \
-    #     psql -U postgres -d temporal -c 'delete from cluster_membership;'
-    #
-    # `--force --grace-period=0` matters: a gracefully terminating pod keeps
-    # heartbeating, and a heartbeat inside the 20s window is exactly what the
-    # replacements would capture. Clearing `cluster_membership` immediately after is
-    # what closes the race — the rows are ephemeral discovery state that the
-    # heartbeat loop rebuilds within ~15s, not durable workflow data. Verify by
-    # grepping each role's one-shot startup line for live IPs only:
-    # `kubectl -n platform logs deploy/temporal-frontend | grep bootstrap-hostports`.
-    #
-    # TWO THINGS BITE DURING THE WINDOW, both observed:
-    #   - SDK workers may not recover from the abrupt frontend termination. After a
-    #     reset, check each worker logged "Started Worker" since; if one is silent
-    #     while the others took work, restart that worker pod.
-    #   - Registration fails while Temporal is cold. Kratos' /identity-created
-    #     web_hook is blocking with a ~3s timeout (infra/auth/kratos), and a
-    #     cold-start StartWorkflow exceeds it, so sign-ups 500 until the task queues
-    #     warm. Do resets when a failed sign-up is acceptable.
+    # Never overlap an old and a new pod of the same role.
     deploymentStrategy:
       type: RollingUpdate
       rollingUpdate:
         maxSurge: 0
         maxUnavailable: 1
     config:
-      # Chart 1.x persistence schema (UPGRADING.md): stores live under
-      # persistence.datastores.<name> and are selected by defaultStore /
-      # visibilityStore. The sql block is passed through verbatim to the Temporal
-      # server config, so it uses raw server keys (pluginName/connectAddr), not
-      # the old chart's driver/host shorthand. existingSecret/secretKey/
-      # createDatabase/manageSchema are Helm-only and stripped before rendering.
+      # Chart 1.x persistence schema (UPGRADING.md): stores live under persistence.datastores.<name> and are selected by
+      # defaultStore / visibilityStore.
       persistence:
         defaultStore: default
         visibilityStore: visibility
@@ -176,19 +87,15 @@ temporal:
               existingSecret: temporal-db-creds
               createDatabase: false
               manageSchema: true
-      # Register the `default` namespace via the chart's setup job. The split
-      # production topology doesn't auto-create it the way `start-dev` does, so
-      # workers targeting TEMPORAL_NAMESPACE=default fail without this. The chart
-      # reads this at server.config.namespaces (NOT server.namespaces).
+      # Register the `default` namespace via the chart's setup job. The split production topology doesn't auto-create it
+      # the way `start-dev` does, so workers targeting TEMPORAL_NAMESPACE=default fail without this.
       namespaces:
         create: true
         namespace:
           - name: default
             retention: 3d
-  # Cassandra/Prometheus/Grafana/Elasticsearch sub-charts were removed in chart
-  # v1.0.0-rc.2 (no longer top-level keys). Metrics are scraped from the OTel
-  # collector, so the bundled monitoring stack stays absent by simply not
-  # enabling server.metrics.serviceMonitor.
+  # Cassandra/Prometheus/Grafana/Elasticsearch sub-charts were removed in chart v1.0.0-rc.2 (no longer top-level
+  # keys).
   web:
     image:
       repository: temporalio/ui
@@ -212,11 +119,8 @@ temporal:
       seccompProfile: { type: RuntimeDefault }
     containerSecurityContext: *restrictedContainer
 
-  # `schema` names the two Jobs — the schema setup/update job and the
-  # create-default-namespace job — not a component. Both run the admin-tools image,
-  # so they take the same user, and both are one-shot: a Job that fails admission
-  # fails silently in the sense that matters, because nothing is left Running to
-  # look at afterwards.
+  # `schema` names the two Jobs — the schema setup/update job and the create-default-namespace job — not a
+  # component.
   schema:
     securityContext:
       runAsNonRoot: true

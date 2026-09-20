@@ -1,13 +1,4 @@
 // Analytics route-group layout (ADR-0700).
-//
-// The group exists to put the authorization check in ONE place. ADR-0700 gates
-// this panel on a relationship rather than on a session, and a check written per
-// page is a check that is missing from the page someone adds next month.
-//
-// It is a route group on the product origin rather than a separate app or an ops
-// origin, and that placement is the decision that resolves who marketing are:
-// they read funnels without an operator account, without operator MFA, and without
-// reaching Grafana — while the ops tier's least-authority rule stays intact.
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { requireRelation } from "@/lib/auth/panel-access";

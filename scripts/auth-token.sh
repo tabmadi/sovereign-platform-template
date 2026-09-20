@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
-# Mint a Kratos session token for a registered identity so you can hit
-# authenticated endpoints locally (ADR-0305, ADR-0304). Requires the full tier
-# (Ory) up (mise run cluster:up -- full). Drives the native (API) login flow against the
-# Kratos public API via a port-forward and prints the session token.
-#
-#   mise run auth:token -- <email>      # password read from KRATOS_PASSWORD or prompt
-#
-# This is dev glue, not a product flow; browser logins go through the edge UI.
+# Mint a Kratos session token for a registered identity, for hitting authenticated endpoints locally (ADR-0305, ADR-0304). Requires the full tier.
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"

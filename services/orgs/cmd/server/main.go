@@ -1,6 +1,4 @@
 // orgs — B2B multi-tenancy on top of Kratos identities (ADR-0304).
-// Owns: organisations, memberships, and the post-registration "create personal
-// org" webhook called by Kratos.
 package main
 
 import (

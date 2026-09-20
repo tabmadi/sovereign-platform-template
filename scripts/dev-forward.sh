@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
-# Port-forward the inner-loop dependencies (ADR-0200, ADR-0205) so a service run
-# NATIVELY on the host (in any editor/IDE, or `go run ./services/<svc>/...`) can
-# reach them. Long-running
-# — run it in a separate terminal (or background) and leave it up while you iterate.
-#
-#   mise run cluster:up      # once: the local floor (a service's tasks do this for you)
-#   mise run dev:forward     # this script, in its own terminal
-#   DATABASE_URL=... TEMPORAL_HOST_PORT=localhost:7233 OPENFGA_API_URL=http://localhost:18080 \
-#     go run ./services/orders/cmd/server   # run the service natively
+# Port-forward the inner-loop dependencies so a natively-run service can reach them (ADR-0200, ADR-0205). Long-running.
 set -euo pipefail
 
 CLUSTER="${CLUSTER:-platform}"
@@ -32,11 +24,7 @@ pids+=($!)
 k port-forward svc/openfga 18080:8080 &
 pids+=($!)
 
-# If observability is up (full tier / obs profile), forward Grafana + the OTel
-# Collector's Faro receiver too. The frontend's dev RUM shim forwards beacons to
-# FARO_COLLECT_URL=http://localhost:12347/collect (apps/frontend/src/app/api/rum).
-# The collector is in its own namespace (ADR-0200 — hostPath and hostPorts), so it
-# takes its own kubectl invocation rather than the `k` helper's.
+# The OTel collector is in its own namespace (ADR-0200), so it takes its own kubectl invocation rather than the `k` helper's.
 agent() { kubectl --context "$(cluster_ctx)" -n otel-agent "$@"; }
 if agent get svc otel-collector >/dev/null 2>&1; then
   echo "→ observability detected: grafana 3001, faro 12347"

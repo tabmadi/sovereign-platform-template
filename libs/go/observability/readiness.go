@@ -6,12 +6,9 @@ import (
 	"time"
 )
 
-// Readiness checks answer "can this pod serve right now?" — the /readyz probe
-// (ADR-0500). They are DEEP: each pings a live dependency (Postgres, Temporal).
-// The shared dependency wiring registers its own check automatically — dbmw.Open
-// registers "postgres", temporalmw.NewClient registers "temporal" — so a service
-// gets exactly the checks for the dependencies it actually opens, with no per-
-// service code. Liveness (/livez) stays shallow and MUST NOT consult these.
+// Readiness answers "can this pod serve right now?" and is deep: each check pings a live dependency (ADR-0500).
+// dbmw.Open and temporalmw.NewClient register their own, so a service gets checks for what it opens.
+// Liveness stays shallow and must not consult these.
 type readyCheck struct {
 	name string
 	ping func(context.Context) error

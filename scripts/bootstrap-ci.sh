@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 # Minimal mise bootstrap for CI runners.
-# Installs mise, activates it for the current job, and installs the toolchain
-# pinned in .mise.toml. CI workflows source this before invoking `mise run …`.
 
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"

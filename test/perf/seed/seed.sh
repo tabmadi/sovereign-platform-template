@@ -1,25 +1,5 @@
 #!/usr/bin/env bash
 # Bulk test data for the load suite (ADR-0601).
-#
-# Why this exists: `GET /api/products` is
-# `order by created_at desc limit 100` over an UNINDEXED `created_at`
-# (services/catalog/internal/store/queries/products.sql), so every list request
-# sorts the entire products table to return its top 100. Against the ~30 rows the
-# e2e suite leaves behind that is free and the scenario measures nothing. The
-# response size is capped at 100 either way — what seeding grows is the SERVER's
-# work per request, which is the part that scales badly.
-#
-# Why SQL and not the API: creating 5,000 products over HTTP is itself a load
-# test, takes minutes, and needs an operator session (catalog gates writes on
-# group:operator — ADR-0304). Seeding is setup, not the measurement, so it goes
-# straight to the database.
-#
-#   mise run perf:seed              # 5000 products
-#   mise run perf:seed -- 50000     # more
-#   mise run perf:seed -- --clean   # remove everything this script created
-#
-# Every row is named `perf-<n>` so it is identifiable and removable; nothing here
-# touches rows this script did not create.
 set -euo pipefail
 cd "$(cd "$(dirname "$0")/../.." && pwd)"
 source scripts/lib/log.sh
@@ -52,12 +32,8 @@ if [ "${1:-}" = "--clean" ]; then
   # another service's data.
   psql_catalog -c "delete from products where name like '${PREFIX}%';" >/dev/null
   ok "removed ${before} seeded product(s)"
-  # Orders are NOT removed, and this is deliberate rather than an oversight: a
-  # checkout run creates real orders and real Temporal workflow executions
-  # (ADR-0601 §Negative), and an order carries no marker distinguishing "created
-  # by a load run" from "created by a human". Guessing — by timestamp, or by
-  # orphaned product_id — risks deleting real rows, so this script does not.
-  # Drop the whole environment instead when order volume matters.
+  # Orders are not removed: a checkout run creates real orders and workflow executions, and an order carries no
+  # marker distinguishing a load run from a human (ADR-0601). Guessing risks deleting real rows.
   warn "orders from checkout runs are left in place — they carry no perf marker; recreate the environment if the volume matters"
   exit 0
 fi
@@ -68,10 +44,7 @@ case "$n" in
 esac
 
 step "seeding ${n} products into catalog (primary: ${primary})"
-# One statement, generated server-side: 5,000 round-trips would take minutes,
-# generate_series takes well under a second. Prices vary so the rows are not
-# byte-identical, which would let Postgres and the JSON encoder behave
-# unrealistically well.
+# One statement, generated server-side: 5,000 round-trips take minutes. Prices vary so the rows are not byte-identical, which would let Postgres and the JSON encoder behave unrealistically well.
 psql_catalog -c "
   insert into products (name, price_cents)
   select '${PREFIX}' || g, (g * 37) % 100000

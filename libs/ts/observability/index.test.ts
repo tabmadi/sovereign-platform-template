@@ -1,8 +1,4 @@
 // The browser fingerprint's rules, pinned (ADR-0503).
-//
-// These mirror the Go tests in libs/go/observability, because the two sides must
-// normalise identically: a rule that drifts on one side splits one fault into
-// two dashboard rows, and nothing else in the pipeline can see that happen.
 import { describe, expect, test } from "bun:test";
 
 import { appFrames, fingerprint, normalise } from "./index";

@@ -1,9 +1,4 @@
-// Package authconformance exercises the platform's edge→service identity
-// contract (ADR-0305, ADR-0304): given the identity headers the edge injects,
-// authmw must parse a known Principal, and a role-gated authorisation must
-// resolve the expected way. The fixtures are identity-header inputs with
-// expected principals + authz outcomes; the test in conformance_test.go runs
-// them against the real libs/go/authmw reader.
+// Package authconformance exercises the edge→service identity contract (ADR-0305, ADR-0304).
 package authconformance
 
 import (
@@ -17,7 +12,6 @@ import (
 //go:embed fixtures.json
 var fixturesJSON []byte
 
-// Fixture is one identity-header input with its expected outcome.
 type Fixture struct {
 	Name        string            `json:"name"`
 	Headers     map[string]string `json:"headers"`
@@ -27,14 +21,12 @@ type Fixture struct {
 	WantAllowed bool              `json:"want_allowed"`
 }
 
-// WantPrincipal is the expected parsed principal for a fixture.
 type WantPrincipal struct {
 	UserID string   `json:"user_id"`
 	OrgID  string   `json:"org_id"`
 	Roles  []string `json:"roles"`
 }
 
-// Fixtures loads the committed identity-header fixtures.
 func Fixtures() ([]Fixture, error) {
 	var fs []Fixture
 	err := json.Unmarshal(fixturesJSON, &fs)
@@ -44,11 +36,7 @@ func Fixtures() ([]Fixture, error) {
 	return fs, nil
 }
 
-// RoleAllowed is the sample authorisation contract used by conformance: a
-// request is allowed when the edge-resolved principal carries the required
-// role. Real services delegate to the OpenFGA Checker (libs/go/authz); this
-// hermetic stand-in keeps the conformance suite free of external services while
-// still asserting "principal in → decision out".
+// RoleAllowed is the hermetic stand-in for the OpenFGA Checker (ADR-0304); real services delegate to libs/go/authz.
 func RoleAllowed(p *authmw.Principal, requiredRole string) bool {
 	return p.Authenticated() && p.HasRole(requiredRole)
 }

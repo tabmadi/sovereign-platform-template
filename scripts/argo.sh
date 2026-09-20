@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
 # The live-patch window (ADR-0201, ADR-0600).
-#
-#   mise run argo:pause     stop reconciliation; the cluster keeps running
-#   mise run argo:resume    hand the cluster back to GitOps
-#
-# Argo CD's selfHeal reverts a direct edit to a synced resource within seconds, so
-# validating an uncommitted values or NetworkPolicy fix in-cluster means scaling the
-# application-controller to zero first. Anything patched live and not committed to
-# master is reverted on the first sync after resume — push first, then resume.
-#
-# A paused controller is a cluster that has silently stopped tracking master, which
-# looks identical to a healthy one until a deploy goes missing. Both verbs therefore
-# report the state they left behind rather than exiting mute.
-#
-# Argo CD is the engine for the full tier only, so the tier is not an argument here:
-# there is exactly one cluster that has an application-controller to scale, and
-# lib/cluster.sh resolves it from what is running.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/cluster.sh"
@@ -55,12 +39,8 @@ k -n argocd scale "$STS" --replicas=1 >/dev/null
 k -n argocd rollout status "$STS" --timeout=180s >/dev/null ||
   fail "the application-controller did not come back — 'kubectl -n argocd describe ${STS}'"
 
-# Auto-sync paused per app by service:deploy is a second, narrower pause, and a
-# controller that is running again does not clear it. Name the apps still holding a
-# working-tree image, because the cluster now looks reconciled and is not.
-# custom-columns and awk rather than a jsonpath filter: kubectl's jsonpath has no
-# negation, so `?(!@.spec.syncPolicy.automated)` matches nothing and the warning
-# silently never fires — which is the failure this whole block exists to prevent.
+# A pause set per app by service:deploy is narrower and survives the controller restarting.
+# custom-columns and awk rather than jsonpath: kubectl's jsonpath has no negation, so the filter would match nothing and never fire.
 mapfile -t manual < <(
   k -n argocd get application.argoproj.io --no-headers \
     -o custom-columns='NAME:.metadata.name,AUTO:.spec.syncPolicy.automated' 2>/dev/null |

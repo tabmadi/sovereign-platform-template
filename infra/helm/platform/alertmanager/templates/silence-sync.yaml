@@ -1,18 +1,5 @@
 {{- if .Values.alertmanager.enabled }}
 ## Reconcile Alertmanager's silences to the committed file (ADR-0502).
-##
-## Alertmanager has no config-file form for silences — they are API objects with
-## their own lifecycle, which is exactly why one created in the UI outlives the
-## incident it was made for and suppresses an alert nobody remembers suppressing.
-## The runbook says a UI silence vanishes on the next reconcile; this is the thing
-## that makes that true.
-##
-## Full reconcile, not a diff: expire everything, then import the file. A
-## silence's identity is its entry in git rather than the ID Alertmanager minted,
-## so re-creating one with the same matchers and window suppresses the same
-## alerts. The cost is a gap of a few seconds per run during which a silenced
-## alert can notify, which is the right trade against a diff that has to model
-## silence equality and gets it subtly wrong.
 apiVersion: batch/v1
 kind: CronJob
 metadata:

@@ -1,7 +1,4 @@
-// Mailpit viewer operator dashboard (ADR-0307, ADR-0306) — non-prod only, gated at
-// mailpit.ops.<host> (dashboard:mailpit#view) and the SPA renders behind a real AAL2
-// operator session. The sink holds every message the Kratos courier submits, so this
-// origin is how an engineer reads a verification or recovery mail.
+// The Mailpit viewer dashboard: non-prod only, gated at the ops origin (ADR-0307, ADR-0306).
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import {
   expectAal1Forbidden,
@@ -37,18 +34,12 @@ test.describe("mailpit ops dashboard", () => {
     });
   });
 
-  // The sink is evidence, not decoration. Mailpit exposes an HTTP API over the same
-  // store the UI reads (ADR-0307), which is what lets a test assert delivery instead
-  // of leaving it to someone looking at a screen. It sits behind the same operator
-  // gate as the UI, so these read it through the edge with the operator session.
+  // Mailpit exposes an HTTP API over the same store the UI reads (ADR-0307), which is what lets a test assert delivery. It sits behind the same operator gate as the UI.
   test.describe("holds a readable recovery mail", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test("the code in the body matches the code in the subject", async ({ page, browser }) => {
-      // Three waits stack here and the 60s default covers none of them: gotoFlow
-      // retries for up to 90s because the auth routes are rate-limited (10/min,
-      // and the suite is one source IP), then the courier drains its queue on its
-      // own schedule before anything reaches the sink.
+      // Three waits stack and the 60s default covers none: gotoFlow retries for up to 90s under the auth rate limit, then the courier drains its queue on its own schedule.
       test.setTimeout(240_000);
 
       const recipient = ADMIN.email;
@@ -57,18 +48,9 @@ test.describe("mailpit ops dashboard", () => {
       // earlier run left behind.
       const since = Date.now();
 
-      // Recovery refuses to start for an identity that already has a session —
-      // Kratos 302s the init straight to the return URL — so it is driven in a
-      // context with no session, while the operator session on `page` reads the
-      // sink. Both context options are load-bearing and neither is inherited the
-      // way it first appears:
-      //
-      //   - storageState is emptied explicitly. A bare browser.newContext() under
-      //     this describe's `test.use` still arrives holding ory_kratos_session,
-      //     and the symptom is the landing page instead of the form.
-      //   - ignoreHTTPSErrors is restated because the project's `use` block does
-      //     not reach a hand-made context, and the local wildcard cert is
-      //     self-signed. Without it the page renders blank.
+      // Recovery refuses to start for an identity that already has a session, so it is driven in a context with none.
+      // storageState is emptied explicitly — a bare newContext() under this `test.use` still arrives holding the session.
+      // ignoreHTTPSErrors is restated because the project's `use` block does not reach a hand-made context.
       const anon = await browser.newContext({
         ignoreHTTPSErrors: true,
         storageState: { cookies: [], origins: [] },
@@ -89,10 +71,7 @@ test.describe("mailpit ops dashboard", () => {
       const message = found as SinkMessage;
       expect(message.To.map((t) => t.Address)).toContain(recipient);
 
-      // Kratos puts the code in the subject AND in the body. Asserting only that a
-      // message arrived passes just as happily on an empty or malformed template,
-      // and that is the fault class production can show nobody: it keeps no store,
-      // so a broken template is only ever visible below it (ADR-0307).
+      // Kratos puts the code in the subject and the body. Asserting only that a message arrived passes on an empty template, and production keeps no store to show it (ADR-0307).
       const subjectCode = message.Subject.match(/\b(\d{6})\b/)?.[1];
       expect(subjectCode, `no six-digit code in subject: ${message.Subject}`).toBeDefined();
 
@@ -108,7 +87,6 @@ test.describe("mailpit ops dashboard", () => {
   });
 });
 
-// A message as the list and search endpoints return it.
 type SinkMessage = {
   ID: string;
   Subject: string;

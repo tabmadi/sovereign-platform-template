@@ -1,21 +1,4 @@
 // Loads browser observability off the critical path (ADR-0400, ADR-0500).
-//
-// The import is dynamic and deliberately so. A static import of
-// `@/lib/observability/client` puts the Faro web SDK and its OpenTelemetry
-// tracing instrumentation in the initial chunk graph — ~180 KiB parsed and
-// executed before hydration finishes, on every route, including a landing page
-// that renders a heading and six links. Moving `initializeFaro` into a
-// `useEffect` does NOT help on its own: the effect defers when the code RUNS,
-// while the static import decides when it is DOWNLOADED and PARSED, and it is
-// the parse under Lighthouse's 4× CPU throttle that shows up as render delay.
-//
-// Scheduling then holds the fetch until the page has finished loading AND the
-// main thread goes idle. Both halves matter. `requestIdleCallback` alone fires as
-// soon as there is a gap, which on a fast page is while the browser is still
-// settling — the SDK's parse lands inside the FCP→TTI window and shows up as Total
-// Blocking Time, which ADR-0400 gates at 200 ms. Waiting for `load` first moves
-// that parse past the work the budget is actually protecting. Safari has no
-// `requestIdleCallback`, hence the timeout fallback.
 "use client";
 
 import { useEffect } from "react";

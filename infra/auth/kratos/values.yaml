@@ -1,15 +1,5 @@
-# Canonical Kratos config (ADR-0304), the single source of truth — injected into
-# the Ory umbrella chart as a Helm values overlay (`-f` locally via
-# scripts/cluster.sh; ArgoCD `valueFiles` per env). The identity schema is a
-# string artefact injected separately with `--set-file` (it lands at
-# /etc/config/user.v1.json, referenced by identity.schemas[].url below).
-#
-# Map-typed config cannot ride `--set-file`/`fileParameters` (those set a value to
-# a file's string content, but the chart renders `kratos.config` via `toYaml`), so
-# the config maps use a values overlay while the string artefacts use --set-file.
-#
-# Host is the `dev.example.com` baseline; each env overrides host/dsn/secrets via
-# its gitops overlay (infra/gitops/platform/<env>/values.yaml).
+# Canonical Kratos config (ADR-0304), the single source of truth — injected into the Ory umbrella chart as a Helm
+# values overlay (`-f` locally via scripts/cluster.sh; ArgoCD `valueFiles` per env).
 kratos:
   kratos:
     config:
@@ -23,10 +13,6 @@ kratos:
       selfservice:
         default_browser_return_url: https://dev.example.com/
         # Kratos forbids any post-flow `return_to` not prefixed by an entry here.
-        # The proxy (ADR-0400) sends a session-less visit to a gated route
-        # (/panel, /devportal) to login with `return_to=<that path>`, so the app
-        # origin must be allow-listed or the login redirect 400s into the error
-        # flow. Per-env overlays override the host.
         allowed_return_urls:
           - https://dev.example.com/
         flows:
@@ -37,15 +23,8 @@ kratos:
           registration:
             ui_url: https://dev.example.com/auth/register
             after:
-              # After a successful registration, create the identity's personal
-              # org (ADR-0304). East-west call to the orgs service (in-cluster,
-              # off the edge — ADR-0306); the handler starts a Temporal dual-write
-              # workflow. Blocking (default `ignore: false`) so a failed enqueue
-              # surfaces as a registration error the user can retry, rather than
-              # silently losing the org — once enqueued, Temporal guarantees it.
-              # `body` is the Jsonnet payload {identity_id, email}, inlined as a
-              # base64:// URL:  function(ctx) { identity_id: ctx.identity.id,
-              #                                  email: ctx.identity.traits.email, }
+              # After a successful registration, create the identity's personal org (ADR-0304). East-west call to the orgs
+              # service (in-cluster, off the edge — ADR-0306); the handler starts a Temporal dual-write workflow.
               hooks:
                 - hook: web_hook
                   config:
@@ -68,24 +47,8 @@ kratos:
             # Step-up (ADR-0304): mutating credentials/MFA requires a recent login.
             privileged_session_max_age: 15m
             required_aal: highest_available
-        # Authentication methods (ADR-0304). password is the first factor; TOTP and
-        # WebAuthn/passkeys are the operator second factor (AAL2 is enforced on the
-        # ops tier by services/authz, not forced on B2C product users here).
-        #
-        # The breach check is OFF by default (ADR-0304). It requires egress to
-        # api.pwnedpasswords.com on every password operation, which a platform
-        # deployed on a closed company network cannot reach — and Kratos'
-        # `ignore_network_errors` defaults to true, so an unreachable check does not
-        # fail the flow, it silently accepts the password. A control that is on in
-        # the manifest and off on the wire is worse than one that is off in both.
-        # The password method is hardened by length + identifier similarity instead.
-        #
-        # To turn it back on in an env that has the egress, set
-        # `haveibeenpwned_enabled: true` and `max_breaches: 0` here, and add the
-        # matching toFQDNs allow to 30-ory.yaml (see the note there). A closed
-        # network can point `haveibeenpwned_host` at a self-hosted k-anonymity API
-        # instead; Kratos requires that host to serve TLS from a CA the container
-        # already trusts, because it has no setting for a custom CA chain.
+        # Authentication methods (ADR-0304). password is the first factor; TOTP and WebAuthn/passkeys are the operator
+        # second factor (AAL2 is enforced on the ops tier by services/authz, not forced on B2C product users here).
         methods:
           password:
             enabled: true
@@ -112,40 +75,22 @@ kratos:
         lifespan: 168h
         whoami:
           required_aal: highest_available
-        # Scope the session cookie to the parent host so it is shared with
-        # subdomains (e.g. hubble.ops.<host>, served at its own origin). Without a
-        # domain the cookie is host-only and the subdomain sees no session. Set to
-        # the app host; each env overrides it (local → dev.localtest.me).
+        # Scope the session cookie to the parent host so it is shared with subdomains (e.g. hubble.ops.<host>, served at
+        # its own origin).
         cookie:
           domain: dev.example.com
           same_site: Lax
-      # Transactional mail (recovery/verification). The value that reaches Kratos
-      # is `kratos-secrets.smtpConnectionURI`, which the chart wires to
-      # COURIER_SMTP_CONNECTION_URI; this placeholder only applies to an env whose
-      # bundle leaves the key empty. Production submits through maddy, every
-      # non-production env through the Mailpit sink (ADR-0307).
+      # Transactional mail (recovery/verification).
       courier:
         smtp:
           connection_uri: "smtps://smtp.example.com:465?skip_ssl_verify=false"
-          # The platform's sender identity, and it is a decision rather than a
-          # default (ADR-0307). Kratos configures none, so it sends as its own
-          # upstream default — `no-reply@ory.kratos.sh`, confirmed on a live
-          # message in the sink.
-          #
-          # It must be on the subdomain maddy signs for. SPF and DKIM authenticate
-          # `mail.example.com`; a `From:` outside that domain fails DMARC
-          # ALIGNMENT even though the message is signed correctly, so the mail is
-          # rejected for a reason no log on this side reports.
+          # The platform's sender identity, and it is a decision rather than a default (ADR-0307). Kratos configures none,
+          # so it sends as its own upstream default — `no-reply@ory.kratos.sh`, confirmed on a live message in the sink.
           from_address: no-reply@mail.example.com
           from_name: Platform
-  # Cookie/cipher/system secrets + dsn come from a SOPS-managed Secret, never
-  # inline values (ADR-0202, Phase 5). `secret` is a top-level kratos-subchart key
-  # (sibling of the `kratos:` config block above), so it sits one level up. Every
-  # env's secrets bundle must provide a `kratos-secrets` Secret with keys
-  # secretsDefault / secretsCookie / secretsCipher / dsn / smtpConnectionURI
-  # (local: infra/gitops/platform/local/secrets/platform.enc.yaml). Rotation is
-  # dual-secret: prepend a new value, redeploy, then drop the old after the
-  # session-cookie TTL.
+  # Cookie/cipher/system secrets + dsn come from a SOPS-managed Secret, never inline values (ADR-0202, Phase 5).
+  # `secret` is a top-level kratos-subchart key (sibling of the `kratos:` config block above), so it sits one level
+  # up.
   secret:
     enabled: false
     nameOverride: kratos-secrets

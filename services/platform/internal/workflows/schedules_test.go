@@ -32,10 +32,8 @@ func erasureEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnvironm
 	return env
 }
 
-// The ordering is the property worth pinning: while the authz tuples exist the
-// services can still answer questions about the subject, which is what makes a
-// failed run safe to retry. A change that removed them first would leave rows
-// nothing can reach — erased in effect, invisible to the retry meant to erase them.
+// The ordering is the property worth pinning: while the tuples exist the services can still answer questions about
+// the subject, which is what makes a failed run safe to retry.
 func TestEraseSubjectRemovesTuplesLast(t *testing.T) {
 	t.Parallel()
 	var ts testsuite.WorkflowTestSuite

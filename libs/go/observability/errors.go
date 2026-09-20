@@ -14,28 +14,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// The error signal (ADR-0503). Errors are OpenTelemetry data grouped by a
-// computed fingerprint; no error-tracking product is on the floor, so the
-// grouping is a property of the data rather than of a backend.
-//
-// Two things travel with an error, and they are deliberately different shapes:
-//
-//   - error.fingerprint — high cardinality, and therefore a SPAN ATTRIBUTE and log
-//     structured metadata only. Never a Loki stream label, never a metric label
-//     (ADR-0500). It answers "which fault is this".
-//   - errors_total{service, kind} — one bounded metric, with `kind` from the closed
-//     enumeration below. It answers "how much", and it is what alerts read.
-//
-// The fingerprint is ours to get right: too coarse merges distinct faults, too fine
-// mints a new fault on every release. It is computed here, in one place, so the
-// frame-selection rule is tuned once and carries the tests that pin it.
+// The error signal (ADR-0503): errors are OpenTelemetry data grouped by a computed fingerprint.
+// error.fingerprint is high cardinality — a span attribute and log metadata only, never a stream or metric
+// label (ADR-0500). errors_total{service, kind} is the bounded metric alerts read.
 
-// Kind is the closed enumeration `errors_total` is labelled by.
-//
-// Closed, and small, because it is a metric label: an open string here is an
-// unbounded label, which is the failure mode ADR-0500's cardinality discipline
-// exists to prevent. A caller that needs more detail puts it on the span, where
-// detail is free.
+// Kind is the closed enumeration `errors_total` is labelled by. An open string here is an unbounded metric label
+// (ADR-0500).
 type Kind string
 
 const (
@@ -56,9 +40,7 @@ const (
 	KindTimeout Kind = "timeout"
 )
 
-// valid is the allow-list, enforced rather than documented. An unknown kind
-// becomes `internal` rather than being passed through: a typo must not be able to
-// mint a new label value, because a metric label is the one place a typo is
+// An unknown kind becomes `internal` rather than passing through: a metric label is the one place a typo is
 // permanent.
 var valid = map[Kind]bool{
 	KindInternal:   true,
@@ -83,12 +65,8 @@ func initErrorsTotal() {
 	)
 }
 
-// RecordError counts the error and attaches its fingerprint to the active span.
-//
-// One call does both, because the two halves are only useful together: a count
-// with no fingerprint says something broke and not what, and a fingerprint with no
-// count cannot be alerted on. Splitting them into two helpers is how one of them
-// stops being called.
+// RecordError counts the error and attaches its fingerprint to the active span. One call does both: a count with
+// no fingerprint says something broke and not what, and a fingerprint with no count cannot be alerted on.
 func RecordError(ctx context.Context, err error, kind Kind) {
 	if err == nil {
 		return
@@ -116,32 +94,9 @@ func RecordError(ctx context.Context, err error, kind Kind) {
 	)
 }
 
-// Fingerprint returns a stable identifier for the FAULT rather than for the
-// occurrence: the same bug in the same place yields the same value on every
-// occurrence and across releases, and two different bugs do not collide.
-//
-// It hashes the error's type together with the application call frames that
-// produced it, and deliberately excludes three things:
-//
-//   - LINE NUMBERS. Editing a comment above a function shifts every line below it.
-//     Including them mints a new fault for a cosmetic edit, which is the failure
-//     ADR-0503 names first.
-//   - VENDOR FRAMES. The frames inside a driver or a framework are the same for
-//     every caller, so including them merges unrelated faults that happen to fail
-//     in the same library.
-//   - THE VARYING PART OF THE MESSAGE. Ids, hostnames and counts differ per
-//     occurrence, so hashing them raw mints a fault per request. The message is
-//     used, with those runs normalised away — see normalise.
-//
-// # Why the message and not only the stack
-//
-// Go's standard errors carry no stack from where they were created. By the time a
-// handler records one, the call stack is the handler's, which is identical for
-// every fault it catches — so frames alone cannot tell two faults in one handler
-// apart. That was measured rather than assumed: the test that separates two call
-// sites failed against a frames-only hash. The wrap chain is what Go actually
-// preserves about an error's origin, so it is what identifies the fault, with the
-// record-site frames narrowing it further.
+// Fingerprint identifies the fault, not the occurrence. It hashes the error's type with the application call
+// frames, excluding line numbers, vendor frames, and the varying part of the message (see normalise).
+// The message is needed because Go's errors carry no stack: frames alone cannot tell two faults in one handler apart.
 func Fingerprint(err error) string {
 	if err == nil {
 		return ""
@@ -160,25 +115,9 @@ func Fingerprint(err error) string {
 	return hex.EncodeToString(sum.Sum(nil))[:16]
 }
 
-// normalise removes the parts of a message that vary per occurrence, leaving the
-// skeleton the code wrote.
-//
-// Two classes cover what this platform puts in messages, and both were derived
-// from what the identifiers here actually look like rather than guessed:
-//
-//   - a run of digits becomes <n> — counts, sizes, ports, status codes;
-//   - a run of letters and digits together, four characters or longer, becomes <x>
-//     — entity ids, uuids, digests, hostnames with an ordinal.
-//
-// The second rule is why this is not a hex-digit rule. The wire form of an id is
-// Crockford base32 (`order_01kztmx9e0fq1r13w5d1aerqw6`), whose alphabet includes
-// letters no hex run matches, so a hex rule shreds one id into fragments that
-// still differ between occurrences — which is the bug this replaced.
-//
-// It is deliberately blunt. A normaliser that tried to understand the message
-// would be a parser for a language nobody defined; the cost of blunt is merging
-// two faults whose messages differ only in a number, which is nearly always the
-// right answer anyway.
+// normalise removes the parts of a message that vary per occurrence: a run of digits becomes <n>, and a run of
+// letters and digits four or longer becomes <x>. Not a hex rule — the wire form of an id is Crockford base32,
+// whose alphabet a hex run shreds into fragments that still differ between occurrences.
 func normalise(msg string) string {
 	var b strings.Builder
 	b.Grow(len(msg))
@@ -216,11 +155,8 @@ func isAlnum(c byte) bool {
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-// errorType is the concrete type name of the error, unwrapped to its root.
-//
-// The root rather than the wrapper: every layer wraps with fmt.Errorf, so the
-// outermost type is `*fmt.wrapError` for almost everything and would group the
-// whole platform into one fault.
+// The root rather than the wrapper: every layer wraps with fmt.Errorf, so the outermost type is `*fmt.wrapError` for
+// almost everything.
 func errorType(err error) string {
 	for {
 		unwrapped, ok := err.(interface{ Unwrap() error })
@@ -236,11 +172,8 @@ func errorType(err error) string {
 	return strings.TrimPrefix(typeName(err), "*")
 }
 
-// appFrames walks the caller stack and keeps the first-party frames.
-//
-// The skip count starts above this package: the caller of RecordError or
-// Fingerprint is the first frame that identifies the fault. `runtime` and this
-// package's own frames would be identical for every error on the platform.
+// The skip count starts above this package: `runtime` and this package's own frames are identical for every error on
+// the platform.
 func appFrames() []string {
 	const (
 		skip      = 3
@@ -279,20 +212,12 @@ func isFirstParty(fn string) bool {
 	return !strings.HasPrefix(fn, modulePrefix+"libs/go/observability")
 }
 
-// typeName renders an error's dynamic type.
-//
-// The TYPE, not the message: a message carries the varying part — an id, a
-// hostname, a count — so hashing it would mint a fault per occurrence. Sentinel
-// errors created by errors.New all share one unexported type, which is why the
-// call frames below do the discriminating rather than this alone.
+// The type, not the message: a message carries an id or a count, so hashing it mints a fault per occurrence.
+// Sentinel errors from errors.New all share one unexported type, so the call frames do the discriminating.
 func typeName(err error) string {
 	return reflect.TypeOf(err).String()
 }
 
-// NormaliseForTest exposes the message normaliser to this package's tests.
-//
-// The rules it applies decide what merges with what, so they are pinned directly
-// rather than only through the fingerprints they feed — a change that merged two
-// distinct faults would otherwise show up as a passing test and a quieter
-// dashboard.
+// NormaliseForTest exposes the message normaliser: its rules decide what merges with what, so they are pinned
+// directly.
 func NormaliseForTest(msg string) string { return normalise(msg) }

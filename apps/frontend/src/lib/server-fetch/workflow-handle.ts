@@ -1,9 +1,4 @@
-// Cross-service mutation polling (ADR-0302, ADR-0400). Services that start a
-// workflow respond with 202 + a WorkflowHandle (the schema declared in each
-// service's openapi.yaml): { id, run_id, status, result_url }. The handle's
-// result_url points at the resource's GET endpoint (e.g. /api/orders/<id>), whose
-// payload carries the terminal domain status. This helper polls that URL until the
-// resource reaches a terminal state.
+// Cross-service mutation polling (ADR-0302, ADR-0400): a service that starts a workflow answers 202 with a handle.
 export type WorkflowHandle = {
   id: string;
   run_id: string;
@@ -31,10 +26,7 @@ type PollOpts = {
   signal?: AbortSignal;
 };
 
-// pollWorkflow GETs the handle's result_url until the resource's status is terminal
-// (or the timeout elapses), then returns that resource. It resolves on the first
-// terminal status regardless of success/failure — the caller decides how to render
-// "failed" vs "confirmed" (a failed charge is still a completed poll, not an error).
+// Resolves on the first terminal status regardless of success or failure: a failed charge is a completed poll, not an error.
 export async function pollWorkflow<T extends TerminalResource>(
   handle: WorkflowHandle,
   { intervalMs = 1000, timeoutMs = 60_000, forbiddenGraceMs = 10_000, signal }: PollOpts = {},
@@ -51,20 +43,9 @@ export async function pollWorkflow<T extends TerminalResource>(
     }
     // biome-ignore lint/performance/noAwaitInLoops: workflow polling is intentionally sequential
     const res = await fetch(handle.result_url, { cache: "no-store", signal });
-    // A denial is terminal for this poll, and the loop cannot see that on its own:
-    // every non-ok status is treated as "not settled yet", so a session that
-    // expires mid-workflow spins silently until the timeout and then reports the
-    // workflow as slow. This raises the same interrupt the fetch clients do.
-    //
-    // With one exception, and it is the first status this poll ever sees. The
-    // resource being polled is created by the workflow being polled, and so are the
-    // tuples that say who may read it — the dual write is the workflow's own first
-    // leg (ADR-0304). Between the 202 and that leg the resource is genuinely
-    // forbidden to the buyer who just placed it, so raising on it turns a checkout
-    // that is about to succeed into "You do not have access". Measured locally the
-    // window is ~100ms; the grace is two orders of magnitude wider so a loaded
-    // cluster stays inside it, and a 403 that outlives it is a real denial and
-    // raises exactly as before. 401 never waits: no session is no session.
+    // A denial is terminal for this poll: every non-ok status otherwise reads as "not settled yet", so an expired
+    // session spins until the timeout. One exception — the resource and the tuples that say who may read it are the
+    // workflow's own first leg (ADR-0304), so a 403 inside the grace is a checkout about to succeed. 401 never waits.
     if (res.status !== 403 || Date.now() > graceEnds) {
       raiseForAuthDenial(res.status);
     }

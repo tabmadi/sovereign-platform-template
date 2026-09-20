@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
 # Every service that owns a schema has a database (ADR-0300).
-#
-#   mise run lint:service-databases
-#
-# CNPG creates one database per Cluster and the rest come from `initdb.databases`
-# in infra/helm/platform/postgres/values.yaml. That list is
-# hand-written, it runs ONCE at bootstrap, and nothing else references it — so a new
-# service can be built, tested locally against a database its own migrations
-# created, and reach a deployed environment where the database does not exist.
-#
-# The failure is not subtle at the pod, but it is invisible at review: the service
-# crashloops on connect while every chart, policy and route around it is correct.
-# The analytics service shipped exactly this way.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -55,24 +43,13 @@ for dir in services/*/; do
     rc=1
   fi
 
-  # A DATABASE IS HALF OF IT. The other half is the Secret carrying its DSN: the
-  # service chart mounts `<service>-db`, so a service with a database and no Secret
-  # entry fails at CreateContainerConfigError — a message that names the Secret and
-  # not the list it is missing from. `analytics` shipped exactly that way, absent
-  # from the local file and from every environment's skeleton at once.
-  #
-  # The encrypted file is greppable on purpose: `.sops.yaml` encrypts only the
-  # VALUES (`encrypted_regex: ^(data|stringData)$`), so the secretTemplate NAMES
-  # stay in clear text and this needs no key and no decryption.
+  # The service chart mounts `<service>-db`, so a service with a database and no Secret entry fails at CreateContainerConfigError.
+  # `.sops.yaml` encrypts only the values, so the secretTemplate names stay in clear text and this needs no key.
   if ! grep -q "name: ${svc}-db" "$LOCAL_SECRET"; then
     warn "${svc} owns a schema but ${LOCAL_SECRET} carries no ${svc}-db Secret"
     rc=1
   fi
-  # AND THE THIRD PIECE: reaching the database. Postgres selects its own endpoint,
-  # so its policy is the complete caller list — a schema-owning service missing from
-  # it connects to a ClusterIP that answers nothing, and the migration init
-  # container fails with `connect: connection timed out`, which names an address.
-  # `analytics` was missing here too.
+  # Postgres selects its own endpoint, so its policy is the complete caller list: a schema-owning service missing from it connects to a ClusterIP that answers nothing.
   if ! grep -q "app.kubernetes.io/name: ${svc} }" "$PG_POLICY"; then
     warn "${svc} owns a schema but ${PG_POLICY} does not admit it to Postgres"
     rc=1
@@ -87,14 +64,8 @@ done
 
 [ "$found" -gt 0 ] || fail "no services with migrations found — the check would pass vacuously"
 
-# Migration VERSIONS must be unique within a service.
-#
-# dbmate keys `schema_migrations` by the numeric prefix, so two files sharing one
-# makes the second insert violate the primary key — and the chain cannot be applied
-# to a FRESH database at all. It is invisible on an existing one, because the
-# version is already recorded, which is why this reached the repository: payment
-# carried two files at `20260814000001` and its migrations had never been run from
-# empty.
+# dbmate keys `schema_migrations` by the numeric prefix, so two files sharing one cannot be applied to a fresh database.
+# It is invisible on an existing database, because the version is already recorded.
 for dir in services/*/migrations/; do
   svc="$(basename "$(dirname "$dir")")"
   [ "${svc#_}" = "$svc" ] || continue

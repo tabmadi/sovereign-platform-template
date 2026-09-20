@@ -45,18 +45,12 @@ spec:
     - toEntities: [world]
       toPorts:
         - ports: [{ port: "25", protocol: TCP }]
-    # MX, DANE `TLSA`, and MTA-STS records are all DNS lookups, and delivery cannot
-    # start without them. The baseline's DNS allow covers kube-dns; this is the
-    # rule that says so out loud, because a mail agent that cannot resolve fails as
-    # a queue that never drains.
+    # MX, DANE `TLSA`, and MTA-STS records are all DNS lookups, and delivery cannot start without them.
     - toEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns }
       toPorts:
         - ports: [{ port: "53", protocol: UDP }, { port: "53", protocol: TCP }]
-    # MTA-STS policies are fetched over HTTPS from the receiver's `mta-sts`
-    # subdomain (RFC 8461). Without this, every MTA-STS receiver falls back to the
-    # `local_policy` floor, which defers rather than downgrades — so the symptom is
-    # mail that stops moving rather than mail sent in the clear.
+    # MTA-STS policies are fetched over HTTPS from the receiver's `mta-sts` subdomain (RFC 8461).
     - toEntities: [world]
       toPorts:
         - ports: [{ port: "443", protocol: TCP }]

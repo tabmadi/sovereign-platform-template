@@ -1,5 +1,4 @@
-// Temporal worker for orgs.RegisterUser (ADR-0302): the post-registration
-// create-personal-org dual-write (ADR-0304).
+// Temporal worker for orgs.RegisterUser — the post-registration create-personal-org dual write (ADR-0302, ADR-0304).
 package main
 
 import (

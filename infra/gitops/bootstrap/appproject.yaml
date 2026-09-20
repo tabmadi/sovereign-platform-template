@@ -1,14 +1,6 @@
-# Per-environment AppProjects (ADR-0201). ArgoCD's real tenancy/grouping
-# primitive — the platform/service Applications the appsets fan out are grouped
-# *by* these (spec.project: <env>), not by parsing the `<env>-` name prefix.
-#
-# Applied by the root app-of-apps before the apps that reference them (sync-wave
-# "-10"). Scoped to this repo + the in-cluster server to demonstrate the boundary;
-# resource whitelists stay wide-open because platform charts install arbitrary
-# CRDs/cluster-scoped objects (a narrow whitelist would wedge them).
-#
-# gateway + root stay in the built-in `default` project (see app-gateway.yaml,
-# root-application.yaml) — they are single, cross-env apps with no one env to own.
+# Per-environment AppProjects (ADR-0201). ArgoCD's real tenancy/grouping primitive — the platform/service
+# Applications the appsets fan out are grouped *by* these (spec.project: <env>), not by parsing the `<env>-` name
+# prefix.
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -22,11 +14,8 @@ spec:
   description: Dev environment — platform + services.
   sourceRepos:
     - https://github.com/tabmadi/sovereign-platform-template.git
-      # Argo resolves a chart's `dependencies:` under the project's own permissions,
-      # so a repo a chart pulls from is a source of this project even though no
-      # Application names it. Both temporal-worker-controller charts declare an OCI
-      # dependency there; without this the render fails PermissionDenied, and Argo
-      # caches that failure — so the wave stays shut long after the cause is gone.
+      # Argo resolves a chart's `dependencies:` under the project's own permissions, so a repo a chart pulls from is a
+      # source of this project even though no Application names it.
     - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }
@@ -48,11 +37,8 @@ spec:
   description: Staging environment — platform + services.
   sourceRepos:
     - https://github.com/tabmadi/sovereign-platform-template.git
-      # Argo resolves a chart's `dependencies:` under the project's own permissions,
-      # so a repo a chart pulls from is a source of this project even though no
-      # Application names it. Both temporal-worker-controller charts declare an OCI
-      # dependency there; without this the render fails PermissionDenied, and Argo
-      # caches that failure — so the wave stays shut long after the cause is gone.
+      # Argo resolves a chart's `dependencies:` under the project's own permissions, so a repo a chart pulls from is a
+      # source of this project even though no Application names it.
     - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }
@@ -82,11 +68,8 @@ spec:
   description: Prod environment — platform + services.
   sourceRepos:
     - https://github.com/tabmadi/sovereign-platform-template.git
-      # Argo resolves a chart's `dependencies:` under the project's own permissions,
-      # so a repo a chart pulls from is a source of this project even though no
-      # Application names it. Both temporal-worker-controller charts declare an OCI
-      # dependency there; without this the render fails PermissionDenied, and Argo
-      # caches that failure — so the wave stays shut long after the cause is gone.
+      # Argo resolves a chart's `dependencies:` under the project's own permissions, so a repo a chart pulls from is a
+      # source of this project even though no Application names it.
     - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }

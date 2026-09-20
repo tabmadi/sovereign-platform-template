@@ -1,13 +1,7 @@
 /**
- * Catalog fixtures (ADR-0701). Read only by `lib/data/catalog.ts`.
- *
- * Deterministic: no `Math.random()`, no `new Date()`. A fixture that changes
- * between renders makes a visual baseline useless and a design review a guess.
- *
- * Full, not minimal. Two rows prove a table renders; they hide every layout
- * decision a real one forces — column widths under long names, alignment of
- * ragged numbers, where the eye lands. Eight to fifteen rows is what a screen
- * designed against them survives.
+ * Catalog fixtures (ADR-0701), read only by `lib/data/catalog.ts`. Deterministic: a fixture that changes
+ * between renders makes a visual baseline useless.
+ * Full, not minimal — two rows hide every layout decision a real table forces.
  */
 import type { Money } from "@libs/money";
 

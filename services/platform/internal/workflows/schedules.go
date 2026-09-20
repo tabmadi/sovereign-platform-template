@@ -1,16 +1,4 @@
 // Package workflows holds the platform's periodic obligations (ADR-0302).
-//
-// These belong to no single service, and that is why this deployable exists. A DR
-// drill, a retention pass, a cardinality audit and a quarterly review are each
-// decided by an ADR that names no owner, and hanging them off catalog or orders
-// would put a service in charge of work outside its domain — the thing the
-// process-owner rule exists to prevent.
-//
-// ADR-0301 rejects "a dedicated erasure service calling each owning service's API",
-// and this is not that. The objection there was to a service reimplementing
-// retries, timers and state; everything here gets all three from Temporal, which
-// is the option that ADR chose. What lives here is the WORKFLOW, not a second
-// orchestrator.
 package workflows
 
 import (
@@ -21,16 +9,12 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-// rollupTrailingDays is how far back each funnel pass recomputes. Events arrive
-// late, so a bucket is not final the moment its day ends; three days is longer
-// than any plausible delivery delay and short enough that a daily pass stays a
-// bounded query.
+// How far back each funnel pass recomputes. Events arrive late, so a bucket is not final when its day ends; three
+// days is longer than any plausible delivery delay.
 const rollupTrailingDays = 3
 
-// activityOptions is shared by every workflow here. Periodic work is not latency
-// sensitive and its activities talk to systems that are occasionally slow, so the
-// timeout is generous and the retry count is high: a run that fails because a
-// dependency was restarting has told us nothing.
+// Periodic work is not latency sensitive and its dependencies are occasionally slow, so the timeout is generous and
+// the retry count high.
 func activityOptions(ctx workflow.Context) workflow.Context {
 	return workflow.WithActivityOptions(
 		ctx,
@@ -44,12 +28,8 @@ func activityOptions(ctx workflow.Context) workflow.Context {
 	)
 }
 
-// DisasterRecoveryDrill opens the quarterly tracking issue ADR-0207 requires.
-//
-// It opens an issue rather than performing a restore, and that is the ADR's own
-// wording: the drill is a rehearsal people carry out, and what a schedule can
-// guarantee is that nobody forgets it is due. A workflow that claimed to have
-// tested a restore without a human reading the result would be worse than none.
+// DisasterRecoveryDrill: It opens an issue rather than performing a restore (ADR-0207): the drill is a rehearsal
+// people carry out, and a workflow claiming to have tested a restore would be worse than none.
 func DisasterRecoveryDrill(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
 	title := "Quarterly restore rehearsal (ADR-0200, ADR-0207)"
@@ -64,12 +44,8 @@ func DisasterRecoveryDrill(ctx workflow.Context) error {
 	return nil
 }
 
-// TriggerReview opens the quarterly deferral-and-verification review (ADR-0000).
-//
-// It covers the deferral register's `query` rows — the ones whose data exists and
-// which nothing is asking — and the ASVS table's cadence. Both are obligations
-// that decay silently: nothing breaks when a review is skipped, which is exactly
-// why the reminder has to be mechanical.
+// TriggerReview: Covers the deferral register's `query` rows and the ASVS cadence (ADR-0000). Both decay silently —
+// nothing breaks when a review is skipped — which is why the reminder is mechanical.
 func TriggerReview(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
 	title := "Quarterly deferral and verification review (ADR-0000, ADR-0203)"
@@ -83,12 +59,8 @@ func TriggerReview(ctx workflow.Context) error {
 	return nil
 }
 
-// CardinalityAudit reports the metric label cardinality ADR-0500 asks to be
-// audited, and opens an issue when it is close to the ceiling.
-//
-// The audit is a query rather than a rule because the interesting answer is a
-// ranking — which labels are growing — and an alert can only say that a total
-// crossed a line. `ActiveSeriesNearCeiling` already covers the line.
+// CardinalityAudit: A query rather than a rule: the interesting answer is which labels are growing, and an alert can
+// only say a total crossed a line. `ActiveSeriesNearCeiling` covers the line (ADR-0500).
 func CardinalityAudit(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
 	err := workflow.ExecuteActivity(ctx, "AuditCardinalityActivity").Get(ctx, nil)
@@ -98,18 +70,9 @@ func CardinalityAudit(ctx workflow.Context) error {
 	return nil
 }
 
-// FunnelRollup recomputes every funnel's rollup over a trailing window (ADR-0700).
-//
-// The window is a trailing few days rather than "since the last run", and that is
-// deliberate. Events arrive late — a browser that was offline, a collector that
-// retried — so a bucket computed the moment its day ended is missing whatever
-// arrives afterwards. Recomputing the recent past on every pass is what makes the
-// numbers settle, and it costs nothing because a bucket is REPLACED rather than
-// added to.
-//
-// One activity per funnel rather than one for all of them: a funnel whose
-// definition names an event nothing emits should not stop the others being
-// computed, and Temporal's retries are per activity.
+// FunnelRollup: A trailing window rather than "since the last run" (ADR-0700): events arrive late, and recomputing
+// the recent past costs nothing because a bucket is replaced rather than added to. One activity per funnel, so a
+// funnel naming an event nothing emits does not stop the others.
 func FunnelRollup(ctx workflow.Context, funnels []string) error {
 	ctx = activityOptions(ctx)
 
@@ -135,21 +98,9 @@ func FunnelRollup(ctx workflow.Context, funnels []string) error {
 	return nil
 }
 
-// RestoreVerification proves a backup is restorable, weekly (ADR-0207).
-//
-// The quarterly rehearsal that DisasterRecoveryDrill schedules is a person
-// restoring a cluster and timing it. This is the other half, and it exists because
-// quarterly is the detection latency for an unrestorable backup: a backup that
-// stopped being valid in January is discovered in April, and by then every backup
-// in the retention window may share the defect.
-//
-// It restores into a SCRATCH namespace and asserts row counts, then tears the
-// restore down. Asserting row counts rather than "the restore succeeded" is the
-// point — a restore that produces an empty database succeeds.
-//
-// It does not page. A failed verification means the backups are suspect, which is
-// hours-matter rather than minutes-matter (ADR-0502), and the alert it raises is
-// the ticket.
+// RestoreVerification runs weekly, because quarterly is the detection latency for an unrestorable backup: one
+// that stopped being valid in January is found in April (ADR-0207). It asserts row counts, not "the restore
+// succeeded" — a restore producing an empty database succeeds. It does not page.
 func RestoreVerification(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
 

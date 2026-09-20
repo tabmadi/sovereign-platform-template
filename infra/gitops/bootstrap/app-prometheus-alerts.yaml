@@ -1,17 +1,4 @@
-# Prometheus alerts Application (ADR-0500). Makes alerts-as-code actually flow
-# through GitOps: the chart at infra/observability/alerts generates the
-# `prometheus-alerts` ConfigMap from the *.yaml beside it, which the observability
-# Helm chart mounts into Prometheus (rule_files: /etc/prometheus/rules/*.yaml).
-# Its template globs, so adding a rule file is adding the file. The exact
-# counterpart of app-grafana-dashboards.yaml for the alert rules. Picked up by the
-# root app-of-apps, which recurses infra/gitops/bootstrap.
-#
-# Env-agnostic (the same rules in every env), like the shared gateway app,
-# so it has no single-env AppProject and stays in `default`.
-#
-# Sync-wave 2 (the data-tier slot): the ConfigMap must exist BEFORE the core tier
-# (wave 3) starts Prometheus, which mounts it as a volume. A plain ConfigMap is
-# Healthy the moment it applies, so wave 3 is not delayed.
+# Prometheus alerts Application (ADR-0500).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

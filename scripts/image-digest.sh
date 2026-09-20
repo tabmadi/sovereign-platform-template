@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-# Resolve a tag to the immutable index digest a values file or Dockerfile pins to
-# (ADR-0101, ADR-0104). Reads the registry's own `Docker-Content-Digest` for the
-# tag rather than hashing a manifest body, because a multi-arch tag's body is the
-# index and hashing one platform's manifest pins one architecture by accident.
-# Progress goes to stderr so stdout is the digest alone and the call composes.
-#   mise run image:digest -- gcr.io/distroless/static-debian13:nonroot
+# Resolve a tag to the immutable index digest a values file pins to, reading the registry's own `Docker-Content-Digest` (ADR-0101, ADR-0104).
 set -euo pipefail
 # shellcheck source=lib/log.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"

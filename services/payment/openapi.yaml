@@ -61,10 +61,7 @@ paths:
   /charges/{id}/refund:
     post:
       operationId: refundCharge
-      # Operator action (ADR-0401): the future admin-gen emits this as an action
-      # button/form, not a CRUD page (`x-admin: action`). Edge-reachable first-party
-      # but kept out of the public docs (`internal`, ADR-0303 audience ladder) —
-      # refunding is an operator action, not a public self-serve op.
+      # An operator action, emitted as a button rather than a CRUD page (ADR-0401), and kept out of the public docs as `internal` (ADR-0303).
       x-admin: action
       x-audience: internal
       description: Refund a settled charge. Starts the Refund workflow (ADR-0302).
@@ -209,10 +206,7 @@ components:
         id:     { type: string }
         run_id: { type: string }
         status: { type: string, enum: [running, completed, failed, cancelled] }
-        # uri-reference, not uri: the value is a path on this same origin
-        # (`/api/orders/<id>`), and `format: uri` means an absolute URI — the
-        # committed example fails its own schema under a validator that checks
-        # formats, which is how the API mock found this.
+        # uri-reference, not uri: the value is a path on this origin, and `format: uri` means an absolute URI, so the committed example would fail its own schema.
         result_url: { type: string, format: uri-reference, description: "GET to fetch terminal status + result" }
       # See orders: `running` is what the real 202 returns, and the mock's poll never
       # progresses past it (ADR-0600).

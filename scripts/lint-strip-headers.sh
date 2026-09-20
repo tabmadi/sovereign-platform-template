@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Anti-spoofing gate (ADR-0305). Every IngressRoute that authenticates
-# via the Oathkeeper forwardAuth middleware MUST also apply strip-identity-headers
-# BEFORE it, so a client cannot inject X-User-* / X-Org-Id / X-Roles on any route
-# (anonymous routes especially). Fails CI if a forward-auth route is missing the
-# strip, or applies it after forwardAuth.
+# Anti-spoofing gate (ADR-0305): a forwardAuth IngressRoute must apply strip-identity-headers before it, so a client cannot inject X-User-* / X-Org-Id / X-Roles.
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 cd "$(cd "$(dirname "$0")/.." && pwd)"

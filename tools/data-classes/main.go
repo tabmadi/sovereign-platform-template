@@ -1,21 +1,4 @@
-// Command data-classes generates the data-class and retention registry
-// (ADR-0301).
-//
-// ADR-0301 calls the registry "the checklist a new service is reviewed against",
-// and the risk it names is precise: a new service can silently omit its
-// obligations, and the omission surfaces only on the first request that needs it.
-// A checklist someone maintains by hand is a checklist that is wrong the first
-// time nobody notices a table.
-//
-// So it is a VIEW over two sources and owns neither. The tags come from the
-// migrations, where `COMMENT ON COLUMN … IS 'pii:<class>'` already lives in the
-// DDL and travels with the schema; the retention and disposal come from
-// tools/codegen/retention.yaml, because how long to keep a class and whether to
-// delete or anonymise it are decisions, and a column tag cannot carry a decision.
-//
-// The registry is therefore never edited. Adding a tagged column to a migration
-// adds a row here, and the drift check is what makes that automatic rather than
-// remembered.
+// Command data-classes generates the data-class and retention registry (ADR-0301).
 package main
 
 import (
@@ -30,14 +13,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// The registry's prose, kept beside this file rather than inside it. Markdown
-// paragraphs are long lines by nature and Go source lines are not, so embedding is
-// what lets both read the way they should.
-//
-// `.tmpl` rather than `.md`: their relative links resolve from the OUTPUT's
-// directory, not from this one, so the markdown linter would report every one of
-// them as broken.
-//
+// `.tmpl` rather than `.md`: the relative links resolve from the output's directory, so the markdown linter reads
+// every one as broken.
+
 //go:embed header.tmpl
 var header string
 
@@ -124,12 +102,8 @@ func loadRetention() (retention, error) {
 	return out, nil
 }
 
-// scanColumns reads every service's migrations and returns the tagged columns.
-//
-// A later migration's tag wins, which is what makes re-classifying a column
-// possible: a dbmate migration is immutable once applied, so a column changes
-// class by a new `COMMENT ON`, and the registry must reflect the last word rather
-// than the first.
+// scanColumns reads every service's migrations. A later migration's tag wins, so a column is re-classified by a new
+// `COMMENT ON`.
 func scanColumns() ([]column, error) {
 	paths, err := filepath.Glob(filepath.Join("services", "*", "migrations", "*.sql"))
 	if err != nil {

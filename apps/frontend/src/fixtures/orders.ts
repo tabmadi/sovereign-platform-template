@@ -1,8 +1,6 @@
 /**
- * Orders fixtures (ADR-0701). Read only by `lib/data/orders.ts`.
- *
- * The handle and the settled resource are both fixed: a design-time checkout shows
- * the same id every time, so a screenshot of it means something.
+ * Orders fixtures (ADR-0701), read only by `lib/data/orders.ts`. The handle and the settled resource are both
+ * fixed, so a screenshot of a design-time checkout means something.
  */
 export const order = {
   handle: {

@@ -1,16 +1,5 @@
-// Command lint-adr-xref checks the ADR set's internal wiring. Cross-references are the
-// connective tissue of the set: a reference to a number nobody allocated, a Related
-// header that points one way, or an index row for a file that does not exist are all
-// silent until a reader follows one. Six checks, all cheap:
-//
-//  1. Every ADR-XXXX reference in docs/ resolves to a file or to a reserved number.
-//  2. Every ADR named in a Related header is a document that exists.
-//  3. Every ADR carries a Decides line, and the index has one row per ADR file.
-//  4. Every component named in adoption-path.md appears in operational-surface.md, and
-//     every ADR stating a deferral has a row in the deferral register.
-//  5. Nothing under docs/ links to the root README, which ADR-0001 forbids because a
-//     generated project rewrites that file.
-//  6. No reserved number is also a live file.
+// Command lint-adr-xref checks the ADR set's internal wiring: references, Related headers, index rows, and genre
+// paths (ADR-0001).
 package main
 
 import (
@@ -155,10 +144,6 @@ func checkReferences(set *adrSet) []string {
 	return problems
 }
 
-// checkRelatedExists validates the Related header without dictating its contents.
-// Related is a curated dependency edge — the ADRs an author judges this one to rest on
-// — so neither symmetry nor exhaustive coverage is the invariant. What is invariant is
-// that every number it names is a document a reader can open.
 func checkRelatedExists(set *adrSet) []string {
 	var problems []string
 	for num, refs := range set.related {
@@ -248,11 +233,6 @@ func checkComponentAgreement() []string {
 	return problems
 }
 
-// checkDeferralCoverage keeps the register and the set in step. The register restates a
-// trigger the ADR owns, so the drift class is an ADR that gains or loses a deferral and
-// a register nobody updated. Coverage is checkable even though the wording is not: an
-// ADR with a Trigger row is an ADR the register cites, and every ADR the register cites
-// still states one.
 func checkDeferralCoverage(set *adrSet) []string {
 	body, err := os.ReadFile(deferPath)
 	if err != nil {
@@ -273,10 +253,8 @@ func checkDeferralCoverage(set *adrSet) []string {
 		if err != nil {
 			return []string{fmt.Sprintf("%s: %v", path, err)}
 		}
-		// ADR-0000 carries the Trigger field's own definition rather than a deferral,
-		// and the reverse direction is not checkable: a deferral may be stated in prose
-		// or inside a growth table, so a registered ADR without a Trigger row is not a
-		// defect.
+		// ADR-0000 defines the Trigger field rather than deferring, and a deferral stated in prose means a registered ADR
+		// without a Trigger row is not a defect.
 		if num == "0000" || registered[num] {
 			continue
 		}

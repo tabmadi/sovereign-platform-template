@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
-# Operator onboarding (ADR-0304, ADR-0306): grant a human the ops tier by adding
-# them to group:operator in OpenFGA. Resolves the Kratos identity id by email so
-# operators are referenced by who they are, not an opaque id. Idempotent.
-#
-#   mise run ops:grant -- alice@example.com            # add to group:operator
-#   mise run ops:grant -- alice@example.com --revoke   # remove
-#
-# The per-tool dashboard grants (dashboard:<tool>#viewer@group:operator#member)
-# are platform policy seeded once per env by the Argo-synced OpenFGA seed Job
-# (infra/helm/platform/openfga); this only manages individual membership. The
-# new operator must still enrol a second factor
-# (AAL2) before any ops dashboard renders. Run against the target cluster
-# (KUBE_CONTEXT overrides the current kubectl context).
+# Grant a human the ops tier by adding them to group:operator in OpenFGA, resolving the Kratos identity by email (ADR-0304, ADR-0306). Idempotent.
 set -euo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -58,11 +46,8 @@ if [ -z "$id" ]; then
   exit 1
 fi
 
-# Coarse ops gate (ADR-0306) is a CLAIM check on the `operator` identity trait, NOT
-# an OpenFGA call — and it is ALWAYS enforced (the OpenFGA group:operator membership
-# below only feeds the optional fine gate, OPS_FINE_GRAINED). Setting group:operator
-# without the trait grants nothing, so set the trait here too. The gate additionally
-# requires AAL2, which the operator enrols themselves.
+# The coarse ops gate is a claim check on the `operator` trait, not an OpenFGA call, and is always enforced (ADR-0306).
+# group:operator without the trait grants nothing. The gate additionally requires AAL2, which the operator enrols.
 op_val=true
 [ "$action" = "delete" ] && op_val=false
 curl -fsS -X PATCH "http://localhost:4434/admin/identities/${id}" \

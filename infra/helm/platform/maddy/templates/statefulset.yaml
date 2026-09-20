@@ -59,11 +59,7 @@ spec:
               drop: ["ALL"]
           volumeMounts:
             - { name: config, mountPath: /etc/maddy, readOnly: true }
-            # The DKIM key, read-only and REQUIRED. `optional` is deliberately
-            # absent: maddy generates a keypair when this path is missing, so an
-            # optional mount would produce a running agent signing with a key no
-            # DNS record matches — every message failing DKIM, and nothing
-            # unhealthy to notice. A missing Secret must stop the pod instead.
+            # The DKIM key, read-only and REQUIRED.
             - { name: dkim, mountPath: /run/secrets/dkim, readOnly: true }
             - { name: state, mountPath: /data }
           livenessProbe:

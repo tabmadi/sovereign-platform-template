@@ -4,10 +4,7 @@ extends:
   - "spectral:oas"
 
 rules:
-  # Style
-  # Per-PROPERTY examples stay off: they are maintenance on every scaffolded field
-  # for no consumer. Whole-response examples are the opposite — see
-  # response-example-required below.
+  # Per-property examples stay off: maintenance on every scaffolded field for no consumer.
   oas3-missing-example: off
   operation-operationId: error
   operation-tag-defined: error
@@ -42,16 +39,8 @@ rules:
       functionOptions:
         type: snake
 
-  # Response examples are load-bearing, not documentation garnish (ADR-0600): the
-  # API mock serves them verbatim to the UI development loop, and the Scalar
-  # developer portal renders the same values — one investment, two consumers. Without
-  # one, a mocked response is schema-generated: an unconstrained array legitimately
-  # becomes `[]`, and an open object grows fields the real API never returns.
-  #
-  # The check runs on the RESOLVED document, so a $ref to a component schema that
-  # carries an `example` satisfies it; an inline array schema needs its own (the
-  # item's example says nothing about how many rows come back). 204s have no content
-  # and are therefore out of scope by construction.
+  # The API mock serves response examples verbatim and Scalar renders the same values (ADR-0600); without one a mocked response is schema-generated.
+  # The check runs on the resolved document, so a $ref to a component carrying an `example` satisfies it.
   response-example-required:
     description: every 2xx response schema must carry an `example` — the API mock serves it and the developer portal renders it
     given: $.paths.*[get,post,put,patch,delete].responses['200','201','202'].content.*.schema
@@ -61,10 +50,7 @@ rules:
       field: example
       function: truthy
 
-  # An example that no longer validates against its own schema is worse than no
-  # example: the mock serves it verbatim (ADR-0600), so the UI development loop is
-  # fed a shape the real API cannot return, and the portal documents that shape as
-  # if it were true. Mechanically detectable, so it is not left to review.
+  # The mock serves an example verbatim (ADR-0600), so one that no longer validates feeds the UI a shape the real API cannot return.
   oas3-valid-schema-example: error
   oas3-example-external-check: error
 
@@ -77,10 +63,7 @@ rules:
       field: tags
       function: truthy
 
-  # admin-gen markers (ADR-0401). The generator reads two `x-admin` markers: `crud`
-  # on a tag (the resource group) and `action` on an operation. A value in the wrong
-  # place — `crud` on an operation, or `action`/typo on a tag — is silently ignored
-  # (no admin page), so pin each to its valid value.
+  # admin-gen reads `x-admin: crud` on a tag and `action` on an operation (ADR-0401); a value in the wrong place is silently ignored.
   x-admin-operation-value:
     description: "operation-level x-admin must be `action` (resource CRUD is marked with x-admin: crud on the tag)"
     given: $.paths.*[*]['x-admin']

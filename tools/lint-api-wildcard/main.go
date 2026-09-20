@@ -1,12 +1,5 @@
-// Command lint-api-wildcard enforces that the product edge rule (ADR-0306) never
-// matches `/api/` with an open path wildcard. The panel-breaking regression was a
-// bare `<**>/api/<**>` match: it collides with every ops dashboard's own route, so
-// an ops `/api/*` request matched both `api-services` and its `ops-<tool>` rule and
-// Oathkeeper returned 500 on the ambiguity. The safe form enumerates the resources
-// it fronts (`/api/<{products,orders,...}><**>`), so this guard fails non-zero on any
-// rule whose match URL has a wildcard immediately after `/api/`.
-//
-//	go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
+// Command lint-api-wildcard enforces that the product edge rule never matches /api/ with an open path wildcard
+// (ADR-0306).
 package main
 
 import (

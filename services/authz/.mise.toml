@@ -1,30 +1,20 @@
 [env]
-# The registered local port for this service (scripts/lib/ports.sh). Committed
-# rather than left to .env so that a sibling's <SVC>_URL default can rely on it,
-# and so two services can never quietly pick the same port. In-cluster is
-# unaffected — the chart sets no PORT, so pods still bind :8080.
+# The registered local port (scripts/lib/ports.sh), committed so a sibling's <SVC>_URL default can rely on it. The chart sets no PORT, so pods still bind :8080.
 PORT = "8085"
 _.file = ".env"
 
 [tasks.env]
-# Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why
-# it stops rather than continuing). Hidden: it runs as a dependency.
+description = "Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why it stops rather than continuing)."
 hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
 [tasks.server]
-# Dependency components this service needs in the cluster (ADR-0205, ADR-0600).
-# Declared here, with the service, because the service knows its own dependencies
-# and a named profile never can. mise resolves the graph: the shared cluster:up
-# edge is deduped, independent components come up in parallel, and each one
-# fast-exits when already Ready.
+description = "Dependency components this service needs in the cluster (ADR-0205, ADR-0600)."
 depends = ["env", "dep:openfga", "dep:temporal"]
 run = "go run ./cmd/server"
 
 [tasks.worker]
-# Serves the authz-queue: the operator-registration dual write (ADR-0304). No
-# postgres — this service owns no schema, so the worker's dependencies are the
-# two systems the dual write spans.
+description = "Serves the authz-queue: the operator-registration dual write (ADR-0304)."
 depends = ["env", "dep:openfga", "dep:temporal"]
 run = "go run ./cmd/worker"
 
@@ -35,8 +25,7 @@ run = "go test ./..."
 run = "golangci-lint run ./..."
 
 [tasks.generate]
-# No sqlc pass: this service owns no schema (see [tasks.worker]). The spec is the
-# only codegen input it has.
+description = "No sqlc pass: this service owns no schema (see [tasks.worker])."
 run = "bash ../../scripts/gen-openapi.sh"
 
 [tasks.build]

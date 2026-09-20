@@ -1,29 +1,9 @@
 # Deferral triggers, as rules (ADR-0000, docs/reference/deferral-register.md).
-#
-# The register records a growth trigger per deferred component: the condition
-# under which the deferral stops being correct. A trigger nobody evaluates is
-# indistinguishable from no trigger, so the ones whose signal this platform
-# already collects are rules here.
-#
-# These are all `ticket`. A deferral trigger says a decision needs revisiting,
-# never that a user is affected right now — the symptom rule (ADR-0502) puts
-# every one of them on the ticket side, and a page would be a claim about a
-# human that none of them can support.
-#
-# A trigger appears here only once something collects its signal. The register's
-# remaining rows name metrics this platform does not gather; see the note in that
-# document rather than assuming a rule was forgotten.
 groups:
   - name: deferral.storage
     rules:
-      # ADR-0207's Longhorn trigger: any volume exceeding 50% of node disk. At
-      # that point one volume can fill the node that hosts every other workload,
-      # which is the failure local-path cannot isolate and a real CSI can.
-      #
-      # Both series come from the kubeletstats receiver. On a kind node the
-      # per-claim identifying attributes are absent (see capacity.yaml), so this
-      # names the ratio rather than the claim; on a real storage class the
-      # claim-level labels appear and the same expression identifies the volume.
+      # ADR-0207's Longhorn trigger: any volume exceeding 50% of node disk. At that point one volume can fill the node
+      # that hosts every other workload, which is the failure local-path cannot isolate and a real CSI can.
       - alert: VolumeExceedsHalfNodeDisk
         expr: |
           max(k8s_volume_capacity_bytes) / max(k8s_node_filesystem_capacity_bytes) > 0.5
@@ -39,13 +19,8 @@ groups:
 
   - name: deferral.load
     rules:
-      # ADR-0601's k6-operator trigger: dropped_iterations above 0 means the load
-      # generator could not keep up, so the run measured the generator rather
-      # than the platform and its numbers are not a capacity result.
-      #
-      # The series exists only while a load run is in flight, which is correct:
-      # outside a run there is nothing to say, and `increase()` over an absent
-      # series yields no samples rather than a false zero.
+      # ADR-0601's k6-operator trigger: dropped_iterations above 0 means the load generator could not keep up, so the
+      # run measured the generator rather than the platform and its numbers are not a capacity result.
       - alert: LoadGeneratorDroppingIterations
         expr: |
           increase(k6_dropped_iterations_total[5m]) > 0
@@ -61,20 +36,8 @@ groups:
 
   - name: deferral.registry
     rules:
-      # ADR-0105's mirroring trigger: an upstream registry rate-limits or removes
-      # a pinned digest the cluster depends on. Both arrive as the same thing the
-      # node can see — the kubelet failing to pull — so the rule watches pull
-      # errors rather than trying to tell the two causes apart.
-      #
-      # The series comes from the kubelet's own /metrics endpoint, scraped by the
-      # node agent. It did not exist until that scrape was added: this row was
-      # `uncollected` in the register precisely because a rule without it would
-      # have been a rule that can never fire.
-      #
-      # `increase() > 0` over an hour rather than a rate threshold. A pull failure
-      # is not a volume problem — one is a signal, and a registry that has started
-      # refusing produces a handful, not a flood. `for: 15m` is what keeps a single
-      # transient retry from opening a ticket.
+      # ADR-0105's mirroring trigger: an upstream registry rate-limits or removes a pinned digest the cluster depends
+      # on.
       - alert: ImagePullsFailing
         expr: |
           increase(kubelet_runtime_operations_errors_total{operation_type="pull_image"}[1h]) > 0
@@ -92,22 +55,8 @@ groups:
 
   - name: deferral.analytics
     rules:
-      # ADR-0700's storage-growth trigger: the events table sustaining more than
-      # about 10M rows per month is the point at which a column store earns its
-      # place and Postgres stops being the obvious answer.
-      #
-      # The series comes from the analytics service, which reads the CURRENT
-      # MONTH's partition on each metric export. This row was `uncollected` in the
-      # register until then — measurable in principle, gathered by nothing — which
-      # is the state that reads as covered while nobody writes the rule.
-      #
-      # `max` rather than `sum`: every replica of the service observes the same
-      # table, so summing would multiply the row count by the replica count and
-      # fire the trigger at a third of the real volume.
-      #
-      # `for: 24h` because this is a capacity signal, not an incident. A month that
-      # crosses the line on its last day is not the same as a month that has been
-      # over it for a week, and only the second is worth a ticket.
+      # ADR-0700's storage-growth trigger: the events table sustaining more than about 10M rows per month is the point
+      # at which a column store earns its place and Postgres stops being the obvious answer.
       - alert: AnalyticsStorageGrowthTrigger
         expr: |
           max(analytics_events_rows_current_month) > 10000000

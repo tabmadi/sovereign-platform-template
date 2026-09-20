@@ -1,27 +1,8 @@
 #!/usr/bin/env bash
 # The local cluster, one entrypoint (ADR-0600). Stages live in lib/cluster.sh.
-#
-#   cluster.sh up [base|full]     create, resume or repair the tier
-#   cluster.sh stop [base|full]   halt the nodes, keep the image cache
-#   cluster.sh down [base|full]   delete the cluster
-#   cluster.sh heal [base|full]   restart the nodes and rebuild the datapath
-#   cluster.sh status [base|full] what is running, and where to reach it
-#   cluster.sh add <name>         one service, app or platform chart, from the working tree
-#   cluster.sh remove <name>      the same, uninstalled and handed back to GitOps
-#   cluster.sh glue [name port]   re-stamp the host edge glue
-#
-# The tier is a stage list, not a branch. Both are kind, one node each; what
-# separates them is which workloads run and what drives them — cluster:up base is
-# imperative, cluster:up full is ArgoCD syncing committed master (ADR-0205).
-#
-# Nothing here knows about HTTP proxies. A firewalled machine converges its
-# environment once with proxy:setup and then runs these commands unchanged.
 set -euo pipefail
 
-# This script owns the tier: it takes one as an argument, below, and `up` with no
-# argument creates the base tier. Every other script resolves the tier from the
-# cluster that is running (see lib/cluster.sh), which would make a bare `up` repair
-# whatever is already there instead of creating base.
+# This script owns the tier and `up` with no argument creates base. Every other script resolves the tier from the cluster that is running.
 TIER_FROM_ARGV=1
 source "$(dirname "$0")/lib/cluster.sh"
 cd "$ROOT"
@@ -135,10 +116,7 @@ up)
   ;;
 
 stop)
-  # `docker stop` keeps the containers, so each node's containerd image cache and
-  # its volumes survive and the next `up` resumes cold-pull-free. kind has no stop
-  # of its own. Every node: stopping one of a multi-node cluster leaves the rest
-  # holding memory for a cluster nobody is using.
+  # `docker stop` keeps the containers, so each node's containerd cache survives; kind has no stop of its own. Every node, or the rest hold memory for a cluster nobody uses.
   name="$(cluster_name)"
   if ! cluster_exists "$name"; then
     ok "cluster '${name}' does not exist — nothing to stop"
@@ -166,11 +144,7 @@ down)
   ;;
 
 heal)
-  # A host reboot replays the node container raw: Cilium's per-node datapath can be
-  # half-restored (pods then cannot reach the API, which cascades to CoreDNS and
-  # every controller), and the docker-bridge gateway can have moved under the edge
-  # glue. Restarting the node re-runs its entrypoint cleanly; forcing those stages
-  # rebuilds what the restart alone leaves stale.
+  # A host reboot replays the node container raw, leaving Cilium's datapath half-restored and the docker-bridge gateway moved. Restarting re-runs the entrypoint cleanly.
   name="$(cluster_name)"
   if ! docker inspect "${name}-control-plane" >/dev/null 2>&1; then
     other_tier_hint heal
@@ -216,10 +190,7 @@ status)
 
 add)
   NAME="${1:?usage: mise run cluster:add -- <service|app|chart>}"
-  # The two paths share only a spine (pause Argo, then helm upgrade --take-ownership
-  # with the local values). A service resolves to a values file and always builds an
-  # image; a chart resolves to a directory and needs the auth overlays. Unify the
-  # interface, leave the implementations where the knowledge lives.
+  # The two paths share only a spine: a service resolves to a values file and builds an image; a chart resolves to a directory and needs the auth overlays.
   case "$(classify "$NAME")" in
   service | app) exec bash scripts/service-deploy.sh "$NAME" ;;
   chart) exec bash scripts/platform-deploy.sh "$NAME" ;;

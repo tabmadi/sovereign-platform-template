@@ -1,6 +1,4 @@
-// Package authz is the shared OpenFGA client wrapper (ADR-0304). Services never
-// import openfga/go-sdk directly; they call Checker.Allowed(...). A depguard rule
-// (.golangci.yml) enforces this — the SDK is confined to this package.
+// Package authz is the shared OpenFGA client wrapper (ADR-0304); a depguard rule confines the SDK to this package.
 package authz
 
 import (
@@ -24,7 +22,6 @@ type Checker interface {
 	Allowed(ctx context.Context, subject, permission, resource string) (bool, error)
 }
 
-// Granter writes a relationship tuple into OpenFGA (e.g. adding a user to group:operator).
 type Granter interface {
 	Grant(ctx context.Context, subject, relation, resource string) error
 }
@@ -37,17 +34,12 @@ type fga struct {
 	err    error
 }
 
-// New dials the cluster OpenFGA and returns a value satisfying both Checker and Granter.
-//
-// OPENFGA_API_URL and the preshared key (OPENFGA_PRESHARED_KEY, or the SOPS
-// secret's native key `preshared_key` — ADR-0202) drive the connection. The
-// store ID is taken from OPENFGA_STORE_ID if set, else discovered by name on
-// first use — so New() never blocks on OpenFGA being reachable at startup.
+// New: OPENFGA_API_URL and the preshared key drive the connection (ADR-0202). The store ID comes from
+// OPENFGA_STORE_ID if set, else is discovered by name on first use, so New never blocks on OpenFGA at startup.
 func New() (Checker, error) {
 	return dial()
 }
 
-// NewGranter returns the OpenFGA client as a Granter for relationship writes.
 func NewGranter() (Granter, error) {
 	return dial()
 }
@@ -82,13 +74,8 @@ func dial() (*fga, error) {
 	return &fga{c: c, envID: os.Getenv("OPENFGA_STORE_ID")}, nil
 }
 
-// Allowed runs a Check against OpenFGA.
-// subject  = "user:alice"
-// resource = "order:o1"
-// permission = "read".
-//
-// OpenFGA's user/object strings are already "type:id", so the platform's tuple
-// strings pass straight through — no splitting needed.
+// Allowed runs a Check against OpenFGA. Its user and object strings are already "type:id", so the
+// platform's tuple strings pass through with no splitting.
 func (f *fga) Allowed(ctx context.Context, subject, permission, resource string) (bool, error) {
 	err := f.ensureStore(ctx)
 	if err != nil {
@@ -107,13 +94,8 @@ func (f *fga) Allowed(ctx context.Context, subject, permission, resource string)
 	return resp.GetAllowed(), nil
 }
 
-// Grant writes a relationship tuple: subject relation resource.
-// Example: subject="user:alice", relation="member", resource="group:operator".
-//
-// OpenFGA rejects a write of a tuple that already exists; since the platform only
-// ever writes structurally-valid, fixed-shape tuples, that error can only mean the
-// grant is already present, so it is treated as idempotent success (so a retried
-// Temporal activity does not fail on the second write).
+// Grant writes a relationship tuple. OpenFGA rejects a write of an existing tuple, and the platform only writes
+// fixed-shape ones, so that error means the grant is already present and is treated as idempotent success.
 func (f *fga) Grant(ctx context.Context, subject, relation, resource string) error {
 	err := f.ensureStore(ctx)
 	if err != nil {
@@ -137,12 +119,8 @@ func (f *fga) Grant(ctx context.Context, subject, relation, resource string) err
 	return nil
 }
 
-// ensureStore resolves and pins the store ID on the client. If OPENFGA_STORE_ID
-// is set it is used directly; otherwise the platform store is found by name.
-// Deferred to first Allowed/Grant so startup never blocks on OpenFGA readiness,
-// and a FAILED discovery is not cached: the seed Job may still be creating the
-// store, so the next Allowed/Grant retries until the store exists, then pins it
-// (a pinned store is never re-discovered).
+// Deferred to first use so startup never blocks on OpenFGA readiness. A failed discovery is not cached — the seed
+// Job may still be creating the store — and a pinned store is never re-discovered.
 func (f *fga) ensureStore(ctx context.Context) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

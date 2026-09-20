@@ -1,13 +1,4 @@
 // Command lint-authorizer enforces the ops-tier authorizer policy (ADR-0306):
-// every operator-dashboard access rule must authorize per-tool via the
-// remote_json authorizer (→ OpenFGA Checker), never `allow`. A re-introduced
-// `"authorizer": {"handler": "allow"}` on an ops route is exactly the gap this
-// guard closes, so it fails non-zero on it.
-//
-// Product /api routes legitimately keep `allow` (services authorize in-process
-// via libs/go/authz), so only ops-* rules are checked.
-//
-//	go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
 package main
 
 import (

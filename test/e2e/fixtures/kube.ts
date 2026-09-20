@@ -1,6 +1,4 @@
-// Minimal kubectl port-forward helper for the bootstrap. The Kratos admin API and
-// OpenFGA are cluster-internal (never exposed at the edge); the e2e setup reaches
-// them through a short-lived port-forward. kubectl/fga are on PATH via mise.
+// Minimal kubectl port-forward helper for the bootstrap, which reaches admin APIs no edge route exposes.
 import { type ChildProcess, spawn } from "node:child_process";
 import net from "node:net";
 

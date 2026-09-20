@@ -31,11 +31,8 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
       serviceAccountName: local-path-provisioner
-      # The provisioner has to write into the node's own directory tree, which is
-      # what the hostPath below is, and only the node it is scheduled on. That is
-      # the privilege this component cannot be built without, and why it runs in a
-      # namespace of its own — PSA's unit is the namespace, so one workload needing
-      # hostPath would otherwise set the floor for everything beside it.
+      # The provisioner has to write into the node's own directory tree, which is what the hostPath below is, and only
+      # the node it is scheduled on.
       securityContext:
         runAsNonRoot: false
         runAsUser: 0

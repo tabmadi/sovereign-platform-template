@@ -135,7 +135,6 @@ func buyerCtx() context.Context {
 // orderObject is the OpenFGA object the read gate checks.
 var orderObject = "order:" + string(testOrderID)
 
-// A single order read, exercised through every principal that can ask for it.
 func TestGetOrderAuthz(t *testing.T) {
 	t.Parallel()
 

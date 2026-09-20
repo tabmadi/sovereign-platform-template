@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
 # The API mock for the UI development loop (ADR-0600).
-#
-#   mise run mock:start    # stamp the spec, apply the manifests, take over /api
-#   mise run mock:stop     # remove it; /api goes back to whatever is deployed
-#   mise run mock:logs     # follow it — unmatched routes and validation failures
-#
-# Why a script rather than three `kubectl apply` one-liners: the ConfigMap holding
-# the spec is STAMPED, not committed. infra/local/mock.yaml carries the Deployment,
-# Service and IngressRoute; the document Prism serves comes from the committed
-# projection at build time of the command, so the mock can never serve a contract
-# older than the working tree. That is the whole reason its only input is
-# `internal.json` (ADR-0600) — no globbing of services/*/openapi.yaml, no route
-# files, no fixture bodies to drift.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -32,7 +20,6 @@ start)
   [ -f "$SPEC" ] || fail "missing ${SPEC} — run \`mise run gen\` first"
 
   step "stamping the committed projection into the mock's spec ConfigMap"
-  # --dry-run | apply, so a re-run replaces the data rather than failing on an
   # existing object. The hash below is what makes the pod notice.
   k create configmap mock-spec --from-file="internal.json=${SPEC}" \
     --dry-run=client -o yaml | k apply -f - >/dev/null

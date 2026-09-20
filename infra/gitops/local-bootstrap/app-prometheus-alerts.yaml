@@ -1,16 +1,6 @@
 # Local Prometheus alerts Application (ADR-0500, ADR-0205). Local counterpart to
-# bootstrap/app-prometheus-alerts.yaml: the chart at infra/observability/alerts
-# generates the `prometheus-alerts` ConfigMap from the *.yaml beside it for the
-# observability chart to mount into Prometheus (rule_files). Its template globs, so
-# adding a rule file is adding the file. Makes alerts-as-code flow through GitOps
-# locally too — the exact counterpart of app-grafana-dashboards.yaml for the alert
-# rules. Synced by the local root-app, which recurses infra/gitops/local-bootstrap.
-#
-# Grouped by the `local` AppProject (appproject.yaml), like every other local app.
-#
-# Sync-wave 2 (data-tier slot): the ConfigMap must exist BEFORE the core tier
-# (wave 3) starts Prometheus, which mounts it as a volume. A plain ConfigMap is
-# Healthy the moment it applies, so wave 3 is not delayed.
+# bootstrap/app-prometheus-alerts.yaml: the chart at infra/observability/alerts generates the `prometheus-alerts`
+# ConfigMap from the *.yaml beside it for the observability chart to mount into Prometheus (rule_files).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

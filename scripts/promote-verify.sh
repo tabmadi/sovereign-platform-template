@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-# Gate a release on prod actually converging on the release commit (ADR-0201,
-# ADR-0103). "Argo Healthy" already means the new ReplicaSet is available, but a
-# release must not report success before prod runs the release commit.
-#
-# Scaffolded: template CI has no prod kubeconfig, as with any cluster-touching
-# step. Set ARGOCD_SERVER and ARGOCD_AUTH_TOKEN to arm it.
+# Gate a release on prod converging on the release commit (ADR-0201, ADR-0103). Argo Healthy alone does not mean prod runs that commit.
 set -euo pipefail
 # shellcheck source=lib/log.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"

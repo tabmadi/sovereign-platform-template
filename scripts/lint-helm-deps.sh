@@ -1,19 +1,5 @@
 #!/usr/bin/env bash
 # Helm dependency resolution must not depend on the caller's machine (ADR-0101).
-#
-# `helm dependency build` reads Chart.lock and requires the dependency's repository
-# to be REGISTERED in the caller's helm config. `helm dependency update` resolves it
-# from the URL already in Chart.yaml and needs nothing ambient.
-#
-# The distinction is invisible locally, which is the whole problem: a developer
-# registers a repo once, every `build` after that works forever, and the failure
-# appears on the first clean runner — "Error: no repository definition for
-# https://charts.jetstack.io". That is what happened the first time CI ran
-# cluster:up, on a script that had worked on every machine that ever ran it.
-#
-# So: a bare `build` is forbidden. Either use `update`, or fall back to it. This is a
-# static check on purpose — proving it dynamically means downloading charts on every
-# lint run, and the shape of the call is enough to know the answer.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -31,12 +17,7 @@ while IFS= read -r hit; do
   rest="${hit#*:}"
   line="${rest%%:*}"
   content="${rest#*:}"
-  # A COMMENT is not a call. The pattern reads as prose as readily as it reads as
-  # code — a script explaining why `helm dependency build` needs a fallback names it
-  # to say so — and flagging that costs someone the hunt for a call that is not
-  # there. This file already excludes ITSELF for the same reason; skipping comments
-  # is that exclusion generalised, and it is what the check means by "the shape of
-  # the call".
+  # A comment is not a call: the pattern reads as prose as readily as it reads as code. This file already excludes itself for the same reason.
   case "${content#"${content%%[![:space:]]*}"}" in
   "#"*) continue ;;
   esac

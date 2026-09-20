@@ -175,10 +175,8 @@ func TestRefundCharge(t *testing.T) {
 	)
 }
 
-// resourceChecker answers per resource, which is what the read gate needs: a buyer
-// holds `charge#read` on a charge against their own order and nothing on
-// `group:operator`, and an operator is the other way round. A single bool cannot
-// express either.
+// Answers per resource: a buyer holds `charge#read` on their own order's charge and nothing on `group:operator`, and
+// an operator is the other way round.
 type resourceChecker map[string]bool
 
 func (c resourceChecker) Allowed(_ context.Context, _, _, resource string) (bool, error) {
@@ -204,7 +202,6 @@ func numeric(t *testing.T, v string) pgtype.Numeric {
 // chargeObject is the OpenFGA object the read gate checks.
 var chargeObject = "charge:" + string(testChargeID)
 
-// A single charge read, exercised through every principal that can ask for it.
 func TestGetChargeAuthz(t *testing.T) {
 	t.Parallel()
 

@@ -1,18 +1,4 @@
 // Observability gauge (ADR-0500), two layers:
-//
-//  1. Datasource health — the three Grafana datasources resolve and answer. This is
-//     the wiring check behind the service-name fix: Grafana, the OTel collector and
-//     prod all reach Loki/Tempo/Prometheus at their short in-cluster names, and Loki
-//     runs single-tenant so header-less queries don't 401. Driven through the real
-//     ops edge with the saved AAL2 operator session (Grafana's HTTP API, no browser).
-//
-//  2. End-to-end signal correlation — one real checkout, then assert all three
-//     signals landed and cross-reference each other: a single trace stitched across
-//     orders+catalog+payment (Tempo), log lines carrying that trace_id from every
-//     service (Loki), and the RED/domain counters moved (Prometheus). This is the
-//     regression gauge for the propagation + log-export + netpol fixes — with any of
-//     them broken the trace fragments, the logs lose their trace_id, or the checkout
-//     never reaches payment.
 import { type APIRequestContext, expect, request, test } from "@playwright/test";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { portForward } from "../fixtures/kube";
@@ -48,19 +34,9 @@ test.describe("grafana datasources", () => {
   }
 });
 
-// Network-policy denials (ADR-0500, ADR-0501). Hubble UI shows live drops
-// interactively; the metric + dashboard cover what it can't — history and the
-// PolicyDropsDetected alert — and are worth their own guard given how often
-// silent netpol drops have broken this repo.
-//
-// Two failure modes are covered, and they are different:
-//  - the `hubble-drops` dashboard missing means Grafana's dashboard PROVIDER is
-//    misconfigured. Mounting JSON via dashboardsConfigMaps is not enough on its own;
-//    without a matching dashboardProviders entry the files sit on disk unregistered
-//    and /api/search returns [] (the state this repo was in until 2026-07-20).
-//  - no hubble_drop_total series means the ingest path broke: Hubble metrics off in
-//    the Cilium values, or the collector's prometheus/hubble scrape not reaching
-//    :9965 on its own node.
+// Network-policy denials (ADR-0500, ADR-0501). A missing `hubble-drops` dashboard means Grafana's provider is
+// misconfigured — mounting JSON is not enough without a matching dashboardProviders entry.
+// No hubble_drop_total series means the ingest path broke: Hubble metrics off, or the scrape not reaching :9965.
 test.describe("network policy denials", () => {
   let ctx: APIRequestContext;
 
@@ -109,14 +85,9 @@ test.describe("network policy denials", () => {
   });
 });
 
-// Unified service observability (ADR-0501 POC). The service-detail page mixes six
-// signal groups on one screen (SLO/RED, CPU/Memory, Logs, Traces, Profiling). These
-// guards cover the prerequisites that helm-template/render checks cannot: the
-// dashboards are registered with Grafana, the Pyroscope datasource answers, the
-// alert rules are loaded into Prometheus, and each metric family a panel reads
-// actually exists in Prometheus. The RED check also pins us to the STABLE otelhttp histogram — the
-// hand-rolled, mis-bucketed httpmw metric was removed (ADR-0500), and le="0.5" being
-// a real 500ms bucket is what proves we are on the correct one.
+// Guards the prerequisites helm-template cannot check: dashboards registered, the Pyroscope datasource
+// answering, alert rules loaded, and each metric family a panel reads present (ADR-0501).
+// The RED check pins the stable otelhttp histogram, with le="0.5" a real 500ms bucket (ADR-0500).
 test.describe("service observability POC (ADR-0501)", () => {
   let ctx: APIRequestContext;
   let promUid: string;
@@ -146,11 +117,7 @@ test.describe("service observability POC (ADR-0501)", () => {
     return (((await res.json()).results?.A?.frames ?? []) as unknown[]).length > 0;
   }
 
-  // @smoke, unlike its neighbours in this file (ADR-0601 §Cadence, ADR-0501). A
-  // day of exposure for a platform-contract regression is a defensible trade; a day
-  // of exposure for the dashboards someone opens DURING an incident is not — the
-  // moment they are needed is the moment nobody can wait for tonight's nightly to
-  // tell them the provisioning broke.
+  // @smoke, unlike its neighbours (ADR-0601, ADR-0501): a day of exposure for a platform-contract regression is defensible, and for the dashboards someone opens during an incident it is not.
   test("every POC dashboard is registered with Grafana @smoke", async () => {
     const res = await ctx.get(`${opsURL("grafana")}/api/search?type=dash-db`);
     expect(res.ok(), "Grafana search API answers").toBeTruthy();
@@ -178,28 +145,18 @@ test.describe("service observability POC (ADR-0501)", () => {
     expect(await promHasSeries('http_server_request_duration_seconds_bucket{le="0.5"}')).toBeTruthy();
   });
 
-  // otel-cluster's two jobs. k8s_cluster: the desired/available/restart series
-  // the workload-health alerts and the service-detail Health row read — its OTLP
-  // push is netpol-gated (prometheus CNP must allow otel-cluster; it silently
-  // didn't until 2026-07-23, which is what ClusterStateMetricsAbsent fires on).
-  // Exporter scrapes: postgres (CNPG :9187) and Temporal (:9090) land under the
-  // canonical service_name identity — each guards its scrape config, the
-  // metrics-port ingress rule on the target, and (for temporal) the delete_key
-  // that stops the exporter's own service_name label fragmenting the identity.
+  // otel-cluster's two jobs. k8s_cluster feeds the workload-health alerts and the Health row, and its OTLP push
+  // is netpol-gated, which ClusterStateMetricsAbsent fires on.
+  // The exporter scrapes guard their scrape config, the metrics-port ingress rule, and Temporal's delete_key.
   test("otel-cluster series exist: cluster state + component exporters", async () => {
     expect(await promHasSeries('k8s_deployment_desired{service_namespace="platform"}')).toBeTruthy();
     expect(await promHasSeries('cnpg_backends_total{service_name="postgres"}')).toBeTruthy();
     expect(await promHasSeries('service_requests_total{service_name="temporal"}')).toBeTruthy();
   });
 
-  // Alerts-as-code (ADR-0500): the rule files under infra/observability/alerts/
-  // must actually be LOADED by Prometheus, not just committed. This catches every
-  // link in the chain — the prometheus-alerts ConfigMap the chart renders, its Argo app,
-  // the chart's rule_files + volume mount, and rule-file syntax (Prometheus
-  // refuses to load a malformed file).
-  // @smoke for the same reason, one step earlier in the chain: a dashboard nobody
-  // can read is bad, and an alert that never fires is worse — it is the difference
-  // between a slow incident and an unnoticed one.
+  // The rule files must be loaded by Prometheus, not just committed (ADR-0500): this catches the ConfigMap, its
+  // Argo app, the chart's rule_files and mount, and rule-file syntax.
+  // @smoke because an alert that never fires is the difference between a slow incident and an unnoticed one.
   test("alert rules are loaded into Prometheus @smoke", async () => {
     const res = await ctx.get(
       `${opsURL("grafana")}/api/datasources/proxy/uid/${promUid}/api/v1/rules`,
@@ -220,26 +177,9 @@ test.describe("service observability POC (ADR-0501)", () => {
     );
   });
 
-  // Log coverage for PLATFORM workloads (ADR-0500's filelog path). Repo services
-  // push logs over OTLP from the SDK, but postgres/temporal/lowdefy/… only write
-  // stdout — those reach Loki solely through the collector's logsCollection
-  // (filelog) preset. Until 2026-07-23 that receiver was missing and every
-  // platform service showed a permanently empty Logs panel on service-detail.
-  // Asserting distinct service_name values (24h window — these workloads can be
-  // quiet at idle) pins the whole chain: hostPath mount, filelog receiver,
-  // container parser, and the k8sattributes service.name inference the dashboard
-  // filters on. grafana/loki/tempo appear as "observability": service.name
-  // inference prefers app.kubernetes.io/instance (the Helm release) over /name.
-  //
-  // The collector agent itself is deliberately NOT in this list. Its filelog
-  // receiver excludes its own pod
-  // (`/var/log/pods/otel-agent_otel-collector*_*/opentelemetry-collector/*.log`,
-  // infra/helm/platform/otel-agent) so that a log line about reading a log file
-  // does not become a log file to read — the standard feedback-loop guard. Asserting
-  // "otel-collector" here made this test permanently red: the label cannot exist by
-  // construction, and Loki confirms it is absent over any window while every other
-  // name in this list is present. Agent health is covered by its metrics, not by its
-  // own stdout.
+  // Platform workloads only write stdout, so they reach Loki solely through the collector's filelog preset
+  // (ADR-0500). Asserting distinct service_name values pins the hostPath mount, the receiver, the container
+  // parser, and the k8sattributes inference. The agent is excluded: its receiver skips its own pod by design.
   test("platform workloads that only log to stdout reach Loki (filelog)", async () => {
     const ds = await ctx.get(`${opsURL("grafana")}/api/datasources/name/Loki`);
     expect(ds.ok(), "Loki datasource is provisioned").toBeTruthy();
@@ -255,41 +195,17 @@ test.describe("service observability POC (ADR-0501)", () => {
     );
   });
 
-  // The standing analytics assertion (ADR-0700). Marketing events are emitted
-  // through Faro under a reserved `marketing.*` namespace and a routing connector
-  // diverts them out of the logs pipeline before they reach Loki. Routing
-  // identity-bearing events into the log store would breach ADR-0500's PII rule,
-  // and ADR-0700 states outright that review vigilance is not sufficient to
-  // prevent it — which is why this is a test rather than a convention.
-  //
-  // It asserts a negative, and it is worth having while the connector is still
-  // unbuilt: it fails the day someone starts emitting marketing events without
-  // the split, which is exactly the day the breach would otherwise ship
-  // unnoticed. A passing run today means "no marketing event is in the log
-  // store", which is the same claim it will make once the connector exists.
+  // Marketing events are diverted out of the logs pipeline before Loki, because identity-bearing events in the log
+  // store would breach ADR-0500's PII rule and ADR-0700 states review vigilance is not sufficient.
+  // It asserts a negative, and fails the day someone emits marketing events without the split.
   test("no marketing.* event reaches the log store @smoke", async () => {
     const ds = await ctx.get(`${opsURL("grafana")}/api/datasources/name/Loki`);
     expect(ds.ok(), "Loki datasource is provisioned").toBeTruthy();
     const { uid } = await ds.json();
     const start = `${(Date.now() - 24 * 3600 * 1000) * 1e6}`;
-    // Two defences, and both exist because the obvious form of this test breaks
-    // itself. Searching Loki for the literal `marketing.` matches its own audit
-    // trail: Loki logs every query it serves and Oathkeeper logs every request
-    // URL, filelog ships both back into Loki, and the next run finds them. The
-    // naive assertion passes exactly once and then accuses the platform of a PII
-    // leak that is really its own search term. Measured: the literal form
-    // returned 5 matching streams on the second run, from `observability` and
-    // `ory`.
-    //
-    // 1. A regex whose source text cannot match itself. `marke[t]ing\.` matches
-    //    the string "marketing." while the query text — brackets and all — does
-    //    not match the regex, so logging this query cannot create a hit.
-    // 2. The components whose job is to log request URLs and queries are
-    //    excluded. A marketing event arrives under a product service's name; the
-    //    log store and the edge auth tier are never its source.
-    //
-    // Loki also rejects a selector with only negative matchers, which is why the
-    // positive `.+` stays.
+    // Searching Loki for the literal `marketing.` matches its own audit trail, so the naive assertion passes once
+    // and then accuses the platform of a leak that is its own search term.
+    // `marke[t]ing\\.` cannot match itself, and the components whose job is logging request URLs are excluded.
     const query = encodeURIComponent(
       '{service_name=~".+", service_name!~"observability|otel-cluster|ory"} |~ "marke[t]ing\\\\."',
     );
@@ -305,10 +221,7 @@ test.describe("service observability POC (ADR-0501)", () => {
   });
 });
 
-// A checkout drives every signal at once. Rather than the browser, this layer hits
-// the services east-west through port-forwards with a KNOWN inbound traceparent, so
-// the trace id is fixed up front (no search race) and the assertions are
-// deterministic. The browser-driven equivalent lives in purchase.spec.ts.
+// Hits the services east-west with a known inbound traceparent, so the trace id is fixed up front and there is no search race. The browser-driven equivalent is purchase.spec.ts.
 test.describe("end-to-end signal correlation", () => {
   const CATALOG_PORT = 18081;
   const ORDERS_PORT = 18082;
@@ -328,11 +241,7 @@ test.describe("end-to-end signal correlation", () => {
     obs?.stop();
   });
 
-  // The buyer this scenario checks out as. A synthetic identity rather than a
-  // registered one: the suite reaches the service through a port-forward, so it
-  // supplies the identity headers the edge would have injected. The org id only has
-  // to be well-formed — OpenFGA records the tuple against whatever it is told, and
-  // the read this test makes resolves through the owner, not the org.
+  // A synthetic identity, because the suite reaches the service through a port-forward and supplies the headers the edge would inject. The org id only has to be well-formed.
   const BUYER_ID = "obs-e2e-buyer";
   const BUYER_ORG_ID = "org_01kztn9tsrea7b1597q3yjdeav";
 
@@ -354,12 +263,7 @@ test.describe("end-to-end signal correlation", () => {
     expect(productRes.ok, "operator can create a product").toBeTruthy();
     const productId = ((await productRes.json()) as { id: string }).id;
 
-    // Checkout with a known, sampled traceparent → the trace id is fixed.
-    //
-    // An order belongs to a buyer and to the org they act through (ADR-0304), so the
-    // two identity headers are what make it placeable at all. The edge normally
-    // injects them from the session; this suite calls the service through a
-    // port-forward, which is the only place they can be asserted directly.
+    // An order belongs to a buyer and to the org they act through (ADR-0304), so the two identity headers are what make it placeable at all.
     const { header, traceId } = newTraceparent();
     const orderRes = await fetch(`${orders}/orders`, {
       method: "POST",
@@ -411,11 +315,7 @@ test.describe("end-to-end signal correlation", () => {
       .toBe(true);
     expect(logServices).toEqual(expect.arrayContaining(["orders", "catalog", "payment"]));
 
-    // PROMETHEUS: the domain + RED counters moved. Prometheus escapes OTLP dotted
-    // names to the classic underscore form (UnderscoreEscapingWithSuffixes), so the
-    // stored series are orders_checkouts_started_total and — for RED — the stable
-    // otelhttp histogram's http_server_request_duration_seconds_count (httpmw's
-    // hand-rolled http.server.requests counter was removed, ADR-0500).
+    // Prometheus escapes OTLP dotted names to the classic underscore form, and RED reads the stable otelhttp histogram (ADR-0500).
     await expect
       .poll(async () => await promSeriesCount("orders_checkouts_started_total"), { timeout: 60_000 })
       .toBeGreaterThan(0);

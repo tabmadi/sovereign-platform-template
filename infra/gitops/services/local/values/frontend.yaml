@@ -1,34 +1,9 @@
 # Local values for the frontend (ADR-0205, ADR-0600).
-#
-# This file is half of what makes `mise run cluster:add -- frontend` work; the other
-# half is service-deploy.sh knowing that a deployable can live under apps/ and build
-# from its own Dockerfile. Without both, no local run ever exercised the standalone
-# Next server, NODE_ENV=production, or the image CI builds and prod deploys, and a
-# Dockerfile or standalone-output regression was only catchable after a push.
-#
-# Three things had to change before this file could work; all three are done and
-# none of them is local-only sugar:
-#   1. EDGE_ORIGIN split into public/internal (src/lib/server-fetch/server.ts) —
-#      the pod dials :443, the browser's CSRF allowlist needs :8443.
-#   2. A CoreDNS rewrite (scripts/lib/cluster.sh) so dev.localtest.me
-#      resolves to Traefik in-cluster instead of the pod's own loopback.
-#   3. A real local CA (infra/helm/platform/cert-manager/templates/issuers.yaml)
-#      so the edge cert can be TRUSTED rather than have verification disabled.
-#      This image sets no NODE_TLS_REJECT_UNAUTHORIZED — that is the point.
-#
-# The daily loop is still the host `next dev` behind the edge glue. Use this when
-# you need the production container: verifying the Dockerfile, standalone output,
-# or a production-only rendering difference.
 name: frontend
 image:
-  # The local registry, like every other service (ADR-0205): this file is what the
-  # services ApplicationSet generates the frontend's Application from, so a bare
-  # node-resident `frontend:local` means the full tier pulls from Docker Hub, gets
-  # `insufficient_scope`, and sits in ImagePullBackOff until someone runs
-  # `cluster:add -- frontend` by hand. cluster:up full builds and pushes this tag.
-  #
-  # `cluster:add` still works: it overrides repository and tag with a timestamped
-  # node-resident image, which is the point of that path.
+  # The local registry, like every other service (ADR-0205): this file is what the services ApplicationSet generates
+  # the frontend's Application from, so a bare node-resident `frontend:local` means the full tier pulls from Docker
+  # Hub, gets `insufficient_scope`, and sits in ImagePullBackOff until someone runs `cluster:add -- frontend` by
   repository: registry.localhost:5000/frontend
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
@@ -50,11 +25,7 @@ server:
 # soon as it is removed.
 ingress: { enabled: true, host: dev.localtest.me, pathPrefix: "/" }
 migrations: { enabled: false }
-# Keep every trace the service starts (ADR-0500: local overrides healthy traces
-# to 100%). The chart default samples 10% in the SDK, and the collector's local
-# 100% cannot restore a span the SDK never started — so a developer looking for
-# the request they just made, and the e2e trace assertion, would both be playing
-# odds.
+# Keep every trace the service starts (ADR-0500: local overrides healthy traces to 100%).
 otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 env:
   # East-west targets for the cluster-audience services the analytics panel reads

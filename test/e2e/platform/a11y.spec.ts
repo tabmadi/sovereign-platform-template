@@ -1,18 +1,4 @@
 // WCAG 2.2 AA regression gate for the first-party surfaces (ADR-0400, ADR-0601).
-// A `serious` or `critical` violation fails the merge.
-//
-// Two scopes, and they answer different questions:
-//
-//   1. The kitchen-sink page, section by section. A primitive's conformance is
-//      proven once here rather than re-proven in every consumer, so a failure names
-//      the primitive rather than "the app".
-//   2. The product journeys, whole-page. Contrast, heading structure, landmark
-//      semantics and error association are composition decisions no primitive
-//      library makes, so they are only visible on a composed route.
-//
-// Not scanned, and the exclusion is stated rather than assumed (ADR-0400): Scalar's
-// rendered console and the vendored operator UIs (Lowdefy, Grafana, pgweb) are
-// third-party surfaces behind an operator session, and AA is not claimed for them.
 import { expect, test } from "@playwright/test";
 import { expectNoA11yViolations, kitchenSinkSections } from "../fixtures/a11y";
 import { BASE_URL, REGISTER_URL, RTL_LOCALE, rtlURL, USER_STATE } from "../fixtures/env";

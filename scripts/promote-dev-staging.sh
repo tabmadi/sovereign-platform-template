@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Bump the dev and staging values files for every affected component to a build SHA
-# (ADR-0201). Prod is not touched here — it pins by digest on a release tag, which
-# is promote-prod.sh.
-#
-# SHA is the commit whose images were just published.
+# Bump the dev and staging values files for every affected component to a build SHA (ADR-0201). Prod pins by digest, in promote-prod.sh.
 set -euo pipefail
 # shellcheck source=lib/log.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
@@ -30,11 +26,7 @@ bump() { # <values-file> <yaml-path-to-image-block>
   fi
 }
 
-# Most services and apps (the frontend is an app, ADR-0400) share the
-# infra/gitops/services/<env>/values/<name>.yaml layout. The admin console is the
-# exception: it is a platform chart (lowdefy, ADR-0401), so its image lives at
-# .lowdefy.image.tag in the platform overlay. An env whose values tree does not
-# exist yet is skipped rather than created.
+# The admin console is a platform chart (ADR-0401), so its image lives at .lowdefy.image.tag in the platform overlay rather than the services layout.
 while read -r name; do
   [[ -n "$name" ]] || continue
   for env in dev staging; do

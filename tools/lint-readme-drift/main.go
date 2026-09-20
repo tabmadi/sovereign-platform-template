@@ -1,26 +1,5 @@
-// Command lint-readme-drift is principle 9 applied to the two documents that duplicate by
-// design and are not generated. The root README restates selection guidance for a reader
-// who has not adopted yet (ADR-0001), and ADR-0000 keeps hand copies of verdicts its own
-// downstream ADRs own. A duplicate with no check drifts, and both of these did.
-//
-// Four checks.
-//
-// Stack drift: for every row of the README's stack table, the tools named in the decision
-// cell are matched against the options the cited ADR rejected. A rejected option presented
-// as a current decision is the failure this catches.
-//
-// Principle blocks: ADR-0000's principles list what each rejected and what each accepted
-// on the same rule. A name under *Rejected:* that some ADR chose, or a name under
-// *Accepted on the same rule:* that every ADR comparing it refused, is one document
-// contradicting another.
-//
-// Anchors: every principle is anchored to an external standard or marked local, and the
-// README states the same anchor at index resolution. The two must agree on which of the
-// two it is, and on the sources cited.
-//
-// Headcount: ADR-0000 states no headcount and none is to be inferred, so no committed
-// document states one. The demand side lives in operational-surface.md as obligations
-// per component, which the reader sums against their own facts.
+// Command lint-readme-drift checks the two documents that duplicate by design — the root README and ADR-0000 —
+// against the ADRs they copy from (ADR-0001).
 package main
 
 import (
@@ -42,11 +21,7 @@ const (
 var (
 	adrRef  = regexp.MustCompile(`ADR-(\d{4})|\]\(docs/adr/(\d{4})-`)
 	adrFile = regexp.MustCompile(`^(\d{4})-[a-z0-9-]+\.md$`)
-	// A headcount claim: a staffing level attached to people. "One person" is not one:
-	// the floor's constraints are written as *no component whose only competent operator
-	// is one person*, which is a property of the component rather than a team size. What
-	// is banned is a number a project could staff to — two engineers, 2–3 platform
-	// engineers, four FTEs.
+	// A staffing level attached to people. The floor's constraints are a property of the component, not a team size.
 	headcount = regexp.MustCompile(
 		`(?i)\b(\d+|two|three|four|five|six|seven|eight|nine|ten)` +
 			`\s*([–—-]|\bto\b)?\s*(\d+|two|three|four|five)?\s+(platform\s+)?` +
@@ -256,10 +231,6 @@ func checkPrincipleBlocks(principles map[string]principle, v verdictSet) []strin
 	return problems
 }
 
-// checkAnchors asserts the two documents agree on what each principle rests on. ADR-0001
-// makes the local-or-borrowed distinction load-bearing — a borrowed criterion survives
-// re-litigation and a house rule does not — so a reader must not learn a different answer
-// depending on which document they opened.
 func checkAnchors(adr, readme map[string]principle) []string {
 	var problems []string
 	for num, r := range readme {
@@ -337,13 +308,7 @@ func marking(local bool) string {
 	return "to an external standard"
 }
 
-// namesIn splits a list of tools into the names it holds. The lists are prose — commas,
-// "and", a trailing clause after an em dash, and a parenthesised ADR reference per name —
-// so each fragment is cleaned rather than reduced.
-//
-// The whole fragment is kept, not its leading token. "Argo Workflows" and "Argo CD" share
-// a first word and are different decisions, and collapsing either to "Argo" makes the
-// principle-block check report that principle 5 rejects the deploy engine.
+// Each whole fragment is kept, never its leading token: "Argo Workflows" and "Argo CD" are different decisions.
 func namesIn(s string) []string {
 	s = parenthetics.ReplaceAllString(plain(s), "")
 	dash := strings.Index(s, " — ")

@@ -1,15 +1,8 @@
-# Values namespaced under `seaweedfs:` so this chart shares the platform
-# ApplicationSet's single per-env values overlay without key collisions. A
-# top-level key here would be read by every OTHER chart's render of the same
-# file — and, worse, this chart would ignore the per-environment override that
-# names it, which is how a production-disabled component stays enabled.
+# Values namespaced under `seaweedfs:` so this chart shares the platform ApplicationSet's single per-env values
+# overlay without key collisions.
 seaweedfs:
-  # SeaweedFS, the platform's object store (ADR-0207).
-  #
-  # `enabled` is the umbrella gate, read by this chart's own templates rather than a
-  # Chart.yaml condition: the chart has no subchart to condition on. Production sets
-  # it false — ADR-0207 puts the production store outside the cluster, and a store
-  # that runs on the cluster it backs shares the failure domain it exists to survive.
+  # SeaweedFS, the platform's object store (ADR-0207). `enabled` is the umbrella gate, read by this chart's own
+  # templates rather than a Chart.yaml condition: the chart has no subchart to condition on.
   enabled: true
 
   image:
@@ -20,14 +13,8 @@ seaweedfs:
     tag: "4.41"
     pullPolicy: IfNotPresent
 
-  # Buckets are created by the server at startup from `-bucket`, so there is no
-  # provisioning Job to schedule, to secure, or to notice the failure of. MinIO
-  # needed one (`minio-post-job`), and it was one-shot: a rejected Job left nothing
-  # Running, the buckets simply never appeared, and Loki and Tempo crashlooped on
-  # "bucket does not exist".
-  #
-  # One bucket per backend consumer, matching the names each chart's own values
-  # expect. Creation is idempotent — an existing bucket is left alone.
+  # Buckets are created by the server at startup from `-bucket`, so there is no provisioning Job to schedule, to
+  # secure, or to notice the failure of.
   buckets:
     - platform-backups
     - loki-chunks
@@ -38,40 +25,10 @@ seaweedfs:
     # provenance attached to them as OCI referrers.
     - zot-images
 
-  # The S3 root credential, as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in a
-  # Secret this chart only names. `weed mini` reads that pair on first start and
-  # creates the identity from it; until an identity exists the S3 endpoint answers
-  # every anonymous request with 403 (verified 2026-08-19 against 4.41). The same
-  # Secret carries `ADMIN_PASSWORD`, which is read only when `adminAuth` below is
-  # on: the UI administers the store and the S3 key reads and writes objects in it.
-  #
-  # The pair is delivered by the per-environment SopsSecret (ADR-0202), which is the
-  # same secret the consumers read, so the store and its clients cannot drift apart.
+  # The S3 root credential, as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in a Secret this chart only names.
   credentialsSecret: object-storage-root
 
-  # NO second login in front of the admin UI. The edge has already proved an AAL2
-  # operator holding the dashboard grant (ADR-0306), the only route to this origin
-  # is `seaweedfs.ops.<host>`, and the network policy admits port 23646 from the
-  # gateway alone. A password here guards a door already guarded, and costs a
-  # credential lookup in the middle of an incident.
-  #
-  # Off means neither the flag nor the `ADMIN_PASSWORD` env below is passed, which
-  # is what `weed` documents as disabling auth and what it does: `startAdminServer`
-  # sets `authRequired` from `-admin.password` being non-empty, and when it is false
-  # the UI and API routes are registered without the session middleware and no
-  # `/login` route is registered at all. Measured against 4.41 with both dropped:
-  # `/` answers 200 with the dashboard, `/login` answers 404.
-  #
-  # `weed mini` persists the admin password into `/data/mini.options` on first
-  # start and reloads it on every start, so BOTH the flag and the env have to go —
-  # a config that still exports `ADMIN_PASSWORD` re-derives the password and rewrites
-  # the line, and the login returns. With both absent `weed` rewrites the file
-  # WITHOUT the line on the next start, so flipping this to false and rolling the
-  # pod disables auth even on a volume that once had it (verified 2026-08-25, 4.41).
-  #
-  # Kept as a toggle rather than deleted. On, the flag is passed `ADMIN_PASSWORD`
-  # from `credentialsSecret` and the username is `admin` (weed's default) — the
-  # shape an environment needs if it ever routes this origin without the ops gate.
+  # NO second login in front of the admin UI.
   adminAuth:
     enabled: false
 
@@ -81,31 +38,18 @@ seaweedfs:
     # running this chart has (ADR-0207: volumes are node-local).
     storageClassName: ""
 
-  # ADR-0204. Measured 2026-08-19 in a container running these exact flags: 73 MiB
-  # resident and 0.3% of one core at idle, with the five buckets created.
-  #
-  # **Idle is not the sizing case, and 512Mi was set from it.** The load that
-  # decides this limit is an IMAGE PUSH: the registry writes an image's layers to
-  # this store as multipart uploads, several parts in flight, and the buffers are
-  # proportional to the layers rather than to the request rate a dashboard shows.
-  # At 512Mi the store was OOMKilled mid-push — and the failure surfaces entirely
-  # in the registry's log, as `connection refused` to a Service whose pod is
-  # Running again by the time anyone looks.
+  # ADR-0204. Measured 2026-08-19 in a container running these exact flags: 73 MiB resident and 0.3% of one core at
+  # idle, with the five buckets created.
   resources:
     requests: { cpu: "50m", memory: "256Mi" }
     limits: { memory: "1.5Gi" }
 
-  # No phone-home: the master reports anonymous cluster statistics to
-  # telemetry.seaweedfs.com by default, which default-deny egress would drop anyway.
-  # Turning it off at the source means the platform is not relying on a network
-  # policy to keep a promise the workload can keep itself.
+  # No phone-home: the master reports anonymous cluster statistics to telemetry.seaweedfs.com by default, which
+  # default-deny egress would drop anyway.
   telemetry: false
 
   service:
     s3Port: 8333
-    # The admin UI, and the only surface ADR-0306 routes. The ops gate in front of
-    # this origin is the whole gate on it (`adminAuth` above). The master and filer
-    # UIs are diagnostic and are reached by port-forward, so they get no Service
-    # port: an origin per internal view multiplies edge surface for no capability
-    # the admin UI lacks.
+    # The admin UI, and the only surface ADR-0306 routes. The ops gate in front of this origin is the whole gate on it
+    # (`adminAuth` above).
     adminPort: 23646

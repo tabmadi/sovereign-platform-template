@@ -1,8 +1,4 @@
 // Root loading boundary (ADR-0400). Per-route-group versions override this.
-//
-// The copy is translated like every other surface, and this file receives no props
-// to get a locale from — which is exactly why the locale is resolved from
-// `next/root-params` in i18n/request.ts rather than threaded through layouts.
 import { Loader2Icon } from "lucide-react";
 import { useTranslations } from "next-intl";
 

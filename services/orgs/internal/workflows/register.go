@@ -1,6 +1,5 @@
-// Package workflows holds the orgs Temporal workflows (ADR-0302). The orgs
-// service owns the post-registration "create personal org" process even though
-// the OpenFGA write targets the authz store — process-owner rule.
+// Package workflows holds the orgs Temporal workflows. orgs owns the create-personal-org process by the process-owner
+// rule, though the OpenFGA write targets the authz store (ADR-0302).
 package workflows
 
 import (
@@ -17,16 +16,9 @@ type RegisterInput struct {
 	IdentityID string
 }
 
-// RegisterUser runs the dual-write (ADR-0304) for a new identity: create the
-// personal org + admin membership in the orgs DB, then write the matching
-// OpenFGA owner tuple. Both are activities so the pair cannot half-apply — a
-// failed OpenFGA write is retried, and an exhausted workflow surfaces rather
-// than silently leaving the app DB and the authz store divergent.
-//
-// The third activity records the org on the Kratos identity, which is what makes
-// it visible to everything downstream: the edge builds X-Org-Id out of that field,
-// so without it the identity reaches every service belonging to no org, and an
-// order — which must belong to one — cannot be placed at all.
+// RegisterUser is the dual write for a new identity (ADR-0304): the personal org and membership, then the
+// matching OpenFGA owner tuple. Both are activities, so the pair cannot half-apply.
+// The third records the org on the Kratos identity, which is what the edge builds X-Org-Id out of.
 func RegisterUser(ctx workflow.Context, in RegisterInput) error {
 	ctx = workflow.WithActivityOptions(
 		ctx,

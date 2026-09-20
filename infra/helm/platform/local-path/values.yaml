@@ -1,15 +1,8 @@
-# Values namespaced under `localPath:` so this chart shares the platform
-# ApplicationSet's single per-env values overlay without key collisions. A
-# top-level key here would be read by every OTHER chart's render of the same file,
-# and this chart would ignore the per-environment override that names it.
+# Values namespaced under `localPath:` so this chart shares the platform ApplicationSet's single per-env values
+# overlay without key collisions. A top-level key here would be read by every OTHER chart's render of the same
+# file, and this chart would ignore the per-environment override that names it.
 localPath:
   # Off by default; every tier that needs it turns it on in its own overlay.
-  #
-  # The INNER loop is the one exception that must leave it off: kind ships its own
-  # local-path provisioner and its own `standard` StorageClass, so enabling it
-  # there means two provisioners racing for the same default annotation. The full
-  # local tier is Talos in Docker and ships no provisioner, so it needs this as
-  # much as a deployed environment does.
   enabled: false
 
   image:
@@ -21,23 +14,15 @@ localPath:
     digest: sha256:e757967a5ec338f6a9b371c5a9688bedaa8c3578ea3dd4db329ea0084be0a86f
     pullPolicy: IfNotPresent
 
-  # The helper image the provisioner runs as a short-lived Pod to create and
-  # remove each volume's directory. It needs `mkdir`, `rm` and nothing else.
-  #
-  # Fully qualified, unlike most entries here. Kyverno's allow-list matches an
-  # image against `<repository>:*`, so the string in the POD SPEC has to be the
-  # string in the list — and a bare `busybox` is a Docker Hub shorthand the
-  # generator that builds that list does not recognise as a repository.
+  # The helper image the provisioner runs as a short-lived Pod to create and remove each volume's directory. It
+  # needs `mkdir`, `rm` and nothing else.
   helperImage:
     repository: docker.io/library/busybox
     tag: "1.37.0"
     digest: sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
 
-  # Where volumes live on the node. `/var` is the ONLY writable path on a Talos
-  # node — everything else is a read-only image — and this directory is bind-mounted
-  # into the kubelet by infra/talos/patches/common.yaml. The two must agree: a
-  # provisioner writing somewhere the kubelet cannot see produces a PV that binds
-  # and a pod that never mounts it.
+  # Where volumes live on the node. `/var` is the ONLY writable path on a Talos node — everything else is a
+  # read-only image — and this directory is bind-mounted into the kubelet by infra/talos/patches/common.yaml.
   path: /var/mnt/local-path
 
   # This becomes the cluster's DEFAULT StorageClass, which is what makes an
@@ -46,10 +31,7 @@ localPath:
   storageClass:
     name: local-path
     default: true
-    # `WaitForFirstConsumer`, never `Immediate`. The volume is a directory on ONE
-    # node, so binding before the scheduler has placed the pod picks the node at
-    # random and the pod is then pinned to wherever the PV happened to land — which
-    # is how a pod ends up Pending forever against a node that cannot take it.
+    # `WaitForFirstConsumer`, never `Immediate`.
     volumeBindingMode: WaitForFirstConsumer
     # Deleting a PVC deletes the directory. `Retain` would leave node disks filling
     # with orphans that nothing is tracking.

@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Human-output vocabulary gate (ADR-0001). Scripts speak the fixed vocabulary from
-# scripts/lib/log.sh — → step, ✓ ok, ✗ fail, ⚠ warn — not bare status prose. This
-# flags `echo`/`printf` of a bare leading WARN/WARNING/ERROR/FAIL(ED)/OK token,
-# which should be `warn`/`fail`/`ok` instead. It is a formatting lint, not a
-# behaviour check.
+# Human-output vocabulary gate (ADR-0001): scripts speak → ✓ ✗ ⚠ from scripts/lib/log.sh, not bare status prose.
 set -euo pipefail
 source "$(dirname "$0")/lib/log.sh"
 cd "$(cd "$(dirname "$0")/.." && pwd)"

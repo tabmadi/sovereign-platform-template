@@ -1,19 +1,4 @@
 # Cardinality and metrics-store health (ADR-0500).
-#
-# ADR-0500 layers three defences against high cardinality: allow-listed labels at
-# the API, live alerts on the series count, and a quarterly audit. This file is
-# the second. It was unwritable until the collector began scraping Prometheus's
-# own metrics and re-exporting them over OTLP — the store had no view of itself,
-# which is the one blind spot that hides every other one.
-#
-# The ceiling is a threshold, so it is stated: 250,000 active series for the
-# single-replica local-TSDB shape ADR-0500 decides, derived from the 1Gi memory
-# limit at roughly 3KB of head memory per series. Re-derive it when that limit
-# changes, and take the Mimir swap rather than raising it far.
-#
-# `prometheus_tsdb_head_series` arrives through the collector, so these alerts go
-# blind if the collector stops — which `ClusterStateMetricsAbsent` in
-# workload-health.yaml already covers for the same reason.
 groups:
   - name: metrics.cardinality
     rules:

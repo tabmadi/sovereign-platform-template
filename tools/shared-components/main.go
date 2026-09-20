@@ -1,27 +1,5 @@
-// Command shared-components gives every service spec the canonical definition of
-// each shared component that spec uses (ADR-0303).
-//
-//	shared-components          rewrite each spec's shared region from the source
-//	shared-components -check   fail if any spec's region has drifted
-//
-// Why the components are COPIED into each spec rather than $ref'd across files:
-// a spec stays self-contained, so ogen and vacuum each read one document with no
-// external resolution. The cost is duplication, and this tool is the reason the
-// duplication is safe — "identical wherever it appears" is a fact the check
-// establishes rather than a habit reviewers maintain.
-//
-// A spec carries only what it references, transitively: `Error` reaches `Problem`,
-// and a spec with no monetary field does not carry `Money`. Copying the whole
-// catalogue into every spec instead would put a schema nothing points at into five
-// documents, which is what vacuum's oas3-unused-component reports — and a rule
-// switched off to accommodate generated noise stops catching the orphan it exists
-// to catch. A field added to a spec pulls its component in on the next generate.
-//
-// The region is delimited by sentinel comments inside `components.schemas` and
-// `components.responses`. Splicing text between sentinels, rather than re-emitting
-// the document through a YAML marshaller, is deliberate: a marshaller rewrites the
-// whole file — flow-style spacing collapses, comments move — and every spec change
-// would arrive as a formatting diff.
+// Command shared-components gives every service spec the canonical definition of each shared component it uses
+// (ADR-0303).
 package main
 
 import (
@@ -84,10 +62,8 @@ func blocksFor(sections []section, spec string) map[string]string {
 	return blocks
 }
 
-// reachable is the set of shared components a spec points at, closed over the
-// references the shared components make among themselves. The seed deliberately
-// ignores the spliced regions: a component is carried because the SPEC needs it,
-// never because last generate happened to put it there.
+// reachable is the set of shared components a spec points at, closed over their own references. The seed ignores the
+// spliced regions: a component is carried because the spec needs it.
 func reachable(sections []section, spec string) map[string]bool {
 	byName := make(map[string]*yaml.Node)
 	for _, sec := range sections {
@@ -231,10 +207,8 @@ func specPath(spec string) (string, error) {
 	return filepath.Join("services", name, "openapi.yaml"), nil
 }
 
-// splice replaces the sentinel-delimited region for one section. A spec with no
-// sentinels is an error rather than a silent skip: it means the spec is not wired
-// to the shared source at all, which is exactly the state this tool exists to
-// prevent from going unnoticed.
+// splice replaces the sentinel-delimited region for one section. A spec with no sentinels is an error, not a silent
+// skip: it is not wired to the shared source at all.
 func splice(doc, key, block string) (string, error) {
 	begin := fmt.Sprintf(beginFmt, key)
 	lines := strings.Split(doc, "\n")

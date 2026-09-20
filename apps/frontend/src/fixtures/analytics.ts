@@ -1,9 +1,6 @@
 /**
- * Analytics fixtures (ADR-0701). Read only by `lib/data/analytics.ts`.
- *
- * Shaped like a real funnel: occurrences fall away faster than sessions, and the
- * ratio between them differs per step. Flat, tidy numbers make a broken chart look
- * fine.
+ * Analytics fixtures (ADR-0701), read only by `lib/data/analytics.ts`. Shaped like a real funnel: occurrences
+ * fall away faster than sessions, and flat tidy numbers make a broken chart look fine.
  */
 import type { EventSummary } from "@/lib/data/analytics";
 

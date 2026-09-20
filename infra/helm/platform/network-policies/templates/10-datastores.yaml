@@ -1,12 +1,6 @@
-## Postgres (CNPG) — the crown jewel. Reachable on 5432 only by the platform stores
-## (identity/authz/workflow) and the demo services that own a schema. A service owns
-## a schema when its values set `migrations.enabled: true`; its migrations init +
-## runtime both dial 5432, so each such service is listed here (authz is openfga-only
-## — migrations off — and is deliberately absent). Add a new schema-owning service
-## here the same way you add it to a caller's `allowFrom`.
-## The CNPG operator scrapes each instance's manager on 8000 (/pg/status) to report
-## cluster health; without it the Cluster sits in "HTTP communication issue" and the
-## Argo app never goes Healthy, wedging convergence.
+## Postgres (CNPG) is reachable on 5432 only by the platform stores and the services that own a schema, which is
+## the set whose values set `migrations.enabled: true`.
+# and the demo services that own a schema.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -35,17 +29,7 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: pgweb }
       toPorts:
         - ports: [{ port: "5432", protocol: TCP }]
-    # The cluster talking to ITSELF. A replica joins by connecting to the primary
-    # on 5432, and streams from it on the same port for as long as it lives — so
-    # both the instance pods and the `<cluster>-<n>-join` Job pods CNPG runs to
-    # bootstrap them belong here. Both carry `cnpg.io/cluster`; the Job pods do
-    # not carry `podRole: instance`, which is why the selector is the cluster
-    # label rather than the pod role.
-    #
-    # A single-instance cluster never exercises this, so the rule is missing
-    # exactly until the first replica — where it appears as a join Job retrying
-    # forever and a Cluster stuck in `Creating a new replica`, with the drop
-    # visible only in Hubble.
+    # The cluster talking to ITSELF.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, cnpg.io/cluster: postgres }
       toPorts:
@@ -62,26 +46,8 @@ spec:
       toPorts:
         - ports: [{ port: "9187", protocol: TCP }]
 ---
-## The CNPG poolers (`postgres-pgbouncer-rw`, ADR-0300 transaction mode) — the same
-## database behind a connection pooler, and so the same caller list as the Cluster
-## above. They are a SEPARATE policy because the `postgres` rule selects
-## `app.kubernetes.io/component: database` and the pooler pods carry
-## `component: pooler`; nothing else in this chart matched them.
-##
-## Until this rule existed the pooler pods had NO ingress policy selecting them at
-## all, which does not mean "deny" — it means Cilium never switched ingress
-## enforcement on for that endpoint, and the pods were reachable by anything that
-## could route to them, on 5432 as well as the metrics port. Verified with
-## `cilium-dbg endpoint list -o json`: the pooler endpoints reported
-## `policy-enabled: egress` where every other platform workload reported `both`.
-## The namespace-wide default-deny the baseline advertises did not cover them.
-##
-## The trap this leaves for the next person: adding ANY policy with an ingress
-## section that also selects these pods flips enforcement on for them, and every
-## caller not listed here starts getting dropped. That is exactly how this rule was
-## found — temporal-stale-peer-ingress (20-temporal.yaml) selects the whole
-## namespace, and the moment it was applied `otel-cluster → pgbouncer:9127` went
-## from silently-working to 88 POLICY_DENIED/min. Keep this caller list complete.
+## The CNPG poolers (`postgres-pgbouncer-rw`, ADR-0300 transaction mode) — the same database behind a connection
+## pooler, and so the same caller list as the Cluster above.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -115,15 +81,8 @@ spec:
       toPorts:
         - ports: [{ port: "9127", protocol: TCP }]
 ---
-## OpenFGA — authorization store (HTTP API, port 8080). authz-server checks
-## permissions; the openfga-seed job creates the store + writes the model and
-## bootstrap grants at bring-up. Business services that authorize writes via the
-## shared Checker (ADR-0304) dial it directly too — catalog gates product creation
-## on group:operator, orders the cancel, payment the refund, and the orgs worker
-## WRITES the org#admin tuple as leg 2 of the registration dual-write. Every service
-## holding a Checker or Granter must be listed here or it fails closed at the
-## network, not at the authz layer. (The admin console writes via the service APIs,
-## not directly, so lowdefy is not listed.)
+## OpenFGA — authorization store (HTTP API, port 8080). authz-server checks permissions; the openfga-seed job
+## creates the store + writes the model and bootstrap grants at bring-up.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

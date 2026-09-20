@@ -1,16 +1,5 @@
 #!/usr/bin/env bash
-# The local port registry gate (ADR-0205). Two services quietly sharing a port is a
-# bind race that only surfaces when someone runs both — which is exactly the
-# multi-service debugging case the registry exists to make possible. So it is
-# checked here rather than discovered there.
-#
-# Three invariants:
-#   1. Registered ports are unique.
-#   2. Every service has an entry.
-#   3. Each service's .mise.toml binds the port the registry assigns it. The two
-#      have to agree: svc-apply.sh forwards to the registry's port and the service
-#      binds .mise.toml's, so a drift between them fails at runtime as a connection
-#      refused with no hint of why.
+# The local port registry gate (ADR-0205). Two services sharing a port is a bind race that surfaces only when someone runs both.
 set -euo pipefail
 
 source "$(dirname "$0")/lib/log.sh"
@@ -40,14 +29,8 @@ for dir in services/*/; do
   svc="$(basename "$dir")"
   [ "${svc#_}" = "$svc" ] || continue # skip _template
 
-  # A WORKER-ONLY service has no server, so it has no local port to register and
-  # nothing to collide with — it reaches Temporal outbound and never binds. The
-  # registry exists so two natively-run SERVERS do not race for a port; requiring
-  # an entry for something that never listens would put a number in the registry
-  # that means nothing, and a future service could then collide with it.
-  #
-  # `cmd/server` is the same discriminator lint:service-contract uses, so the two
-  # gates cannot disagree about what a service is.
+  # A worker-only service binds nothing, and an entry for it would put a number in the registry that means nothing.
+  # `cmd/server` is the discriminator lint:service-contract uses, so the two gates cannot disagree.
   if [ ! -d "${dir}cmd/server" ]; then
     if service_port "$svc" >/dev/null 2>&1; then
       warn "${svc} has no cmd/server but registers a local port — it never binds one"

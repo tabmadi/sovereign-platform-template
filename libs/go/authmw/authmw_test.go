@@ -7,11 +7,8 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
 )
 
-// The edge admits guests through its anonymous authenticator, which puts a real
-// value in X-User-Id — `guest`. A service that reads "the header is set" as "a
-// user is signed in" therefore treats every anonymous caller as a principal, and
-// answers 403 where it means 401. Both halves are pinned here because the value
-// lives in infra/auth/oathkeeper/values.yaml and nothing else connects the two.
+// The edge admits guests with a real value in X-User-Id. Both halves are pinned here because the value lives in
+// infra/auth/oathkeeper/values.yaml and nothing else connects the two.
 func TestGuestIsNotAuthenticated(t *testing.T) {
 	t.Parallel()
 

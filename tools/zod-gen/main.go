@@ -1,26 +1,4 @@
-// Command zod-gen emits a zod schema per request body in every service spec
-// (ADR-0400).
-//
-// ADR-0400 puts form validation on react-hook-form plus zod, and requires the
-// schemas for spec operations to be GENERATED and committed. The reason is the
-// one every generated artefact here has: a hand-written schema is a second copy
-// of the contract, and the copy is what drifts. A form that accepts a field the
-// API rejects is a bug the compiler cannot see, because the two descriptions of
-// the same body never meet.
-//
-// # Scope
-//
-// Request bodies only. Response types already come from openapi-typescript as
-// TypeScript types, which is the right tool for a shape you read; a zod schema is
-// for a shape you must VALIDATE, and the only such shape in a browser is what a
-// form is about to send.
-//
-// # The subset
-//
-// This walks the JSON Schema the specs actually use, and fails on anything else
-// rather than emitting a schema that silently validates less than the spec says.
-// A generator that quietly degrades `pattern` into `z.string()` produces a form
-// that accepts what the API refuses — the exact failure it exists to prevent.
+// Command zod-gen emits a zod schema per request body in every service spec (ADR-0400).
 package main
 
 import (
@@ -158,11 +136,7 @@ func render(service, path string) (string, error) {
 	for _, bd := range bodies {
 		collect(bd.sch, s.Components.Schemas, needed)
 	}
-	// DEPENDENCY order, not alphabetical. A zod schema is a `const`, and a `const`
-	// is not hoisted: emitting `checkoutInputSchema` before the `productIdSchema`
-	// it references produces a module that throws a ReferenceError the moment it is
-	// imported. Alphabetical order happened to be right for four of the five
-	// services and wrong for the fifth, which is exactly how this kind of bug ships.
+	// Dependency order, not alphabetical: a zod schema is a `const`, and a `const` is not hoisted.
 	names := dependencyOrder(needed, s.Components.Schemas)
 	for _, name := range names {
 		expr, err := zodOf(s.Components.Schemas[name], s.Components.Schemas, map[string]bool{name: true}, 0)
@@ -199,10 +173,6 @@ func dependencyOrder(needed map[string]bool, components map[string]*schema) []st
 		if emitted[name] {
 			return
 		}
-		// Marked before descending, so a schema that references itself is emitted
-		// once rather than recursed into forever. Nothing in these specs is
-		// recursive today; a generator that hangs on the first one that is would be
-		// a worse failure than the one it prevents.
 		emitted[name] = true
 		deps := map[string]bool{}
 		collect(components[name], components, deps)
@@ -244,12 +214,7 @@ func collect(s *schema, components map[string]*schema, out map[string]bool) {
 	collect(s.Items, components, out)
 }
 
-// zodOf turns one JSON Schema node into a zod expression.
-//
-// It refuses what it does not understand. Every unsupported construct here would
-// otherwise become a weaker schema than the spec — `z.any()` in place of a
-// constraint — and a form that validates less than the API is the defect this
-// generator exists to remove.
+// zodOf turns one JSON Schema node into a zod expression, and errors on a construct it cannot represent exactly.
 func zodOf(s *schema, components map[string]*schema, seen map[string]bool, depth int) (string, error) {
 	if s == nil {
 		return "", errors.New("nil schema")

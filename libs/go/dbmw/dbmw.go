@@ -1,5 +1,4 @@
 // Package dbmw wires pgx with OTel tracing + per-query metrics (ADR-0500).
-// Services pass the returned tracer to pgxpool.Config.ConnConfig.Tracer.
 package dbmw
 
 import (
@@ -21,31 +20,17 @@ func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
 	if err != nil {
 		panic(err)
 	}
-	// PgBouncer transaction-mode compatibility (ADR-0300). `DescribeExec` describes
-	// a statement without creating a server-side prepared statement, which is what
-	// makes a transaction-mode pooler safe.
-	//
-	// Still required, and the version number is not the reason to stop. PgBouncer
-	// has supported prepared statements in transaction mode since 1.21 and the
-	// deployed pooler is well past that — but only when `max_prepared_statements`
-	// is greater than zero, and it defaults to zero. The CNPG `Pooler` in
-	// infra/helm/platform/postgres sets `max_client_conn` and `default_pool_size`
-	// and not that one, so the capability is off however new the binary is.
-	//
-	// Turning it on is an ADR-0300 amendment rather than a values edit: that rule
-	// forbids server-side prepared statements "without compatibility flags", and
-	// the flag has a per-connection cache to size.
+	// PgBouncer transaction-mode compatibility (ADR-0300): `DescribeExec` describes a statement without creating a
+	// server-side prepared statement. Still required — PgBouncer honours them only when `max_prepared_statements`
+	// is above zero, and the CNPG Pooler does not set it. Turning it on is an ADR-0300 amendment, not a values edit.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
 	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		panic(err)
 	}
-	// Bounded startup retry: on a cold cluster dependencies come up in parallel, so
-	// Postgres may not accept connections yet. Retry instead of crashing on the first
-	// miss — a panic here yields CrashLoopBackOff with a growing (up to 5-minute)
-	// delay. Runtime blips need no handling here: pgxpool reconnects on demand and
-	// the /readyz gate parks the pod out of rotation meanwhile (see observability).
+	// Bounded startup retry: on a cold cluster Postgres may not accept connections yet, and a panic here yields
+	// CrashLoopBackOff with a growing delay. Runtime blips need nothing: pgxpool reconnects and /readyz parks the pod.
 	err = retry(ctx, pool.Ping)
 	if err != nil {
 		panic(err)

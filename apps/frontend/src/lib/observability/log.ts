@@ -1,15 +1,4 @@
 // Browser log/error forwarding (ADR-0500, ADR-0400).
-//
-// Deliberately separate from `client.ts`, and deliberately importing nothing.
-// `client.ts` pulls in the Faro web SDK and its tracing instrumentation, which
-// carry OpenTelemetry — ~180 KiB of the landing page's initial JS when anything
-// in the initial graph reaches it. `error.tsx` is in every route's graph, so a
-// single `obsLog` import there was enough to put the whole SDK on the critical
-// path of a page that is a heading and six links.
-//
-// These functions only read `window.faro`, which `initBrowserObservability`
-// stamps on once it has loaded. Before that they are silent no-ops — correct,
-// because there is nowhere to send a log until the SDK is up.
 "use client";
 
 type Loggable = string | number | boolean | null | undefined | object;

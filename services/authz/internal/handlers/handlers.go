@@ -1,17 +1,5 @@
-// Package handlers implements the ogen-generated authz.Handler interface
-// (ADR-0303): authz is a spec-first service like every other HTTP service, even
-// though it owns no database and sits east-west behind Oathkeeper (ADR-0306).
-//
-// Two operations:
-//
-//	Authorize     — the ops-tier decision for Oathkeeper's remote_json authorizer.
-//	                200 = allow, 403 = deny. Deny is a valid DECISION, not an error,
-//	                so it returns the 403 response variant with nil error; only real
-//	                infrastructure failures return an error (→ NewError → 5xx).
-//	CreateOperator — starts the operator-registration workflow, which mints a
-//	                Kratos identity with the `operator` trait and grants
-//	                group:operator#member in OpenFGA (ADR-0401, ADR-0304). The
-//	                generated admin page target (x-admin: action).
+// Package handlers implements the ogen-generated authz.Handler interface: spec-first like every HTTP service, though
+// it owns no database (ADR-0303, ADR-0306).
 package handlers
 
 import (
@@ -67,15 +55,9 @@ func New(
 
 var _ authzsdk.Handler = (*Handlers)(nil)
 
-// Authorize is the ops-tier edge authorizer (ADR-0306). It answers in two layers:
-//
-//	coarse (mandatory) — a CLAIM check: the `operator` trait and AAL2. It makes NO
-//	    OpenFGA call, so a product-authz outage cannot lock operators out of the
-//	    dashboards they need to diagnose it (break-glass independence).
-//	fine (optional) — the subject holds dashboard:<tool>#view in OpenFGA, enabled
-//	    per-project via OPS_FINE_GRAINED.
-//
-// A bare authenticated session therefore never grants tool access.
+// Authorize answers in two layers (ADR-0306). Coarse is a claim check — the `operator` trait and AAL2 — and
+// makes no OpenFGA call, so a product-authz outage cannot lock operators out of the dashboards that diagnose it.
+// Fine is `dashboard:<tool>#view`, enabled per project. A bare authenticated session never grants tool access.
 func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest) (authzsdk.AuthorizeRes, error) {
 	allowed, reason, err := h.decide(ctx, req)
 	if err != nil {
@@ -106,18 +88,9 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 	return &authzsdk.AuthorizeOK{}, nil
 }
 
-// CreateOperator starts the operator-registration workflow and returns its handle.
-//
-// It does not do the work. Minting the Kratos identity and granting
-// group:operator#member in OpenFGA is a dual write across two systems with no
-// shared transaction (ADR-0304), and doing it inline was this platform's one
-// recorded exemption from that rule: a failure between the two left an operator
-// who could sign in and was refused by every ops tool, with the request already
-// returned and nothing anywhere to say why.
-//
-// The workflow id is derived from the email, which makes a repeated submission
-// idempotent rather than a second identity: Temporal refuses to start a second run
-// under an id already running, and this returns the handle of the first.
+// CreateOperator starts the workflow and returns its handle: the pair is a dual write across two systems with no
+// shared transaction (ADR-0304). The workflow id is derived from the email, so a repeated submission returns the
+// first handle rather than minting a second identity.
 func (h *Handlers) CreateOperator(
 	ctx context.Context, req *authzsdk.OperatorInput,
 ) (*authzsdk.WorkflowHandle, error) {
@@ -139,16 +112,9 @@ func (h *Handlers) CreateOperator(
 	}, nil
 }
 
-// CheckRelation answers one relation question for a first-party caller.
-//
-// It is the non-Go door to the same Checker the services use (ADR-0304). The
-// analytics panel is the first caller: ADR-0700 requires the route group to make
-// an AUTHORITATIVE check in its render layer, and a TypeScript render layer cannot
-// call a Go library.
-//
-// A deny is a 200 with `allowed: false`, not an error. The caller is deciding what
-// to render, and an exception would make "you may not see this" indistinguishable
-// from "authz is down" — which are opposite things to show a user.
+// CheckRelation is the non-Go door to the same Checker the services use (ADR-0304, ADR-0700).
+// A deny is a 200 with `allowed: false`, not an error: an exception would make "you may not see this"
+// indistinguishable from "authz is down".
 func (h *Handlers) CheckRelation(
 	ctx context.Context, req *authzsdk.RelationCheck,
 ) (*authzsdk.RelationDecision, error) {
@@ -169,10 +135,8 @@ func (h *Handlers) CheckRelation(
 	return &authzsdk.RelationDecision{Allowed: allowed}, nil
 }
 
-// ListIdentities returns Kratos identities (product users and operators), flattened
-// from traits — the console's Users changelist (ADR-0401). Only authz may reach the
-// Kratos admin API (network-policies/30-ory.yaml), so the console fetches through
-// here rather than talking to Kratos directly. Pagination is forwarded to Kratos.
+// ListIdentities: Only authz may reach the Kratos admin API (network-policies/30-ory.yaml), so the console fetches
+// through here rather than talking to Kratos directly (ADR-0401).
 func (h *Handlers) ListIdentities(
 	ctx context.Context, params authzsdk.ListIdentitiesParams,
 ) ([]authzsdk.Identity, error) {

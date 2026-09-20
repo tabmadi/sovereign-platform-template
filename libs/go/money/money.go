@@ -1,30 +1,4 @@
 // Package money is the platform's monetary type (ADR-0100, ADR-0003).
-//
-// A monetary amount is this type — at rest, in the contract, and on the wire —
-// never a float64. A float64 amount compiles and surfaces later as a rounding
-// discrepancy nobody can attribute to a line of code.
-//
-// The arithmetic is [math/big]'s. What this package adds is the four properties
-// that make an amount money rather than a number:
-//
-//   - a currency that cannot be added to another
-//   - a rounding mode chosen at the call site rather than inherited
-//   - a Postgres numeric mapping, through [sql.Scanner] and [driver.Valuer]
-//   - a STRING JSON form, because a JSON number is an IEEE-754 double by the time
-//     a TypeScript client reads it
-//
-// No third-party decimal package is introduced. That is a deliberate trade
-// ADR-0100 records: a bug here is a bug in every price and total at once, and the
-// exposure is ours to test rather than ours to trust.
-//
-// # Currency mismatch is an error, not a panic
-//
-// [Amount.Add] and its neighbours return an error when the currencies differ.
-// The alternative — panicking — was rejected: a mismatch is reachable from data
-// (a request body naming a currency, a row from another tenant), and a panic on
-// reachable input turns a bad request into a dropped connection. The cost is that
-// every addition is checked, which is the correct amount of ceremony for the one
-// operation that silently produces a wrong total.
 package money
 
 import (
@@ -35,7 +9,6 @@ import (
 	"strings"
 )
 
-// Rounding selects how a division or a scale reduction breaks a tie.
 type Rounding int
 
 const (
@@ -56,10 +29,8 @@ const scale = 4
 
 var scaleFactor = big.NewInt(10000) // 10^scale
 
-// rateScale is the precision a RATE is parsed at, and it is deliberately finer than
-// the amount scale. A tax or discount rate routinely carries more decimal places
-// than any amount does — 0.00005 is a real rate — and parsing one through the
-// amount's four places would reject it as excess precision.
+// rateScale is finer than the amount scale: 0.00005 is a real tax rate, and parsing it at four places would reject it
+// as excess precision.
 const rateScale = 8
 
 var rateScaleFactor = big.NewInt(100000000) // 10^rateScale
@@ -77,16 +48,8 @@ var (
 	amountPattern   = regexp.MustCompile(`^-?[0-9]+(\.[0-9]+)?$`)
 )
 
-// Amount is a monetary value: a fixed-point quantity and its currency.
-//
-// The receivers are mixed deliberately, which recvcheck flags: Scan and
-// UnmarshalJSON must take a pointer to satisfy sql.Scanner and json.Unmarshaler,
-// and everything else takes a value so an Amount behaves like the number it stands
-// for rather than like a handle to one.
-//
-// The zero value is not usable — it has no currency — which is deliberate. An
-// amount that defaults to a currency is an amount that silently joins a total it
-// does not belong in.
+// Amount is a monetary value: a fixed-point quantity and its currency. The zero value has no currency, so an
+// amount cannot silently join a total it does not belong in.
 //
 //nolint:recvcheck // sql.Scanner and json.Unmarshaler require the pointer receiver
 type Amount struct {
@@ -94,7 +57,6 @@ type Amount struct {
 	currency string  // ISO 4217 alphabetic, uppercase
 }
 
-// Parse reads a decimal string, as it arrives on the wire.
 func Parse(amount, currency string) (Amount, error) {
 	err := ValidateCurrency(currency)
 	if err != nil {
@@ -152,7 +114,6 @@ func FromMinorUnits(value int64, minorDigits int, currency string) (Amount, erro
 	return Amount{units: *units, currency: currency}, nil
 }
 
-// ValidateCurrency checks the ISO 4217 alphabetic form.
 func ValidateCurrency(currency string) error {
 	if currency == "" {
 		return ErrNoCurrency
@@ -163,7 +124,6 @@ func ValidateCurrency(currency string) error {
 	return nil
 }
 
-// Currency is the ISO 4217 code.
 func (a Amount) Currency() string { return a.currency }
 
 // IsZero reports whether the amount is zero. A zero amount still carries its
@@ -173,11 +133,9 @@ func (a Amount) IsZero() bool { return a.units.Sign() == 0 }
 // Valid reports whether this is a usable amount rather than the struct's zero value.
 func (a Amount) Valid() bool { return a.currency != "" }
 
-// Sign is -1, 0, or +1.
 func (a Amount) Sign() int { return a.units.Sign() }
 
-// String is the wire and display form: a plain decimal, no separators, with the
-// trailing zeros of the internal scale trimmed.
+// String is the wire and display form: a plain decimal with no separators and no trailing zeros.
 func (a Amount) String() string {
 	if a.currency == "" {
 		return ""
@@ -228,10 +186,8 @@ func (a Amount) Mul(factor int64) Amount {
 	return Amount{units: product, currency: a.currency}
 }
 
-// MulRate multiplies by a decimal rate — a tax rate, a discount — and rounds the
-// result to the internal scale with the given mode. The mode is a parameter rather
-// than a package default because the correct one is a property of the calculation,
-// and inheriting it is how a tax total ends up a cent out.
+// MulRate multiplies by a decimal rate and rounds to the internal scale. The mode is a parameter because the correct
+// one is a property of the calculation.
 func (a Amount) MulRate(rate string, mode Rounding) (Amount, error) {
 	rateUnits, err := parseRate(rate)
 	if err != nil {
@@ -267,10 +223,8 @@ func parseRate(rate string) (*big.Int, error) {
 	return units, nil
 }
 
-// Div divides into n equal parts, rounding the result.
-//
-// Prefer [Amount.Split] when the parts must sum back to the original: rounding each
-// part independently leaves a remainder, and the remainder is money.
+// Div divides into n equal parts, rounding each. Prefer [Amount.Split] when the parts must sum back: the remainder is
+// money.
 func (a Amount) Div(n int64, mode Rounding) (Amount, error) {
 	if n == 0 {
 		return Amount{}, ErrDivideByZero
@@ -279,12 +233,8 @@ func (a Amount) Div(n int64, mode Rounding) (Amount, error) {
 	return Amount{units: *quotient, currency: a.currency}, nil
 }
 
-// Split divides into n parts that sum EXACTLY back to the original, distributing
-// the indivisible remainder one minor unit at a time across the leading parts.
-//
-// This is the operation a naive division gets wrong: splitting 10.00 three ways
-// gives 3.33 three times, which is 9.99, and the missing cent has to land
-// somewhere rather than evaporate.
+// Split divides into n parts that sum exactly back to the original, distributing the indivisible remainder one
+// minor unit at a time. Splitting 10.00 three ways gives 9.99, and the missing cent has to land somewhere.
 func (a Amount) Split(n int) ([]Amount, error) {
 	if n <= 0 {
 		return nil, ErrDivideByZero
@@ -314,7 +264,6 @@ func (a Amount) Split(n int) ([]Amount, error) {
 	return parts, nil
 }
 
-// Cmp compares two amounts of the same currency: -1, 0, or +1.
 func (a Amount) Cmp(b Amount) (int, error) {
 	err := a.sameCurrency(b)
 	if err != nil {
@@ -330,14 +279,12 @@ func (a Amount) Equal(b Amount) bool {
 	return a.currency == b.currency && a.units.Cmp(&b.units) == 0
 }
 
-// Neg returns -a.
 func (a Amount) Neg() Amount {
 	var negated big.Int
 	negated.Neg(&a.units)
 	return Amount{units: negated, currency: a.currency}
 }
 
-// Abs returns |a|.
 func (a Amount) Abs() Amount {
 	var abs big.Int
 	abs.Abs(&a.units)

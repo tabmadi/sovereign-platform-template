@@ -1,14 +1,5 @@
 {{- if .Values.forgejo.enabled }}
-## The forge (ADR-0102). Gated on the same flag the chart is.
-##
-## Ingress is the edge and the Actions runners. The runners are not built yet (G3
-## in the plan), so today this admits the edge and nothing else — a rule naming a
-## workload that does not exist would select nothing and read as coverage.
-##
-## Egress needs to reach the WORLD on 443, and that is the uncomfortable one worth
-## stating: a forge fetches from upstream repositories, posts webhooks, and pulls
-## container images for Actions. Restricting it to an allow-list of known hosts
-## would be a list that is wrong the first time someone adds a dependency.
+## The forge (ADR-0102). Gated on the same flag the chart is. Ingress is the edge and the Actions runners.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

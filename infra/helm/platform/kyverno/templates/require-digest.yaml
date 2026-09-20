@@ -1,22 +1,12 @@
 {{- if .Values.policies.imagePrefix }}
 # Every first-party image reference is a digest (ADR-0101, ADR-0104).
-#
-# `lint:floating-tags` already checks the committed values files, and this is the
-# other half of the same rule for the reason ADR-0203 records as the exception that
-# shows the test: the two checks have different SUBJECTS. The lint reads the values
-# a human edits; this reads the pod spec a chart rendered, and a rendered pod spec
-# can carry a floating tag no values file contains — from a chart default, a
-# sidecar injected by another controller, or a `kubectl set image` on a Friday.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: require-image-digest
   annotations:
-    # After the CRDs, which are TEMPLATES of the subchart rather than files in a
-    # crds/ directory — so a single Helm pass renders this CR against an API server
-    # that has never heard of `kyverno.io/v1`. ArgoCD orders it with this wave; an
-    # imperative `helm install` of this chart needs two passes, the first with
-    # `policies.imagePrefix=""` (see values.yaml).
+    # After the CRDs, which are TEMPLATES of the subchart rather than files in a crds/ directory — so a single Helm
+    # pass renders this CR against an API server that has never heard of `kyverno.io/v1`.
     argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: First-party images are pinned by digest
     policies.kyverno.io/category: Supply chain
@@ -28,10 +18,9 @@ metadata:
       (ADR-0101).
 spec:
   validationFailureAction: {{ .Values.policies.validationFailureAction }}
-  # Background scanning ON, unlike the signature policy: this check needs no
-  # registry round trip, so it is cheap to re-evaluate against everything already
-  # running — which is how a workload that was admitted before the policy existed
-  # shows up in a report instead of staying invisible until its next reschedule.
+  # Background scanning ON, unlike the signature policy: this check needs no registry round trip, so it is cheap to
+  # re-evaluate against everything already running — which is how a workload that was admitted before the policy
+  # existed shows up in a report instead of staying invisible until its next reschedule.
   background: true
   rules:
     - name: digest-not-tag
@@ -57,13 +46,9 @@ spec:
             deny:
               conditions:
                 all:
-                  # BOTH conditions in one `all`, rather than the registry check as
-                  # a foreach precondition: a precondition that does not match skips
-                  # the element silently, and a rule that silently skips everything
-                  # looks exactly like a rule that passes.
-                  #
-                  # Only OUR images. A third-party image is pinned by the allow-list
-                  # rule instead — different obligation, different owner.
+                  # BOTH conditions in one `all`, rather than the registry check as a foreach precondition: a precondition that does
+                  # not match skips the element silently, and a rule that silently skips everything looks exactly like a rule that
+                  # passes.
                   - key: "{{ `{{ element.image }}` }}"
                     operator: Equals
                     value: {{ .Values.policies.imagePrefix | quote }}

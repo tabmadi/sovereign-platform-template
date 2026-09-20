@@ -1,5 +1,4 @@
-// Package activities holds the orgs workflow activities (ADR-0302): the two legs
-// of the register-user dual-write (ADR-0304).
+// Package activities holds the two legs of the register-user dual write (ADR-0302, ADR-0304).
 package activities
 
 import (
@@ -33,18 +32,12 @@ func New(db *pgxpool.Pool, granter authz.Granter) *Activities {
 	}
 }
 
-// personalOrgName is the default display name for the org auto-created at
-// registration. It is deliberately generic, not the user's email: an org is a
-// tenant that may later hold a whole team, its `name` is shown to every member
-// the user invites (so an email here would leak PII, ADR-0301), and email is
-// mutable. The user renames it from the console; the stable identity is the id.
+// Deliberately generic, not the user's email: an org may later hold a team, its `name` is shown to every member
+// (ADR-0301), and email is mutable.
 const personalOrgName = "Personal workspace"
 
-// CreatePersonalOrgActivity is dual-write leg 1 (ADR-0304): the application-DB
-// write. Creates the identity's personal org (generic default name) and records
-// them as its admin member in one transaction. Returns the new org id in the wire
-// form (ADR-0003) — it leaves this process, so it is prefixed everywhere it is
-// then used: the OpenFGA object, the identity metadata, and the workflow result.
+// CreatePersonalOrgActivity: Dual-write leg 1 (ADR-0304): the org and its admin membership in one transaction.
+// Returns the org id in the wire form (ADR-0003), since it leaves this process.
 func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID string) (string, error) {
 	tx, err := a.db.Begin(ctx)
 	if err != nil {
@@ -52,10 +45,8 @@ func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID s
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// The identifier is minted here rather than by a column default (ADR-0003), and
-	// here rather than in the workflow: `id.New` reads the clock and the entropy
-	// pool, which a workflow function may not do. An activity retry therefore mints a
-	// fresh one, the same as the default it replaces.
+	// Minted here rather than by a column default, and here rather than in the workflow: `id.New` reads the clock and
+	// the entropy pool, which a workflow function may not (ADR-0003).
 	key, err := id.New("org")
 	if err != nil {
 		return "", fmt.Errorf("create personal org: mint id: %w", err)

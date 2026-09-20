@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 # Apply each service's migrations to the local Postgres (ADR-0300).
-# Run after `cluster:up`; this opens its own port-forward, so it is independent of
-# whether `dev:forward` is running and of the native inner loop. Schema migrations
-# are run separately here, not by the service in the inner loop (the service runs
-# natively against these deps and does not apply migrations itself).
 set -euo pipefail
 
 # The CNPG cluster publishes role-suffixed services (postgres-rw is the primary);

@@ -1,17 +1,4 @@
-// Command adr-rules generates the two documents that are views over the ADR set's Rules
-// sections, and drift-checks them in CI like any other generated artefact.
-//
-//	docs/reference/rules-index.md   every rule in the set, with its enforcement
-//	docs/security-baseline.md       the annotated rules of the security-owning ADRs
-//
-// Both were hand-maintained copies of facts owned elsewhere, which is the drift the
-// repository's own principle 9 exists to stop. Generating them makes an ADR's Rules
-// section the single source: a rule is edited once, in the ADR that owns it.
-//
-// Usage:
-//
-//	adr-rules          write both documents
-//	adr-rules -check   fail if either differs from what the ADRs produce
+// Command adr-rules generates the rules index and the security baseline from the ADR set's Rules sections (ADR-0203).
 package main
 
 import (
@@ -63,10 +50,8 @@ var (
 	upLink  = regexp.MustCompile(`\]\(\.\./([^)]+)\)`)
 )
 
-// securityAreas names the ADRs whose rules constitute the security baseline, and the
-// control area each owns. An ADR outside this map states rules that are not security
-// controls; adding one is a deliberate edit here rather than a side effect of writing a
-// rule that mentions a credential.
+// securityAreas names the ADRs whose rules are security controls. Membership is a deliberate edit here, never a side
+// effect of a rule mentioning a credential.
 var securityAreas = map[string]string{
 	"0104": "Supply chain",
 	"0200": "Node and workload isolation",

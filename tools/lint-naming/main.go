@@ -1,33 +1,4 @@
 // Command lint-naming enforces the resource-name grammar (ADR-0003).
-//
-// Every named resource derives from `{project}-{env}-{role}[-{n}]`, the slug
-// matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters, the project
-// slug is 6–11 characters, `env` is spelled out, and `role` comes from a closed
-// table. None of that is checkable by the cluster — a provider accepts any name it
-// can encode, and a wrong one is discovered when someone reads a bill — so it is
-// CI's to enforce or nobody's.
-//
-// # What it reads
-//
-//	infra/talos/inventory/<env>/nodes.yml     the node names, which become the
-//	                                          machine names and the Kubernetes
-//	                                          node names
-//	.sops.yaml                                the env token in every recipient
-//	                                          anchor and path rule
-//	infra/gitops/platform/<env>/              the per-environment overlay directories
-//
-// These are the surfaces where an environment is NAMED rather than referenced. A
-// misspelling in any of them ("stg", "prd") is the specific failure ADR-0003's "no
-// abbreviations" rule exists to prevent: it forces a mapping table between surfaces,
-// and the mapping is what rots.
-//
-// # The role table is parsed, not copied
-//
-// The closed vocabulary lives in ADR-0003 as a markdown table, and this reads it
-// from there. A copy here would be a second source of truth for a list whose whole
-// purpose is to be the only one — and the ADR's own rule is that a new resource
-// class adds a row in the same PR, which only means something if the row is what
-// the gate consults.
 package main
 
 import (
@@ -55,10 +26,8 @@ const overlayDir = "infra/gitops/platform"
 // environment's own name and nothing else.
 var provisionedEnvs = map[string]bool{"dev": true, "staging": true, "prod": true}
 
-// localTier is the laptop tier (ADR-0600). It is not a provisioned environment and
-// has no provider resources, so it never appears in an inventory — but it does own
-// a GitOps overlay and a committed age recipient (ADR-0202), and those are named
-// with the same token everywhere rather than with a fourth spelling.
+// localTier is the laptop tier (ADR-0600). It appears in no inventory, and does own a GitOps overlay and a committed
+// age recipient (ADR-0202).
 const localTier = "local"
 
 // slugPattern is ADR-0003's charset rule, itself derived from RFC 1123 DNS labels.
@@ -105,10 +74,8 @@ func main() {
 	_, _ = fmt.Fprintln(os.Stdout, "✓ resource names follow {project}-{env}-{role}[-{n}]")
 }
 
-// parseRoles reads the closed role vocabulary out of the ADR's table. The table is
-// the one whose rows are single backticked tokens followed by a prose column; the
-// ADR's other tables have different shapes, and a row that does not match is simply
-// not a role.
+// parseRoles reads the role vocabulary from the ADR table whose rows are a backticked token and a prose column; a row
+// that does not match is not a role.
 func parseRoles(path string) (map[string]bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -241,10 +208,8 @@ func inventoryHosts(path string) ([]string, error) {
 		}
 	}
 	walk(&root)
-	// An inventory that yields no names is a FAILURE, not a pass. The file exists,
-	// so something names nodes in it; a walk that finds none has been pointed at a
-	// shape it does not understand, and reporting success would mean the grammar
-	// stopped being checked without anyone being told.
+	// An inventory yielding no names is a failure, not a pass: the walk has been pointed at a shape it does not
+	// understand.
 	if len(hosts) == 0 {
 		return nil, fmt.Errorf("%s: no `nodes` mapping — the grammar cannot be checked", path)
 	}

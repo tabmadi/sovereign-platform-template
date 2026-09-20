@@ -1,36 +1,14 @@
 // Error fingerprinting, browser side (ADR-0503).
-//
-// The counterpart of `Fingerprint` in libs/go/observability, and deliberately the
-// same RULE rather than the same code: a browser error and a service error that
-// describe one fault should group together on one dashboard, and they cannot if
-// the two sides normalise differently.
-//
-// It lives here rather than in the frontend because ADR-0503 requires the
-// fingerprint to be centralised and unit-tested — and `mise run test:ts` runs
-// `libs/ts/`, where a test is cheap to run and impossible to forget.
 
-/** The character classes that vary between occurrences of one fault. */
 const ALNUM = /^[0-9a-zA-Z]$/;
-/** `at fn (…)` — the frame's name, when it has one. */
 const NAMED_FRAME = /^at\s+([^\s(]+)\s*\(/;
-/** The `at ` prefix and the `:line:col` suffix an anonymous frame carries. */
 const AT_PREFIX = /^at\s+/;
 const LOCATION_SUFFIX = /:\d+:\d+\)?$/;
 
 /**
- * Removes the parts of a message that vary per occurrence, leaving the skeleton
- * the code wrote.
- *
- * Two rules, matching the Go side exactly:
- *
- * - a run of digits becomes `<n>` — counts, sizes, ports, status codes;
- * - a run of letters and digits together, four characters or longer, becomes
- *   `<x>` — entity ids, uuids, digests.
- *
- * Not a hex rule: the wire form of an identifier here is Crockford base32
- * (`order_01kztmx9e0fq1r13w5d1aerqw6`), whose alphabet includes letters no hex
- * run matches, so a hex rule shreds one id into fragments that still differ
- * between occurrences.
+ * Removes the parts of a message that vary per occurrence. Two rules, matching the Go side exactly: a run of
+ * digits becomes `<n>`, and a run of letters and digits four or longer becomes `<x>`.
+ * Not a hex rule: the wire form of an identifier is Crockford base32, whose alphabet a hex run shreds.
  */
 export function normalise(message: string): string {
   let out = "";
@@ -78,18 +56,9 @@ function consumeRun(message: string, start: number, emit: (piece: string) => voi
 }
 
 /**
- * The application frames of a stack trace, in order, with locations stripped.
- *
- * Line and column numbers are removed for the reason the Go side removes them:
- * editing a line above a function shifts every line below it, and a fingerprint
- * that moves on a cosmetic edit mints a new fault for a change that fixed
- * nothing.
- *
- * Vendor frames are dropped by the same argument the Go side uses — the frames
- * inside a framework are identical for every caller, so keeping them merges
- * unrelated faults that happen to fail in the same library. In a browser bundle
- * "vendor" is what came from `node_modules`, which the build records in the
- * source path.
+ * The application frames of a stack trace, in order, with locations stripped. Line and column numbers move on a
+ * cosmetic edit, and vendor frames are identical for every caller, so keeping either merges unrelated faults.
+ * In a browser bundle "vendor" is what came from `node_modules`, which the build records in the source path.
  */
 export function appFrames(stack: string | undefined, limit = 8): string[] {
   if (!stack) {
@@ -120,18 +89,9 @@ function frameName(line: string): string {
 }
 
 /**
- * A stable identifier for the FAULT rather than for the occurrence.
- *
- * Hashes the error type, the normalised message, and the application frames —
- * the same three inputs, in the same order, as the Go side.
- *
- * The hash is FNV-1a rather than SHA-256, and that is a deliberate difference
- * from the service side. This runs in the browser on the error path, where
- * `crypto.subtle.digest` is asynchronous and would turn error reporting into a
- * promise chain; a non-cryptographic hash is the right tool because nothing here
- * depends on the hash being hard to invert. The two sides therefore produce
- * different values for the same fault — grouping is per surface, which is how the
- * dashboard reads them anyway.
+ * A stable identifier for the fault rather than the occurrence, hashing the error type, the normalised message
+ * and the application frames — the same three inputs, in the same order, as the Go side.
+ * FNV-1a rather than SHA-256: `crypto.subtle.digest` is async and would make error reporting a promise chain.
  */
 // biome-ignore-start lint/suspicious/noBitwiseOperators: FNV-1a is defined in terms of xor and a 32-bit multiply
 export function fingerprint(error: { name?: string; message?: string; stack?: string }): string {

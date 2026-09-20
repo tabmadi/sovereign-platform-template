@@ -1,30 +1,5 @@
-// Command lint-authz-dual-write checks that authorization tuples are written from
-// a workflow's activities, never from a request handler (ADR-0304, ADR-0302).
-//
-// ADR-0304's rule: an authz-relevant mutation runs inside a Temporal workflow with
-// the database write and the OpenFGA write as SEPARATE activities. The reason is
-// the one property neither store can give on its own — there is no transaction
-// across Postgres and OpenFGA, so the only thing that can make "the row exists and
-// the tuple exists" true is a saga that retries each half until it is.
-//
-// A handler that writes both is the failure this prevents: it succeeds at the first
-// write, fails at the second, returns an error, and leaves a resource that exists
-// and cannot be read — or worse, one that exists and is readable by the wrong
-// people. Nothing surfaces it. The row is there, the check says no, and the report
-// is "permissions are broken" weeks later.
-//
-// # What it looks for
-//
-// A call to the granter — `Grant`, `Revoke`, or anything else on `authz.Granter` —
-// from a package that is not `internal/activities`. The Granter is the only way to
-// write a tuple (ADR-0304 confines the OpenFGA SDK to libs/go/authz, which
-// depguard enforces), so the seam is exactly one type and this can be exact rather
-// than heuristic.
-//
-// # What it does NOT look for
-//
-// Reads. `Checker.Allowed` from a handler is the correct shape and is what every
-// protected route does.
+// Command lint-authz-dual-write checks that authorization tuples are written from a workflow's activities, never from
+// a request handler (ADR-0304, ADR-0302).
 package main
 
 import (
@@ -48,13 +23,8 @@ var granterMethods = []string{"Grant", "Revoke"}
 // consistent rather than occasionally wrong.
 const activitiesDir = "internal/activities"
 
-// exempt lists the call sites that are known violations, each with the reason it is
-// still here. An exemption is a debt with a name — the alternative is a gate that
-// does not exist because the first violation was reason enough to delete it.
-//
-// It is empty, and that is the point it is kept for: the map stays so the next
-// violation has somewhere to be written down with its reason, rather than being
-// argued about at the gate.
+// exempt lists known violations with the reason each survives. It is empty and stays so the next violation has
+// somewhere to be written down.
 var exempt = map[string]string{}
 
 type finding struct {
@@ -142,10 +112,7 @@ func grantCalls(path string) ([]finding, error) {
 			if !ok || !slices.Contains(granterMethods, sel.Sel.Name) {
 				return true
 			}
-			// `x.Grant(...)` where x is a granter. The receiver's TYPE is not
-			// resolved here — that would mean type-checking the package for a
-			// method name that belongs to one interface in this repo. A false
-			// positive is a call named Grant on something else, which is a name
+			// The receiver's type is not resolved: a false positive is a call named Grant on something else, which is a name
 			// worth questioning anyway.
 			hit := finding{
 				file: path,

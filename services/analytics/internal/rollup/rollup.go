@@ -1,33 +1,16 @@
 // Package rollup turns raw event rows into ordered funnel counts (ADR-0700).
-//
-// The ordering is the whole point and it is the part that is easy to get wrong. A
-// session that visits the checkout page from a bookmark has not traversed the
-// funnel, and counting it would make every funnel look flat — so a step counts a
-// session only when every EARLIER step happened first.
-//
-// This is a pure function over first-seen timestamps, deliberately separated from
-// both the query and the handler: it is the only part with a rule worth testing,
-// and it is testable without a database.
 package rollup
 
 import "time"
 
-// Step is one session's first occurrence of one event name.
 type Step struct {
 	SessionID string
 	Name      string
 	FirstSeen time.Time
 }
 
-// Count returns, for each step in `steps`, the number of sessions that reached it
-// IN ORDER — having reached every earlier step at or before it.
-//
-// The result is always the same length as `steps`, so a step nothing reached is a
-// zero rather than a missing row. A funnel with a gap in it is a finding; a funnel
-// with a hole in its output is a rendering bug waiting to happen.
-//
-// Counts are monotonically non-increasing by construction: a session counted at
-// step n was counted at every step before it.
+// Count returns, per step, the sessions that reached it in order. The result is always the same length as
+// `steps`, so a step nothing reached is a zero rather than a missing row, and counts are non-increasing.
 func Count(steps []string, rows []Step) []int64 {
 	counts := make([]int64, len(steps))
 	if len(steps) == 0 {
@@ -52,10 +35,8 @@ func Count(steps []string, rows []Step) []int64 {
 	}
 
 	for _, seen := range bySession {
-		// `prev` is the time the previous step was reached. A step counts only if
-		// it was first seen at or after it — `!Before` rather than `After`, because
-		// two events in the same millisecond are ordered by the funnel's definition
-		// rather than by a clock that cannot separate them.
+		// `!Before` rather than `After`: two events in the same millisecond are ordered by the funnel's definition, not by
+		// a clock that cannot separate them.
 		var prev time.Time
 		for i, name := range steps {
 			at, ok := seen[name]
@@ -72,15 +53,9 @@ func Count(steps []string, rows []Step) []int64 {
 	return counts
 }
 
-// Buckets splits a half-open window into day-aligned buckets.
-//
-// Aligned to midnight UTC rather than to the window's start, so the same day is
-// the same bucket on every run — a pass over a window starting at 03:00 must not
-// produce buckets offset by three hours from yesterday's.
-//
-// The last bucket may extend past `to`; the query that fills it is bounded by the
-// bucket, so a partially elapsed day is counted as far as it has gone and replaced
-// on the next pass.
+// Buckets: Aligned to midnight UTC rather than to the window's start, so the same day is the same bucket on every
+// run. The last bucket may extend past `to`; the query is bounded by the bucket, so a partial day is replaced next
+// pass.
 func Buckets(from, to time.Time) [][2]time.Time {
 	var out [][2]time.Time
 	if !from.Before(to) {
