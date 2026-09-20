@@ -112,8 +112,8 @@ pre-commit:
       glob: "*.sh"
       run: mise exec -- bash scripts/lint-shell.sh
     comments:
-      # ADR-0001's comment table (lint:comments), over the staged Go/TS.
-      glob: "*.{go,ts,tsx}"
+      # ADR-0001's comment rules (lint:comments), over every commented surface.
+      glob: "*.{go,ts,tsx,sh,yaml,yml,toml}"
       run: mise exec -- go run ./tools/lint-comments
     log-vocab:
       # Human-output vocabulary gate (lint:log-vocab).
