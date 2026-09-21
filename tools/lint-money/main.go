@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -338,32 +337,19 @@ func checkTypeScriptFile(path, source string) []finding {
 }
 
 // sourceFiles lists the committed files with one of these extensions, outside the
-// skipped trees. Paths are collected before anything is read, so no file operation
-// runs inside the walk.
+// skipped trees. repo.Files rather than a walk: a gitignored build output is not
+// source, and a gate whose verdict depends on what is lying in the tree is not one.
 func sourceFiles(exts, skip []string) ([]string, error) {
-	var out []string
-	err := filepath.WalkDir(
-		".",
-		func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() {
-				// A dot-directory is .git, .next, or a tool cache: none of it is source.
-				if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
-					return fs.SkipDir
-				}
-				return nil
-			}
-			if !slices.Contains(exts, filepath.Ext(path)) || skipped(path, skip) {
-				return nil
-			}
-			out = append(out, path)
-			return nil
-		},
-	)
+	files, err := repo.Files()
 	if err != nil {
-		return nil, fmt.Errorf("walk: %w", err)
+		return nil, err
+	}
+	var out []string
+	for _, path := range files {
+		if !slices.Contains(exts, filepath.Ext(path)) || skipped(path, skip) {
+			continue
+		}
+		out = append(out, path)
 	}
 	return out, nil
 }
