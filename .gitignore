@@ -51,10 +51,11 @@ test/perf/results/
 
 # Helm / Terraform
 **/charts/*.tgz
-# ...except the observability subcharts, which are vendored into git so ArgoCD's
-# repo-server renders them offline (no `helm dependency build` / network, which
-# wedges behind the local privoxy edge). See observability/Chart.yaml.
+# ...except the charts that declare no `dependencies:` and vendor their subcharts
+# instead, so ArgoCD's repo-server renders them without the network fetch that wedges
+# behind the local privoxy edge. Each records why in its own Chart.yaml.
 !infra/helm/platform/observability/charts/*.tgz
+!infra/helm/platform/otel-agent/charts/*.tgz
 # `helm dependency update` unpacks into `tmpcharts-<pid>/` beside the chart and
 # leaves the directory behind when the download fails. Scratch, never content.
 **/tmpcharts-*/
