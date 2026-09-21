@@ -3,12 +3,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 // A finding is one offending line inside one run: block.
@@ -19,32 +22,29 @@ type finding struct {
 }
 
 func main() {
+	lint.Main("workflow steps carry pipeline logic (ADR-0102)", run)
+}
+
+func run(r *lint.Report) error {
 	files, err := workflowFiles()
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
 	if len(files) == 0 {
-		failf("no workflow files found under .github/")
+		return errors.New("no workflow files found under .github/")
 	}
-
-	var findings []finding
 	for _, f := range files {
-		fs, err := check(f)
+		findings, err := check(f)
 		if err != nil {
-			failf("%s: %v", f, err)
+			return fmt.Errorf("%s: %w", f, err)
 		}
-		findings = append(findings, fs...)
-	}
-
-	if len(findings) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ workflow steps carry pipeline logic (ADR-0102):")
-		for _, f := range findings {
-			_, _ = fmt.Fprintf(os.Stderr, "  %s:%d: %s\n", f.file, f.line, f.text)
+		for _, finding := range findings {
+			r.Addf("%s:%d: %s", finding.file, finding.line, finding.text)
 		}
-		_, _ = fmt.Fprintln(os.Stderr, "\n  Move the logic into a mise task and call it from the step.")
-		os.Exit(1)
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ workflow steps call mise tasks (%d files)\n", len(files))
+	r.Hintf("Move the logic into a mise task and call it from the step.")
+	r.Okf("workflow steps call mise tasks (%d files)", len(files))
+	return nil
 }
 
 func workflowFiles() ([]string, error) {
@@ -55,9 +55,9 @@ func workflowFiles() ([]string, error) {
 		filepath.Join(".github", "actions", "*", "action.yml"),
 		filepath.Join(".github", "actions", "*", "action.yaml"),
 	} {
-		m, err := filepath.Glob(pattern)
+		m, err := repo.Glob(pattern)
 		if err != nil {
-			return nil, fmt.Errorf("glob %s: %w", pattern, err)
+			return nil, err
 		}
 		out = append(out, m...)
 	}
@@ -65,14 +65,9 @@ func workflowFiles() ([]string, error) {
 }
 
 func check(path string) ([]finding, error) {
-	data, err := os.ReadFile(path)
+	root, err := repo.ReadYAML[yaml.Node](path)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	var root yaml.Node
-	err = yaml.Unmarshal(data, &root)
-	if err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
+		return nil, err
 	}
 
 	var findings []finding
@@ -134,9 +129,4 @@ func offending(line string) string {
 		return ""
 	}
 	return strings.TrimSpace(line)
-}
-
-func failf(format string, a ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", a...)
-	os.Exit(1)
 }

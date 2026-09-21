@@ -4,11 +4,13 @@ package main
 import (
 	"fmt"
 	"math"
-	"os"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 const themeFile = "apps/frontend/src/styles/theme.css"
@@ -69,13 +71,16 @@ var (
 )
 
 func main() {
-	data, err := os.ReadFile(themeFile)
+	lint.Main("design tokens fail WCAG 2.2 AA contrast (ADR-0400)", run)
+}
+
+func run(r *lint.Report) error {
+	data, err := repo.Read(themeFile)
 	if err != nil {
-		failf("read %s: %v", themeFile, err)
+		return err
 	}
 	light, dark := split(string(data))
 
-	var problems []string
 	checked := 0
 	for _, mode := range []struct {
 		name   string
@@ -85,21 +90,15 @@ func main() {
 		{"dark", parse(dark)},
 	} {
 		if len(mode.tokens) == 0 {
-			failf("%s: no colour tokens found in the %s palette", themeFile, mode.name)
+			return fmt.Errorf("%s: no colour tokens found in the %s palette", themeFile, mode.name)
 		}
-		found, probs := checkMode(mode.name, mode.tokens)
+		found, problems := checkMode(mode.name, mode.tokens)
 		checked += found
-		problems = append(problems, probs...)
+		r.Add(problems...)
 	}
 
-	if len(problems) > 0 {
-		_, _ = fmt.Fprintf(os.Stderr, "✗ design tokens fail WCAG 2.2 AA contrast (ADR-0400):\n")
-		for _, p := range problems {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		os.Exit(1)
-	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ %d token pairs meet WCAG 2.2 AA contrast\n", checked)
+	r.Okf("%d token pairs meet WCAG 2.2 AA contrast", checked)
+	return nil
 }
 
 // checkMode derives the pairs from the token names and returns the failures.
@@ -314,9 +313,4 @@ func contrast(fg, bg rgb) float64 {
 		l1, l2 = l2, l1
 	}
 	return (l1 + 0.05) / (l2 + 0.05)
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

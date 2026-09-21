@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
 // listTimeout bounds one `go list` call.
@@ -38,22 +40,24 @@ var taskHeader = regexp.MustCompile(`(?m)^\[tasks\.([a-z0-9:-]+)\]`)
 var listed = regexp.MustCompile(`"([^"]+)"`)
 
 func main() {
+	lint.Main("a service entrypoint does not declare what it uses", run)
+}
+
+func run(r *lint.Report) error {
 	module, err := modulePath()
 	if err != nil {
-		failf(err)
+		return err
 	}
 	services, err := serviceNames()
 	if err != nil {
-		failf(err)
+		return err
 	}
-
-	var problems []string
 	checked := 0
 
 	for _, svc := range services {
 		declared, err := declaredDeps(filepath.Join("services", svc, ".mise.toml"))
 		if err != nil {
-			failf(err)
+			return err
 		}
 		for _, cmd := range commands {
 			dir := filepath.Join("services", svc, "cmd", cmd)
@@ -64,23 +68,16 @@ func main() {
 
 			required, err := requiredDeps(module, svc, services, dir)
 			if err != nil {
-				failf(err)
+				return err
 			}
-			problems = append(problems, compare(svc, cmd, required, declared[cmd])...)
+			r.Add(compare(svc, cmd, required, declared[cmd])...)
 		}
 	}
 
-	if len(problems) > 0 {
-		sort.Strings(problems)
-		for _, p := range problems {
-			_, _ = fmt.Fprintf(os.Stderr, "✗ %s\n", p)
-		}
-		_, _ = fmt.Fprintf(os.Stderr, "\n  `depends` is what `mise run <task>` brings up. A missing entry is a\n")
-		_, _ = fmt.Fprintf(os.Stderr, "  service that starts and then fails on its first real request.\n")
-		os.Exit(1)
-	}
-
-	_, _ = fmt.Fprintf(os.Stdout, "✓ %d service entrypoints declare exactly what they use\n", checked)
+	r.Hintf("`depends` is what `mise run <task>` brings up. A missing entry is a\n" +
+		"  service that starts and then fails on its first real request.")
+	r.Okf("%d service entrypoints declare exactly what they use", checked)
+	return nil
 }
 
 // compare produces one finding per direction of drift.
@@ -281,9 +278,4 @@ func sortedKeys(m map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func failf(err error) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ %v\n", err)
-	os.Exit(1)
 }

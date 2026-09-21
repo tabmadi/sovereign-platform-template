@@ -3,6 +3,7 @@ package main
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,7 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 // `.tmpl` rather than `.md`: the relative links resolve from the output's directory, so the markdown linter reads
@@ -52,23 +54,28 @@ type column struct {
 }
 
 func main() {
+	lint.Main("the data-class registry does not match the migrations", run)
+}
+
+func run(r *lint.Report) error {
 	check := len(os.Args) > 1 && os.Args[1] == "--check"
 
-	policies, err := loadRetention()
+	policies, err := repo.ReadYAML[retention](retentionPath)
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
 	columns, err := scanColumns()
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
 	if len(columns) == 0 {
-		failf("no tagged columns found — the registry would be empty, which is never right")
+		return errors.New("no tagged columns found — the registry would be empty, which is never right")
 	}
 	for _, c := range columns {
 		_, known := policies.Classes[c.class]
 		if !known {
-			failf("%s.%s.%s is tagged pii:%s, which retention.yaml does not define", c.service, c.table, c.name, c.class)
+			const form = "%s.%s.%s is tagged pii:%s, which retention.yaml does not define"
+			return fmt.Errorf(form, c.service, c.table, c.name, c.class)
 		}
 	}
 
@@ -76,30 +83,17 @@ func main() {
 	if check {
 		got, readErr := os.ReadFile(outPath)
 		if readErr != nil || string(got) != want {
-			_, _ = fmt.Fprintf(os.Stderr, "✗ %s is stale — run `mise run gen:data-classes`\n", outPath)
-			os.Exit(1)
+			return fmt.Errorf("%s is stale — run `mise run gen:data-classes`", outPath)
 		}
-		_, _ = fmt.Fprintf(os.Stdout, "✓ %s matches the migrations and retention.yaml\n", outPath)
-		return
+		r.Okf("%s matches the migrations and retention.yaml", outPath)
+		return nil
 	}
 	err = os.WriteFile(outPath, []byte(want), 0o600)
 	if err != nil {
-		failf("write %s: %v", outPath, err)
+		return fmt.Errorf("write %s: %w", outPath, err)
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ %d classified columns in %s\n", len(columns), outPath)
-}
-
-func loadRetention() (retention, error) {
-	var out retention
-	raw, err := os.ReadFile(retentionPath)
-	if err != nil {
-		return out, fmt.Errorf("read %s: %w", retentionPath, err)
-	}
-	err = yaml.Unmarshal(raw, &out)
-	if err != nil {
-		return out, fmt.Errorf("parse %s: %w", retentionPath, err)
-	}
-	return out, nil
+	r.Okf("%d classified columns in %s", len(columns), outPath)
+	return nil
 }
 
 // scanColumns reads every service's migrations. A later migration's tag wins, so a column is re-classified by a new
@@ -114,9 +108,9 @@ func scanColumns() ([]column, error) {
 	latest := map[string]column{}
 	for _, path := range paths {
 		service := filepath.Base(filepath.Dir(filepath.Dir(path)))
-		raw, readErr := os.ReadFile(path)
+		raw, readErr := repo.Read(path)
 		if readErr != nil {
-			return nil, fmt.Errorf("read %s: %w", path, readErr)
+			return nil, readErr
 		}
 		// The `migrate:down` half undoes the tags, so reading it would record every
 		// column as untagged by the end of the file.
@@ -216,9 +210,4 @@ func countServices(columns []column) int {
 		seen[c.service] = true
 	}
 	return len(seen)
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

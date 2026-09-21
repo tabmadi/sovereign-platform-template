@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 const (
@@ -24,31 +27,28 @@ var httpMethods = map[string]bool{
 }
 
 func main() {
+	lint.Main("API audience does not match edge exposure (ADR-0303)", run)
+}
+
+func run(r *lint.Report) error {
 	specs, err := filepath.Glob(filepath.Join("services", "*", "openapi.yaml"))
 	if err != nil {
-		failf("glob specs: %v", err)
+		return fmt.Errorf("glob specs: %w", err)
 	}
-	problems := make([]string, 0, len(specs))
 	for _, path := range specs {
 		svc := filepath.Base(filepath.Dir(path))
 		auds, err := effectiveAudiences(path)
 		if err != nil {
-			failf("%s: %v", path, err)
+			return err
 		}
 		exposed, err := edgeExposed(svc)
 		if err != nil {
-			failf("%s: %v", svc, err)
+			return err
 		}
-		problems = append(problems, check(svc, auds, exposed)...)
+		r.Add(check(svc, auds, exposed)...)
 	}
-	if len(problems) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ API audience does not match edge exposure (ADR-0303):")
-		for _, p := range problems {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		os.Exit(1)
-	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ %d API specs: x-audience matches edge exposure\n", len(specs))
+	r.Okf("%d API specs: x-audience matches edge exposure", len(specs))
+	return nil
 }
 
 func check(svc string, auds []string, exposed bool) []string {
@@ -78,19 +78,14 @@ func check(svc string, auds []string, exposed bool) []string {
 // effectiveAudiences resolves each operation's audience: its own x-audience, else the
 // service default (info.x-audience), else the fail-closed `cluster`.
 func effectiveAudiences(path string) ([]string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	var s struct {
+	s, err := repo.ReadYAML[struct {
 		Info struct {
 			XAudience string `yaml:"x-audience"`
 		} `yaml:"info"`
 		Paths map[string]map[string]yaml.Node `yaml:"paths"`
-	}
-	err = yaml.Unmarshal(data, &s)
+	}](path)
 	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
+		return nil, err
 	}
 	def := s.Info.XAudience
 	if def == "" {
@@ -124,28 +119,18 @@ func effectiveAudiences(path string) ([]string, error) {
 // treated as not deployed, hence not edge-exposed.
 func edgeExposed(svc string) (bool, error) {
 	path := filepath.Join("infra", "gitops", "services", "dev", "values", svc+".yaml")
-	data, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("read %s: %w", path, err)
-	}
-	var v struct {
+	v, err := repo.ReadYAML[struct {
 		Ingress struct {
 			Enabled   *bool    `yaml:"enabled"`
 			Resources []string `yaml:"resources"`
 		} `yaml:"ingress"`
+	}](path)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
 	}
-	err = yaml.Unmarshal(data, &v)
 	if err != nil {
-		return false, fmt.Errorf("parse %s: %w", path, err)
+		return false, err
 	}
 	enabled := v.Ingress.Enabled == nil || *v.Ingress.Enabled // chart default is true
 	return enabled && len(v.Ingress.Resources) > 0, nil
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, format+"\n", args...)
-	os.Exit(1)
 }

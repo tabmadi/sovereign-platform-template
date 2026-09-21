@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
 const (
@@ -33,27 +34,23 @@ var (
 )
 
 func main() {
+	lint.Main("ADR cross-references do not hold", run)
+}
+
+func run(r *lint.Report) error {
 	set, err := loadSet()
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
-	problems := make([]string, 0, len(set.files))
-	problems = append(problems, checkReferences(set)...)
-	problems = append(problems, checkRelatedExists(set)...)
-	problems = append(problems, checkDecidesAndIndex(set)...)
-	problems = append(problems, checkComponentAgreement()...)
-	problems = append(problems, checkDeferralCoverage(set)...)
-	problems = append(problems, checkReadmeBoundary()...)
+	r.Add(checkReferences(set)...)
+	r.Add(checkRelatedExists(set)...)
+	r.Add(checkDecidesAndIndex(set)...)
+	r.Add(checkComponentAgreement()...)
+	r.Add(checkDeferralCoverage(set)...)
+	r.Add(checkReadmeBoundary()...)
 
-	if len(problems) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ ADR cross-references do not hold:")
-		sort.Strings(problems)
-		for _, p := range problems {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		os.Exit(1)
-	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ ADR cross-references hold across %d ADRs\n", len(set.files))
+	r.Okf("ADR cross-references hold across %d ADRs", len(set.files))
+	return nil
 }
 
 // adrSet is the allocated numbering: files that exist, and numbers held in reserve.
@@ -310,9 +307,4 @@ func markdownFiles() []string {
 		}
 	}
 	return out
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

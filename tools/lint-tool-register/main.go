@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 const registerFile = "docs/tool-register.md"
@@ -33,33 +36,29 @@ var (
 )
 
 func main() {
-	data, err := os.ReadFile(registerFile)
+	lint.Main("tool register does not agree with the ADR set (ADR-0002)", run)
+}
+
+func run(r *lint.Report) error {
+	data, err := repo.Read(registerFile)
 	if err != nil {
-		failf("read %s: %v", registerFile, err)
+		return err
 	}
 	rows := parseRegister(string(data))
 	if len(rows) == 0 {
-		failf("%s: no tool rows found", registerFile)
+		return fmt.Errorf("%s: no tool rows found", registerFile)
 	}
 
 	adrs, err := loadADRs()
 	if err != nil {
-		failf("%v", err)
+		return err
+	}
+	for _, row := range rows {
+		r.Add(checkRow(row, adrs)...)
 	}
 
-	problems := make([]string, 0, len(rows))
-	for _, r := range rows {
-		problems = append(problems, checkRow(r, adrs)...)
-	}
-
-	if len(problems) > 0 {
-		_, _ = fmt.Fprintf(os.Stderr, "✗ tool register does not agree with the ADR set (ADR-0002):\n")
-		for _, p := range problems {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		os.Exit(1)
-	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ %d tool-register rows agree with their owning ADRs\n", len(rows))
+	r.Okf("%d tool-register rows agree with their owning ADRs", len(rows))
+	return nil
 }
 
 // checkRow applies the four Rules to one row.
@@ -303,9 +302,4 @@ func loadADRs() (map[string]string, error) {
 		out[strings.TrimSuffix(filepath.Base(p), ".md")] = string(data)
 	}
 	return out, nil
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

@@ -8,11 +8,11 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
 // granterMethods are the mutating half of the authz seam (libs/go/authz).
@@ -34,6 +34,10 @@ type finding struct {
 }
 
 func main() {
+	lint.Main("an authz tuple is written outside an activity", run)
+}
+
+func run(r *lint.Report) error {
 	var found []finding
 
 	err := filepath.WalkDir(
@@ -62,34 +66,26 @@ func main() {
 		},
 	)
 	if err != nil {
-		failf(err)
+		return fmt.Errorf("walk services: %w", err)
 	}
 
-	var problems []finding
 	for _, f := range found {
 		_, exempted := exempt[f.file]
 		if exempted {
 			continue
 		}
-		problems = append(problems, f)
+		r.Addf("%s:%d: %s writes an authz tuple outside an activity", f.file, f.line, f.call)
 	}
 
-	if len(problems) > 0 {
-		sort.Slice(problems, func(i, j int) bool { return problems[i].line < problems[j].line })
-		for _, p := range problems {
-			_, _ = fmt.Fprintf(os.Stderr, "✗ %s:%d: %s writes an authz tuple outside an activity\n", p.file, p.line, p.call)
-		}
-		_, _ = fmt.Fprintf(os.Stderr, "\n  There is no transaction across Postgres and OpenFGA (ADR-0304). The row\n")
-		_, _ = fmt.Fprintf(os.Stderr, "  write and the tuple write belong in one workflow, as two activities it can\n")
-		_, _ = fmt.Fprintf(os.Stderr, "  retry — a handler that does both leaves a resource nobody can read.\n")
-		os.Exit(1)
-	}
-
+	r.Hintf("There is no transaction across Postgres and OpenFGA (ADR-0304). The row\n" +
+		"  write and the tuple write belong in one workflow, as two activities it can\n" +
+		"  retry — a handler that does both leaves a resource nobody can read.")
 	if len(exempt) > 0 {
-		_, _ = fmt.Fprintf(os.Stdout, "✓ authz tuples are written from activities (%d exemption(s) recorded)\n", len(exempt))
-		return
+		r.Okf("authz tuples are written from activities (%d exemption(s) recorded)", len(exempt))
+	} else {
+		r.Okf("authz tuples are written from activities, with no exemptions")
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ authz tuples are written from activities, with no exemptions\n")
+	return nil
 }
 
 // grantCalls returns every granter mutation called in a file.
@@ -132,9 +128,4 @@ func render(sel *ast.SelectorExpr) string {
 		return ident.Name + "." + sel.Sel.Name
 	}
 	return sel.Sel.Name
-}
-
-func failf(err error) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ %v\n", err)
-	os.Exit(1)
 }

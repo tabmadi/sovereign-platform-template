@@ -3,16 +3,16 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 // maxBlockLines is ADR-0001's length test. One line is the norm; three is the ceiling.
@@ -20,9 +20,6 @@ const maxBlockLines = 3
 
 // maxEchoChars bounds the echo check. Past it a doc comment is carrying content.
 const maxEchoChars = 90
-
-// gitTimeout bounds the enumeration, so a wedged git cannot hang the gate.
-const gitTimeout = 30 * time.Second
 
 var budgetPath = filepath.Join("tools", "lint-comments", "budget.txt")
 
@@ -138,62 +135,61 @@ type block struct {
 }
 
 func main() {
-	ratchet := flag.Bool("ratchet", false, "stamp the current comment count as the budget")
 	flag.Parse()
+	lint.Main("comments violate ADR-0001", run)
+}
 
-	found, total := sweep()
+// ratchet stamps the current count as the budget. The budget only ever falls: a run that would raise it
+// leaves the file alone, so a branch that adds comments cannot widen the ceiling for every later branch.
+var ratchet = flag.Bool("ratchet", false, "stamp the current comment count as the budget")
+
+func run(r *lint.Report) error {
+	found, total, err := sweep()
+	if err != nil {
+		return err
+	}
 
 	if *ratchet {
 		current, ok := budget()
 		if ok && total >= current {
-			_, _ = fmt.Fprintf(os.Stdout, "✓ comment budget holds at %d lines (tree carries %d)\n", current, total)
-			return
+			r.Okf("comment budget holds at %d lines (tree carries %d)", current, total)
+			return nil
 		}
-		err := os.WriteFile(budgetPath, []byte(strconv.Itoa(total)+"\n"), 0o600)
+		err = os.WriteFile(budgetPath, []byte(strconv.Itoa(total)+"\n"), 0o600)
 		if err != nil {
-			failf("write %s: %v", budgetPath, err)
+			return fmt.Errorf("write %s: %w", budgetPath, err)
 		}
-		_, _ = fmt.Fprintf(os.Stdout, "✓ comment budget lowered to %d lines\n", total)
-		return
+		r.Okf("comment budget lowered to %d lines", total)
+		return nil
 	}
 
-	over := budgetExceeded(total)
-	if len(found) == 0 && over == "" {
-		_, _ = fmt.Fprintf(os.Stdout, "✓ comments conform to ADR-0001 (%d comment lines)\n", total)
-		return
-	}
 	for _, f := range found {
-		_, _ = fmt.Fprintf(os.Stderr, "✗ %s:%d: %s — %s\n", f.file, f.line, f.rule, f.reason)
-		_, _ = fmt.Fprintf(os.Stderr, "    %s\n", strings.TrimSpace(f.text))
+		r.Addf("%s:%d: %s — %s\n    %s", f.file, f.line, f.rule, f.reason, strings.TrimSpace(f.text))
 	}
+	over := budgetExceeded(total)
 	if over != "" {
-		_, _ = fmt.Fprintf(os.Stderr, "✗ %s\n", over)
+		r.Add(over)
 	}
-	_, _ = fmt.Fprintf(os.Stderr, "\n  ADR-0001's comment rules. A line may opt out with `lint:comments-allow`.\n")
-	os.Exit(1)
+	r.Hintf("ADR-0001's comment rules. A line may opt out with `lint:comments-allow`.")
+	r.Okf("comments conform to ADR-0001 (%d comment lines)", total)
+	return nil
 }
 
-// repoFiles is the set git accounts for: everything committed plus anything new that is not ignored, the same
-// set scripts/lib/repo-files.sh enumerates. A machine-local file a .gitignore excludes must not move the budget,
-// or the count differs between a working tree and a clean checkout. Nil outside a work tree, which scans all.
+// repoFiles is repo.Files as a set, nil outside a work tree so the sweep falls back to scanning everything.
 func repoFiles() map[string]bool {
-	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z").Output()
+	files, err := repo.Files()
 	if err != nil {
 		return nil
 	}
 	set := map[string]bool{}
-	for p := range strings.SplitSeq(string(out), "\x00") {
-		if p != "" {
-			set[filepath.Clean(p)] = true
-		}
+	for _, f := range files {
+		set[f] = true
 	}
 	return set
 }
 
 // sweep scans every root and returns the violations and the tree's comment count.
-func sweep() ([]finding, int) {
+func sweep() ([]finding, int, error) {
 	inRepo := repoFiles()
 	var found []finding
 	total := 0
@@ -217,7 +213,7 @@ func sweep() ([]finding, int) {
 		if !info.IsDir() {
 			err = collect(root)
 			if err != nil {
-				failf("scan %s: %v", root, err)
+				return nil, 0, fmt.Errorf("scan %s: %w", root, err)
 			}
 			continue
 		}
@@ -234,10 +230,10 @@ func sweep() ([]finding, int) {
 		}
 		err = filepath.Walk(root, walk)
 		if err != nil {
-			failf("walk %s: %v", root, err)
+			return nil, 0, fmt.Errorf("walk %s: %w", root, err)
 		}
 	}
-	return found, total
+	return found, total, nil
 }
 
 // budget reads the stamped comment-line ceiling.
@@ -253,8 +249,7 @@ func budget() (int, bool) {
 	return n, true
 }
 
-// budgetExceeded reports the overage when the tree carries more comment lines than
-// the stamped ceiling. `mise run gen` lowers that ceiling and never raises it.
+// budgetExceeded reports the overage when the tree carries more comment lines than the stamped ceiling.
 func budgetExceeded(total int) string {
 	ceiling, ok := budget()
 	if !ok || total <= ceiling {
@@ -514,11 +509,6 @@ func exportedName(next string) (string, bool) {
 		return "", false
 	}
 	return m[2], true
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }
 
 var heredocStart = regexp.MustCompile(`<<-?\s*['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?`)

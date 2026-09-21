@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 const (
@@ -64,39 +66,40 @@ var stopWords = map[string]bool{
 }
 
 func main() {
+	lint.Main("the README and ADR-0000 have drifted from the ADR set", run)
+}
+
+func run(r *lint.Report) error {
 	rejected, err := loadRejected()
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
-	body, err := os.ReadFile(readmePath)
+	body, err := repo.Read(readmePath)
 	if err != nil {
-		failf("read %s: %v", readmePath, err)
+		return err
 	}
 	verdicts, err := loadVerdicts()
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
-	foundations, err := os.ReadFile(foundationsADR)
+	foundations, err := repo.Read(foundationsADR)
 	if err != nil {
-		failf("read %s: %v", foundationsADR, err)
+		return err
 	}
 	adrPrinciples := principlesInADR(string(foundations))
 	readmePrinciples := principlesInREADME(string(body))
 
-	problems := checkStackTable(string(body), rejected)
-	problems = append(problems, checkPrincipleBlocks(adrPrinciples, verdicts)...)
-	problems = append(problems, checkAnchors(adrPrinciples, readmePrinciples)...)
-	problems = append(problems, checkHeadcount()...)
-
-	if len(problems) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ the README and ADR-0000 have drifted from the ADR set:")
-		sort.Strings(problems)
-		for _, p := range problems {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		os.Exit(1)
+	r.Add(checkStackTable(string(body), rejected)...)
+	r.Add(checkPrincipleBlocks(adrPrinciples, verdicts)...)
+	r.Add(checkAnchors(adrPrinciples, readmePrinciples)...)
+	headcounts, err := checkHeadcount()
+	if err != nil {
+		return err
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "✓ the README and ADR-0000 agree with the ADR set")
+	r.Add(headcounts...)
+
+	r.Okf("the README and ADR-0000 agree with the ADR set")
+	return nil
 }
 
 // verdictSet is what every ADR's comparison tables concluded, pooled across the set: the
@@ -543,9 +546,13 @@ func checkStackTable(readme string, rejected map[string][]string) []string {
 
 // checkHeadcount asserts the capacity reframe holds everywhere it is stated: the
 // obligation columns are the demand side, and no document converts them into a number.
-func checkHeadcount() []string {
+func checkHeadcount() ([]string, error) {
 	var problems []string
-	for _, path := range markdownFiles() {
+	paths, err := markdownFiles()
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
 		body, err := os.ReadFile(path)
 		if err != nil {
 			problems = append(problems, fmt.Sprintf("%s: %v", path, err))
@@ -565,12 +572,12 @@ func checkHeadcount() []string {
 			problems = append(problems, problem)
 		}
 	}
-	return problems
+	return problems, nil
 }
 
 // markdownFiles lists the committed Markdown a headcount could hide in. Paths are
 // collected before anything is read, so no file operation runs inside the walk.
-func markdownFiles() []string {
+func markdownFiles() ([]string, error) {
 	var out []string
 	for _, root := range []string{"docs", readmePath, "AGENTS.md"} {
 		err := filepath.WalkDir(
@@ -587,10 +594,10 @@ func markdownFiles() []string {
 			},
 		)
 		if err != nil {
-			failf("walk %s: %v", root, err)
+			return nil, fmt.Errorf("walk %s: %w", root, err)
 		}
 	}
-	return out
+	return out, nil
 }
 
 // leadToken returns the first word of an option cell that names a thing rather than
@@ -650,9 +657,4 @@ func splitRow(line string) []string {
 func plain(s string) string {
 	s = linkText.ReplaceAllString(s, "$1")
 	return inlineTag.ReplaceAllString(s, "")
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

@@ -11,26 +11,31 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 func main() {
-	specs, err := filepath.Glob(filepath.Join("services", "*", "openapi.yaml"))
+	lint.Main("resource-prefix ownership (ADR-0303, ADR-0306)", run)
+}
+
+func run(r *lint.Report) error {
+	specs, err := repo.Glob(filepath.Join("services", "*", "openapi.yaml"))
 	if err != nil {
-		failf("glob specs: %v", err)
+		return err
 	}
-	sort.Strings(specs)
 
 	// owner maps a resource to every service declaring it, so a collision reports
 	// all claimants rather than just the second one.
 	owner := map[string][]string{}
-	var problems []string
 
 	for _, spec := range specs {
 		svc := filepath.Base(filepath.Dir(spec))
 
 		routed, err := routedResources(svc)
 		if err != nil {
-			failf("%s: %v", svc, err)
+			return fmt.Errorf("%s: %w", svc, err)
 		}
 		if len(routed) == 0 {
 			continue // east-west service: it claims nothing in the /api namespace
@@ -38,44 +43,34 @@ func main() {
 
 		served, err := servedPrefixes(spec)
 		if err != nil {
-			failf("%s: %v", spec, err)
+			return fmt.Errorf("%s: %w", spec, err)
 		}
 
-		for _, r := range routed {
-			owner[r] = append(owner[r], svc)
-			if !served[r] {
-				msg := fmt.Sprintf("%s: routes %q at the edge but its spec has no /%s path", svc, r, r)
-				problems = append(problems, msg)
+		for _, resource := range routed {
+			owner[resource] = append(owner[resource], svc)
+			if !served[resource] {
+				r.Addf("%s: routes %q at the edge but its spec has no /%s path", svc, resource, resource)
 			}
 		}
-		for p := range served {
-			if slices.Contains(routed, p) {
+		for prefix := range served {
+			if slices.Contains(routed, prefix) {
 				continue
 			}
-			msg := fmt.Sprintf("%s: spec serves /%s but the edge route table does not claim %q", svc, p, p)
-			problems = append(problems, msg)
+			r.Addf("%s: spec serves /%s but the edge route table does not claim %q", svc, prefix, prefix)
 		}
 	}
 
-	for _, r := range sortedKeys(owner) {
-		claimants := owner[r]
+	for _, resource := range sortedKeys(owner) {
+		claimants := owner[resource]
 		if len(claimants) < 2 {
 			continue
 		}
-		claimed := strings.Join(claimants, ", ")
-		msg := fmt.Sprintf("resource %q is claimed by %s — one flat /api namespace admits one owner", r, claimed)
-		problems = append(problems, msg)
+		const form = "resource %q is claimed by %s — one flat /api namespace admits one owner"
+		r.Addf(form, resource, strings.Join(claimants, ", "))
 	}
 
-	if len(problems) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ resource-prefix ownership (ADR-0303, ADR-0306):")
-		sort.Strings(problems)
-		for _, p := range problems {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		os.Exit(1)
-	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ %d resource prefixes, each owned by one service\n", len(owner))
+	r.Okf("%d resource prefixes, each owned by one service", len(owner))
+	return nil
 }
 
 // routedResources reads the service's edge route table from its canonical dev
@@ -171,9 +166,4 @@ func sortedKeys(m map[string][]string) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

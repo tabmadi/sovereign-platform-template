@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -11,6 +12,9 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 const sourceFile = "tools/codegen/shared-components.yaml"
@@ -32,39 +36,40 @@ type section struct {
 }
 
 // loadSource reads the canonical fragment.
-func loadSource() []section {
-	source, err := os.ReadFile(sourceFile)
-	if err != nil {
-		failf("read %s: %v", sourceFile, err)
-	}
-	var shared struct {
+func loadSource() ([]section, error) {
+	shared, err := repo.ReadYAML[struct {
 		Schemas   yaml.Node `yaml:"schemas"`
 		Responses yaml.Node `yaml:"responses"`
-	}
-	err = yaml.Unmarshal(source, &shared)
+	}](sourceFile)
 	if err != nil {
-		failf("parse %s: %v", sourceFile, err)
+		return nil, err
 	}
 	return []section{
 		{"schemas", &shared.Schemas},
 		{"responses", &shared.Responses},
-	}
+	}, nil
 }
 
 // blocksFor renders the region each section contributes to one spec: the shared
 // components that spec reaches, in source order.
-func blocksFor(sections []section, spec string) map[string]string {
-	keep := reachable(sections, spec)
+func blocksFor(sections []section, spec string) (map[string]string, error) {
+	keep, err := reachable(sections, spec)
+	if err != nil {
+		return nil, err
+	}
 	blocks := make(map[string]string, len(sections))
 	for _, sec := range sections {
-		blocks[sec.key] = renderMap(filterMap(sec.node, sec.key, keep))
+		blocks[sec.key], err = renderMap(filterMap(sec.node, sec.key, keep))
+		if err != nil {
+			return nil, err
+		}
 	}
-	return blocks
+	return blocks, nil
 }
 
 // reachable is the set of shared components a spec points at, closed over their own references. The seed ignores the
 // spliced regions: a component is carried because the spec needs it.
-func reachable(sections []section, spec string) map[string]bool {
+func reachable(sections []section, spec string) (map[string]bool, error) {
 	byName := make(map[string]*yaml.Node)
 	for _, sec := range sections {
 		for name, node := range mapEntries(sec.node) {
@@ -72,7 +77,11 @@ func reachable(sections []section, spec string) map[string]bool {
 		}
 	}
 
-	pending := refsIn(stripRegions(readSpec(spec)))
+	doc, err := readSpec(spec)
+	if err != nil {
+		return nil, err
+	}
+	pending := refsIn(stripRegions(doc))
 	seen := make(map[string]bool, len(pending))
 	for len(pending) > 0 {
 		ref := pending[len(pending)-1]
@@ -82,9 +91,13 @@ func reachable(sections []section, spec string) map[string]bool {
 			continue
 		}
 		seen[ref] = true
-		pending = append(pending, refsIn(renderNode(node))...)
+		rendered, err := renderNode(node)
+		if err != nil {
+			return nil, err
+		}
+		pending = append(pending, refsIn(rendered)...)
 	}
-	return seen
+	return seen, nil
 }
 
 // refsIn collects the component references in a chunk of YAML text.
@@ -116,55 +129,61 @@ func stripRegions(doc string) string {
 }
 
 func main() {
+	lint.Main("shared components have drifted from "+sourceFile, run)
+}
+
+func run(r *lint.Report) error {
 	check := flag.Bool("check", false, "fail on drift instead of rewriting")
 	flag.Parse()
 
-	sections := loadSource()
-
-	specs, err := filepath.Glob(filepath.Join("services", "*", "openapi.yaml"))
+	sections, err := loadSource()
 	if err != nil {
-		failf("glob specs: %v", err)
+		return err
+	}
+	specs, err := repo.Glob(filepath.Join("services", "*", "openapi.yaml"))
+	if err != nil {
+		return err
 	}
 	if len(specs) == 0 {
-		failf("no service specs found")
+		return errors.New("no service specs found")
 	}
 
-	var drifted, written []string
+	var written []string
 	for _, spec := range specs {
-		changed, err := apply(spec, sections, blocksFor(sections, spec), *check)
+		blocks, err := blocksFor(sections, spec)
 		if err != nil {
-			failf("%s: %v", spec, err)
+			return fmt.Errorf("%s: %w", spec, err)
+		}
+		changed, err := apply(spec, sections, blocks, *check)
+		if err != nil {
+			return fmt.Errorf("%s: %w", spec, err)
 		}
 		if !changed {
 			continue
 		}
 		if *check {
-			drifted = append(drifted, spec)
-		} else {
-			written = append(written, spec)
+			r.Addf("%s", spec)
+			continue
 		}
+		written = append(written, spec)
 	}
 
-	switch {
-	case *check && len(drifted) > 0:
-		_, _ = fmt.Fprintln(os.Stderr, "✗ shared components have drifted from "+sourceFile+":")
-		for _, s := range drifted {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+s)
-		}
-		_, _ = fmt.Fprintln(os.Stderr, "\n  Run `mise run gen:shared-components` and commit the result.")
-		os.Exit(1)
-	case *check:
-		_, _ = fmt.Fprintf(os.Stdout, "✓ %d specs carry the canonical form of every shared component they use\n", len(specs))
-	default:
-		_, _ = fmt.Fprintf(os.Stdout, "✓ shared components written to %d spec(s)\n", len(written))
+	r.Hintf("Run `mise run gen:shared-components` and commit the result.")
+	if *check {
+		r.Okf("%d specs carry the canonical form of every shared component they use", len(specs))
+		return nil
 	}
+	r.Okf("shared components written to %d spec(s)", len(written))
+	return nil
 }
 
 // apply splices every section into one spec. It reports whether the file changed.
 func apply(spec string, sections []section, blocks map[string]string, dryRun bool) (bool, error) {
-	original := readSpec(spec)
+	original, err := readSpec(spec)
+	if err != nil {
+		return false, err
+	}
 	updated := original
-	var err error
 	for _, sec := range sections {
 		updated, err = splice(updated, sec.key, blocks[sec.key])
 		if err != nil {
@@ -247,23 +266,23 @@ func splice(doc, key, block string) (string, error) {
 }
 
 // renderMap emits a mapping node's entries as YAML, without the wrapping key.
-func renderMap(n *yaml.Node) string {
+func renderMap(n *yaml.Node) (string, error) {
 	if n == nil || n.Kind != yaml.MappingNode || len(n.Content) == 0 {
-		return ""
+		return "", nil
 	}
 	return renderNode(n)
 }
 
-func renderNode(n *yaml.Node) string {
+func renderNode(n *yaml.Node) (string, error) {
 	var b strings.Builder
 	enc := yaml.NewEncoder(&b)
 	enc.SetIndent(2)
 	err := enc.Encode(n)
 	if err != nil {
-		failf("render: %v", err)
+		return "", fmt.Errorf("render: %w", err)
 	}
 	_ = enc.Close()
-	return b.String()
+	return b.String(), nil
 }
 
 // filterMap copies a mapping node down to the kept entries, in source order. The
@@ -294,15 +313,10 @@ func mapEntries(n *yaml.Node) map[string]*yaml.Node {
 	return out
 }
 
-func readSpec(spec string) string {
-	b, err := os.ReadFile(spec)
+func readSpec(spec string) (string, error) {
+	b, err := repo.Read(spec)
 	if err != nil {
-		failf("read %s: %v", spec, err)
+		return "", err
 	}
-	return string(b)
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
+	return string(b), nil
 }

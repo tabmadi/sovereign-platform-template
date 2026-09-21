@@ -2,7 +2,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -11,6 +10,9 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 const (
@@ -63,27 +65,32 @@ func toLogical(body string) string {
 }
 
 func main() {
+	lint.Main("the frontend is not fully localisable (ADR-0400)", run)
+}
+
+func run(r *lint.Report) error {
 	fix := flag.Bool("fix", false, "apply the logical-property swaps in place")
 	flag.Parse()
 
-	problems := checkParity()
-	problems = append(problems, checkLogicalProperties(*fix)...)
-
-	if len(problems) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ the frontend is not fully localisable (ADR-0400):")
-		for _, p := range problems {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		os.Exit(1)
+	parity, err := checkParity()
+	if err != nil {
+		return err
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "✓ message catalogues agree and the layout is direction-neutral")
+	r.Add(parity...)
+	logical, err := checkLogicalProperties(*fix)
+	if err != nil {
+		return err
+	}
+	r.Add(logical...)
+	r.Okf("message catalogues agree and the layout is direction-neutral")
+	return nil
 }
 
 // checkParity asserts every catalogue holds the same key paths.
-func checkParity() []string {
+func checkParity() ([]string, error) {
 	entries, err := os.ReadDir(messagesDir)
 	if err != nil {
-		failf("read %s: %v", messagesDir, err)
+		return nil, fmt.Errorf("read %s: %w", messagesDir, err)
 	}
 
 	keysPerLocale := map[string][]string{}
@@ -92,14 +99,9 @@ func checkParity() []string {
 			continue
 		}
 		locale := strings.TrimSuffix(entry.Name(), ".json")
-		data, err := os.ReadFile(filepath.Join(messagesDir, entry.Name()))
+		parsed, err := repo.ReadJSON[map[string]any](filepath.Join(messagesDir, entry.Name()))
 		if err != nil {
-			failf("read %s: %v", entry.Name(), err)
-		}
-		var parsed map[string]any
-		err = json.Unmarshal(data, &parsed)
-		if err != nil {
-			failf("%s is not valid JSON: %v", entry.Name(), err)
+			return nil, err
 		}
 		keys := flatten("", parsed)
 		sort.Strings(keys)
@@ -108,7 +110,7 @@ func checkParity() []string {
 
 	// An empty message directory is a broken enumeration, not a localised app.
 	if len(keysPerLocale) < 2 {
-		failf("%s holds %d catalogue(s); parity needs at least two", messagesDir, len(keysPerLocale))
+		return nil, fmt.Errorf("%s holds %d catalogue(s); parity needs at least two", messagesDir, len(keysPerLocale))
 	}
 
 	locales := make([]string, 0, len(keysPerLocale))
@@ -133,7 +135,7 @@ func checkParity() []string {
 			}
 		}
 	}
-	return problems
+	return problems, nil
 }
 
 func flatten(prefix string, value map[string]any) []string {
@@ -153,7 +155,7 @@ func flatten(prefix string, value map[string]any) []string {
 	return keys
 }
 
-func checkLogicalProperties(fix bool) []string {
+func checkLogicalProperties(fix bool) ([]string, error) {
 	var candidates []string
 	collect := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -173,14 +175,14 @@ func checkLogicalProperties(fix bool) []string {
 	// resolve its input must not report success.
 	err := filepath.Walk(sourceDir, collect)
 	if err != nil {
-		failf("walk %s: %v", sourceDir, err)
+		return nil, fmt.Errorf("walk %s: %w", sourceDir, err)
 	}
 
 	var problems []string
 	for _, path := range candidates {
-		data, err := os.ReadFile(path)
+		data, err := repo.Read(path)
 		if err != nil {
-			failf("read %s: %v", path, err)
+			return nil, err
 		}
 		body := string(data)
 		patched := toLogical(body)
@@ -192,7 +194,7 @@ func checkLogicalProperties(fix bool) []string {
 			// tree; this is a local lint helper, not a server.
 			err = os.WriteFile(path, []byte(patched), 0o600)
 			if err != nil {
-				failf("write %s: %v", path, err)
+				return nil, fmt.Errorf("write %s: %w", path, err)
 			}
 			continue
 		}
@@ -205,11 +207,5 @@ func checkLogicalProperties(fix bool) []string {
 			}
 		}
 	}
-	sort.Strings(problems)
-	return problems
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
+	return problems, nil
 }

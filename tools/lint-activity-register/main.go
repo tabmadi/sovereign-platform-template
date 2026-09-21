@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
 // executeActivity names the workflow-side calls that take an activity name. Both
@@ -22,13 +24,15 @@ var executeActivity = map[string]bool{
 }
 
 func main() {
+	lint.Main("a workflow names an activity its worker does not register", run)
+}
+
+func run(r *lint.Report) error {
 	services, err := filepath.Glob(filepath.Join("services", "*"))
 	if err != nil {
-		failf("glob services: %v", err)
+		return fmt.Errorf("glob services: %w", err)
 	}
 	sort.Strings(services)
-
-	var problems []string
 	checked := 0
 
 	for _, svc := range services {
@@ -46,38 +50,26 @@ func main() {
 
 		called, err := calledActivities(workflowDir)
 		if err != nil {
-			failf("%v", err)
+			return err
 		}
 		registered, err := registeredActivities(workerMain)
 		if err != nil {
-			failf("%v", err)
+			return err
 		}
 
 		for _, name := range sortedKeys(called) {
 			if registered[name] {
 				continue
 			}
-			problem := fmt.Sprintf(
-				"%s: %q is executed by %s but never registered in %s",
-				svc,
-				name,
-				called[name],
-				workerMain,
-			)
-			problems = append(problems, problem)
+			const form = "%s: %q is executed by %s but never registered in %s"
+			r.Addf(form, svc, name, called[name], workerMain)
 		}
 	}
 
-	if len(problems) > 0 {
-		for _, p := range problems {
-			_, _ = fmt.Fprintf(os.Stderr, "✗ %s\n", p)
-		}
-		_, _ = fmt.Fprintf(os.Stderr, "\n  A workflow names its activities as strings, so the compiler cannot\n")
-		_, _ = fmt.Fprintf(os.Stderr, "  see this. The worker answers \"unable to find activityType\" at run time.\n")
-		os.Exit(1)
-	}
-
-	_, _ = fmt.Fprintf(os.Stdout, "✓ %d workers register every activity their workflows call\n", checked)
+	r.Hintf("A workflow names its activities as strings, so the compiler cannot\n" +
+		"  see this. The worker answers \"unable to find activityType\" at run time.")
+	r.Okf("%d workers register every activity their workflows call", checked)
+	return nil
 }
 
 // calledActivities maps an activity name to the file:line that executes it.
@@ -220,9 +212,4 @@ func sortedKeys(m map[string]string) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

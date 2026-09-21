@@ -10,6 +10,9 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 const (
@@ -56,12 +59,14 @@ type spec struct {
 }
 
 func main() {
-	specs, err := filepath.Glob("services/*/openapi.yaml")
-	if err != nil {
-		failf("glob: %v", err)
-	}
-	sort.Strings(specs)
+	lint.Main("zod schemas could not be generated", run)
+}
 
+func run(r *lint.Report) error {
+	specs, err := repo.Glob("services/*/openapi.yaml")
+	if err != nil {
+		return err
+	}
 	written := 0
 	for _, path := range specs {
 		service := filepath.Base(filepath.Dir(path))
@@ -70,7 +75,7 @@ func main() {
 		}
 		out, err := render(service, path)
 		if err != nil {
-			failf("%s: %v", path, err)
+			return fmt.Errorf("%s: %w", path, err)
 		}
 		if out == "" {
 			continue
@@ -78,15 +83,16 @@ func main() {
 		dest := filepath.Join(outDir, service+".ts")
 		err = os.MkdirAll(outDir, 0o755)
 		if err != nil {
-			failf("mkdir: %v", err)
+			return fmt.Errorf("mkdir %s: %w", outDir, err)
 		}
 		err = os.WriteFile(dest, []byte(out), 0o600)
 		if err != nil {
-			failf("write %s: %v", dest, err)
+			return fmt.Errorf("write %s: %w", dest, err)
 		}
 		written++
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ zod schemas for %d services in %s\n", written, outDir)
+	r.Okf("zod schemas for %d services in %s", written, outDir)
+	return nil
 }
 
 // requestBody is one operation's JSON request body.
@@ -394,9 +400,4 @@ func upperFirst(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

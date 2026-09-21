@@ -4,12 +4,14 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 // Column-name fragments that carry personal data often enough that an untagged one
@@ -53,17 +55,26 @@ type finding struct {
 }
 
 func main() {
-	migrations, err := filepath.Glob(filepath.Join("services", "*", "migrations", "*.sql"))
+	lint.Main("PII column tagging (ADR-0301)", run)
+}
+
+func run(r *lint.Report) error {
+	migrations, err := repo.Glob(filepath.Join("services", "*", "migrations", "*.sql"))
 	if err != nil {
-		failf("glob migrations: %v", err)
+		return err
 	}
 	if len(migrations) == 0 {
-		_, _ = fmt.Fprintln(os.Stdout, "✓ no migrations yet")
-		return
+		r.Okf("no migrations yet")
+		return nil
 	}
-	sort.Strings(migrations)
 
-	columns, tagged, findings := scan(migrations)
+	columns, tagged, findings, err := scan(migrations)
+	if err != nil {
+		return err
+	}
+	for _, f := range findings {
+		r.Addf("%s: %s", f.file, f.message)
+	}
 
 	for _, key := range sortedKeys(columns) {
 		column := key[strings.LastIndex(key, ".")+1:]
@@ -74,33 +85,26 @@ func main() {
 		if isTagged {
 			continue
 		}
-		const form = "%s holds personal data by its name and carries no pii: tag — add one, or pii:none if it does not"
-		findings = append(findings, finding{columns[key], fmt.Sprintf(form, key)})
+		const form = "%s: %s holds personal data by its name and carries no pii: tag — add one, or pii:none if it does not"
+		r.Addf(form, columns[key], key)
 	}
 
-	if len(findings) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ PII column tagging (ADR-0301):")
-		for _, f := range findings {
-			_, _ = fmt.Fprintf(os.Stderr, "  %s: %s\n", f.file, f.message)
-		}
-		os.Exit(1)
-	}
-	const summary = "✓ %d columns across %d migrations; every personal-data column is tagged\n"
-	_, _ = fmt.Fprintf(os.Stdout, summary, len(columns), len(migrations))
+	r.Okf("%d columns across %d migrations; every personal-data column is tagged", len(columns), len(migrations))
+	return nil
 }
 
 // scan reads every migration once. Tags are collected across the whole service: a dbmate migration is immutable, so a
 // retrospective tag is a new file.
-func scan(migrations []string) (map[string]string, map[string]string, []finding) {
+func scan(migrations []string) (map[string]string, map[string]string, []finding, error) {
 	columns := map[string]string{} // "service:table.column" -> file that declares it
 	tagged := map[string]string{}  // "service:table.column" -> class
 	var findings []finding
 
 	for _, path := range migrations {
 		service := filepath.Base(filepath.Dir(filepath.Dir(path)))
-		data, err := os.ReadFile(path)
+		data, err := repo.Read(path)
 		if err != nil {
-			failf("read %s: %v", path, err)
+			return nil, nil, nil, err
 		}
 		sql := string(data)
 
@@ -127,7 +131,7 @@ func scan(migrations []string) (map[string]string, map[string]string, []finding)
 			tagged[key] = class
 		}
 	}
-	return columns, tagged, findings
+	return columns, tagged, findings, nil
 }
 
 func looksPersonal(column string) bool {
@@ -177,9 +181,4 @@ func sortedKeys(m map[string]string) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

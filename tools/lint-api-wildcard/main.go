@@ -3,18 +3,13 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
 	"regexp"
-)
 
-type rule struct {
-	ID    string `json:"id"`
-	Match struct {
-		URL string `json:"url"`
-	} `json:"match"`
-}
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/edge"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+)
 
 // A wildcard token (`<*>`, `<**>`, or a bare `*`) directly after `/api/` — the
 // collision-prone form. `/api/<{products,...}>` (an enumerated alternation) and
@@ -22,42 +17,23 @@ type rule struct {
 var bareAPIWildcard = regexp.MustCompile(`/api/(<\*|\*)`)
 
 func main() {
-	if len(os.Args) != 2 {
-		failf("usage: lint-api-wildcard <access-rules.json>")
-	}
-	// #nosec G304 G703 -- path is an operator-supplied repo file; this is a local lint helper, not a server.
-	data, err := os.ReadFile(os.Args[1])
-	if err != nil {
-		failf("read %s: %v", os.Args[1], err)
-	}
-	var rules []rule
-	err = json.Unmarshal(data, &rules)
-	if err != nil {
-		failf("parse %s: %v", os.Args[1], err)
-	}
-
-	var bad []string
-	for _, r := range rules {
-		if bareAPIWildcard.MatchString(r.Match.URL) {
-			msg := fmt.Sprintf(
-				"%s: match url %q has a bare wildcard after /api/ — enumerate resources instead (/api/<{a,b,c}>)",
-				r.ID,
-				r.Match.URL,
-			)
-			bad = append(bad, msg)
-		}
-	}
-	if len(bad) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ product /api rules must enumerate resources, never a bare /api wildcard:")
-		for _, b := range bad {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+b)
-		}
-		os.Exit(1)
-	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ no bare /api wildcard in %d rules\n", len(rules))
+	lint.Main("product /api rules must enumerate resources, never a bare /api wildcard", run)
 }
 
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, format+"\n", args...)
-	os.Exit(1)
+func run(r *lint.Report) error {
+	if len(os.Args) != 2 {
+		return errors.New("usage: lint-api-wildcard <access-rules.json>")
+	}
+	rules, err := edge.Rules(os.Args[1])
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		if bareAPIWildcard.MatchString(rule.Match.URL) {
+			const form = "%s: match url %q has a bare wildcard after /api/ — enumerate resources instead (/api/<{a,b,c}>)"
+			r.Addf(form, rule.ID, rule.Match.URL)
+		}
+	}
+	r.Okf("no bare /api wildcard in %d rules", len(rules))
+	return nil
 }

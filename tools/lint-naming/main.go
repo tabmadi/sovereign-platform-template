@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
 const adrFile = "docs/adr/0003-naming-and-identifiers.md"
@@ -48,30 +50,34 @@ var roleTableHeader = regexp.MustCompile("^\\|\\s*`role`\\s*\\|\\s*Names\\s*\\|$
 var roleRow = regexp.MustCompile("^\\|\\s*`([a-z0-9-]+)`\\s*\\|")
 
 func main() {
+	lint.Main("a resource name does not follow {project}-{env}-{role}[-{n}]", run)
+}
+
+func run(r *lint.Report) error {
 	roles, err := parseRoles(adrFile)
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
 	if len(roles) == 0 {
-		failf("%s: no role table found; the closed vocabulary is the gate's input", adrFile)
+		return fmt.Errorf("%s: no role table found; the closed vocabulary is the gate's input", adrFile)
 	}
 
-	problems := make([]string, 0, len(roles))
-	problems = append(problems, checkInventories(roles)...)
-	problems = append(problems, checkSops()...)
-	problems = append(problems, checkOverlays()...)
-
-	if len(problems) > 0 {
-		sort.Strings(problems)
-		for _, p := range problems {
-			_, _ = fmt.Fprintf(os.Stderr, "✗ %s\n", p)
+	for _, check := range []func() ([]string, error){
+		func() ([]string, error) { return checkInventories(roles) },
+		checkSops,
+		checkOverlays,
+	} {
+		problems, err := check()
+		if err != nil {
+			return err
 		}
-		_, _ = fmt.Fprintf(os.Stderr, "\n  Names derive from {project}-{env}-{role}[-{n}] (ADR-0003).\n")
-		_, _ = fmt.Fprintf(os.Stderr, "  Roles: %s\n", strings.Join(sortedKeys(roles), ", "))
-		os.Exit(1)
+		r.Add(problems...)
 	}
 
-	_, _ = fmt.Fprintln(os.Stdout, "✓ resource names follow {project}-{env}-{role}[-{n}]")
+	r.Hintf("Names derive from {project}-{env}-{role}[-{n}] (ADR-0003).\n  Roles: %s",
+		strings.Join(sortedKeys(roles), ", "))
+	r.Okf("resource names follow {project}-{env}-{role}[-{n}]")
+	return nil
 }
 
 // parseRoles reads the role vocabulary from the ADR table whose rows are a backticked token and a prose column; a row
@@ -115,15 +121,15 @@ func parseRoles(path string) (map[string]bool, error) {
 // checkInventories walks every node inventory and parses each node name against the
 // grammar. The env comes from the DIRECTORY, so a node in inventory/dev naming
 // itself `staging` is a finding rather than a matter of opinion.
-func checkInventories(roles map[string]bool) []string {
+func checkInventories(roles map[string]bool) ([]string, error) {
 	var problems []string
 
 	entries, err := os.ReadDir(inventoryDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return nil, nil
 		}
-		failf("read %s: %v", inventoryDir, err)
+		return nil, fmt.Errorf("read %s: %w", inventoryDir, err)
 	}
 
 	for _, entry := range entries {
@@ -145,7 +151,7 @@ func checkInventories(roles map[string]bool) []string {
 		path := filepath.Join(inventoryDir, env, "nodes.yml")
 		hosts, err := inventoryHosts(path)
 		if err != nil {
-			failf("%v", err)
+			return nil, err
 		}
 		// Every host in one inventory belongs to one project. A second slug is
 		// either a typo or two projects sharing a control plane, and both want a
@@ -172,7 +178,7 @@ func checkInventories(roles map[string]bool) []string {
 			}
 		}
 	}
-	return problems
+	return problems, nil
 }
 
 // inventoryHosts reads the node names out of an inventory: the keys of the top-level
@@ -281,13 +287,13 @@ var envToken = regexp.MustCompile(`(?:&cluster_([a-z]+)|platform/([a-z]+)/secret
 // checkSops asserts every environment .sops.yaml names is spelled out in full. A
 // recipient anchor is where an abbreviation is most tempting and most damaging: the
 // name is load-bearing for which key encrypts which file.
-func checkSops() []string {
+func checkSops() ([]string, error) {
 	data, err := os.ReadFile(sopsFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return nil, nil
 		}
-		failf("read %s: %v", sopsFile, err)
+		return nil, fmt.Errorf("read %s: %w", sopsFile, err)
 	}
 
 	var problems []string
@@ -310,19 +316,19 @@ func checkSops() []string {
 		)
 		problems = append(problems, problem)
 	}
-	return problems
+	return problems, nil
 }
 
 // checkOverlays asserts the per-environment GitOps directories are named for the
 // environments themselves. This is the surface ArgoCD's ApplicationSets select on,
 // so a directory named `stg` becomes an env token in the cluster too.
-func checkOverlays() []string {
+func checkOverlays() ([]string, error) {
 	entries, err := os.ReadDir(overlayDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return nil, nil
 		}
-		failf("read %s: %v", overlayDir, err)
+		return nil, fmt.Errorf("read %s: %w", overlayDir, err)
 	}
 
 	var problems []string
@@ -344,7 +350,7 @@ func checkOverlays() []string {
 		)
 		problems = append(problems, problem)
 	}
-	return problems
+	return problems, nil
 }
 
 func sortedKeys(m map[string]bool) []string {
@@ -354,9 +360,4 @@ func sortedKeys(m map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

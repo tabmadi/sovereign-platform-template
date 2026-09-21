@@ -11,10 +11,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 // moneyWords is the vocabulary: a name containing one of these as a whole word is monetary.
@@ -61,56 +63,41 @@ type finding struct {
 }
 
 func main() {
-	var found []finding
+	lint.Main("a monetary value is not the shared money type", run)
+}
 
-	specs, err := filepath.Glob(filepath.Join("services", "*", "openapi.yaml"))
+func run(r *lint.Report) error {
+	specs, err := repo.Glob(filepath.Join("services", "*", "openapi.yaml"))
 	if err != nil {
-		failf("glob specs: %v", err)
+		return err
 	}
-	sort.Strings(specs)
+	var found []finding
 	for _, spec := range specs {
 		hits, err := checkSpec(spec)
 		if err != nil {
-			failf("%v", err)
+			return err
 		}
 		found = append(found, hits...)
 	}
-
 	goHits, err := checkGo()
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
 	found = append(found, goHits...)
 
 	tsHits, err := checkTypeScript()
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
 	found = append(found, tsHits...)
 
-	if len(found) > 0 {
-		sort.Slice(
-			found,
-			func(i, j int) bool {
-				if found[i].file != found[j].file {
-					return found[i].file < found[j].file
-				}
-				return found[i].line < found[j].line
-			},
-		)
-		for _, f := range found {
-			_, _ = fmt.Fprintf(os.Stderr, "✗ %s:%d: %s\n", f.file, f.line, f.msg)
-		}
-		_, _ = fmt.Fprintf(os.Stderr, "\n  A monetary amount is the shared money type (ADR-0100):\n")
-		_, _ = fmt.Fprintf(
-			os.Stderr,
-			"  numeric in the column, %s in the spec, a decimal string on the wire.\n",
-			moneyComponent,
-		)
-		os.Exit(1)
+	for _, f := range found {
+		r.Addf("%s:%d: %s", f.file, f.line, f.msg)
 	}
-
-	_, _ = fmt.Fprintln(os.Stdout, "✓ every monetary value is the shared money type")
+	r.Hintf("A monetary amount is the shared money type (ADR-0100):\n" +
+		"  numeric in the column, " + moneyComponent + " in the spec, a decimal string on the wire.")
+	r.Okf("every monetary value is the shared money type")
+	return nil
 }
 
 // checkSpec walks every schema's `properties` mapping and reports a monetary
@@ -230,7 +217,11 @@ func checkGo() ([]finding, error) {
 	var found []finding
 	fset := token.NewFileSet()
 
-	for _, path := range sourceFiles([]string{".go"}, goSkip) {
+	paths, err := sourceFiles([]string{".go"}, goSkip)
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
 		file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, fmt.Errorf("parse %s: %w", path, err)
@@ -303,10 +294,14 @@ var tsMoneyField = regexp.MustCompile(`(?i)\b([a-z_][a-z0-9_]*)\s*\??\s*:\s*(num
 func checkTypeScript() ([]finding, error) {
 	var found []finding
 
-	for _, path := range sourceFiles([]string{".ts", ".tsx", ".js"}, tsSkip) {
-		data, err := os.ReadFile(path)
+	paths, err := sourceFiles([]string{".ts", ".tsx", ".js"}, tsSkip)
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		data, err := repo.Read(path)
 		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", path, err)
+			return nil, err
 		}
 		found = append(found, checkTypeScriptFile(path, string(data))...)
 	}
@@ -345,7 +340,7 @@ func checkTypeScriptFile(path, source string) []finding {
 // sourceFiles lists the committed files with one of these extensions, outside the
 // skipped trees. Paths are collected before anything is read, so no file operation
 // runs inside the walk.
-func sourceFiles(exts, skip []string) []string {
+func sourceFiles(exts, skip []string) ([]string, error) {
 	var out []string
 	err := filepath.WalkDir(
 		".",
@@ -368,9 +363,9 @@ func sourceFiles(exts, skip []string) []string {
 		},
 	)
 	if err != nil {
-		failf("walk: %v", err)
+		return nil, fmt.Errorf("walk: %w", err)
 	}
-	return out
+	return out, nil
 }
 
 // isMoneyName reports whether an identifier names a monetary value. The match is on
@@ -427,9 +422,4 @@ func skipped(path string, prefixes []string) bool {
 		}
 	}
 	return false
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

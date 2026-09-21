@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
 // A rule is one banned construct: the pattern that finds it, and the reason a reader
@@ -109,8 +111,11 @@ const allowMarker = "<!-- prose:allow -->"
 var codeSpan = regexp.MustCompile("`[^`]*`")
 
 func main() {
+	lint.Main("prose violates the ADR-0001 banned-constructs table", run)
+}
+
+func run(r *lint.Report) error {
 	roots := []string{"docs", "README.md", "AGENTS.md", "SECURITY.md", "CODE_OF_CONDUCT.md"}
-	var findings []string
 	for _, root := range roots {
 		err := filepath.Walk(
 			root,
@@ -124,23 +129,17 @@ func main() {
 				if strings.HasSuffix(path, ".local.md") || skipFiles[filepath.ToSlash(path)] {
 					return nil
 				}
-				f, err := checkFile(path)
-				findings = append(findings, f...)
+				findings, err := checkFile(path)
+				r.Add(findings...)
 				return err
 			},
 		)
 		if err != nil {
-			failf("walk %s: %v", root, err)
+			return fmt.Errorf("walk %s: %w", root, err)
 		}
 	}
-	if len(findings) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ prose violates the ADR-0001 banned-constructs table:")
-		for _, f := range findings {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+f)
-		}
-		os.Exit(1)
-	}
-	_, _ = fmt.Fprintln(os.Stdout, "✓ prose conforms to ADR-0001")
+	r.Okf("prose conforms to ADR-0001")
+	return nil
 }
 
 func checkFile(path string) ([]string, error) {
@@ -187,9 +186,4 @@ func checkFile(path string) ([]string, error) {
 		return findings, fmt.Errorf("read %s: %w", path, err)
 	}
 	return findings, nil
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }

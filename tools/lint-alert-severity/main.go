@@ -3,12 +3,10 @@
 package main
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
-	"sort"
 
-	"gopkg.in/yaml.v3"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
 const rulesDir = "infra/observability/alerts"
@@ -31,65 +29,45 @@ type ruleFile struct {
 }
 
 func main() {
-	paths, err := filepath.Glob(filepath.Join(rulesDir, "*.yaml"))
+	lint.Main("alert severities do not match ADR-0502", run)
+}
+
+func run(r *lint.Report) error {
+	paths, err := repo.Glob(filepath.Join(rulesDir, "*.yaml"))
 	if err != nil {
-		failf("glob %s: %v", rulesDir, err)
+		return err
 	}
-	sort.Strings(paths)
-
-	var problems []string
 	alerts, watchdog := 0, false
-
 	for _, path := range paths {
 		// Chart.yaml and any other non-rule YAML that lands here parses cleanly
 		// into an empty Groups, so it is skipped rather than reported.
-		data, err := os.ReadFile(path)
+		rf, err := repo.ReadYAML[ruleFile](path)
 		if err != nil {
-			failf("read %s: %v", path, err)
-		}
-		var rf ruleFile
-		err = yaml.Unmarshal(data, &rf)
-		if err != nil {
-			problems = append(problems, fmt.Sprintf("%s: parse: %v", path, err))
+			r.Addf("%v", err)
 			continue
 		}
 		for _, g := range rf.Groups {
-			for _, r := range g.Rules {
-				if r.Alert == "" {
+			for _, rule := range g.Rules {
+				if rule.Alert == "" {
 					continue // a recording rule carries no severity
 				}
 				alerts++
-				if r.Alert == watchdogAlert {
+				if rule.Alert == watchdogAlert {
 					watchdog = true
 				}
-				sev, ok := r.Labels["severity"]
+				sev, ok := rule.Labels["severity"]
 				switch {
 				case !ok:
-					problems = append(problems, fmt.Sprintf("%s: %s carries no severity", path, r.Alert))
+					r.Addf("%s: %s carries no severity", path, rule.Alert)
 				case !allowed[sev]:
-					const form = "%s: %s carries severity %q, which is not page or ticket"
-					problems = append(problems, fmt.Sprintf(form, path, r.Alert, sev))
+					r.Addf("%s: %s carries severity %q, which is not page or ticket", path, rule.Alert, sev)
 				}
 			}
 		}
 	}
-
 	if !watchdog {
-		const form = "no %s rule in %s — nothing detects a dead alerting pipeline (ADR-0502)"
-		problems = append(problems, fmt.Sprintf(form, watchdogAlert, rulesDir))
+		r.Addf("no %s rule in %s — nothing detects a dead alerting pipeline (ADR-0502)", watchdogAlert, rulesDir)
 	}
-
-	if len(problems) > 0 {
-		_, _ = fmt.Fprintln(os.Stderr, "✗ alert severities do not match ADR-0502:")
-		for _, p := range problems {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		os.Exit(1)
-	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ %d alert rules carry page or ticket, and the Watchdog exists\n", alerts)
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, format+"\n", args...)
-	os.Exit(1)
+	r.Okf("%d alert rules carry page or ticket, and the Watchdog exists", alerts)
+	return nil
 }

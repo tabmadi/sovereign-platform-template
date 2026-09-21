@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
 const (
@@ -88,49 +90,45 @@ type gate struct {
 }
 
 func main() {
+	lint.Main("generated rule documents are out of date", run)
+}
+
+func run(r *lint.Report) error {
 	check := flag.Bool("check", false, "fail if a generated document is out of date")
 	flag.Parse()
 
 	set, err := loadADRs()
 	if err != nil {
-		failf("%v", err)
+		return err
 	}
 	docs := map[string]string{
 		rulesPath:    renderRulesIndex(set),
 		baselinePath: renderBaseline(set),
 	}
-	stale := make([]string, 0, len(docs))
 	for path, want := range docs {
 		if *check {
 			got, err := os.ReadFile(path)
 			if err != nil || string(got) != want {
-				stale = append(stale, path)
+				r.Addf("%s", path)
 			}
 			continue
 		}
 		err := os.MkdirAll(filepath.Dir(path), 0o755)
 		if err != nil {
-			failf("%v", err)
+			return fmt.Errorf("mkdir %s: %w", filepath.Dir(path), err)
 		}
 		err = os.WriteFile(path, []byte(want), 0o600)
 		if err != nil {
-			failf("%v", err)
+			return fmt.Errorf("write %s: %w", path, err)
 		}
 	}
-	if len(stale) > 0 {
-		sort.Strings(stale)
-		_, _ = fmt.Fprintln(os.Stderr, "✗ generated rule documents are out of date:")
-		for _, p := range stale {
-			_, _ = fmt.Fprintln(os.Stderr, "  "+p)
-		}
-		_, _ = fmt.Fprintln(os.Stderr, "  run: mise run gen:adr-rules")
-		os.Exit(1)
-	}
+	r.Hintf("run: mise run gen:adr-rules")
 	if *check {
-		_, _ = fmt.Fprintln(os.Stdout, "✓ generated rule documents match the ADR set")
-		return
+		r.Okf("generated rule documents match the ADR set")
+		return nil
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "✓ wrote %s and %s\n", rulesPath, baselinePath)
+	r.Okf("wrote %s and %s", rulesPath, baselinePath)
+	return nil
 }
 
 func loadADRs() ([]adr, error) {
@@ -294,9 +292,4 @@ func cell(s string) string {
 // non-nil error, so the discard is total rather than a shortcut.
 func w(b *strings.Builder, s string) {
 	_, _ = b.WriteString(s)
-}
-
-func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
-	os.Exit(1)
 }
