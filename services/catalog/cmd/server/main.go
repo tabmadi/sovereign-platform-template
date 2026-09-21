@@ -54,9 +54,6 @@ func run() error {
 
 	api, err := catalog.NewServer(
 		handlers.New(db, checker),
-		// A request the generated server rejects before a handler runs — a malformed
-		// body, a bad parameter, a missing required header — still gets an RFC 9457
-		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).
 		catalog.WithErrorHandler(apierr.ServeError),
 	)
 	if err != nil {

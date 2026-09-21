@@ -247,14 +247,8 @@ func handle(workflowID, chargeID string) *payment.WorkflowHandle {
 }
 
 // NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
-// The trace-id is stamped here rather than in each handler: a handler that forgets
-// it produces an error nobody can correlate, and nothing signals the omission.
 func (h *Handlers) NewError(ctx context.Context, err error) *payment.ErrorStatusCode {
-	e, ok := apierr.As(err)
-	if !ok {
-		e = apierr.Internal(err.Error())
-	}
-	e = e.WithTrace(ctx)
+	e := apierr.Resolved(ctx, err)
 
 	problem := payment.Problem{Type: e.Type, Title: e.Title, Status: e.Status}
 	if e.Detail != "" {

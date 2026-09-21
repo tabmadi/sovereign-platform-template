@@ -69,9 +69,6 @@ func run() error {
 	// caller is Oathkeeper (remote_json), not a user session.
 	api, err := authzsdk.NewServer(
 		handlers.New(checker, granter, fineGrained, tc, slog.Default()),
-		// A request the generated server rejects before a handler runs — a malformed
-		// body, a bad parameter, a missing required header — still gets an RFC 9457
-		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).
 		authzsdk.WithErrorHandler(apierr.ServeError),
 	)
 	if err != nil {

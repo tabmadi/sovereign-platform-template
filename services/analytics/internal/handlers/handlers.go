@@ -142,11 +142,7 @@ func (h *Handlers) GetConsent(ctx context.Context, params analytics.GetConsentPa
 
 // NewError renders any handler error as RFC 9457 problem details (ADR-0303).
 func (h *Handlers) NewError(ctx context.Context, err error) *analytics.ErrorStatusCode {
-	e, ok := apierr.As(err)
-	if !ok {
-		e = apierr.Internal(err.Error())
-	}
-	e = e.WithTrace(ctx)
+	e := apierr.Resolved(ctx, err)
 
 	problem := analytics.Problem{Type: e.Type, Title: e.Title, Status: e.Status}
 	if e.Detail != "" {

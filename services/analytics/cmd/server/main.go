@@ -64,9 +64,6 @@ func run() error {
 	// with the consent record as its gate.
 	api, err := analytics.NewServer(
 		handlers.New(db, defs, slog.Default()),
-		// A request the generated server rejects before a handler runs — a malformed
-		// body, a bad parameter, a missing required header — still gets an RFC 9457
-		// problem with a 4xx rather than ogen's bare 500 (ADR-0303).
 		analytics.WithErrorHandler(apierr.ServeError),
 	)
 	if err != nil {

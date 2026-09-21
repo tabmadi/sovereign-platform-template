@@ -115,6 +115,17 @@ func Internal(cause string) *Error {
 	return New(http.StatusInternalServerError, "an internal error occurred")
 }
 
+// Resolved returns err as an *Error carrying the active trace-id, falling back to Internal for anything the
+// handlers did not raise. The trace-id is stamped here rather than in each handler: a handler that forgets it
+// produces an error nobody can correlate, and nothing signals the omission.
+func Resolved(ctx context.Context, err error) *Error {
+	e, ok := As(err)
+	if !ok {
+		e = Internal(err.Error())
+	}
+	return e.WithTrace(ctx)
+}
+
 // ServeError is the ogen server's ErrorHandler, answering a request the generated server rejected before any
 // handler ran. Without it ogen writes a bare 500, so a client sees a server fault for its own mistake.
 func ServeError(ctx context.Context, w http.ResponseWriter, _ *http.Request, err error) {
