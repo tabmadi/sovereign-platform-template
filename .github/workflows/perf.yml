@@ -29,6 +29,9 @@ jobs:
   # for an unchanged commit is yesterday's number plus runner noise.
   gate:
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/_nightly-gate.yml
     with:
       workflow_file: perf.yml

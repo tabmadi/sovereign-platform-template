@@ -17,8 +17,8 @@ on:
 
 permissions:
   contents: read
-  # Reading the caller's own run history: the skip is only safe when the last run
-  # PASSED, and that fact lives in the forge rather than in the tree.
+  # Reading the caller's own run history: the skip is only safe when the last run PASSED, and that fact lives in
+  # the forge. A caller grants this on the calling job, or the workflow is rejected before it starts.
   actions: read
 
 jobs:

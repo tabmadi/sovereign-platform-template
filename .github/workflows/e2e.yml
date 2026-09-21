@@ -28,6 +28,9 @@ jobs:
   # trigger (tag, dispatch) always means yes.
   gate:
     if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/_nightly-gate.yml
     with:
       workflow_file: e2e.yml
