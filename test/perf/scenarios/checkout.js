@@ -83,16 +83,15 @@ export function setup() {
   return { productId: chosen.id, productName: chosen.name, session };
 }
 
-export default function checkout(data) {
-  // 1. Start the saga.
-  const started = Date.now();
-  const auth = authHeaders(data.session);
+/**
+ * A fresh idempotency key per iteration: this measures N distinct checkouts, not one checkout retried N times
+ * (ADR-0003). Returns the order id, or null when the saga never started.
+ */
+function startCheckout(data, auth) {
   const res = http.post(
     `${API}/orders`,
     JSON.stringify({ product_id: data.productId, quantity: 1 }),
     {
-      // A fresh key per iteration: this measures N distinct checkouts, not one
-      // checkout retried N times (ADR-0003).
       headers: {
         "Content-Type": "application/json",
         "Idempotency-Key": `perf-${__VU}-${__ITER}-${Date.now()}`,
@@ -103,29 +102,26 @@ export default function checkout(data) {
   );
   // 202 Accepted, not 201: the order exists but the saga has not run yet.
   if (!expectStatus(res, 202, "create order")) {
-    confirmed.add(false);
-    return;
+    return null;
   }
   const { ok, body } = expectJSON(res, "create order", (h) => typeof h.run_id === "string");
-  if (!ok) {
-    confirmed.add(false);
-    return;
-  }
   // The handle's run_id is the order id (services/orders handlers.Checkout).
-  const orderId = body.run_id;
+  return ok ? body.run_id : null;
+}
 
-  // 2. Poll to a terminal status.
+/**
+ * As the buyer: an order is readable by whoever placed it and by nobody else (ADR-0003), so the poll carries the
+ * session the checkout did. A non-200 is not a failure — the order may not be readable yet, and the timeout is
+ * the real verdict.
+ */
+function pollToTerminal(orderId, auth, started) {
   let status = "pending";
   while (Date.now() - started < SETTLE_TIMEOUT_MS) {
     sleep(POLL_INTERVAL_S);
-    // As the buyer: an order is readable by whoever placed it and by nobody else
-    // (ADR-0003), so the poll carries the same session the checkout did.
     const poll = http.get(`${API}/orders/${orderId}`, {
       headers: auth,
       tags: { endpoint: "get_order" },
     });
-    // A non-200 poll is not a failure of the checkout — the order may simply not
-    // be readable yet. Keep waiting; the timeout above is the real verdict.
     if (poll.status === 200) {
       status = poll.json()?.status ?? status;
       if (TERMINAL.includes(status)) {
@@ -133,13 +129,26 @@ export default function checkout(data) {
       }
     }
   }
+  return status;
+}
 
+export default function checkout(data) {
+  const started = Date.now();
+  const auth = authHeaders(data.session);
+
+  const orderId = startCheckout(data, auth);
+  if (orderId === null) {
+    confirmed.add(false);
+    return;
+  }
+
+  const status = pollToTerminal(orderId, auth, started);
   const reachedTerminal = TERMINAL.includes(status);
   timedOut.add(!reachedTerminal);
   confirmed.add(status === "confirmed");
-  // Only record settle time for checkouts that actually settled: folding the
-  // 60s timeout into the Trend would make the p95 a measure of the timeout
-  // constant rather than of the platform.
+  // Only record settle time for checkouts that actually settled: folding the 60s
+  // timeout into the Trend would make the p95 a measure of the timeout constant
+  // rather than of the platform.
   if (reachedTerminal) {
     settle.add(Date.now() - started);
   }

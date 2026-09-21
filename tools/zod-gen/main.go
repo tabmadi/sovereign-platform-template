@@ -89,6 +89,63 @@ func main() {
 	_, _ = fmt.Fprintf(os.Stdout, "✓ zod schemas for %d services in %s\n", written, outDir)
 }
 
+// requestBody is one operation's JSON request body.
+type requestBody struct {
+	op  string
+	sch *schema
+}
+
+// requestBodies returns every JSON request body the spec declares, in operationId order. That order is what makes
+// the generated file stable: an artefact ordered by map iteration is a diff on every run, which trains everyone
+// to ignore its diffs.
+func requestBodies(s *spec) []requestBody {
+	var out []requestBody
+	for _, ops := range s.Paths {
+		for _, op := range ops {
+			if op == nil || op.RequestBody == nil {
+				continue
+			}
+			content, ok := op.RequestBody.Content["application/json"]
+			if !ok || content.Schema == nil {
+				continue
+			}
+			out = append(out, requestBody{op: op.OperationID, sch: content.Schema})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].op < out[j].op })
+	return out
+}
+
+// writeComponents emits only the component schemas the bodies reach: a module exporting every component in the
+// spec exports shapes no form validates. Dependency order, not alphabetical — a zod schema is a `const`, and a
+// `const` is not hoisted.
+func writeComponents(b *strings.Builder, s *spec, bodies []requestBody) error {
+	needed := map[string]bool{}
+	for _, bd := range bodies {
+		collect(bd.sch, s.Components.Schemas, needed)
+	}
+	for _, name := range dependencyOrder(needed, s.Components.Schemas) {
+		expr, err := zodOf(s.Components.Schemas[name], s.Components.Schemas, map[string]bool{name: true}, 0)
+		if err != nil {
+			return fmt.Errorf("component %s: %w", name, err)
+		}
+		_, _ = fmt.Fprintf(b, "\nexport const %s = %s;\n", constName(name), expr)
+	}
+	return nil
+}
+
+func writeBodies(b *strings.Builder, s *spec, bodies []requestBody) error {
+	for _, bd := range bodies {
+		expr, err := zodOf(bd.sch, s.Components.Schemas, map[string]bool{}, 0)
+		if err != nil {
+			return fmt.Errorf("operation %s: %w", bd.op, err)
+		}
+		_, _ = fmt.Fprintf(b, "\nexport const %sSchema = %s;\n", bd.op, expr)
+		_, _ = fmt.Fprintf(b, "export type %sInput = z.infer<typeof %sSchema>;\n", upperFirst(bd.op), bd.op)
+	}
+	return nil
+}
+
 // render builds one module per service: every request body it declares, plus the
 // component schemas those bodies reach through `$ref`.
 func render(service, path string) (string, error) {
@@ -102,57 +159,20 @@ func render(service, path string) (string, error) {
 		return "", fmt.Errorf("parse spec: %w", err)
 	}
 
-	// Emit in operationId order so the file is stable across runs. A generated
-	// artefact whose order depends on map iteration is a diff on every run, which
-	// trains everyone to ignore its diffs.
-	type body struct {
-		op  string
-		sch *schema
-	}
-	var bodies []body
-	for _, ops := range s.Paths {
-		for _, op := range ops {
-			if op == nil || op.RequestBody == nil {
-				continue
-			}
-			content, ok := op.RequestBody.Content["application/json"]
-			if !ok || content.Schema == nil {
-				continue
-			}
-			bodies = append(bodies, body{op: op.OperationID, sch: content.Schema})
-		}
-	}
+	bodies := requestBodies(&s)
 	if len(bodies) == 0 {
 		return "", nil
 	}
-	sort.Slice(bodies, func(i, j int) bool { return bodies[i].op < bodies[j].op })
 
 	var b strings.Builder
 	_, _ = fmt.Fprintf(&b, header, service)
-
-	// Component schemas first, and only the ones actually reached: a module that
-	// exports every component in the spec exports shapes no form validates.
-	needed := map[string]bool{}
-	for _, bd := range bodies {
-		collect(bd.sch, s.Components.Schemas, needed)
+	err = writeComponents(&b, &s, bodies)
+	if err != nil {
+		return "", err
 	}
-	// Dependency order, not alphabetical: a zod schema is a `const`, and a `const` is not hoisted.
-	names := dependencyOrder(needed, s.Components.Schemas)
-	for _, name := range names {
-		expr, err := zodOf(s.Components.Schemas[name], s.Components.Schemas, map[string]bool{name: true}, 0)
-		if err != nil {
-			return "", fmt.Errorf("component %s: %w", name, err)
-		}
-		_, _ = fmt.Fprintf(&b, "\nexport const %s = %s;\n", constName(name), expr)
-	}
-
-	for _, bd := range bodies {
-		expr, err := zodOf(bd.sch, s.Components.Schemas, map[string]bool{}, 0)
-		if err != nil {
-			return "", fmt.Errorf("operation %s: %w", bd.op, err)
-		}
-		_, _ = fmt.Fprintf(&b, "\nexport const %sSchema = %s;\n", bd.op, expr)
-		_, _ = fmt.Fprintf(&b, "export type %sInput = z.infer<typeof %sSchema>;\n", upperFirst(bd.op), bd.op)
+	err = writeBodies(&b, &s, bodies)
+	if err != nil {
+		return "", err
 	}
 	return b.String(), nil
 }

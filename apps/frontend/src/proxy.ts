@@ -106,82 +106,126 @@ function safeReturnTo(raw: string | null): string | null {
   return raw;
 }
 
+function isProtected(path: string): boolean {
+  return PROTECTED.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
+function authFlowFor(path: string): { segment: string; kind: string | undefined } {
+  const segment = path.startsWith("/auth/") ? path.slice("/auth/".length) : "";
+  return { segment, kind: AUTH_FLOWS[segment] };
+}
+
+/**
+ * A flow id means Kratos asked for this flow, and that outranks the shortcut: an operator stepping up to aal2
+ * arrives with both a session and a flow, and bouncing them home means the second factor is never presented.
+ */
+function signedInHasNoFlowToStart(segment: string, hasSession: boolean, hasFlow: boolean): boolean {
+  return hasSession && !hasFlow && SIGNED_IN_HAS_NO_FLOW.has(segment);
+}
+
+/** Answering here keeps the reader inside the app, and keeps whatever `return_to` the URL carries. */
+function redirectHome(req: NextRequest, locale: Locale): NextResponse {
+  const back = safeReturnTo(req.nextUrl.searchParams.get("return_to")) ?? localised("/", locale);
+  return NextResponse.redirect(new URL(back, req.url));
+}
+
+/** `/auth/self-service/*` is Kratos's own URL space behind Traefik, so it is never localised (ADR-0306). */
+function startKratosFlow(req: NextRequest, flowKind: string): NextResponse {
+  const start = new URL(`/auth/self-service/${flowKind}/browser`, req.url);
+  const returnTo = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
+  if (returnTo) {
+    start.searchParams.set("return_to", returnTo);
+  }
+  return NextResponse.redirect(start);
+}
+
+/** The panel keeps filters, pagination and tab selection in the URL through nuqs, so the query is part of where the reader was. */
+function pathWithQuery(req: NextRequest): string {
+  return `${req.nextUrl.pathname}${req.nextUrl.search}`;
+}
+
+function redirectToLogin(req: NextRequest, locale: Locale): NextResponse {
+  const login = new URL(localised("/auth/login", locale), req.url);
+  login.searchParams.set("return_to", pathWithQuery(req));
+  return NextResponse.redirect(login);
+}
+
+/** The root layout stamps this nonce onto its own `<script>` tags, so it travels on the request. */
+function requestHeadersWithNonce(req: NextRequest, nonce: string, csp: string): Headers {
+  const headers = new Headers(req.headers);
+  headers.set("x-nonce", nonce);
+  headers.set("content-security-policy", csp);
+  return headers;
+}
+
+/**
+ * The `[locale]` segment is always present internally, so an unprefixed request is rewritten onto the negotiated
+ * locale while the address bar keeps the clean URL. A prefixed request already matches, and needs no rewrite.
+ */
+function localeRewriteTarget(
+  req: NextRequest,
+  prefix: Locale | null,
+  locale: Locale,
+  path: string,
+): URL | null {
+  if (prefix !== null) {
+    return null;
+  }
+  const rewritten = req.nextUrl.clone();
+  rewritten.pathname = `/${locale}${path === "/" ? "" : path}`;
+  return rewritten;
+}
+
+/** `lax` because a locale is a preference rather than a credential, and must survive a cross-site navigation back. */
+function rememberLocale(req: NextRequest, res: NextResponse, locale: Locale): void {
+  if (req.cookies.get(LOCALE_COOKIE)?.value === locale) {
+    return;
+  }
+  res.cookies.set(LOCALE_COOKIE, locale, {
+    path: "/",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+}
+
 export function proxy(req: NextRequest) {
   // Locale first: every decision below is made on the path without its prefix. The other way round is how `/de/panel` ends up unprotected.
   const { prefix, rest } = splitLocale(req.nextUrl.pathname);
   const locale = prefix ?? negotiateLocale(req);
   const path = rest === "" ? "/" : rest;
 
-  const isProtected = PROTECTED.some((p) => path === p || path.startsWith(`${p}/`));
   const hasSession = req.cookies.get(SESSION_COOKIE) !== undefined;
-
-  const authSegment = path.startsWith("/auth/") ? path.slice("/auth/".length) : "";
-  const flowKind = AUTH_FLOWS[authSegment];
-
-  // Answering here keeps the user inside the app and keeps whatever `return_to` the URL carries.
-  // Unless the URL carries a flow id: an operator stepping up to aal2 arrives with a session and a flow, and bouncing it home means the second factor can never be presented.
   const hasFlow = req.nextUrl.searchParams.get("flow") !== null;
-  if (flowKind && hasSession && !hasFlow && SIGNED_IN_HAS_NO_FLOW.has(authSegment)) {
-    const back = safeReturnTo(req.nextUrl.searchParams.get("return_to")) ?? localised("/", locale);
-    return NextResponse.redirect(new URL(back, req.url));
-  }
+  const { segment, kind: flowKind } = authFlowFor(path);
 
-  // An /auth/* page with no flow id: send the browser to Kratos to start one. The Kratos path is not localised — `/auth/self-service/*` is Kratos's URL space behind Traefik (ADR-0306).
+  if (flowKind && signedInHasNoFlowToStart(segment, hasSession, hasFlow)) {
+    return redirectHome(req, locale);
+  }
   if (flowKind && !hasFlow) {
-    const start = new URL(`/auth/self-service/${flowKind}/browser`, req.url);
-    const returnTo = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
-    if (returnTo) {
-      start.searchParams.set("return_to", returnTo);
-    }
-    return NextResponse.redirect(start);
+    return startKratosFlow(req, flowKind);
   }
 
   let session: string | undefined;
-  if (isProtected) {
+  if (isProtected(path)) {
     session = req.cookies.get(SESSION_COOKIE)?.value;
     if (!session) {
-      const login = new URL(localised("/auth/login", locale), req.url);
-      // Path AND query. The panel keeps filters, pagination and tab selection in
-      // the URL through nuqs, so a `return_to` of the bare pathname hands the user
-      // back a screen they did not leave — the session expired, not the view.
-      login.searchParams.set("return_to", `${req.nextUrl.pathname}${req.nextUrl.search}`);
-      return NextResponse.redirect(login);
+      return redirectToLogin(req, locale);
     }
   }
 
   const nonce = makeNonce();
   const csp = contentSecurityPolicy(nonce);
-
-  // Forward the nonce + CSP on the request so the root layout can stamp the
-  // nonce onto its <script> tags.
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set("content-security-policy", csp);
-
-  // The `[locale]` segment must always be present internally, so an unprefixed
-  // request is rewritten onto the negotiated locale while the address bar keeps the
-  // clean URL. A prefixed request already matches and is passed through.
-  const rewritten = req.nextUrl.clone();
-  rewritten.pathname = `/${locale}${path === "/" ? "" : path}`;
-  const res =
-    prefix === null
-      ? NextResponse.rewrite(rewritten, { request: { headers: requestHeaders } })
-      : NextResponse.next({ request: { headers: requestHeaders } });
+  const headers = requestHeadersWithNonce(req, nonce, csp);
+  const rewriteTo = localeRewriteTarget(req, prefix, locale, path);
+  const res = rewriteTo
+    ? NextResponse.rewrite(rewriteTo, { request: { headers } })
+    : NextResponse.next({ request: { headers } });
 
   res.headers.set("content-security-policy", csp);
   if (session) {
     res.headers.set("x-kratos-session", session);
   }
-  // Remember a negotiated or chosen locale, so the second visit does not re-derive
-  // it from a header the reader never set. `lax` because this is a preference, not a
-  // credential, and it must survive a cross-site navigation back into the app.
-  if (req.cookies.get(LOCALE_COOKIE)?.value !== locale) {
-    res.cookies.set(LOCALE_COOKIE, locale, {
-      path: "/",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 365,
-    });
-  }
+  rememberLocale(req, res, locale);
   return res;
 }
 

@@ -7,8 +7,16 @@ import { isId } from "@libs/id";
 // poll — this screen only decides what the user is told at each step.
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { type ComponentProps, useCallback, useMemo, useState } from "react";
 import {
+  type ComponentProps,
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
+import {
+  type Control,
   Controller,
   type ControllerFieldState,
   type ControllerRenderProps,
@@ -36,19 +44,11 @@ type FormValues = z.output<ReturnType<typeof makeSchema>>;
 
 type Status = { text: string; tone: ComponentProps<typeof Badge>["variant"] };
 
-export default function Checkout() {
+function ProductIdField({ control }: { control: Control<FormValues> }) {
   const t = useTranslations("panel.checkout");
-  const [status, setStatus] = useState<Status>({ text: t("idle"), tone: "secondary" });
-  const schema = useMemo(() => makeSchema(t("productIdInvalid")), [t]);
-
-  const { control, handleSubmit } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { product_id: "", quantity: 1 },
-  });
-
   // A stable reference rather than an inline arrow, which react-hook-form would
   // remount on every keystroke.
-  const renderProductId = useCallback(
+  const render = useCallback(
     ({
       field,
       fieldState,
@@ -78,10 +78,15 @@ export default function Checkout() {
     [t],
   );
 
-  // A mutation, not an awaited call, and not for the caching: a denial interrupt only reaches forbidden.tsx if it
-  // is thrown during a render, and React boundaries never see what an event handler throws.
-  // `throwOnError` in the panel providers does the re-throw, for denials only.
-  const placeOrder = useMutation({
+  return <Controller control={control} name="product_id" render={render} />;
+}
+
+// A mutation, not an awaited call, and not for the caching: a denial interrupt only reaches forbidden.tsx if it
+// is thrown during a render, and React boundaries never see what an event handler throws.
+// `throwOnError` in the panel providers does the re-throw, for denials only.
+function usePlaceOrder(setStatus: Dispatch<SetStateAction<Status>>) {
+  const t = useTranslations("panel.checkout");
+  return useMutation({
     async mutationFn(values: FormValues) {
       const handle = await startOrder(values);
       setStatus({ text: t("running", { id: handle.id }), tone: "outline" });
@@ -104,14 +109,26 @@ export default function Checkout() {
       setStatus({ text: t("error"), tone: "destructive" });
     },
   });
+}
 
+export default function Checkout() {
+  const t = useTranslations("panel.checkout");
+  const [status, setStatus] = useState<Status>({ text: t("idle"), tone: "secondary" });
+  const schema = useMemo(() => makeSchema(t("productIdInvalid")), [t]);
+
+  const { control, handleSubmit } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { product_id: "", quantity: 1 },
+  });
+
+  const placeOrder = usePlaceOrder(setStatus);
   const onSubmit = handleSubmit((values) => placeOrder.mutate(values));
 
   return (
     <main className="mx-auto max-w-md p-6">
       <h1 className="text-2xl font-semibold">{t("title")}</h1>
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
-        <Controller control={control} name="product_id" render={renderProductId} />
+        <ProductIdField control={control} />
         <Button type="submit" disabled={placeOrder.isPending}>
           {t("buy")}
         </Button>

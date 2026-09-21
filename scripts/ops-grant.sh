@@ -24,59 +24,79 @@ kpf=""
 opf=""
 trap 'kill "$kpf" "$opf" 2>/dev/null || true' EXIT
 
-# Reap stale port-forwards from a prior run whose cleanup trap didn't fire (e.g.
-# mise/bash killed abruptly), else the new ones fail to bind 4434/18080.
-pkill -f 'kubectl.*port-forward svc/(ory-kratos-admin|openfga)' 2>/dev/null || true
+# A prior run whose cleanup trap did not fire leaves port-forwards holding 4434/18080.
+reap_stale_port_forwards() {
+  pkill -f 'kubectl.*port-forward svc/(ory-kratos-admin|openfga)' 2>/dev/null || true
+}
 
-# 1. Resolve the Kratos identity id from the email via the admin API.
-k port-forward svc/ory-kratos-admin 4434:80 >/dev/null &
-kpf=$!
-# 2. Open the OpenFGA HTTP API with its preshared key. Local 18080, not 8080: the local edge
-#    maps host 8080, so binding 8080 would collide with it.
+# Local 18080, not 8080: the local edge maps host 8080, so binding 8080 would collide with it.
+open_admin_apis() {
+  k port-forward svc/ory-kratos-admin 4434:80 >/dev/null &
+  kpf=$!
+  sk="$(k get secret openfga-creds -o jsonpath='{.data.preshared_key}' | base64 -d)"
+  k port-forward svc/openfga 18080:8080 >/dev/null &
+  opf=$!
+  sleep 4
+}
+
+identity_id_for() {
+  curl -fsS "http://localhost:4434/admin/identities?credentials_identifier=${1}" |
+    jq -r '.[0].id // ""'
+}
+
+# The coarse ops gate is a claim check on the `operator` trait, not an OpenFGA call, and is always enforced
+# (ADR-0306). group:operator without the trait grants nothing, and the gate additionally requires AAL2.
+set_operator_trait() {
+  curl -fsS -X PATCH "http://localhost:4434/admin/identities/${1}" \
+    -H 'Content-Type: application/json' \
+    -d "[{\"op\":\"add\",\"path\":\"/traits/operator\",\"value\":${2}}]" >/dev/null
+}
+
+# By name, the same discovery the services do.
+platform_store_id() {
+  fga store list --api-url "$API" --api-token "$sk" |
+    jq -r '.stores[] | select(.name=="platform") | .id' | head -n1
+}
+
+# Idempotent: writing an existing tuple or deleting an absent one is a no-op. OpenFGA errors on both, so those
+# two messages are tolerated and nothing else is.
+apply_membership() {
+  local out rc
+  set +e
+  out="$(fga tuple "$action" --store-id "$1" --api-url "$API" --api-token "$sk" \
+    "user:${2}" member group:operator 2>&1)"
+  rc=$?
+  set -e
+  if [ "$rc" -eq 0 ]; then
+    return 0
+  fi
+  if echo "$out" | grep -qE 'already existed|did not exist'; then
+    return 0
+  fi
+  echo "$out" >&2
+  return 1
+}
+
 API="http://localhost:18080"
-sk="$(k get secret openfga-creds -o jsonpath='{.data.preshared_key}' | base64 -d)"
-k port-forward svc/openfga 18080:8080 >/dev/null &
-opf=$!
-sleep 4
+reap_stale_port_forwards
+open_admin_apis
 
-id="$(curl -fsS "http://localhost:4434/admin/identities?credentials_identifier=${email}" |
-  jq -r '.[0].id // ""')"
+id="$(identity_id_for "$email")"
 if [ -z "$id" ]; then
   echo "no Kratos identity for ${email} — they must register first" >&2
   exit 1
 fi
 
-# The coarse ops gate is a claim check on the `operator` trait, not an OpenFGA call, and is always enforced (ADR-0306).
-# group:operator without the trait grants nothing. The gate additionally requires AAL2, which the operator enrols.
 op_val=true
 [ "$action" = "delete" ] && op_val=false
-curl -fsS -X PATCH "http://localhost:4434/admin/identities/${id}" \
-  -H 'Content-Type: application/json' \
-  -d "[{\"op\":\"add\",\"path\":\"/traits/operator\",\"value\":${op_val}}]" >/dev/null
+set_operator_trait "$id" "$op_val"
 
-# Find the platform store by name (same discovery the services do), then write or
-# delete the membership tuple. Idempotent: writing an existing tuple or deleting an
-# absent one is a no-op (OpenFGA errors on both, so tolerate ONLY those two).
-sid="$(fga store list --api-url "$API" --api-token "$sk" |
-  jq -r '.stores[] | select(.name=="platform") | .id' | head -n1)"
+sid="$(platform_store_id)"
 if [ -z "$sid" ]; then
   echo "no OpenFGA store 'platform' — has the seed Job run?" >&2
   exit 1
 fi
-
-set +e
-out="$(fga tuple "$action" --store-id "$sid" --api-url "$API" --api-token "$sk" \
-  "user:${id}" member group:operator 2>&1)"
-rc=$?
-set -e
-if [ "$rc" -ne 0 ]; then
-  if echo "$out" | grep -qE 'already existed|did not exist'; then
-    : # already in the desired state
-  else
-    echo "$out" >&2
-    exit 1
-  fi
-fi
+apply_membership "$sid" "$id"
 
 verb="granted"
 [ "$action" = "delete" ] && verb="revoked"

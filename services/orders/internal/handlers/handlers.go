@@ -93,6 +93,20 @@ func storedOrderID(v orders.OrderId) (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
 }
 
+// requireBuyerWithOrg: an order belongs to a buyer and to the org they act through (ADR-0304), so checkout has no
+// anonymous form — without both there is nobody to write the order's read tuples for, and the row would be
+// readable by operators alone.
+func requireBuyerWithOrg(ctx context.Context) (*authmw.Principal, error) {
+	principal, _ := authmw.FromContext(ctx)
+	if !principal.Authenticated() {
+		return nil, apierr.Unauthorized()
+	}
+	if principal.OrgID == "" {
+		return nil, apierr.Forbidden("this identity carries no organization")
+	}
+	return principal, nil
+}
+
 func (h *Handlers) Checkout(
 	ctx context.Context,
 	req *orders.CheckoutInput,
@@ -104,29 +118,20 @@ func (h *Handlers) Checkout(
 	if req.Quantity <= 0 || req.Quantity > math.MaxInt32 {
 		return nil, apierr.BadRequest("product_id and quantity required")
 	}
-	// An order belongs to a buyer and to the org they act through (ADR-0304), so
-	// checkout has no anonymous form: without both there is nobody to write the
-	// order's read tuples for, and the row would be readable by operators alone.
-	principal, _ := authmw.FromContext(ctx)
-	if !principal.Authenticated() {
-		return nil, apierr.Unauthorized()
-	}
-	if principal.OrgID == "" {
-		return nil, apierr.Forbidden("this identity carries no organization")
+	principal, err := requireBuyerWithOrg(ctx)
+	if err != nil {
+		return nil, err
 	}
 	if params.IdempotencyKey == "" {
 		return nil, apierr.BadRequest("Idempotency-Key required")
 	}
 
-	// A retry returns the order the first attempt created rather than placing a
-	// second (ADR-0003). The lookup is the fast path; the unique index on the column
-	// is what actually holds, because two concurrent retries both miss this read.
-	existing, err := h.q.GetOrderByIdempotencyKey(ctx, pgtype.Text{String: params.IdempotencyKey, Valid: true})
-	if err == nil {
-		return checkoutHandle(string(orderID(existing.ID))), nil
+	replayed, found, err := h.replayedCheckout(ctx, params.IdempotencyKey)
+	if err != nil {
+		return nil, err
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
-		return nil, apierr.Internal(err.Error())
+	if found {
+		return replayed, nil
 	}
 
 	key, err := mintOrderID()
@@ -296,6 +301,23 @@ func (h *Handlers) NewError(ctx context.Context, err error) *orders.ErrorStatusC
 		problem.Errors = append(problem.Errors, orders.ProblemErrorsItem{Pointer: v.Pointer, Message: v.Message})
 	}
 	return &orders.ErrorStatusCode{StatusCode: e.Status, Response: problem}
+}
+
+// replayedCheckout: a retry returns the order the first attempt created rather than placing a second (ADR-0003).
+// This read is the fast path; the unique index on the column is what actually holds, because two concurrent
+// retries both miss it.
+func (h *Handlers) replayedCheckout(
+	ctx context.Context, key string,
+) (*orders.WorkflowHandle, bool, error) {
+	existing, err := h.q.GetOrderByIdempotencyKey(ctx, pgtype.Text{String: key, Valid: true})
+	switch {
+	case err == nil:
+		return checkoutHandle(string(orderID(existing.ID))), true, nil
+	case errors.Is(err, pgx.ErrNoRows):
+		return nil, false, nil
+	default:
+		return nil, false, apierr.Internal(err.Error())
+	}
 }
 
 // An unguessable identifier is not an access control, so holding one grants nothing (ADR-0003). `order#read`
