@@ -2,7 +2,8 @@
 # Mirror the first-party images into the FULL tier's in-cluster zot (ADR-0105).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
+# shellcheck source=lib/cluster.sh
+source "$LIB/cluster.sh"
 
 # The full tier is the only one running an in-cluster zot; on base it is a no-op.
 [ "$TIER" = full ] || {

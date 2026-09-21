@@ -17,7 +17,8 @@ pr="${PREVIEW_PR:-}"
 CLUSTER="pr-${pr}"
 TIER=full
 export CLUSTER TIER
-source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
+# shellcheck source=lib/cluster.sh
+source "$LIB/cluster.sh"
 
 if [ "$verb" = down ]; then
   step "destroying preview pr-${pr}"

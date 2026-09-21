@@ -2,7 +2,8 @@
 # Pin every prod values file to a release commit by digest, and label the images with the CalVer (ADR-0103, ADR-0201). A digest cannot be re-pushed.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/yaml.sh"
+# shellcheck source=lib/yaml.sh
+source "$LIB/yaml.sh"
 
 sha="${SHA:-}"
 ver="${VER:-}"

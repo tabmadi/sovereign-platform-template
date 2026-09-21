@@ -2,7 +2,8 @@
 # One-shot in-cluster deploy from the working tree, for edge, auth and e2e testing (ADR-0200, ADR-0205). No watch loop: the daily loop is native execution.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
+# shellcheck source=lib/cluster.sh
+source "$LIB/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"

@@ -2,7 +2,8 @@
 # Shell formatter: shfmt in place over every script, `-i 2` to match the repo's style (ADR-0101).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/repo-files.sh"
+# shellcheck source=lib/repo-files.sh
+source "$LIB/repo-files.sh"
 
 mapfile -d '' -t files < <(sh_files)
 if [[ ${#files[@]} -eq 0 ]]; then

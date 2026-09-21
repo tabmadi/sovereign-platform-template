@@ -2,7 +2,8 @@
 # Cut a repo-wide CalVer release (ADR-0103). A release is the production deploy:
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/yaml.sh"
+# shellcheck source=lib/yaml.sh
+source "$LIB/yaml.sh"
 
 dry_run="${DRY_RUN:-}"
 

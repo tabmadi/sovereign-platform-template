@@ -240,7 +240,7 @@ An exported identifier is documented where the doc states a fact its signature c
 
 The one exception is shared code under `tools/internal/` and `scripts/lib/`, where a comment is written once and serves every call site, and a control-flow hazard the shared form introduces — an accumulator that must not be an exit, a script that must not adopt the common bootstrap — is cheaper documented than rediscovered. A change that raises the ceiling for that reason amends this paragraph with the figure and the reason; raising it for any other is the repair this rule forbids.
 
-Raised to 5857 when `tools/internal/{lint,repo,edge}` and `scripts/lib/bootstrap.sh` replaced the per-tool report boilerplate and the nineteen script header shapes.
+Raised to 5858 when `tools/internal/{lint,repo,edge}` and `scripts/lib/bootstrap.sh` replaced the per-tool report boilerplate and the nineteen script header shapes.
 
 ### Template docs are final-state facts
 

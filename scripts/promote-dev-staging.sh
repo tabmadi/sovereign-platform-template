@@ -2,7 +2,8 @@
 # Bump the dev and staging values files for every affected component to a build SHA (ADR-0201). Prod pins by digest, in promote-prod.sh.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/yaml.sh"
+# shellcheck source=lib/yaml.sh
+source "$LIB/yaml.sh"
 
 sha="${SHA:-}"
 [[ -n "$sha" ]] || fail "SHA is unset — nothing to promote to"

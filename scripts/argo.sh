@@ -2,7 +2,8 @@
 # The live-patch window (ADR-0201, ADR-0600).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
+# shellcheck source=lib/cluster.sh
+source "$LIB/cluster.sh"
 
 STS=statefulset/argocd-application-controller
 

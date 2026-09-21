@@ -5,7 +5,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 # This script owns the tier and `up` with no argument creates base. Every other script resolves the tier from the cluster that is running.
 TIER_FROM_ARGV=1
-source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
+# shellcheck source=lib/cluster.sh
+source "$LIB/cluster.sh"
 
 require_tools docker kind kubectl helm
 

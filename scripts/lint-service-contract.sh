@@ -2,7 +2,8 @@
 # The service contract gate (ADR-0205): every service provides the same artifacts, because the platform discovers services through them rather than through a registry.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/ports.sh"
+# shellcheck source=lib/ports.sh
+source "$LIB/ports.sh"
 
 rc=0
 checked=0

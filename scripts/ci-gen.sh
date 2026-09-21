@@ -2,7 +2,8 @@
 # Drift check: regenerate and reformat everything, then fail if anything changed (ADR-0101, ADR-0303).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/repo-files.sh"
+# shellcheck source=lib/repo-files.sh
+source "$LIB/repo-files.sh"
 
 snapshot() {
   repo_files | xargs -0 sha256sum 2>/dev/null | LC_ALL=C sort

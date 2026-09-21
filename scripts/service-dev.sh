@@ -2,10 +2,12 @@
 # Run a service natively behind the real edge (ADR-0205, ADR-0600) — the other half of `cluster:add`.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/ports.sh"
+# shellcheck source=lib/ports.sh
+source "$LIB/ports.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
+# shellcheck source=lib/cluster.sh
+source "$LIB/cluster.sh"
 NS="platform"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 

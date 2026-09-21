@@ -2,7 +2,8 @@
 # Sign a published image and attach its SBOM and provenance (ADR-0104).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/loki-push.sh"
+# shellcheck source=lib/loki-push.sh
+source "$LIB/loki-push.sh"
 
 IMAGE="${1:-}"
 [ -n "$IMAGE" ] || fail "usage: mise run ci:sign -- <image>@sha256:<digest>"

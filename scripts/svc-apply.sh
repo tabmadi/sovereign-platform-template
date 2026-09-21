@@ -2,8 +2,10 @@
 # Make one sibling service reachable from a natively-run process, backing the `svc:*` tasks services declare (ADR-0205, ADR-0600).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/ports.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
+# shellcheck source=lib/ports.sh
+source "$LIB/ports.sh"
+# shellcheck source=lib/cluster.sh
+source "$LIB/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"

@@ -2,7 +2,8 @@
 # The local port registry gate (ADR-0205). Two services sharing a port is a bind race that surfaces only when someone runs both.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/lib/ports.sh"
+# shellcheck source=lib/ports.sh
+source "$LIB/ports.sh"
 
 rc=0
 
