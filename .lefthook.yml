@@ -75,7 +75,10 @@ pre-commit:
     floating-tags:
       run: mise exec -- bash scripts/lint-floating-tags.sh
     gen-drift:
-      glob: "{services/**/openapi.yaml,services/**/internal/store/queries/*.sql,services/**/migrations/*.sql,sqlc.yaml}"
+      # Every input `mise run gen` reads into a committed artifact: specs and SQL for the
+      # SDKs, `docs/adr/` for the rules index and the security baseline, `infra/helm/` for
+      # the image allow-list, `tools/codegen/` for the shared components and retention.
+      glob: "{services/**/openapi.yaml,services/**/internal/store/queries/*.sql,services/**/migrations/*.sql,sqlc.yaml,docs/adr/*.md,infra/helm/**,tools/codegen/*.yaml}"
       run: mise run ci:gen
     biome:
       # Mirror biome.jsonc's repo-wide scope (files.includes = "**" minus a few

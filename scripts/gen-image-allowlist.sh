@@ -95,14 +95,17 @@ detail "base tier installs: $(printf '%s' "$base_charts" | tr '\n' ' ')"
 
 for dir in infra/helm/platform/*/; do
   name="$(basename "$dir")"
-  # A chart with no dependencies fetched yet renders nothing useful; the same
-  # fallback cluster:up uses, for the same reason (a clean machine has no repos
-  # registered, so `build` fails where `update` succeeds).
   if [ -f "${dir}Chart.yaml" ] && grep -q '^dependencies:' "${dir}Chart.yaml"; then
     # Only when the dependencies are not on disk: `helm dependency build` re-resolves the upstream index over the network every call, 165s of this task's 224s.
     if ! deps_satisfied "$dir"; then
+      # `build` fails on a clean machine with no repos registered, which is what `update`
+      # is for; a failure of both is fatal, because a chart rendered without its subcharts
+      # yields a shorter allow-list that still looks like a success.
       helm dependency build "$dir" >/dev/null 2>&1 ||
-        helm dependency update "$dir" >/dev/null 2>&1 || true
+        helm dependency update "$dir" >/dev/null ||
+        fail "$name: helm could not fetch the dependencies in Chart.lock"
+      deps_satisfied "$dir" ||
+        fail "$name: helm reported success and Chart.lock is still unsatisfied"
     fi
   fi
   # `|| true`: the allow-list is a union, and a missing entry surfaces as a rejected pod rather than a silent hole.
