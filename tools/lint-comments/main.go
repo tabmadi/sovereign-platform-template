@@ -3,13 +3,16 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // maxBlockLines is ADR-0001's length test. One line is the norm; three is the ceiling.
@@ -17,6 +20,9 @@ const maxBlockLines = 3
 
 // maxEchoChars bounds the echo check. Past it a doc comment is carrying content.
 const maxEchoChars = 90
+
+// gitTimeout bounds the enumeration, so a wedged git cannot hang the gate.
+const gitTimeout = 30 * time.Second
 
 var budgetPath = filepath.Join("tools", "lint-comments", "budget.txt")
 
@@ -167,11 +173,34 @@ func main() {
 	os.Exit(1)
 }
 
+// repoFiles is the set git accounts for: everything committed plus anything new that is not ignored, the same
+// set scripts/lib/repo-files.sh enumerates. A machine-local file a .gitignore excludes must not move the budget,
+// or the count differs between a working tree and a clean checkout. Nil outside a work tree, which scans all.
+func repoFiles() map[string]bool {
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z").Output()
+	if err != nil {
+		return nil
+	}
+	set := map[string]bool{}
+	for p := range strings.SplitSeq(string(out), "\x00") {
+		if p != "" {
+			set[filepath.Clean(p)] = true
+		}
+	}
+	return set
+}
+
 // sweep scans every root and returns the violations and the tree's comment count.
 func sweep() ([]finding, int) {
+	inRepo := repoFiles()
 	var found []finding
 	total := 0
 	collect := func(path string) error {
+		if inRepo != nil && !inRepo[filepath.Clean(path)] {
+			return nil
+		}
 		hits, n, err := scan(path)
 		if err != nil {
 			return err
