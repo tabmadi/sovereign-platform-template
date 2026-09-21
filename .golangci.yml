@@ -30,6 +30,10 @@ linters:
       disable-default-exclusions: true
     errorlint:
       comparison: false
+    wrapcheck:
+      # tools/internal/* is this repo's own code, not a boundary an error crosses.
+      ignore-package-globs:
+        - github.com/tabmadi/sovereign-platform-template/tools/internal/*
     gocritic:
       enabled-checks:
         - ruleguard

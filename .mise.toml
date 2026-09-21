@@ -277,7 +277,7 @@ mise run gen
 depends = ["format:go", "format:ts", "format:md", "format:shell"]
 
 [tasks."format:go"]
-run = "golangci-lint fmt ./..."
+run = "golangci-lint fmt ./... ./tools/..."
 
 [tasks."format:ts"]
 run = "biome format --write ."
@@ -294,7 +294,7 @@ run = "bash scripts/format-shell.sh"
 depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity"]
 
 [tasks."lint:go"]
-run = "golangci-lint run ./..."
+run = "golangci-lint run ./... ./tools/..."
 
 [tasks."lint:gostyle"]
 description = "Custom layout-based Go style analyzers."
@@ -444,7 +444,7 @@ bash scripts/lint-strip-headers.sh
 depends = ["test:go", "test:ts"]
 
 [tasks."test:go"]
-run = "go test ./..."
+run = "go test ./... ./tools/..."
 
 [tasks."test:ts"]
 description = "The shared TypeScript libraries under libs/ts/ — not the frontend, whose browser behaviour is covered by the e2e suite (ADR-0601)."
@@ -456,7 +456,7 @@ description = "The repository's own generation (ADR-0106): a fixture matrix thro
 run = "bash scripts/test-template.sh"
 
 [tasks.build]
-run = "go build ./..."
+run = "go build ./... ./tools/..."
 
 [tasks.pre-commit]
 depends = ["format", "lint"]
@@ -693,8 +693,10 @@ run = "bun update --latest --recursive"
 [tasks."upgrade:go"]
 description = "GOFLAGS override: go get must write go.mod (env pins -mod=readonly)."
 run = """
-GOFLAGS= go get -u ./libs/... ./services/... ./tools/...
+GOFLAGS= go get -u ./libs/... ./services/...
 GOFLAGS= go mod tidy
+GOFLAGS= go -C tools get -u ./...
+GOFLAGS= go -C tools mod tidy
 """
 
 [tasks.act]

@@ -1,4 +1,4 @@
-package authconformance
+package conformance
 
 import (
 	"net/http"

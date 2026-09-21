@@ -117,7 +117,7 @@ func classify(files []string, forceAll bool) Manifest {
 
 // isGlobalTrigger reports whether a changed path forces a full-repo build.
 func isGlobalTrigger(f string) bool {
-	exact := []string{"go.mod", "go.sum", "package.json", "bun.lock", ".mise.toml"}
+	exact := []string{"go.mod", "go.sum", "go.work", "go.work.sum", "package.json", "bun.lock", ".mise.toml"}
 	if slices.Contains(exact, f) {
 		return true
 	}
@@ -145,6 +145,6 @@ func sortedKeys(m map[string]struct{}) []string {
 }
 
 func failf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, format+"\n", args...)
+	_, _ = fmt.Fprintf(os.Stderr, "✗ "+format+"\n", args...)
 	os.Exit(1)
 }

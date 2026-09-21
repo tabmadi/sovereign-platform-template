@@ -239,7 +239,7 @@ Tokens are validated once, at the edge. **Past the edge there are no tokens** â€
 | Service read | `libs/go/authmw/` reads the headers into a typed principal. Services never fetch JWKS or parse a JWT |
 | Service to service | no token. The same headers are forwarded, gated by Cilium NetworkPolicy â€” network identity, not a per-call machine token |
 
-A conformance suite at `tools/auth-conformance/` ships with the repo: identity-header fixtures with expected principals and authorization outcomes. Any non-Go service passes it.
+A conformance suite at `libs/go/authmw/conformance/` ships with the repo: identity-header fixtures with expected principals and authorization outcomes. Any non-Go service passes it.
 
 ### Authorizing operator tooling at the edge
 
@@ -337,5 +337,5 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - Tokens are validated once at the edge with the algorithm pinned and `iss`, `aud`, and `exp` checked; services do not validate tokens. `(CI: lint:auth-inline; ref: RFC 8725)`
 - Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. `(CI: lint:authz)`
 - Service-to-service calls carry no token. Shared secrets, HMAC schemes, and per-call machine tokens are not used.
-- A non-Go service reads the identity headers through the same contract and passes `tools/auth-conformance/` before merging.
+- A non-Go service reads the identity headers through the same contract and passes `libs/go/authmw/conformance/` before merging.
 - Auth configuration is canonical only at `infra/auth/*` and is delivered to charts by file injection, never hand-copied inline into a chart's values. `(CI: ci:gen)`

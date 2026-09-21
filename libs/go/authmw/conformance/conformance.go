@@ -1,5 +1,5 @@
-// Package authconformance exercises the edge→service identity contract (ADR-0305, ADR-0304).
-package authconformance
+// Package conformance exercises the edge→service identity contract (ADR-0305, ADR-0304).
+package conformance
 
 import (
 	_ "embed"
