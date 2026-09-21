@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 # Walk every image pinned in committed values, verify its SBOM attestation, and file what is in it (ADR-0104, ADR-0103).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-source "$(dirname "$0")/lib/loki-push.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/loki-push.sh"
 
 PUB_KEY="infra/auth/cosign/cosign.pub"
 # The template commits an EMPTY cosign.pub (see scripts/secrets-cosign.sh), so a

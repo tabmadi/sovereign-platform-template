@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run sqruff across all service migrations and sqlc queries (ADR-0300).
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 shopt -s nullglob globstar
 

@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # Checks .mise.toml tools against latest available versions and optionally upgrades them.
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
-
-cd "$(dirname "$0")/.."
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 DRY_RUN=false
 YES=false
@@ -13,7 +11,7 @@ for arg in "$@"; do
   -n | --dry-run) DRY_RUN=true ;;
   -y | --yes) YES=true ;;
   -h | --help)
-    echo "Usage: $(basename "$0") [-n|--dry-run] [-y|--yes]"
+    echo "Usage: $(basename "${BASH_SOURCE[0]}") [-n|--dry-run] [-y|--yes]"
     echo ""
     echo "  -n, --dry-run   Show what would change without upgrading"
     echo "  -y, --yes       Skip confirmation prompt"

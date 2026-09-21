@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Auth single-source lint: authentication is defined in exactly one place and enforced by the real stack (ADR-0305).
 set -euo pipefail
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 VALUES="infra/helm/platform/ory/values.yaml"
-fail=0
+# `rc`, not `fail`: the accumulator must not shadow log.sh's verb, which the
+# verdict below calls once every check has run.
+rc=0
 
 # Markers that only appear when kratos/oathkeeper config or the string artefacts
 # have been inlined into the chart values. The legitimate file carries only the
@@ -13,9 +15,9 @@ PATTERNS='accessRules|identitySchemas|default_schema_id|authenticators:|access_r
 # Match with original line numbers, then drop comment lines (the header doc-pointers
 # legitimately name these keys) — a comment is `<n>:<spaces>#…`.
 if hits=$(grep -nEi "$PATTERNS" "$VALUES" 2>/dev/null | grep -vE '^[0-9]+:\s*#'); then
-  echo "✗ auth config re-inlined into $VALUES — it must live only in infra/auth/*:" >&2
+  warn "auth config re-inlined into ${VALUES} — it must live only in infra/auth/*:"
   echo "$hits" >&2
-  fail=1
+  rc=1
 fi
 
 # The canonical artefacts must exist (the injection points reference them).
@@ -25,8 +27,8 @@ for f in \
   infra/auth/oathkeeper/access-rules.json \
   infra/auth/kratos/identity-schemas/user.v1.json; do
   if [ ! -f "$f" ]; then
-    echo "✗ missing canonical auth artefact: $f" >&2
-    fail=1
+    warn "missing canonical auth artefact: ${f}"
+    rc=1
   fi
 done
 
@@ -40,14 +42,12 @@ BYPASS='DEV_AUTH|AUTH_BYPASS|BYPASS_AUTH|dev-?auth|auth-?bypass|fake[-_ ]?sessio
 for p in "${AUTH_PATHS[@]}"; do
   [ -e "$p" ] || continue
   if hits=$(grep -rniE "$BYPASS" "$p" | grep -vE '^[^:]+:[0-9]+:\s*(//|\*|/\*)'); then
-    echo "✗ development-only auth code in $p — the frontend has ONE auth path and it is the production one (ADR-0600):" >&2
+    warn "development-only auth code in ${p} — the frontend has ONE auth path and it is the production one (ADR-0600):"
     echo "$hits" >&2
-    echo "  To develop against mocked data while logged in, use: mise run cluster:up" >&2
-    fail=1
+    detail "To develop against mocked data while logged in, use: mise run cluster:up" >&2
+    rc=1
   fi
 done
 
-if [ "$fail" -eq 0 ]; then
-  echo "✓ auth single-source: no inline config in $VALUES, no dev-only auth code in the frontend"
-fi
-exit "$fail"
+[ "$rc" -eq 0 ] || fail "auth single-source: inline config or dev-only auth code above"
+ok "auth single-source: no inline config in ${VALUES}, no dev-only auth code in the frontend"

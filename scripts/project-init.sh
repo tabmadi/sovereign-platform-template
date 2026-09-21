@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Adopt this template as a project, for a repository created by the forge's "Use this template" (ADR-0106, ADR-0003).
-
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
-
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 # Where `copier update` fetches the template from. Hard-coded for the same reason
 # `project-rename.sh` hard-codes the registry it replaces: the value names this

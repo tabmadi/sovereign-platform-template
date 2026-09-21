@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Fail on floating container image / tool tags (ADR-0101).
 # Looks at Dockerfiles, Helm values, GitHub workflows, and .mise.toml.
-
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 FOUND=0
 
@@ -17,8 +17,8 @@ scan() {
   # shellcheck disable=SC2068
   hits=$(grep -RInE --exclude-dir=node_modules --exclude=image-refs.txt "$pattern" $@ 2>/dev/null || true)
   if [[ -n "$hits" ]]; then
-    echo "✗ $label:"
-    echo "$hits" | sed 's/^/    /'
+    warn "${label}:"
+    echo "$hits" | sed 's/^/    /' >&2
     FOUND=1
   fi
 }
@@ -38,9 +38,7 @@ scan "unpinned GitHub Action references" \
   .github/workflows 2>/dev/null || true
 
 if [[ "$FOUND" -ne 0 ]]; then
-  echo
-  echo "Floating tags forbidden by ADR-0101. Pin to a concrete version/SHA."
-  exit 1
+  fail "floating tags are forbidden by ADR-0101 — pin to a concrete version/SHA"
 fi
 
-echo "✓ no floating tags"
+ok "no floating tags"

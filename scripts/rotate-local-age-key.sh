@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Give this project its own local-tier age key (ADR-0202, ADR-0205).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 KEY_FILE="infra/gitops/platform/local/age.key"
 SOPS_FILE=".sops.yaml"

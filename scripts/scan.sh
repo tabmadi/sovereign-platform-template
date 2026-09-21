@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # The vulnerability and misconfiguration merge gate (ADR-0104, ADR-0106).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 # HIGH and CRITICAL only. MEDIUM on a transitive dependency is a weekly Renovate
 # bump, not a merge blocker, and a gate that blocks on everything is one that gets

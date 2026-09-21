@@ -13,10 +13,11 @@ repo_source() {
   fi
 }
 
-# sh_files prints every shell script, NUL-delimited. The `find` branch can include an untracked script, which is the safe direction.
+# sh_files prints every shell script, NUL-delimited. Untracked-but-not-ignored counts, as it does for repo_files: a script the gate cannot see is a script the gate cannot hold.
 sh_files() {
   if [[ "$(repo_source)" == "git" ]]; then
     git ls-files -z '*.sh'
+    git ls-files -z --others --exclude-standard '*.sh'
     return
   fi
   prune_find -name '*.sh'

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Minimal mise bootstrap for CI runners.
-
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 step "installing mise"
 curl https://mise.run | sh

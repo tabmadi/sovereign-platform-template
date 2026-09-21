@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 # Rename a freshly generated project (ADR-0106, ADR-0003).
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 [ "$#" -eq 4 ] || fail "usage: project-rename.sh <project-slug> <module-path> <apex-host> <image-registry>"
 slug="$1" module="$2" apex="$3" registry="$4"
-
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 # A forge-side "Use this template" copies the tree and runs nothing, so such a copy is indistinguishable from the template by content.
 # The fallback is lint:project-identity's invariant: a repository whose name matches its module path owns its identity.

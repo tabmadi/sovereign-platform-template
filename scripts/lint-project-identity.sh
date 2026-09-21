@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Fail when a project created from this template still wears the template's identity (ADR-0106, ADR-0003).
-
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
-
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 # A project that went through Copier has an identity on the record. This is also the escape hatch for a repository deliberately named differently from its module.
 if [ -f .copier-answers.yml ]; then

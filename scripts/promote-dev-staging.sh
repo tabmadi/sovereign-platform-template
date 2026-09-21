@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # Bump the dev and staging values files for every affected component to a build SHA (ADR-0201). Prod pins by digest, in promote-prod.sh.
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
-# shellcheck source=lib/yaml.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/lib/yaml.sh"
 
 sha="${SHA:-}"

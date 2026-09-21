@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Collect the frontend's browser source maps for a release, and keep them out of the served bundle (ADR-0503).
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 RELEASE="${1:-${GIT_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}}"
 BUILD_DIR="apps/frontend/.next"

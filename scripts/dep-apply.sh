@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # Add one opt-in local dependency component on top of `cluster:up`, backing the `dep:*` tasks services declare (ADR-0205, ADR-0600).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-source "$(dirname "$0")/lib/cluster.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
 
 COMPONENT="${1:?usage: bash scripts/dep-apply.sh <component>}"
 

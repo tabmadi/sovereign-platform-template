@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Adversarially test affected-detection (ADR-0101, ADR-0601).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 BASE="${BASE_REF:-HEAD}"
 

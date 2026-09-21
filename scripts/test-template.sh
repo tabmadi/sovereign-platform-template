@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # Exercise this repository's own generation (ADR-0106).
-
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
 FIXTURES="test/template/fixtures"
 
 # A generated project inherits this script and its fixtures but has no `copier.yml`,

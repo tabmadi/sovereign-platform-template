@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Port-forward the inner-loop dependencies so a natively-run service can reach them (ADR-0200, ADR-0205). Long-running.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
 NS="platform"
 k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
-echo "→ forwarding deps: postgres 5432, temporal 7233 + 8233 (Ctrl-C to stop)"
+step "forwarding deps: postgres 5432, temporal 7233 + 8233 (Ctrl-C to stop)"
 pids=()
 cleanup() { kill "${pids[@]}" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
@@ -27,7 +28,7 @@ pids+=($!)
 # The OTel collector is in its own namespace (ADR-0200), so it takes its own kubectl invocation rather than the `k` helper's.
 agent() { kubectl --context "$(cluster_ctx)" -n otel-agent "$@"; }
 if agent get svc otel-collector >/dev/null 2>&1; then
-  echo "→ observability detected: grafana 3001, faro 12347"
+  step "observability detected: grafana 3001, faro 12347"
   k port-forward svc/grafana 3001:80 &
   pids+=($!)
   agent port-forward svc/otel-collector 12347:8027 &

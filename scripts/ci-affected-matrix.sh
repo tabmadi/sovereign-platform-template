@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Emit the affected manifest as forge step-output assignments, with services and apps as separate JSON arrays (ADR-0102).
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 manifest="$(mise run ci:affected)"
 printf 'services=%s\n' "$(printf '%s' "$manifest" | jq -c '.services')"

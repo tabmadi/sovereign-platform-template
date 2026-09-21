@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # Seed the committed deterministic test identities into Kratos (ADR-0601, ADR-0600).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
 NS="platform"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
 k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 admin="http://localhost:4434"

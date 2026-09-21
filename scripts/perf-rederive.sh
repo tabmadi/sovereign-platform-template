@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Re-derive the measured numbers the ADR set asserts (ADR-0001, ADR-0204).
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 step "re-deriving the measured numbers"
 

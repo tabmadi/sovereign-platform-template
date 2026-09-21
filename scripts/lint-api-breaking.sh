@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Breaking-change detection for the API contracts (ADR-0303). It labels and does not gate: it exits 0 with findings.
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 base="${BASE_REF:-master}"
 base="${base#refs/heads/}"

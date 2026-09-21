@@ -4,9 +4,7 @@
 if [[ -n "${__CLUSTER_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi
 __CLUSTER_SH_LOADED=1
 
-source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/bootstrap.sh"
 
 # Loaded, not computed: kind reads the proxy variables from its own environment and is the only thing that can add the node's name to NO_PROXY, without which `kind create` aborts on an EOF.
 if [ -f "$ROOT/infra/local/proxy.local.env" ]; then

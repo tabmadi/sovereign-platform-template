@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Gate a release on prod converging on the release commit (ADR-0201, ADR-0103). Argo Healthy alone does not mean prod runs that commit.
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 sha="${SHA:-}"
 [[ -n "$sha" ]] || fail "SHA is unset"

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Mint a Kratos session token for a registered identity, for hitting authenticated endpoints locally (ADR-0305, ADR-0304). Requires the full tier.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
 NS="platform"
 k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
@@ -29,8 +30,8 @@ resp="$(curl -fsS -H 'Accept: application/json' -H 'Content-Type: application/js
 
 token="$(printf '%s' "$resp" | jq -r '.session_token // empty')"
 if [ -z "$token" ]; then
-  echo "✗ login failed:" >&2
+  warn "login failed:"
   printf '%s\n' "$resp" | jq -r '.ui.messages[]?.text // .error.message // .' >&2 || true
-  exit 1
+  fail "no session token for ${email}"
 fi
 echo "$token"

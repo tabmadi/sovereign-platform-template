@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Every service that owns a schema has a database (ADR-0300).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 VALUES="infra/helm/platform/postgres/values.yaml"
 LOCAL_SECRET="infra/gitops/platform/local/secrets/platform.enc.yaml"

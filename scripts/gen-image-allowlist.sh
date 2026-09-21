@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Generate the third-party image allow-list (ADR-0104).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 # `--check` regenerates into a scratch file and diffs, for CI. Same code path as
 # the write, because a drift check that reimplements the generator checks the
@@ -204,17 +200,17 @@ HEADER
 
 if [ "$CHECK" = true ]; then
   if ! diff -u "$REFS_OUT" "$refs_target" >/dev/null 2>&1; then
-    printf '✗ %s is stale — run `mise run gen:image-allowlist`\n' "$REFS_OUT" >&2
+    warn "${REFS_OUT} is stale — run \`mise run gen:image-allowlist\`"
     diff -u "$REFS_OUT" "$refs_target" >&2 || true
     rm -f "$target" "$refs_target"
-    exit 1
+    fail "the generated image references do not match what the charts render"
   fi
   rm -f "$refs_target"
   if ! diff -u "$OUT" "$target" >/dev/null 2>&1; then
-    printf '✗ %s is stale — run `mise run gen:image-allowlist`\n' "$OUT" >&2
+    warn "${OUT} is stale — run \`mise run gen:image-allowlist\`"
     diff -u "$OUT" "$target" >&2 || true
     rm -f "$target"
-    exit 1
+    fail "the generated allow-list does not match what the charts render"
   fi
   rm -f "$target"
   ok "${OUT} and ${REFS_OUT} match what the charts render"

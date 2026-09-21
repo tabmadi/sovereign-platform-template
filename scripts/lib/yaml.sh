@@ -3,6 +3,8 @@
 if [[ -n "${__YAML_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi
 __YAML_SH_LOADED=1
 
+source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
+
 # yaml_scalar_line <file> <dotted.path>
 # Echoes the 1-based line of the scalar, or nothing when the path is not a
 # block-style key in the file.
@@ -35,9 +37,7 @@ yaml_set_scalar() {
 
   line="$(yaml_scalar_line "$file" "$path")"
   if [[ ! "$line" =~ ^[0-9]+$ ]]; then
-    printf '✗ %s: %s exists but is not a block-style key — cannot edit it in place\n' \
-      "$file" "$path" >&2
-    exit 1
+    fail "${file}: ${path} exists but is not a block-style key — cannot edit it in place"
   fi
 
   # Rewrite the value between the key and any trailing comment, leaving the

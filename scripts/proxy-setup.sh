@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # Converge this machine for a firewalled network, once, before any cluster command (docs/guide/http-proxy.md). On a direct network it exits 0.
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 APPLY=1
 [[ "${1:-}" == "--check" ]] && APPLY=0
 
 GAPS=0
 NEEDS_ROOT=0
+# A gap is recoverable on its own — the fatal verdict is the count, at the end.
 gap() {
   GAPS=$((GAPS + 1))
-  printf '✗ %s\n' "$1" >&2
+  warn "$1"
 }
 
 # Cluster-internal traffic must stay direct. fc00::/7 is not optional: docker's

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Apply the committed Temporal Schedules (ADR-0302).
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 SPEC="infra/temporal/schedules.yaml"
 ADDRESS="${TEMPORAL_HOST_PORT:-localhost:7233}"

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Decide whether a pull request pays for the smoke suite, as a forge step-output assignment (ADR-0102, ADR-0601).
 set -euo pipefail
-
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 summary() {
   [[ -n "${GITHUB_STEP_SUMMARY:-}" ]] && printf '%s\n' "$*" >>"$GITHUB_STEP_SUMMARY"

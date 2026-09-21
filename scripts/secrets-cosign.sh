@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Generate the platform's image-signing key pair (ADR-0104, ADR-0202).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 KEY_DIR="infra/auth/cosign"
 PUB_KEY="${KEY_DIR}/cosign.pub"

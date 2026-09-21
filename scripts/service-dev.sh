@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 # Run a service natively behind the real edge (ADR-0205, ADR-0600) — the other half of `cluster:add`.
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-source "$(dirname "$0")/lib/ports.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/ports.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
 NS="platform"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
 
 SVC="${1:?usage: mise run service:dev -- <svc>}"
 # The registry, not a flag: the glue must point at the same port the service's own

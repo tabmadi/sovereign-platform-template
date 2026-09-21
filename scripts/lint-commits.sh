@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Conventional Commit gate over a commit range (ADR-0103), which is where a rebase or cherry-pick can smuggle a bad message past the commit-msg hook.
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 base="${BASE_REF:-master}"
 base="${base#refs/heads/}"

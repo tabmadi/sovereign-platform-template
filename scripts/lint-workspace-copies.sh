@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Every TypeScript workspace member is copied into the frontend image build.
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 MANIFEST="package.json"
 DOCKERFILE="apps/frontend/Dockerfile"

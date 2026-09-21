@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lint every OpenAPI spec under services/ (ADR-0303). Each spec is self-contained, with shared shapes declared in its own components rather than cross-file $refs.
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 shopt -s nullglob globstar
 

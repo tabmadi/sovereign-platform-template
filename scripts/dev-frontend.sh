@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # The host-run `next dev` the local edge routes `/` to (ADR-0400, ADR-0205).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
 NS="platform"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
 
 CA_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/platform-local"
 CA_FILE="${CA_DIR}/local-ca.crt"

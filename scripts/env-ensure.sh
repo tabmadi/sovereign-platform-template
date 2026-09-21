@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Guard the inner loop's one silent failure (ADR-0205). Run from a service directory, as a dependency of its server/worker/migrate tasks.
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
+# log.sh alone, not lib/bootstrap.sh: this script's subject is the directory it was called from, which a cd to the repository root would discard.
+source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
 
 [ -f .env ] && exit 0
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Anti-spoofing gate (ADR-0305): a forwardAuth IngressRoute must apply strip-identity-headers before it, so a client cannot inject X-User-* / X-Org-Id / X-Roles.
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 step "checking every forward-auth route strips identity headers first"
 # Render the gateway + per-service /api route, then feed the manifests to the

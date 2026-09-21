@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # The API mock for the UI development loop (ADR-0600).
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source "$(dirname "$0")/lib/cluster.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
 NS="platform"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
 
 SPEC="apps/frontend/public/devportal/openapi/internal.json"
 MANIFEST="infra/local/mock.yaml"

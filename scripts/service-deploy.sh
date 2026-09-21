@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
 # One-shot in-cluster deploy from the working tree, for edge, auth and e2e testing (ADR-0200, ADR-0205). No watch loop: the daily loop is native execution.
 set -euo pipefail
-
-source "$(dirname "$0")/lib/cluster.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
 
 SVC="${1:?usage: mise run service:deploy -- <svc>}"
 VALUES="infra/gitops/services/local/values/${SVC}.yaml"
-[ -f "$VALUES" ] || {
-  echo "✗ missing local values: ${VALUES}" >&2
-  exit 1
-}
+[ -f "$VALUES" ] || fail "missing local values: ${VALUES}"
 
 if [ -d "services/${SVC}" ]; then
   KIND=service
@@ -26,8 +21,7 @@ elif [ -d "apps/${SVC}" ]; then
   SVC_DIR="apps/${SVC}"
   IMAGE="${SVC}"
 else
-  echo "✗ no such deployable: neither services/${SVC} nor apps/${SVC}" >&2
-  exit 1
+  fail "no such deployable: neither services/${SVC} nor apps/${SVC}"
 fi
 
 k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
@@ -46,7 +40,7 @@ fi
 # Only on the inner loop: a `dep:*` is a stand-in (ADR-0600), and the full tier already runs the real component.
 # Applying one there adds a second database beside CNPG's for a service whose values point at the real one.
 if [ "$(cluster_tier)" = "full" ]; then
-  echo "→ full tier: dependencies come from the platform charts, not stand-ins"
+  step "full tier: dependencies come from the platform charts, not stand-ins"
   deps=""
 fi
 for dep in $deps; do
@@ -61,14 +55,14 @@ for s in $svcs; do
   name="${s#svc:}"
   case " ${DEPLOYING_SERVICES} " in
   *" ${name} "*)
-    echo "→ ${name} already in this deploy chain — skipping (cycle guard)"
+    step "${name} already in this deploy chain — skipping (cycle guard)"
     continue
     ;;
   esac
   if k rollout status "deploy/${name}-server" --timeout=0 >/dev/null 2>&1; then
-    echo "  ${name} already deployed — skipping"
+    detail "${name} already deployed — skipping"
   else
-    echo "→ ${SVC} calls ${name}; deploying it first"
+    step "${SVC} calls ${name}; deploying it first"
     bash scripts/service-deploy.sh "$name"
   fi
 done
@@ -90,7 +84,7 @@ SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
 REV="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 git diff --quiet 2>/dev/null || REV="${REV}-dirty"
 
-echo "→ building ${REPO}:${TAG}"
+step "building ${REPO}:${TAG}"
 if [ "$KIND" = service ]; then
   docker build -t "${REPO}:${TAG}" \
     --build-arg SERVICE="${SVC}" --build-arg APP_CMD=server \
@@ -108,7 +102,7 @@ publish_image "${REPO}:${TAG}"
 
 # Build the worker too when this service declares one (orders, payment).
 if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
-  echo "→ building ${WORKER_REPO}:${TAG}"
+  step "building ${WORKER_REPO}:${TAG}"
   docker build -t "${WORKER_REPO}:${TAG}" \
     --build-arg SERVICE="${SVC}" --build-arg APP_CMD=worker \
     --build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local \
@@ -121,14 +115,14 @@ fi
 # Pause Argo auto-sync on this service if the full tier manages it.
 APP="$(argo_service_app "$SVC")"
 if [ -n "$APP" ]; then
-  echo "→ pausing ArgoCD auto-sync on ${APP}"
+  step "pausing ArgoCD auto-sync on ${APP}"
   k -n argocd patch application.argoproj.io "$APP" --type merge \
     -p '{"spec":{"syncPolicy":{"automated":null}}}'
 fi
 
-echo "→ helm upgrade ${SVC} (working-tree image ${TAG})"
+step "helm upgrade ${SVC} (working-tree image ${TAG})"
 h upgrade --install "$SVC" infra/helm/service -n "$NS" -f "$VALUES" \
   --take-ownership --force-conflicts --set image.pullPolicy=IfNotPresent "${SET[@]}" --timeout 5m
 k rollout restart "deploy/${SVC}-server"
 k rollout status "deploy/${SVC}-server" --timeout=180s
-echo "✓ ${SVC} deployed from working tree (tag ${TAG})"
+ok "${SVC} deployed from working tree (tag ${TAG})"

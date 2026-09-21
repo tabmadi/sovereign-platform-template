@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Regenerate Go servers/clients and TS clients from every service's OpenAPI spec.
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 shopt -s nullglob
-
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
-cd "$ROOT"
 
 for spec in services/*/openapi.yaml; do
   service=$(basename "$(dirname "$spec")")
@@ -14,12 +12,12 @@ for spec in services/*/openapi.yaml; do
   # ogen package name must be a valid Go identifier (e.g. "_template" -> "template").
   pkg=$(printf '%s' "$service" | tr -cd '[:alnum:]')
 
-  echo "→ $service: Go SDK (ogen)"
+  step "$service: Go SDK (ogen)"
   # `ogen --clean` overwrites and prunes orphans itself, and keeping the directory populated means a concurrent go/lint pass never sees it empty. `gen:clean` wipes it.
   mkdir -p "$go_out"
   ogen --target "$go_out" --package "$pkg" --clean "$spec"
 
-  echo "→ $service: TS client"
+  step "$service: TS client"
   mkdir -p "$ts_out"
 
   bun x openapi-typescript@7.13.0 "$spec" --output "$ts_out/index.d.ts"

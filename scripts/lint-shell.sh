@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Shell lint gate (ADR-0101): shellcheck over every tracked *.sh, with `-x` to follow the `source lib/log.sh` includes.
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
-source "$(dirname "$0")/lib/repo-files.sh"
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/repo-files.sh"
 
 step "shellcheck: linting shell scripts"
 

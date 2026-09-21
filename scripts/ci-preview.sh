@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # The pull-request preview environment (ADR-0205).
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 verb="${1:-}"
 case "$verb" in
@@ -9,20 +10,14 @@ up | down) ;;
 esac
 
 pr="${PREVIEW_PR:-}"
-[[ "$pr" =~ ^[0-9]+$ ]] || {
-  echo "✗ PREVIEW_PR is not a pull request number: '${pr}'" >&2
-  exit 1
-}
+[[ "$pr" =~ ^[0-9]+$ ]] || fail "PREVIEW_PR is not a pull request number: '${pr}'"
 
 # Set BEFORE lib/cluster.sh is sourced: the cluster name, the kube-context and
 # every path derived from them are computed at source time.
 CLUSTER="pr-${pr}"
 TIER=full
 export CLUSTER TIER
-
-# shellcheck source=lib/cluster.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/cluster.sh"
-cd "$ROOT"
 
 if [ "$verb" = down ]; then
   step "destroying preview pr-${pr}"

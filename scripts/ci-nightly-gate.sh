@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Decide whether tonight's cluster:up full suite should run, as a forge step-output assignment (ADR-0102, ADR-0601).
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 summary() {
   [[ -n "${GITHUB_STEP_SUMMARY:-}" ]] && printf '%s\n' "$*" >>"$GITHUB_STEP_SUMMARY"

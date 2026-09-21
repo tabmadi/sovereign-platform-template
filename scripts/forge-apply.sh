@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Reconcile infra/forge/branch-protection.yaml into the forge (ADR-0102).
 set -euo pipefail
-# shellcheck source=lib/log.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 CONFIG="$(dirname "${BASH_SOURCE[0]}")/../infra/forge/branch-protection.yaml"
 

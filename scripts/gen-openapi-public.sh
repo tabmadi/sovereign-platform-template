@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Emit the developer-portal spec projections Scalar consumes — one merged document per portal, not a file per service (ADR-0303, ADR-0306).
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 shopt -s nullglob
-
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
-cd "$ROOT"
 
 out_dir="apps/frontend/public/devportal/openapi"
 
@@ -44,13 +42,13 @@ done
 rm -rf "$out_dir"
 mkdir -p "$out_dir"
 
-echo "→ dev portal projection (audience >= internal)"
+step "dev portal projection (audience >= internal)"
 yq ea -o=json "${merge}
   | del(.paths.*.* | select(tag == \"!!map\" and .x-audience == \"cluster\"))
   | ${drop_empty_paths} | ${prune_orphan_schemas} | ${envelope} | ${strip_ext}" \
   "${resolved[@]}" >"$out_dir/internal.json"
 
-echo "→ public docs projection (audience == public)"
+step "public docs projection (audience == public)"
 yq ea -o=json "${merge}
   | del(.paths.*.* | select(tag == \"!!map\" and .x-audience != \"public\"))
   | ${drop_empty_paths} | ${prune_orphan_schemas} | ${envelope} | ${strip_ext}" \
@@ -61,7 +59,6 @@ yq ea -o=json "${merge}
 for out in "$out_dir"/*.json; do
   n=$(yq -o=json '[.. | select(tag == "!!map") | keys.[] | select(test("^x-"))] | length' "$out")
   if [ "$n" != "0" ]; then
-    echo "✗ x- extension key leaked into ${out} (strip_ext failed)" >&2
-    exit 1
+    fail "x- extension key leaked into ${out} (strip_ext failed)"
   fi
 done

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Grant a human the ops tier by adding them to group:operator in OpenFGA, resolving the Kratos identity by email (ADR-0304, ADR-0306). Idempotent.
 set -euo pipefail
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 NS="${NS:-platform}"
 KCTX="${KUBE_CONTEXT:-}"
@@ -100,5 +100,5 @@ apply_membership "$sid" "$id"
 
 verb="granted"
 [ "$action" = "delete" ] && verb="revoked"
-echo "✓ ${verb} operator trait + group:operator for ${email} (user:${id})"
-[ "$action" = "write" ] && echo "  → they must have AAL2 (a second factor) enrolled; re-login if already signed in."
+ok "${verb} operator trait + group:operator for ${email} (user:${id})"
+[ "$action" = "write" ] && detail "→ they must have AAL2 (a second factor) enrolled; re-login if already signed in."

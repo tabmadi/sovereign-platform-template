@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Drift check: regenerate and reformat everything, then fail if anything changed (ADR-0101, ADR-0303).
 set -euo pipefail
-source "$(dirname "$0")/lib/log.sh"
-source "$(dirname "$0")/lib/repo-files.sh"
-cd "$(cd "$(dirname "$0")/.." && pwd)"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/repo-files.sh"
 
 snapshot() {
   repo_files | xargs -0 sha256sum 2>/dev/null | LC_ALL=C sort

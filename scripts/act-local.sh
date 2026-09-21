@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Local act runner that bakes the mise toolchain into one base image.
 set -euo pipefail
-
-source "$(dirname "$0")/lib/log.sh"
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 PROXY="${ACT_PROXY:-http://127.0.0.1:8118}"
 IMAGE="${ACT_IMAGE:-act-local:latest}"
