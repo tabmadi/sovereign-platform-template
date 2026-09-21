@@ -71,7 +71,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | A comment is one paragraph and at most three lines; one line is the norm. | `lint:comments` in CI |
 | A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. | `lint:comments` in CI |
 | An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. | `lint:comments` in CI |
-| The tree's comment budget only decreases. | `lint:comments` in CI |
+| The tree's comment budget only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, where a raise amends ADR-0001 with the figure and the reason. | `lint:comments` in CI |
 | Commented-out code, changelog/author/date comments, and decorative banners are not committed. | `lint:comments` in CI |
 | A `TODO` cites an issue or an ADR. | `lint:comments` in CI |
 | A comment that exists to explain confusing code is a defect; the code is rewritten. | review |
@@ -484,7 +484,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Tokens are validated once at the edge with the algorithm pinned and `iss`, `aud`, and `exp` checked; services do not validate tokens. | `lint:auth-inline` in CI; standard: RFC 8725 |
 | Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. | `lint:authz` in CI |
 | Service-to-service calls carry no token. Shared secrets, HMAC schemes, and per-call machine tokens are not used. | review |
-| A non-Go service reads the identity headers through the same contract and passes `tools/auth-conformance/` before merging. | review |
+| A non-Go service reads the identity headers through the same contract and passes `libs/go/authmw/conformance/` before merging. | review |
 | Auth configuration is canonical only at `infra/auth/*` and is delivered to charts by file injection, never hand-copied inline into a chart's values. | `ci:gen` in CI |
 
 ## ADR-0305 — Edge Authentication & Traffic Policy

@@ -135,7 +135,7 @@ The security controls every project built from this template inherits, each one 
 | Tokens are validated once at the edge with the algorithm pinned and `iss`, `aud`, and `exp` checked; services do not validate tokens. | `lint:auth-inline` in CI; standard: RFC 8725 |
 | Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. | `lint:authz` in CI |
 | Service-to-service calls carry no token. Shared secrets, HMAC schemes, and per-call machine tokens are not used. | review |
-| A non-Go service reads the identity headers through the same contract and passes `tools/auth-conformance/` before merging. | review |
+| A non-Go service reads the identity headers through the same contract and passes `libs/go/authmw/conformance/` before merging. | review |
 | Auth configuration is canonical only at `infra/auth/*` and is delivered to charts by file injection, never hand-copied inline into a chart's values. | `ci:gen` in CI |
 
 ## Edge authentication and traffic policy
