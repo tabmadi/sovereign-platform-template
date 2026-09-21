@@ -76,7 +76,7 @@ It returns as a candidate when hermeticity stops being a nicety, which is the sa
 | --- | --- | --- | --- |
 | **Single repo-wide `go.mod`** | **structural — drift is impossible** | one PR | **Chosen** *(reasoned)* |
 | Module per service | isolated | staggered bumps across N modules | Buys isolation the platform does not need and costs consistency it does |
-| `go.work` overlay | partial | workspace-mode ceremony | The complexity of multi-module without the isolation benefit |
+| `go.work` overlay | partial | workspace-mode ceremony | Rejected for the product, taken for `tools/` alone, where the isolation is the point |
 
 ### JavaScript workspace orchestration
 
@@ -108,7 +108,8 @@ One tool per language, each a single pinned binary with no ambient runtime ([ADR
 ### Repository layout
 
 ```text
-go.mod                        # single Go module for the entire repo
+go.work                       # the product module and the tool module
+go.mod                        # the product module: services, libs, apps
 go.sum
 
 services/<name>/              # one backend service (package, not a module)
@@ -165,7 +166,7 @@ docs/                         # genre decides the directory (ADR-0001)
 | `services/` and `apps/` are siblings | Services are headless, horizontally-scaled, internally-addressed backends. `apps/` holds first-party deployable applications, and the slot stays open for partner portals, CLIs, or mobile apps without a layout migration. A new entry under `apps/` requires its own ADR |
 | `services/` stays spelled out | `svc` already means a Kubernetes Service here and is the per-service metavariable in docs. Directory names abbreviate only when unambiguous |
 | `infra/` holds both IaC and the configuration of what it deploys | One top-level directory removes the recurring "infra or ops?" question |
-| `tools/` holds repo-local Go programs only | It is not a shell-script drawer. External tools are installed by mise |
+| `tools/` holds repo-local Go programs only | It is not a shell-script drawer. External tools are installed by mise. Its own module keeps linter dependencies out of the graph every generated project ships, and `tools/internal/` carries the packages those programs share |
 | `scripts/` holds shell, and shell only | The counterpart to the row above, so the split is a language boundary rather than a habit. A script whose work is a Go program is not a script — the task calls the program directly, and a wrapper that only changes directory and shells out puts one name in two trees |
 | `test/` holds external harnesses, and is singular for that reason | Each suite drives an assembled, running system from outside it, so neither belongs to any one service ([ADR-0601](0601-testing-strategy.md)). It is not where the tests live: a Go test of an `internal/` package **cannot** be moved here, because `internal/` is importable only from the subtree rooted at its parent, so the compiler rejects the import. Unit tests sit beside their code, which is also what keeps `ci:affected` able to map a changed package to the tests covering it |
 | Each suite under `test/` pins its own tools | `test/e2e/` is the Node island and `test/perf/` is the k6 one, and they share a parent rather than a toolchain. `test/` carries no `package.json`, no lockfile, and no tool pin of its own — the containment is per directory, the same way `apps/admin/` pins Lowdefy's pnpm under `apps/`. `(CI: lint:node-scope)` |
@@ -203,9 +204,11 @@ An operand a task accepts is validated against a closed set, and an unrecognised
 
 Floating tags — `latest`, `stable`, `main`, an unpinned major — are forbidden in `.mise.toml`, Dockerfiles, Helm values, and workflows. A tool-version change is a normal PR, so anyone cloning at any SHA reproduces the exact toolchain that built it.
 
-### One Go module
+### One Go module for the product, one for the gates
 
-One `go.mod` at the repo root covers every service, library, generated client, and `tools/` program. No `go.work`, no per-service module, no `replace` directives. Services and libraries are plain packages, imported by the repo's module path.
+One `go.mod` at the repo root covers every service, library, and generated client. No per-service module and no `replace` directives. Services and libraries are plain packages, imported by the repo's module path.
+
+`tools/` is the single exception, a second module joined by a committed `go.work`. A gate's dependencies — a ruleguard DSL, an AST walker — are not a dependency of anything that ships, and a generated project inherits this tree wholesale, so leaving them in the product graph puts linter code in the module every service resolves against. The isolation the product does not need is exactly what the tool tree does. A service image never sees the workspace: its Dockerfile copies `go.mod`, `go.sum`, `libs/go`, and one service directory, so `go.work` is not in the build context.
 
 Dependency **consistency** is worth more here than dependency **isolation**: one `go get -u` upgrades the repo, one `govulncheck` and one `go.sum` describe it, cross-cutting refactors land in one PR, and every service is structurally forced onto the same version of every dependency.
 
@@ -239,7 +242,7 @@ Bun workspaces unify the app and TS libraries:
 | `publish.yml` | builds and pushes images on merges to `master` |
 | `e2e.yml` | nightly and pre-release full suite, plus a label-gated smoke job ([ADR-0601](0601-testing-strategy.md)) |
 
-Lint, test, and build are **whole-repo over the single Go module**, not affected-scoped: the linters have no per-service subset to take, and Go's build cache makes the repeat cost small. `ci:affected` scopes what gets built and promoted, not what gets analysed.
+Lint, test, and build are **whole-repo over both modules**, not affected-scoped: the linters have no per-service subset to take, and Go's build cache makes the repeat cost small. `ci:affected` scopes what gets built and promoted, not what gets analysed.
 
 Every workflow takes its toolchain from the `./.github/actions/setup` composite action, so mise setup and the Go cache key are defined once. Which forge runs these workflows, and on whose runners, is [ADR-0102](0102-source-control-and-ci.md); the thin-YAML rule there is what keeps that choice reversible.
 
@@ -324,7 +327,8 @@ Each step is its own ADR when triggered.
 ## Rules
 
 - The fleet lives in one repository. Moving any part of it to a second repository requires its own ADR.
-- The repo is a single Go module rooted at `go.mod`. There are no per-service or per-library `go.mod` files and no `go.work`. `(CI: ci:lint)`
+- The product is a single Go module rooted at `go.mod`: no per-service or per-library `go.mod`. `tools/` is the one exception, a second module joined by `go.work`, because a gate's dependencies are not a dependency of anything that ships. `(CI: ci:lint)`
+- A service image build copies only `go.mod`, `go.sum`, `libs/go`, and its own service directory, so `go.work` never enters the build context.
 - Every backend service lives at `services/<name>/`; every shared Go package under `libs/go/<name>/`; every shared TypeScript library under `libs/ts/<name>/`. `(CI: lint:service-contract)`
 - Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. `(CI: ci:gen)`
 - The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR.
@@ -338,7 +342,7 @@ Each step is its own ADR when triggered.
 - Container images are tagged `<service>:<git-sha>`, and the same SHA flows through every environment. `(CI: lint:floating-tags)`
 - `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. `(CI: lint:go, lint:service-contract)`
 - Route groups inside `apps/frontend/` do not import from each other. `(CI: lint:ts)`
-- `tools/` holds repo-local Go programs and `scripts/` holds shell. A mise task invokes a Go program directly; a shell script that only shells out to one is not written.
+- `tools/` holds repo-local Go programs and the packages under `tools/internal/` that they share; `scripts/` holds shell. A mise task invokes a Go program directly; a shell script that only shells out to one is not written.
 - `test/` holds the external harnesses that drive an assembled system — `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package.
 - Each suite under `test/` pins its own tools. `test/` itself carries no toolchain, package manifest, or lockfile. `(CI: lint:node-scope)`
 - Build-graph and hermetic-build tools — Nx, moon, Pants, Bazel, Nix — are not used on day one. Adoption requires its own ADR.

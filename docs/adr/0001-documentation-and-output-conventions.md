@@ -238,9 +238,7 @@ An exported identifier is documented where the doc states a fact its signature c
 
 **The tree's comment count only falls.** `tools/lint-comments` carries the budget, `mise run gen` stamps it, and a change that pushes the tree above it fails CI. Raising the number is not a repair, and the ratchet only lowers it.
 
-The one exception is shared code under `tools/internal/` and `scripts/lib/`, where a comment is written once and serves every call site, and a control-flow hazard the shared form introduces — an accumulator that must not be an exit, a script that must not adopt the common bootstrap — is cheaper documented than rediscovered. A change that raises the ceiling for that reason amends this paragraph with the figure and the reason; raising it for any other is the repair this rule forbids.
-
-Raised to 5858 when `tools/internal/{lint,repo,edge}` and `scripts/lib/bootstrap.sh` replaced the per-tool report boilerplate and the nineteen script header shapes.
+The one exception is shared code under `tools/internal/` and `scripts/lib/`, where a comment is written once and serves every call site, and a control-flow hazard the shared form introduces — an accumulator that must not be an exit, a script that must not adopt the common bootstrap — is cheaper documented than rediscovered. A raise for that reason travels as its own change to `budget.txt`, where review sees the figure and the shared code that earned it; raising it for any other is the repair this rule forbids.
 
 ### Template docs are final-state facts
 
@@ -322,7 +320,7 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - A comment is one paragraph and at most three lines; one line is the norm. `(CI: lint:comments)`
 - A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. `(CI: lint:comments)`
 - An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. `(CI: lint:comments)`
-- The tree's comment budget only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, where a raise amends ADR-0001 with the figure and the reason. `(CI: lint:comments)`
+- The tree's comment budget only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, where a raise travels as its own change to `budget.txt`. `(CI: lint:comments)`
 - Commented-out code, changelog/author/date comments, and decorative banners are not committed. `(CI: lint:comments)`
 - A `TODO` cites an issue or an ADR. `(CI: lint:comments)`
 - A comment that exists to explain confusing code is a defect; the code is rewritten.

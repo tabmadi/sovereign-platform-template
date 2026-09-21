@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 174 |
-| Review-enforced | 323 |
-| **Total** | **497** |
+| Review-enforced | 324 |
+| **Total** | **498** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -71,7 +71,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | A comment is one paragraph and at most three lines; one line is the norm. | `lint:comments` in CI |
 | A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. | `lint:comments` in CI |
 | An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. | `lint:comments` in CI |
-| The tree's comment budget only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, where a raise amends ADR-0001 with the figure and the reason. | `lint:comments` in CI |
+| The tree's comment budget only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, where a raise travels as its own change to `budget.txt`. | `lint:comments` in CI |
 | Commented-out code, changelog/author/date comments, and decorative banners are not committed. | `lint:comments` in CI |
 | A `TODO` cites an issue or an ADR. | `lint:comments` in CI |
 | A comment that exists to explain confusing code is a defect; the code is rewritten. | review |
@@ -151,7 +151,8 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rule | Enforced by |
 | --- | --- |
 | The fleet lives in one repository. Moving any part of it to a second repository requires its own ADR. | review |
-| The repo is a single Go module rooted at `go.mod`. There are no per-service or per-library `go.mod` files and no `go.work`. | `ci:lint` in CI |
+| The product is a single Go module rooted at `go.mod`: no per-service or per-library `go.mod`. `tools/` is the one exception, a second module joined by `go.work`, because a gate's dependencies are not a dependency of anything that ships. | `ci:lint` in CI |
+| A service image build copies only `go.mod`, `go.sum`, `libs/go`, and its own service directory, so `go.work` never enters the build context. | review |
 | Every backend service lives at `services/<name>/`; every shared Go package under `libs/go/<name>/`; every shared TypeScript library under `libs/ts/<name>/`. | `lint:service-contract` in CI |
 | Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. | `ci:gen` in CI |
 | The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR. | review |
@@ -165,7 +166,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Container images are tagged `<service>:<git-sha>`, and the same SHA flows through every environment. | `lint:floating-tags` in CI |
 | `services/<X>/` does not import `services/<Y>/`. Sharing happens through `libs/` or generated clients. | `lint:go, lint:service-contract` in CI |
 | Route groups inside `apps/frontend/` do not import from each other. | `lint:ts` in CI |
-| `tools/` holds repo-local Go programs and `scripts/` holds shell. A mise task invokes a Go program directly; a shell script that only shells out to one is not written. | review |
+| `tools/` holds repo-local Go programs and the packages under `tools/internal/` that they share; `scripts/` holds shell. A mise task invokes a Go program directly; a shell script that only shells out to one is not written. | review |
 | `test/` holds the external harnesses that drive an assembled system — `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package. | review |
 | Each suite under `test/` pins its own tools. `test/` itself carries no toolchain, package manifest, or lockfile. | `lint:node-scope` in CI |
 | Build-graph and hermetic-build tools — Nx, moon, Pants, Bazel, Nix — are not used on day one. Adoption requires its own ADR. | review |
