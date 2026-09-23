@@ -37,9 +37,6 @@ maddy:
 # arbitrary host on port 25.
 maddyEnabled: true
 
-# Alertmanager's `ticket` receiver relays through maddy rather than the sink
-# (ADR-0502), which the smarthost above already names.
-
 # Top-level `cluster:` — the postgres chart's own values schema has no
 # `postgres:` namespace wrapper (unlike the dependency subcharts below).
 cluster:

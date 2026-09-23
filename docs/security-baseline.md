@@ -49,7 +49,7 @@ The security controls every project built from this template inherits, each one 
 | Every encrypted file outside the local tier has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. Local files are encrypted to the committed local key alone. | review |
 | Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to, the local tier's exemption aside. | review |
 | Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime. | review |
-| Onboarding adds a public key by PR plus `sops updatekeys`. Offboarding removes it by PR plus `sops updatekeys` plus rotation of every secret that engineer could read. | review |
+| Onboarding adds a public key by PR plus `mise run secrets:updatekeys`. Offboarding removes it by PR plus `mise run secrets:updatekeys` plus rotation of every secret that engineer could read. | review |
 | Rotation on offboarding is mandatory regardless of the circumstances of departure. | review |
 | The ops-recovery private key is never online and never on a single machine, and is rotated annually. | review |
 | Every cluster Secret is produced by the sops-operator from an encrypted file in the repo. `kubectl create secret` is not used. | review |

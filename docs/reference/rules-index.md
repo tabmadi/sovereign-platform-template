@@ -157,7 +157,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. | `ci:gen` in CI |
 | The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR. | review |
 | Tasks are invoked through `mise run <task>`. Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker`. | `lint:service-contract` in CI |
-| A task name is `group:member`, grouped by the axis worth listing together. | review |
+| A task name is `group:member`, grouped by the axis worth listing together, and it spells its script: `activity:target` is `scripts/activity-target.sh`, `resource:operation` is `scripts/resource.sh operation`. | review |
 | What a task acts on is an argument, never an environment variable: `mise run cluster:down -- full`. Environment variables carry the machine's environment, and a variable a script exports for its own subprocesses is not an interface. | standard: clig.dev, POSIX Utility Conventions |
 | A task validates its operand against a closed set and fails on an unrecognised one, rather than falling back to a default. | review |
 | Every external tool is pinned: developer and CI tools in `.mise.toml`, runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. | `lint:floating-tags` in CI |
@@ -291,7 +291,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Every encrypted file outside the local tier has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. Local files are encrypted to the committed local key alone. | review |
 | Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to, the local tier's exemption aside. | review |
 | Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime. | review |
-| Onboarding adds a public key by PR plus `sops updatekeys`. Offboarding removes it by PR plus `sops updatekeys` plus rotation of every secret that engineer could read. | review |
+| Onboarding adds a public key by PR plus `mise run secrets:updatekeys`. Offboarding removes it by PR plus `mise run secrets:updatekeys` plus rotation of every secret that engineer could read. | review |
 | Rotation on offboarding is mandatory regardless of the circumstances of departure. | review |
 | The ops-recovery private key is never online and never on a single machine, and is rotated annually. | review |
 | Every cluster Secret is produced by the sops-operator from an encrypted file in the repo. `kubectl create secret` is not used. | review |

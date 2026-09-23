@@ -100,8 +100,8 @@ The inner loop needs no decryption at all: each service's `.env.example`, copied
 
 | Event | Procedure |
 | --- | --- |
-| Onboarding | the engineer runs `mise run secrets:age`, opens a PR adding the public key to `.sops.yaml`, and runs `sops updatekeys` on all encrypted files. The PR diff is the audit trail |
-| Offboarding | remove the public key, run `sops updatekeys`, and **rotate every secret that engineer could read**. Rotation is standing policy regardless of the circumstances of departure |
+| Onboarding | the engineer runs `mise run secrets:age`, opens a PR adding the public key to `.sops.yaml`, and runs `mise run secrets:updatekeys`. The PR diff is the audit trail |
+| Offboarding | remove the public key, run `mise run secrets:updatekeys`, and **rotate every secret that engineer could read**. Removing a recipient re-keys later versions only, because every commit already published stays readable by the key it was encrypted to. Rotation is standing policy regardless of the circumstances of departure |
 | Cluster-key rotation | generate a new pair, add the public key as an additional recipient on env-scoped files, update the in-cluster Secret, and remove the old key after one full sync cycle |
 | Ops-recovery rotation | generated fresh annually as part of the security review; the old key is destroyed |
 
@@ -139,7 +139,7 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 - Every encrypted file outside the local tier has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. Local files are encrypted to the committed local key alone.
 - Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to, the local tier's exemption aside.
 - Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime.
-- Onboarding adds a public key by PR plus `sops updatekeys`. Offboarding removes it by PR plus `sops updatekeys` plus rotation of every secret that engineer could read.
+- Onboarding adds a public key by PR plus `mise run secrets:updatekeys`. Offboarding removes it by PR plus `mise run secrets:updatekeys` plus rotation of every secret that engineer could read.
 - Rotation on offboarding is mandatory regardless of the circumstances of departure.
 - The ops-recovery private key is never online and never on a single machine, and is rotated annually.
 - Every cluster Secret is produced by the sops-operator from an encrypted file in the repo. `kubectl create secret` is not used.

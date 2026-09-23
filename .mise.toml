@@ -625,6 +625,10 @@ run = "bash scripts/secrets-cosign.sh"
 description = "Idempotent; also writes .sops.yaml (ADR-0202)."
 run = "bash scripts/secrets-age.sh"
 
+[tasks."secrets:updatekeys"]
+description = "Re-encrypt every SOPS file to .sops.yaml's current recipients (ADR-0202). Run after adding or removing an engineer, then commit the diff."
+run = "bash scripts/secrets-updatekeys.sh"
+
 [tasks."secrets:age:local"]
 description = "Mint this project's own LOCAL-tier age key and re-encrypt the local bundle to it (ADR-0202, ADR-0205)."
 run = "bash scripts/rotate-local-age-key.sh"
