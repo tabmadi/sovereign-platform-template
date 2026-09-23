@@ -28,7 +28,8 @@ The security controls every project built from this template inherits, each one 
 
 | Control | Enforced by |
 | --- | --- |
-| Production runs on plain compute instances, never managed Kubernetes. Terraform is a per-project tool, skipped when infrastructure is pre-provided. | review |
+| Production runs on plain compute instances, never managed Kubernetes. Terraform is a per-project tool, skipped where infrastructure is pre-provided or the project operates the hypervisor itself. | review |
+| Where the project creates its own nodes, the creation steps and the image reference are committed alongside the inventory. | review |
 | Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node. | review |
 | Every environment runs three control-plane nodes with etcd on each. Adding workers follows the resource-pressure trigger. | review |
 | Anything not in the base Talos image arrives as a system extension in a pinned installer image built through Image Factory. | review |

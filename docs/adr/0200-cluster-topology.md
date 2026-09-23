@@ -87,14 +87,17 @@ Driver 3 also admits the cost: this is a less widely operated OS than Debian, an
 
 ### Hosting
 
-Production runs on **plain compute instances**, never a provider's managed Kubernetes. How the instances come to exist is per project; two modes are supported against the same downstream bootstrap.
+Production runs on **plain compute instances**, never a provider's managed Kubernetes. How the instances come to exist is per project; three modes are supported against the same downstream bootstrap.
 
 | Mode | Provisioning | Bucket |
 | --- | --- | --- |
 | Project provisions its own infrastructure | Terraform under `infra/terraform/` creates instances, network, LB, DNS, firewall, and bucket, isolating the provider behind a stable interface. Swapping providers is a module swap, not a topology change | created |
 | Infrastructure is pre-provided | Terraform is skipped. The machine configs are applied to existing Talos nodes named in a committed inventory | referenced by configuration |
+| Project operates the hypervisor | Committed scripts create the nodes on hardware the project runs, and re-imaging a node's disk from the Talos image is how one is rebuilt. Terraform is skipped: with no provider API between the project and the metal, the node lifecycle is a script against one hypervisor | created |
 
 **The dividing line is provisioning only.** Everything downstream — machine configuration, Kubernetes, Cilium, Argo CD — is identical. Terraform belongs to the project that owns its infrastructure, and the second mode never invokes it.
+
+**The third mode is provisioning the project owns with no provider to address.** A hypervisor on the project's own hardware exposes no API worth putting a plan in front of: the lifecycle is create, re-image and destroy against one machine, and an idempotent script states it as completely as a module would. It carries the requirement Terraform would otherwise enforce — the node definitions, the image reference, and the creation steps are committed, so a lost host costs the time to re-run them and never the knowledge of what they were.
 
 **Pre-provided means pre-provided Talos.** Talos is installed by booting its own image, not converged onto a running general-purpose distribution, so this mode requires nodes already running Talos and reachable on its API. A pre-provided fleet running anything else is a reprovision, not a configuration step.
 
@@ -161,15 +164,17 @@ The version is pinned rather than left at `latest`, so a Kubernetes upgrade that
                      # Argo CD reconciles the rest
 ```
 
+On the other two modes step 0 is the hypervisor's node-creation script or nothing at all, and step 1 is `talosctl apply-config` per node followed by one `talosctl bootstrap`.
+
 There is no configuration-management step between provisioning and Argo CD, because there is no mutable host state to converge.
 
-Cluster identity is reproducible from git plus the SOPS-encrypted machine secrets, with one Terraform state file when the project owns its infrastructure, or the committed inventory and the referenced bucket when it does not.
+Cluster identity is reproducible from git plus the SOPS-encrypted machine secrets, with one Terraform state file where a provider is addressed, and the committed inventory, node-creation scripts and referenced bucket where none is.
 
 ### Disaster recovery
 
 Three-node HA tolerates single-node failure with no downtime; etcd quorum survives.
 
-A full-cluster loss recovers through `terraform apply` where applicable, then machine-config apply and bootstrap, then Argo CD reconciling from git, then CNPG restoring from PITR. On pre-provided infrastructure the Talos nodes already exist, so recovery starts at the machine-config apply.
+A full-cluster loss recovers through `terraform apply` where applicable, then machine-config apply and bootstrap, then Argo CD reconciling from git, then CNPG restoring from PITR. On pre-provided infrastructure the Talos nodes already exist, so recovery starts at the machine-config apply; where the project operates the hypervisor, it starts at re-imaging the node disks.
 
 The recovery objectives are decided here rather than in the runbook that executes them, and they bind [ADR-0207](0207-cluster-storage.md)'s backup retention, Object Lock window, and rehearsal cadence.
 
@@ -209,7 +214,8 @@ Rehearsed quarterly alongside the backup restore drill ([ADR-0207](0207-cluster-
 
 ## Rules
 
-- Production runs on plain compute instances, never managed Kubernetes. Terraform is a per-project tool, skipped when infrastructure is pre-provided.
+- Production runs on plain compute instances, never managed Kubernetes. Terraform is a per-project tool, skipped where infrastructure is pre-provided or the project operates the hypervisor itself.
+- Where the project creates its own nodes, the creation steps and the image reference are committed alongside the inventory.
 - Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node.
 - Every environment runs three control-plane nodes with etcd on each. Adding workers follows the resource-pressure trigger.
 - Anything not in the base Talos image arrives as a system extension in a pinned installer image built through Image Factory.
