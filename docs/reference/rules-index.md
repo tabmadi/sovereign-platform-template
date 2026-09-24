@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 174 |
-| Review-enforced | 328 |
-| **Total** | **502** |
+| Review-enforced | 331 |
+| **Total** | **505** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -71,7 +71,10 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | A comment is one paragraph and at most three lines; one line is the norm. | `lint:comments` in CI |
 | A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. | `lint:comments` in CI |
 | An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. | `lint:comments` in CI |
-| The tree's comment budget only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, where a raise travels as its own change to `budget.txt`. | `lint:comments` in CI |
+| The tree's comment budget only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, or a change with no ungrounded comment left to give up. A raise travels as its own change to `budget.txt`. | `lint:comments` in CI |
+| A comment surviving on one of the five grounds is not deleted to afford another. | review |
+| A comment describing a state a later edit makes false is not written; the value it describes states it. | review |
+| A comment does not teach a third-party tool what that tool documents, or restate a convention the path or identifier already carries. | review |
 | Commented-out code, changelog/author/date comments, and decorative banners are not committed. | `lint:comments` in CI |
 | A `TODO` cites an issue or an ADR. | `lint:comments` in CI |
 | A comment that exists to explain confusing code is a defect; the code is rewritten. | review |
