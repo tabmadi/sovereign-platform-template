@@ -37,7 +37,6 @@ kyverno:
       limits: { memory: "256Mi" }
 
 
-#  The policies
 
 policies:
   # `Enforce` rejects; `Audit` records a PolicyReport and admits. Deployed environments enforce.

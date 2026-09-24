@@ -16,8 +16,8 @@ groups:
             The courier cannot hand messages to the submission endpoint. Verification
             and recovery mail is not being sent at all — this is upstream of
             deliverability, so DNS and DKIM are not the place to look first.
-      # Transactions that start and do not finish. maddy exposes NO queue-depth series — this rule previously read
-      # `maddy_queue_length`, which does not exist in 0.9.5 and therefore never fired.
+      # Transactions that start and do not finish. maddy exposes no queue-depth
+      # series, so this counts the gap between accepted and delivered instead.
       - alert: MailTransactionsAborting
         expr: |
           sum(rate(maddy_smtp_aborted_transactions[30m]))

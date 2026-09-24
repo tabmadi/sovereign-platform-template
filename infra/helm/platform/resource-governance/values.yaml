@@ -1,5 +1,5 @@
-# ADR-0204 guardrails. Every number here has a measured basis, taken on 2026-07-26 from cluster:up full under the
-# ADR-0601 load suite (browse @160 VUs, checkout @40 VUs).
+# ADR-0204 guardrails. Every number here was set from a run of the ADR-0601 load
+# suite; `mise run perf:rederive` reproduces one.
 
 #  PriorityClass tiers  Eviction order under real node
 # pressure: batch dies first, Core last.
@@ -31,21 +31,19 @@ priorityClasses:
 limitRanges:
   platform:
     enabled: true
-    # Worst measured peak among the undeclared containers here: cnpg-operator 95Mi.
+    # Headroom over the worst peak among the undeclared containers here.
     defaultMemoryLimit: 512Mi
     defaultMemoryRequest: 64Mi
     defaultCPURequest: 50m
   argocd:
     enabled: true
-    # Worst measured peak: argocd-dex-server 133Mi. 512Mi is ~4x. repo-server is
-    # the one to watch — it spikes while rendering Helm charts, and this repo has
-    # ~20 of them.
+    # repo-server is the one to watch — it spikes while rendering Helm charts.
     defaultMemoryLimit: 512Mi
     defaultMemoryRequest: 64Mi
     defaultCPURequest: 50m
   kube-system:
     enabled: true
-    # Deliberately roomier than the others. Worst measured peak is cilium-agent at 202Mi, but Cilium's memory scales
+    # Deliberately roomier than the others, because Cilium's memory scales
     # with endpoint and policy count, and this repo's default-deny policy set grows with every service.
     defaultMemoryLimit: 1Gi
     defaultMemoryRequest: 128Mi

@@ -99,9 +99,6 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      # Authenticated Docker Hub pulls for zot's sync: anonymous pulls are limited per source IP, which this runner
-      # shares with the whole forge. Unset on a fork, where the secrets do not resolve.
-      # Restore-only: the lighthouse job is the single writer, and a full-tier bring-up would cache first-party images.
       - name: Restore the registry mirror
         uses: actions/cache/restore@v4
         with:

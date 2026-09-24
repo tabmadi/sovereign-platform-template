@@ -38,8 +38,7 @@ seaweedfs:
     # running this chart has (ADR-0207: volumes are node-local).
     storageClassName: ""
 
-  # ADR-0204. Measured 2026-08-19 in a container running these exact flags: 73 MiB resident and 0.3% of one core at
-  # idle, with the five buckets created.
+  # ADR-0204.
   resources:
     requests: { cpu: "50m", memory: "256Mi" }
     limits: { memory: "1.5Gi" }

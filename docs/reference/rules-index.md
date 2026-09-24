@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 174 |
-| Review-enforced | 331 |
-| **Total** | **505** |
+| Review-enforced | 332 |
+| **Total** | **506** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -68,6 +68,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. | standard: clig.dev |
 | The need to comment is first answered by extracting a named method. | standard: Fowler, Refactoring |
 | A comment carries only what an expert reader cannot derive from the code and the ADR set. Doubt resolves to deletion. | `lint:comments` in CI |
+| A measurement of this platform's own workload is not written into a comment. The ADR that decides states it; the code states the shape the value was chosen for. | review |
 | A comment is one paragraph and at most three lines; one line is the norm. | `lint:comments` in CI |
 | A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. | `lint:comments` in CI |
 | An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. | `lint:comments` in CI |

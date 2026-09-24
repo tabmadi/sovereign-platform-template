@@ -5,9 +5,8 @@ image:
 worker: { enabled: false }
 server:
   port: 3000
-  # No admin port: a Next standalone server serves one port. This used to claim
-  # 3001, which nothing listened on — the chart's default probes hit /readyz and
-  # /livez there and would have failed had they ever been exercised.
+  # No admin port: a Next standalone server serves one port, so the chart's
+  # default probes must not be pointed at a second.
   adminPort: null
   replicas: 1
   probes:

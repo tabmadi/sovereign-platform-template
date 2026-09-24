@@ -28,7 +28,6 @@ cluster:
 # `openfga:` namespace wrapper.
 replicas: 1
 
-#  Ory (Kratos + Oathkeeper)
 kratos:
   kratos:
     config:

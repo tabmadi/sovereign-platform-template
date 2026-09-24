@@ -91,7 +91,6 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/FunnelRollupRow" }
-                # Served verbatim by the API mock (ADR-0600).
                 example:
                   - { funnel: checkout, step_index: 0, step_name: product_viewed, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 412 }
                   - { funnel: checkout, step_index: 1, step_name: cart_item_added, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 178 }
@@ -225,7 +224,6 @@ components:
         dropped:
           type: integer
           description: Events discarded for want of a recorded grant. A non-zero value here is a client emitting without consent, which is worth seeing.
-      # Served verbatim by the API mock (ADR-0600).
       example: { stored: 3, dropped: 0 }
     EventSummary:
       type: object
@@ -237,7 +235,6 @@ components:
         sessions:
           type: integer
           description: Distinct sessions, which is the number that answers "how many people" rather than "how many times".
-      # Served verbatim by the API mock (ADR-0600).
       example: { name: signup.started, occurrences: 128, sessions: 96 }
     RollupWindow:
       type: object

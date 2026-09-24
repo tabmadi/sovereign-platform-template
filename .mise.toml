@@ -1,12 +1,10 @@
 [tools]
-# Languages & runtimes
 go = "1.26.4"
 bun = "1.4.2"
 # node is NOT pinned here — it is an island tool (ADR-0100/ADR-0601). Its consumers
 # are test/e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
 # loop), so each pins it in its own config against NODE_VERSION below. See [env].
 
-# Database tooling
 dbmate = "2.33.0"
 sqlc = "1.31.1"
 "github:quarylabs/sqruff" = "0.38.0"
@@ -14,15 +12,12 @@ sqlc = "1.31.1"
 # Workflow determinism (ADR-0302): a workflow function that reads the clock, the map iteration order, or the network replays into a different history than it recorded.
 "go:go.temporal.io/sdk/contrib/tools/workflowcheck" = "0.5.0"
 
-# API contracts & codegen
 "go:github.com/ogen-go/ogen/cmd/ogen" = "1.22.0"
 vacuum = "0.29.2"
 "ubi:oasdiff/oasdiff" = "1.28.0"
 
-# Frontend toolchain
 biome = "2.5.0"
 
-# Kubernetes & infra
 helm = "4.2.2"
 kubectl = "1.36.2"
 # CLI pinned to the server appVersion (infra/helm/platform/argocd). cluster:up full
@@ -46,7 +41,6 @@ talosctl = "1.13.5"
   "@smithy/node-http-handler@4.11.0",
 ] }
 
-# Secrets
 age = "1.3.1"
 sops = "3.13.1"
 gitleaks = "8.30.1"
@@ -73,7 +67,6 @@ jq = "1.8.1"
 # Authorization (OpenFGA model validation + ops-grant tuple writes)
 "github:openfga/cli" = "0.7.13"
 
-# Repo hygiene
 lefthook = "2.1.9"
 cocogitto = "7.0.0"
 act = "0.2.89"

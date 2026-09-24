@@ -3,9 +3,8 @@
 oathkeeper:
   enabled: true
   deployment:
-    # ADR-0204. Measured 2026-07-26 under the ADR-0601 read-path load: 66Mi working set but 192m CPU — the BUSIEST
-    # component on the /api path, ahead of catalog itself, because every request pays a forward-auth hop here
-    # (ADR-0305).
+    # ADR-0204. The busiest component on the /api path, ahead of the services
+    # themselves, because every request pays a forward-auth hop here (ADR-0305).
     resources:
       requests: { cpu: "100m", memory: "128Mi" }
       limits:   { memory: "384Mi" }
@@ -23,8 +22,8 @@ kratos:
       enabled: true
       type: initContainer
   deployment:
-    # ADR-0204. Measured: 121Mi working set, 89m CPU. Explicit because 121Mi is
-    # nearly double the namespace LimitRange's 64Mi default request.
+    # ADR-0204. Explicit because it needs well above the namespace LimitRange's
+    # default request.
     resources:
       requests: { cpu: "100m", memory: "192Mi" }
       limits:   { memory: "512Mi" }

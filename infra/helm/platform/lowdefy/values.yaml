@@ -2,7 +2,7 @@
 # per-env values overlay without its `image` key colliding with the openfga chart, which also reads a top-level
 # `.Values.image`.
 lowdefy:
-  # ADR-0204. Measured 2026-07-26: 263Mi working set, 165m CPU.
+  # ADR-0204.
   resources:
     requests: { cpu: "100m", memory: "320Mi" }
     limits:   { memory: "768Mi" }

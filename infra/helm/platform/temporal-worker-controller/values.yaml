@@ -7,8 +7,8 @@ temporal-worker-controller:
   # operator's default). Deployed envs override in their per-env values.
   replicas: 1
 
-  # ADR-0204. Measured: 66Mi working set, 6m CPU. THE ONE CPU LIMIT LEFT IN THIS PLATFORM, and it is inherited
-  # rather than chosen.
+  # ADR-0204. The one CPU limit left in this platform, and it is inherited rather
+  # than chosen.
   resources:
     requests: { cpu: "10m", memory: "96Mi" }
     limits:   { memory: "256Mi" }

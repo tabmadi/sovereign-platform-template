@@ -15,7 +15,6 @@ cluster:
   create: true
   instances: 3
   imageName: ghcr.io/cloudnative-pg/postgresql:17.2
-  # Measured 2026-07-26 under the ADR-0601 load suite: 373Mi working set, 267m CPU peak (490m during the e2e suite).
   resources:
     requests: { cpu: "200m", memory: "512Mi" }
     limits:   { memory: "1Gi" }
@@ -66,8 +65,7 @@ cluster:
     poolMode: transaction      # ADR-0300: transaction mode is the default
     maxClientConn: 1000
     defaultPoolSize: 25
-    # Measured: 74Mi working set, 9m CPU per replica. pgbouncer is single-threaded
-    # and cheap; its cost is connections, not compute.
+    # pgbouncer is single-threaded and cheap; its cost is connections, not compute.
     resources:
       requests: { cpu: "50m", memory: "96Mi" }
       limits:   { memory: "256Mi" }

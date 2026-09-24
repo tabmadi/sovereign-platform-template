@@ -55,8 +55,6 @@ server:
   probes:
     readiness: { httpGet: { path: /readyz, port: admin }, initialDelaySeconds: 2, timeoutSeconds: 4 }
     liveness:  { httpGet: { path: /livez,  port: admin }, periodSeconds: 30 }
-  # ADR-0204, sized from measurement (2026-07-26, ADR-0601 load suite). There is no cpu limit: CPU contention
-  # is handled by the request below plus the `product` PriorityClass.
   resources:
     requests: { cpu: "100m", memory: "128Mi" }
     limits:   { memory: "384Mi" }

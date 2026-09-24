@@ -23,28 +23,26 @@ temporal:
         allowPrivilegeEscalation: false
         capabilities:
           drop: ["ALL"]
-      # Measured: 101Mi, 375m CPU peak. Every workflow start and query enters here,
-      # so the CPU is bursty and deliberately unlimited (ADR-0204).
+      # Every workflow start and query enters here, so the CPU is bursty and
+      # deliberately unlimited (ADR-0204).
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
     history:
       containerSecurityContext: *restrictedContainer
-      # THE HEAVIEST CPU CONSUMER IN THE CLUSTER. Measured 2121m — 2.1 cores — and 647Mi during a 40-VU checkout run,
-      # against roughly 20m at rest.
+      # The heaviest CPU consumer in the cluster under load, against near-idle at rest.
       resources:
         requests: { cpu: "500m", memory: "768Mi" }
         limits:   { memory: "1536Mi" }
     matching:
       containerSecurityContext: *restrictedContainer
-      # Measured: 102Mi, 372m CPU. Task-queue dispatch — bursty like frontend.
+      # Task-queue dispatch — bursty like frontend.
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
     worker:
       containerSecurityContext: *restrictedContainer
-      # Temporal's OWN internal worker (archival, scanners), not our services'
-      # workers. Measured: 148Mi, 40m CPU.
+      # Temporal's own internal worker (archival, scanners), not our services'.
       resources:
         requests: { cpu: "50m", memory: "192Mi" }
         limits:   { memory: "512Mi" }

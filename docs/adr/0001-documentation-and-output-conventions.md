@@ -134,7 +134,7 @@ A number is stated when the number **is** the decision. One test settles it:
 | Answer | Kind | Example | Treatment |
 | --- | --- | --- | --- |
 | Yes | **Threshold** | "any volume exceeding 50% of node disk", "funnel-query p95 above 2s" | Stated. Changing it is a reviewed act |
-| Yes | **Measurement that set a value** | Tempo's measured peak, which sets its explicit limit ([ADR-0204](0204-resource-management.md)) | Stated **with its conditions and how to re-derive it**. If it drifts, the value it set is wrong and must change |
+| Yes | **Measurement that set a value** | Tempo's measured peak, which sets its explicit limit ([ADR-0204](0204-resource-management.md)) | Stated in the ADR that decides, **with its conditions and how to re-derive it**, and graded *(measured)*. Never repeated in a comment beside the value it set: the figure is this platform's hardware and this platform's load, so an inheriting project reads a number that was never about its cluster, and nothing re-derives it in place |
 | Yes | **Count of what is on the page** | "the six forces below" | Stated. The reader checks it against the table beside it |
 | No | **Illustrative figure** | a footprint quoted to show the platform dominates | **Not stated.** Say the shape: "the platform dominates the footprint" |
 | No | **Count of live state elsewhere** | "~25 always-on components", "ten workflows under `.github/workflows/`" | **Not stated.** Name the thing and link to its registry |
@@ -322,6 +322,7 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - Human CLI output uses `→` step, `✓` success, `✗` fatal, `⚠` warning, with two-space sub-detail indent. Bare `WARN`/`ERROR` prose and ad-hoc symbols are not used. `(ref: clig.dev)`
 - The need to comment is first answered by extracting a named method. `(ref: Fowler, Refactoring)`
 - A comment carries only what an expert reader cannot derive from the code and the ADR set. Doubt resolves to deletion. `(CI: lint:comments)`
+- A measurement of this platform's own workload is not written into a comment. The ADR that decides states it; the code states the shape the value was chosen for.
 - A comment is one paragraph and at most three lines; one line is the norm. `(CI: lint:comments)`
 - A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. `(CI: lint:comments)`
 - An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. `(CI: lint:comments)`

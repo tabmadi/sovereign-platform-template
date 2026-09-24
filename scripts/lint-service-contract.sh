@@ -8,9 +8,8 @@ source "$LIB/ports.sh"
 rc=0
 checked=0
 
-# Environments are the values directories that actually exist. staging/ and prod/
-# are absent by design while the template has no deployed envs; adding one makes it
-# required for every service on the next run, which is the intent.
+# Environments are the values directories that exist. Adding one makes it required
+# for every service on the next run, which is the intent.
 envs=()
 for d in infra/gitops/services/*/; do envs+=("$(basename "$d")"); done
 

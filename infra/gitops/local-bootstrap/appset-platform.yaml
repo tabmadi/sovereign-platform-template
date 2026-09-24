@@ -73,8 +73,7 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
-            # The one copy of the platform's signing public key (ADR-0104). Empty
-            # in the template, which renders no policy — see infra/auth/cosign.
+            # The platform's signing public key (ADR-0104), see infra/auth/cosign.
             - name: policies.publicKey
               path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
@@ -101,7 +100,6 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -133,12 +131,7 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
-            # First, so anything below can still override it: the deletions of
-            # upstream defaults that a wrapper chart's own values.yaml cannot
-            # express (see the file's header).
             - "../../../gitops/platform/shared-values.yaml"
-            # Generated: the repositories the platform's charts pull from, which
-            # Kyverno's allow-list policy reads (ADR-0104).
             - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
@@ -150,8 +143,6 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
-            # The one copy of the platform's signing public key (ADR-0104). Empty
-            # in the template, which renders no policy — see infra/auth/cosign.
             - name: policies.publicKey
               path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
@@ -179,7 +170,6 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -211,12 +201,7 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
-            # First, so anything below can still override it: the deletions of
-            # upstream defaults that a wrapper chart's own values.yaml cannot
-            # express (see the file's header).
             - "../../../gitops/platform/shared-values.yaml"
-            # Generated: the repositories the platform's charts pull from, which
-            # Kyverno's allow-list policy reads (ADR-0104).
             - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
@@ -228,8 +213,6 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
-            # The one copy of the platform's signing public key (ADR-0104). Empty
-            # in the template, which renders no policy — see infra/auth/cosign.
             - name: policies.publicKey
               path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
@@ -257,7 +240,6 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -307,12 +289,7 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
-            # First, so anything below can still override it: the deletions of
-            # upstream defaults that a wrapper chart's own values.yaml cannot
-            # express (see the file's header).
             - "../../../gitops/platform/shared-values.yaml"
-            # Generated: the repositories the platform's charts pull from, which
-            # Kyverno's allow-list policy reads (ADR-0104).
             - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
@@ -324,8 +301,6 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
-            # The one copy of the platform's signing public key (ADR-0104). Empty
-            # in the template, which renders no policy — see infra/auth/cosign.
             - name: policies.publicKey
               path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
@@ -351,7 +326,6 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -384,12 +358,7 @@ spec:
         helm:
           releaseName: "{{ .path.basename }}"
           valueFiles:
-            # First, so anything below can still override it: the deletions of
-            # upstream defaults that a wrapper chart's own values.yaml cannot
-            # express (see the file's header).
             - "../../../gitops/platform/shared-values.yaml"
-            # Generated: the repositories the platform's charts pull from, which
-            # Kyverno's allow-list policy reads (ADR-0104).
             - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
@@ -401,8 +370,6 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
-            # The one copy of the platform's signing public key (ADR-0104). Empty
-            # in the template, which renders no policy — see infra/auth/cosign.
             - name: policies.publicKey
               path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }

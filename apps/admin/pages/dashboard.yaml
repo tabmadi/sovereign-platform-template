@@ -7,7 +7,6 @@ blocks:
     type: Markdown
     properties:
       content: |
-        # Platform admin
 
         Use the left navigation to manage each service's resources. Every resource
         opens a Django-admin-style **changelist**: a table of records with an **Add**

@@ -193,8 +193,7 @@ func principlesInREADME(body string) map[string]principle {
 }
 
 // checkPrincipleBlocks holds ADR-0000's hand copies against the verdicts their owning
-// ADRs reached. This is the check the four stale claims of ADR-0000 needed and did not
-// have: the document every other ADR cites was the one document nothing read back.
+// ADRs reached: the document every other ADR cites is otherwise the one nothing reads back.
 func checkPrincipleBlocks(principles map[string]principle, v verdictSet) []string {
 	var problems []string
 	for num, p := range principles {

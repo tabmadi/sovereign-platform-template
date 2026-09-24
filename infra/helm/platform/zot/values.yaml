@@ -72,9 +72,8 @@ zot:
       repository: docker.io/library/nginx
       tag: "1.27-alpine"
       pullPolicy: IfNotPresent
-    # ADR-0204. Measured on 1.27-alpine idle: ~6Mi resident, ~0 CPU. It adds one
-    # static header and streams the response; the request rate is an operator
-    # clicking a catalogue, not a pull.
+    # ADR-0204. It adds one static header and streams the response; the request
+    # rate is an operator clicking a catalogue, not a pull.
     resources:
       requests: { cpu: "10m", memory: "32Mi" }
       limits: { memory: "64Mi" }

@@ -32,7 +32,6 @@ argo-cd:
         hs.status = "Progressing"
         hs.message = "Waiting for ApplicationSet to generate Applications"
         return hs
-      # CNPG Cluster health.
       resource.customizations.health.postgresql.cnpg.io_Cluster: |
         hs = {}
         if obj.status ~= nil then

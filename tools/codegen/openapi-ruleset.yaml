@@ -15,7 +15,6 @@ rules:
   # Breaking-change hygiene — every operation must declare its security and a 2xx + 4xx response.
   operation-success-response: error
 
-  # Naming conventions
   operation-operationId-valid-in-url:
     description: operationId must be camelCase, ASCII, no spaces
     given: $.paths.*[get,post,put,patch,delete].operationId

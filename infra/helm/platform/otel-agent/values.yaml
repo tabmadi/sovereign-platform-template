@@ -13,7 +13,7 @@ opentelemetry-collector:
   # with k8s attributes, head-samples, and exports directly to Loki/Prometheus/Tempo.
   mode: daemonset
   fullnameOverride: otel-collector
-  # Measured 2026-07-26: 345Mi working set, 110m CPU — the third-heaviest pod in the cluster, because every
+  # Among the heaviest pods in the cluster, because every
   # service's OTLP, the Faro browser beacons, the Hubble scrape and the kubeletstats receiver all land in this one
   # process.
   resources:

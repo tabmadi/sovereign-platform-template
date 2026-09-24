@@ -40,9 +40,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^grafana\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -66,9 +63,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^lowdefy\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -91,9 +85,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^argocd\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -117,9 +108,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^temporal\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -143,9 +131,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^seaweedfs\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -170,9 +155,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^headlamp\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -196,9 +178,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^pgweb\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -223,9 +202,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^mailpit\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -249,9 +225,6 @@ spec:
     - kind: Rule
       match: HostRegexp(`^zot\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
