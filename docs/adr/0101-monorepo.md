@@ -175,6 +175,8 @@ docs/                         # genre decides the directory (ADR-0001)
 
 Tasks live in `.mise.toml` files: a root file for repo-wide tasks, one per service for service-local tasks. `mise tasks --list` is the discoverable interface.
 
+The normalized-entrypoint convention is GitHub's [Scripts to Rule Them All](https://github.blog/engineering/engineering-principles/scripts-to-rule-them-all/); what differs is the layer. There, the normalized names *are* the scripts; here they are mise tasks, because the entrypoint must also pin the toolchain it runs under, and `scripts/` is the shell those tasks enter. The per-service set is closed and enforced (`lint:service-contract`) rather than conventional.
+
 | Scope | Standard task names |
 | --- | --- |
 | Every service | `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker` — the closed set every service exposes |
@@ -188,6 +190,8 @@ The two long-running service tasks are named for the process type they start, ma
 | --- | --- | --- |
 | `activity:target` | one activity fans out across many targets, with an umbrella task | `lint:go`, `lint:ts`, `lint:md` under `lint`; `format:*`; `gen:openapi`, `gen:sqlc` under `gen` |
 | `resource:operation` | a stateful thing has a lifecycle worth grouping | `cluster:up`/`stop`/`down`, `service:deploy`/`undeploy`, `db:migrate`, `ops:grant` |
+
+**A task name spells its script.** The two shapes above map onto `scripts/` so the implementation behind a task is found without reading `.mise.toml`: `activity:target` is `scripts/activity-target.sh` (`gen:openapi`, `lint:ports`, `promote:prod`), and `resource:operation` is `scripts/resource.sh operation`, one entrypoint taking the verb as an argument (`cluster:up`, `argo:pause`, `mock:start`). A family whose members share one implementation names the script for the family, not for a member: `dep:*` and `svc:*` enter `dep-apply.sh` and `svc-apply.sh`.
 
 Forcing one shape on both scatters a family: `stop:cluster` and `delete:cluster` split the cluster lifecycle, and `ts:format` breaks the `format` umbrella. Use `activity:` only where a real umbrella exists. Graph-only plumbing that exists solely as a `depends` node is marked `hide = true`.
 
@@ -333,7 +337,7 @@ Each step is its own ADR when triggered.
 - Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. `(CI: ci:gen)`
 - The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR.
 - Tasks are invoked through `mise run <task>`. Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker`. `(CI: lint:service-contract)`
-- A task name is `group:member`, grouped by the axis worth listing together.
+- A task name is `group:member`, grouped by the axis worth listing together, and it spells its script: `activity:target` is `scripts/activity-target.sh`, `resource:operation` is `scripts/resource.sh operation`.
 - What a task acts on is an argument, never an environment variable: `mise run cluster:down -- full`. Environment variables carry the machine's environment, and a variable a script exports for its own subprocesses is not an interface. `(ref: clig.dev, POSIX Utility Conventions)`
 - A task validates its operand against a closed set and fails on an unrecognised one, rather than falling back to a default.
 - Every external tool is pinned: developer and CI tools in `.mise.toml`, runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. `(CI: lint:floating-tags)`
