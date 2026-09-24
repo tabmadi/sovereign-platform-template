@@ -14,7 +14,6 @@ machine:
 
   features:
     rbac: true
-    stableHostname: true
     # KubePrism (ADR-0206): a per-node load balancer over every control-plane
     # endpoint, served on loopback. Cilium's agent points here rather than at any
     # one API server, so losing a control plane does not take the CNI with it.
