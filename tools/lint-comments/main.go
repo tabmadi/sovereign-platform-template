@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -139,34 +140,35 @@ func main() {
 	lint.Main("comments violate ADR-0001", run)
 }
 
-// ratchet stamps the current count as the budget. The budget only ever falls: a run that would raise it
+// ratchet stamps the current ratio as the budget. The budget only ever falls: a run that would raise it
 // leaves the file alone, so a branch that adds comments cannot widen the ceiling for every later branch.
 var ratchet = flag.Bool("ratchet", false, "stamp the current comment count as the budget")
 
 func run(r *lint.Report) error {
-	found, total, err := sweep()
+	found, total, code, err := sweep()
 	if err != nil {
 		return err
 	}
+	ratio := density(total, code)
 
 	if *ratchet {
 		current, ok := budget()
-		if ok && total >= current {
-			r.Okf("comment budget holds at %d lines (tree carries %d)", current, total)
+		if ok && ratio >= current {
+			r.Okf("comment budget holds at %s (tree carries %s over %d code lines)", pct(current), pct(ratio), code)
 			return nil
 		}
-		err = os.WriteFile(budgetPath, []byte(strconv.Itoa(total)+"\n"), 0o600)
+		err = os.WriteFile(budgetPath, []byte(strconv.Itoa(ratio)+"\n"), 0o600)
 		if err != nil {
 			return fmt.Errorf("write %s: %w", budgetPath, err)
 		}
-		r.Okf("comment budget lowered to %d lines", total)
+		r.Okf("comment budget lowered to %s", pct(ratio))
 		return nil
 	}
 
 	for _, f := range found {
 		r.Addf("%s:%d: %s — %s\n    %s", f.file, f.line, f.rule, f.reason, strings.TrimSpace(f.text))
 	}
-	over := budgetExceeded(total)
+	over := budgetExceeded(ratio, total, code)
 	if over != "" {
 		r.Add(over)
 	}
@@ -189,20 +191,21 @@ func repoFiles() map[string]bool {
 }
 
 // sweep scans every root and returns the violations and the tree's comment count.
-func sweep() ([]finding, int, error) {
+func sweep() ([]finding, int, int, error) {
 	inRepo := repoFiles()
 	var found []finding
-	total := 0
+	total, code := 0, 0
 	collect := func(path string) error {
 		if inRepo != nil && !inRepo[filepath.Clean(path)] {
 			return nil
 		}
-		hits, n, err := scan(path)
+		hits, n, c, err := scan(path)
 		if err != nil {
 			return err
 		}
 		found = append(found, hits...)
 		total += n
+		code += c
 		return nil
 	}
 	for _, root := range roots {
@@ -213,7 +216,7 @@ func sweep() ([]finding, int, error) {
 		if !info.IsDir() {
 			err = collect(root)
 			if err != nil {
-				return nil, 0, fmt.Errorf("scan %s: %w", root, err)
+				return nil, 0, 0, fmt.Errorf("scan %s: %w", root, err)
 			}
 			continue
 		}
@@ -230,13 +233,28 @@ func sweep() ([]finding, int, error) {
 		}
 		err = filepath.Walk(root, walk)
 		if err != nil {
-			return nil, 0, fmt.Errorf("walk %s: %w", root, err)
+			return nil, 0, 0, fmt.Errorf("walk %s: %w", root, err)
 		}
 	}
-	return found, total, nil
+	return found, total, code, nil
 }
 
-// budget reads the stamped comment-line ceiling.
+// density is the comment-to-code ratio in parts per ten thousand. Comments are
+// measured against what they annotate, so a tree that grows code earns room for
+// the comments that code needs, and one that grows only comments does not.
+func density(comments, code int) int {
+	if code == 0 {
+		return 0
+	}
+	return int(math.Round(float64(comments) / float64(code) * 10000))
+}
+
+// pct renders a parts-per-ten-thousand figure the way the ADR states it.
+func pct(v int) string {
+	return fmt.Sprintf("%.2f%%", float64(v)/100)
+}
+
+// budget reads the stamped comment-density ceiling.
 func budget() (int, bool) {
 	raw, err := os.ReadFile(budgetPath)
 	if err != nil {
@@ -249,14 +267,17 @@ func budget() (int, bool) {
 	return n, true
 }
 
-// budgetExceeded reports the overage when the tree carries more comment lines than the stamped ceiling.
-func budgetExceeded(total int) string {
+// budgetExceeded reports the overage when the tree's comments are denser than the stamped ceiling.
+func budgetExceeded(ratio, total, code int) string {
 	ceiling, ok := budget()
-	if !ok || total <= ceiling {
+	if !ok || ratio <= ceiling {
 		return ""
 	}
-	const form = "comment budget: %d lines, %d over the %d in %s — delete, do not raise it"
-	return fmt.Sprintf(form, total, total-ceiling, ceiling, budgetPath)
+	// The line figure is what a reader acts on; the ratio is what is enforced.
+	room := ceiling * code / 10000
+	const form = "comment budget: %s (%d lines over %d code), above the %s in %s — " +
+		"%d lines to delete, and a grounded comment is never the one to go"
+	return fmt.Sprintf(form, pct(ratio), total, code, pct(ceiling), budgetPath, total-room)
 }
 
 func skipDir(name string) bool {
@@ -302,11 +323,12 @@ func scannable(path string) bool {
 	return !strings.HasSuffix(path, filepath.Join("tools", "lint-comments", "main.go"))
 }
 
-// scan returns every violation in one file, and its comment-line count.
-func scan(path string) ([]finding, int, error) {
+// scan returns every violation in one file, its comment-line count, and the
+// code lines those comments are measured against.
+func scan(path string) ([]finding, int, int, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, 0, fmt.Errorf("open: %w", err)
+		return nil, 0, 0, fmt.Errorf("open: %w", err)
 	}
 	defer func() { _ = file.Close() }()
 
@@ -319,7 +341,7 @@ func scan(path string) ([]finding, int, error) {
 	}
 	err = scanner.Err()
 	if err != nil {
-		return nil, 0, fmt.Errorf("read: %w", err)
+		return nil, 0, 0, fmt.Errorf("read: %w", err)
 	}
 
 	blocks, count := blocksOf(lines, m, rawStringSpans(path, lines))
@@ -327,7 +349,28 @@ func scan(path string) ([]finding, int, error) {
 	for _, b := range blocks {
 		out = append(out, checkBlock(path, b)...)
 	}
-	return out, count, nil
+	return out, count, codeLines(lines, m, rawStringSpans(path, lines)), nil
+}
+
+// codeLines counts what the comments annotate: neither blank, nor comment, nor
+// generator data.
+func codeLines(lines []string, m marks, raw map[int]bool) int {
+	n := 0
+	inBlockComment := false
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if raw[i] {
+			n++
+			continue
+		}
+		_, _, isComment := commentBody(line, m, &inBlockComment)
+		if !isComment {
+			n++
+		}
+	}
+	return n
 }
 
 // blocksOf groups a file's comment lines into blocks, and counts them. A run of
