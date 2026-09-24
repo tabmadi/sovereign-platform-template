@@ -60,6 +60,7 @@ Topic lives in the filename, not in a directory. A directory holding one file is
 | [build-path](reference/build-path.md) | Per class of defect: what stops it before production, and what reaches production unchecked |
 | [threat-model](reference/threat-model.md) | The adversaries each control is against, over the three boundaries |
 | [cost-model](reference/cost-model.md) | The shape of the bill and what appears on it, priced by the adopter |
+| [credential-register](reference/credential-register.md) | Where every credential is kept, and who can open it. Never a value |
 | [rules-index](reference/rules-index.md) | Every rule in the set with its enforcement. **Generated** |
 | [per-instance-hardening](reference/per-instance-hardening.md) | What a project turns on for its own risk profile or compliance framework |
 | [asvs-verification](reference/asvs-verification.md) | The ASVS L2 claim, per concern, with the date each was last examined |

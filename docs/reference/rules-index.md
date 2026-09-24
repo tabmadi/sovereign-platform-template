@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 174 |
-| Review-enforced | 325 |
-| **Total** | **499** |
+| Review-enforced | 328 |
+| **Total** | **502** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -291,6 +291,9 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`. | review |
 | Every encrypted file outside the local tier has exactly three recipient classes: per-engineer keys, the matching environment's cluster key, and the ops-recovery key. Local files are encrypted to the committed local key alone. | review |
 | Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to, the local tier's exemption aside. | review |
+| A credential no machine consumes is registered in [`docs/reference/credential-register.md`](../reference/credential-register.md) with its home, never its value. | review |
+| A credential that reaches or repairs the infrastructure this repository is served from is held offline as well as here. A recovery credential stored only inside what it recovers is unreachable at the moment it is wanted. | review |
+| Every age private key has an offline backup. The key is one line of text and opens every secret encrypted to it, so losing the laptop it lives on is otherwise a total loss. | review |
 | Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime. | review |
 | Onboarding adds a public key by PR plus `mise run secrets:updatekeys`. Offboarding removes it by PR plus `mise run secrets:updatekeys` plus rotation of every secret that engineer could read. | review |
 | Rotation on offboarding is mandatory regardless of the circumstances of departure. | review |
