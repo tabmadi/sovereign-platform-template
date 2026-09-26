@@ -87,10 +87,12 @@ spec:
             {{- range $k, $v := .Values.env }}
             - { name: {{ $k }}, value: {{ $v | quote }} }
             {{- end }}
+          {{- with .Values.secrets.envFrom }}
           envFrom:
-            {{- range .Values.secrets.envFrom }}
+            {{- range . }}
             - secretRef: { name: {{ . }} }
             {{- end }}
+          {{- end }}
           # Workers take no inbound traffic, so readiness would gate nothing — only
           # liveness (shallow: process alive) is meaningful here (ADR-0500).
           livenessProbe: { httpGet: { path: /livez, port: admin }, periodSeconds: 30 }

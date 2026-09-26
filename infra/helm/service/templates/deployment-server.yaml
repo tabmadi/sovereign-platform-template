@@ -36,10 +36,12 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           command: ["/usr/local/bin/dbmate", "--no-dump-schema", "--migrations-dir", "/db/migrations", "migrate"]
+          {{- with .Values.secrets.envFrom }}
           envFrom:
-            {{- range .Values.secrets.envFrom }}
+            {{- range . }}
             - secretRef: { name: {{ . }} }
             {{- end }}
+          {{- end }}
       {{- end }}
       containers:
         - name: server
@@ -56,10 +58,12 @@ spec:
             {{- range $k, $v := .Values.env }}
             - { name: {{ $k }}, value: {{ $v | quote }} }
             {{- end }}
+          {{- with .Values.secrets.envFrom }}
           envFrom:
-            {{- range .Values.secrets.envFrom }}
+            {{- range . }}
             - secretRef: { name: {{ . }} }
             {{- end }}
+          {{- end }}
           # readiness = deep (deps pinged) → gates Service traffic without restarting; liveness = shallow (process alive) →
           # never dep-aware (ADR-0500).
           readinessProbe: {{- toYaml .Values.server.probes.readiness | nindent 12 }}
