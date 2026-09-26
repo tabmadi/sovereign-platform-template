@@ -96,7 +96,7 @@ A bounded swap behind a stable interface. The owning ADR carries a short compari
 | cocogitto | Conventional Commits and CalVer | [0103](adr/0103-release-and-versioning.md) | MIT | maintainer-led | commitlint, semantic-release, release-please, git-cliff |
 | act | local workflow execution | [0102](adr/0102-source-control-and-ci.md) | MIT | nektos, maintainer-led | pushing to a branch, a self-hosted runner locally |
 | Renovate | dependency updates | [0106](adr/0106-dependency-updates.md) | AGPL-3.0 | Mend, single-vendor | Dependabot, per-ecosystem updaters, manual sweeps |
-| BuildKit | container image builds | [0102](adr/0102-source-control-and-ci.md) | Apache-2.0 | Moby | Buildah, Kaniko, a socket-mounted Docker daemon |
+| BuildKit | container image builds | [0102](adr/0102-source-control-and-ci.md) | Apache-2.0 | Moby | Buildah, Kaniko |
 | Mimir | metrics at scale, Scale tier | [0500](adr/0500-observability.md) | AGPL-3.0 | Grafana Labs | Thanos, Cortex, VictoriaMetrics cluster |
 | ClickHouse | analytics store, Scale tier | [0700](adr/0700-analytics.md) | Apache-2.0 | ClickHouse Inc. | DuckDB, TimescaleDB, staying on Postgres |
 | GlitchTip | error tracking, Scale tier | [0503](adr/0503-error-tracking.md) | MIT | maintainer-led | Sentry self-hosted, Bugsink, fingerprints in Loki |

@@ -41,7 +41,7 @@ Both Tier 2 ([ADR-0002](0002-tool-adoption.md)), and both are consequences of th
 
 | Concern | Chosen | Picked over | Why |
 | --- | --- | --- | --- |
-| Image builds | **BuildKit, rootless** | Buildah, Kaniko, a socket-mounted Docker daemon | The node is immutable and exposes no Docker socket ([ADR-0200](0200-cluster-topology.md)), so a socket-mounted builder is unavailable rather than rejected *(reasoned)*. Of the three that remain, BuildKit is the one the `Dockerfile` syntax is defined against, so cache mounts and multi-stage behaviour need no translation. Buildah is the runner-up and its exit is a task change |
+| Image builds | **BuildKit**, through buildx on the runner's Docker | Buildah, Kaniko | A runner is a dedicated machine with Docker (below), because the jobs that start kind need one; the builder uses the daemon that is already there *(reasoned)*. BuildKit is the one the `Dockerfile` syntax is defined against, so cache mounts and multi-stage behaviour need no translation. Buildah is the runner-up and its exit is a task change |
 | Running a workflow locally | **act** | pushing to a branch, running a self-hosted runner on the workstation | Workflow YAML is a thin caller of `mise run ci:*`, so most local verification is running the task directly. `act` covers the remaining case — the workflow wiring itself — without a push |
 
 ## Decision
@@ -55,6 +55,8 @@ Both Tier 2 ([ADR-0002](0002-tool-adoption.md)), and both are consequences of th
 | Registry | **not** the forge's package registry. [ADR-0105](0105-image-registry.md) decides it separately |
 
 **Workflow YAML is a portable subset.** Steps are `actions/checkout`, the repository's own composite setup action, and `mise run` calls. That subset runs on both Forgejo Actions and the provider-hosted workflows the template ships, which is what makes the forge cheap to leave in either direction.
+
+**A runner gives `ubuntu-latest` a machine, not a container.** The portable subset assumes what a provider-hosted job gets: a host with Docker whose loopback and filesystem the job owns. A job that starts kind publishes its API and a registry on loopback and bind-mounts its checkout, and inside a job container neither is the host's. A Forgejo runner therefore executes jobs on a dedicated machine that holds nothing else, never on a workload-cluster node: a job controls that machine's Docker, which is root on it.
 
 ### The template ships provider-hosted workflows
 
@@ -133,6 +135,7 @@ production. The registry itself stays in-cluster.
 - The forge is Forgejo, self-hosted on a host outside the workload cluster, with its Postgres on that host.
 - **The forge runs OUTSIDE the workload cluster it serves.** See below.
 - Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](0000-platform-foundations.md), principle 5).
+- A runner executes `ubuntu-latest` jobs on a dedicated machine, not inside a job container and not on a workload-cluster node.
 - Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
 - Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](0000-platform-foundations.md), principle 1).
 - Container images are published to the registry in [ADR-0105](0105-image-registry.md), not to the forge's package registry.
