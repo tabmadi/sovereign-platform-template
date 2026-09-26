@@ -29,6 +29,8 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: ./.github/actions/setup
       - id: affected
+        env:
+          BEFORE: ${{ github.event.before }}
         run: mise run ci:affected-matrix >> "$GITHUB_OUTPUT"
 
   images:

@@ -3,7 +3,18 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-manifest="$(mise run ci:affected)"
+# A push is diffed against the commit it replaced: on master the default base is HEAD itself, and that diff is always empty. With no such commit in history — a new branch, a force-push — everything is affected.
+args=(--all)
+if [ -n "${BEFORE:-}" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+  args=(--base "$BEFORE")
+fi
+manifest="$(mise run ci:affected -- "${args[@]}")"
+
+# A global manifest names no components, so it expands here to every one that builds an image.
+if [ "$(printf '%s' "$manifest" | jq -r '.global')" = true ]; then
+  every() { find "$1" -mindepth 2 -maxdepth 2 -name Dockerfile ! -path '*/_*' | cut -d/ -f2 | sort | jq -Rsc 'split("\n") | map(select(. != ""))'; }
+  manifest="$(printf '%s' "$manifest" | jq -c --argjson s "$(every services)" --argjson a "$(every apps)" '.services = $s | .apps = $a')"
+fi
 printf 'services=%s\n' "$(printf '%s' "$manifest" | jq -c '.services')"
 printf 'apps=%s\n' "$(printf '%s' "$manifest" | jq -c '.apps')"
 
