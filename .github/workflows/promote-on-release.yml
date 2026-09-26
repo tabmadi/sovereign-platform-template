@@ -1,5 +1,5 @@
 # Tag-driven prod promotion (ADR-0201, ADR-0103), triggered by the CalVer tag `mise run release` cuts.
-# It pins every prod service to the release commit by digest, labels the images, opens the bump PR, and gates on the rollout.
+# It pins every prod service to the release commit by digest, labels the images, opens the pin as a PR that merges on green, and gates on the rollout.
 name: promote-on-release
 
 on:
@@ -39,13 +39,11 @@ jobs:
           VER: ${{ steps.rel.outputs.version }}
         run: mise run promote:prod
 
-      - uses: peter-evans/create-pull-request@v7
-        with:
-          commit-message: "chore(deploy): promote ${{ steps.rel.outputs.version }} to prod"
-          title: "chore(deploy): ${{ steps.rel.outputs.version }} → prod"
-          branch: deploy/prod-${{ steps.rel.outputs.version }}
-          delete-branch: true
-          labels: auto-merge
+      - name: Open the prod pin and merge it on green
+        env:
+          VER: ${{ steps.rel.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mise run ci:release-pr
 
       # "Argo Healthy" already means the new ReplicaSet is available, but a release must not report success until prod has converged on the release commit (ADR-0201, ADR-0103).
       - name: Verify prod rollout
@@ -53,7 +51,8 @@ jobs:
           SHA: ${{ steps.rel.outputs.sha }}
         run: mise run promote:verify
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ steps.rel.outputs.version }}
-          generate_release_notes: true
+      - name: Publish the release
+        env:
+          VER: ${{ steps.rel.outputs.version }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mise run ci:release-publish

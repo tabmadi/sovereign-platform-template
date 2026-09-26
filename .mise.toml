@@ -519,6 +519,14 @@ depends = ["test"]
 description = "The affected manifest split into the two arrays publish.yml's matrices need, as forge step-output assignments (ADR-0102)."
 run = "bash scripts/ci-affected-matrix.sh"
 
+[tasks."ci:release-pr"]
+description = "Open the prod pin as a pull request the forge merges once its checks pass (ADR-0201)."
+run = "bash scripts/ci-release-pr.sh"
+
+[tasks."ci:release-publish"]
+description = "Publish the forge release for $VER (ADR-0103)."
+run = "bash scripts/ci-release-publish.sh"
+
 [tasks."ci:sign"]
 description = "Sign a published image and attach its SBOM and provenance (ADR-0104)."
 run = "bash scripts/ci-sign.sh"
