@@ -28,7 +28,7 @@ creation_rules:
   # Per-env secret files: cluster + engineers + ops-recovery. Path mirrors the
   # per-env platform overlay (infra/gitops/platform/<env>/) — same convention the
   # local tier already uses (infra/gitops/platform/local/secrets/). Delivered by
-  # the `secrets` ApplicationSet (infra/gitops/bootstrap/appset-secrets.yaml).
+  # the `secrets` ApplicationSet (infra/gitops/dev-bootstrap/appset-secrets.yaml).
   # encrypted_regex keeps the SopsSecret structure readable in review; only the
   # values are ciphertext.
   - path_regex: infra/gitops/platform/dev/secrets/.*\.enc\.ya?ml$

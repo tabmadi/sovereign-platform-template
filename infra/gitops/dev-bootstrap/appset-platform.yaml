@@ -22,8 +22,6 @@ spec:
           - list:
               elements:
                 - { env: dev,     server: "https://kubernetes.default.svc" }
-                - { env: staging, server: "https://kubernetes.default.svc" }
-                - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
@@ -116,8 +114,6 @@ spec:
           - list:
               elements:
                 - { env: dev,     server: "https://kubernetes.default.svc" }
-                - { env: staging, server: "https://kubernetes.default.svc" }
-                - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
@@ -187,8 +183,6 @@ spec:
           - list:
               elements:
                 - { env: dev,     server: "https://kubernetes.default.svc" }
-                - { env: staging, server: "https://kubernetes.default.svc" }
-                - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
@@ -258,8 +252,6 @@ spec:
           - list:
               elements:
                 - { env: dev,     server: "https://kubernetes.default.svc" }
-                - { env: staging, server: "https://kubernetes.default.svc" }
-                - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
@@ -350,8 +342,6 @@ spec:
           - list:
               elements:
                 - { env: dev,     server: "https://kubernetes.default.svc" }
-                - { env: staging, server: "https://kubernetes.default.svc" }
-                - { env: prod,    server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master

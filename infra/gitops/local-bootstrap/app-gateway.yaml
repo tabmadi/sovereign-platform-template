@@ -9,8 +9,6 @@ metadata:
     env: local
     app.kubernetes.io/part-of: gateway
   annotations:
-    # CRDs (middlewares) before the per-service IngressRoutes that reference them.
-    # Wave 4: after the whole platform tier (base 0 · data 2 · core 3), before
     # services (5). See infra/gitops/local-bootstrap/appset-platform.yaml.
     argocd.argoproj.io/sync-wave: "5"
 spec:
@@ -25,9 +23,6 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true, ServerSideApply=true]
-    # Retry on failure — automated+selfHeal won't re-run a sync that errored on
-    # the same commit, so a transient blip would otherwise leave the edge
-    # unrouted until a manual sync. Backoff caps at 2m (ADR-0201).
     retry:
       limit: 20
       backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

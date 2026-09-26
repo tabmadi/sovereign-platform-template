@@ -160,11 +160,17 @@ The version is pinned rather than left at `latest`, so a Kubernetes upgrade that
 1. terraform apply   # machine configs applied and the cluster bootstrapped
                      # through the siderolabs/talos provider; Cilium rides
                      # along as an inline manifest
-2. kubectl apply -f infra/gitops/bootstrap/root-application.yaml
+2. helm upgrade --install argocd  # and Traefik, and the cluster's age Secret:
+                     # the three an Argo CD Application cannot install, because
+                     # one IS Argo CD, one owns the CRDs the edge's routes name,
+                     # and one is what decrypts every SopsSecret
+3. kubectl apply -f infra/gitops/<env>-bootstrap/root-application.yaml
                      # Argo CD reconciles the rest
 ```
 
 On the other two modes step 0 is the hypervisor's node-creation script or nothing at all, and step 1 is `talosctl apply-config` per node followed by one `talosctl bootstrap`.
+
+**Step 2 is the bootstrap floor, and it is not optional.** Each of the three is a prerequisite of the thing that would otherwise deploy it: Argo cannot apply its own first install, the gateway's `Middleware` resources do not resolve until Traefik's CRDs exist, and the sops-operator mounts the age key it has no way to decrypt for itself. Cilium joins them wherever it does not ride along as an inline manifest ([ADR-0206](0206-cluster-networking.md)).
 
 There is no configuration-management step between provisioning and Argo CD, because there is no mutable host state to converge.
 

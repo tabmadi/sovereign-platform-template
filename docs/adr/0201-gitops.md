@@ -156,6 +156,14 @@ CI builds one image per service per commit, tagged by SHA ([ADR-0101](0101-monor
 
 The sync-window model batches deploys without ceremony: engineers merge freely, environments cohere on a predictable schedule, and the release act is the one human decision that matters. **Argo CD Image Updater is not used** — it would move deploy state outside the PR that driver 4 makes the audit log.
 
+**A cluster reconciles its own environment and no other.** The ApplicationSets under
+`infra/gitops/<env>-bootstrap/` name one environment, because the generator's
+`server` field is the cluster Argo is running in: a set listing three environments
+against that one address is three copies of every chart contending for the same
+objects. Narrowing it afterwards is worse than getting it wrong, since deleting the
+surplus Applications prunes what the survivor still owns — including, where the
+namespaces chart is among them, the namespace Argo itself runs in.
+
 ### Sync policy
 
 | Environment | Platform sync | Services sync | Sync window | `selfHeal` | `prune` |
@@ -178,7 +186,7 @@ After the node provisioning step ([ADR-0200](0200-cluster-topology.md)):
 
 ```sh
 helm install argocd infra/helm/platform/argocd -n argocd --create-namespace
-kubectl apply -f infra/gitops/bootstrap/root-application.yaml
+kubectl apply -f infra/gitops/dev-bootstrap/root-application.yaml
 ```
 
 Everything else follows from the root Application, and Argo CD is thereafter reconciled by Argo CD. **The first `helm install argocd` is the single non-GitOps action in a cluster's lifetime.**
@@ -218,6 +226,7 @@ Argo CD is the engine for the full local tier only, from committed `master`, so 
 - Environment differences live in values files, never in chart logic conditioned on the environment name.
 - An image is built once and promoted by updating values files. Rebuilding for another environment is not done. `(CI: ci:publish)`
 - Promotion to dev and staging is automatic on merge, with cadence enforced by sync windows. Promotion to production is automatic on a release tag and pins by digest.
+- An environment's bootstrap directory names that environment alone. `(CI: lint:gitops-env-scope)`
 - No environment is deployed by hand-opening a values-bump PR.
 - Argo CD Image Updater and similar auto-promoters are not used.
 - Production platform syncs are manual with `selfHeal=false`; production services sync automatically with `selfHeal=true`.

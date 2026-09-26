@@ -358,6 +358,10 @@ run = "go run ./tools/lint-naming"
 description = "ADR-0204 gate: renders every chart (each service separately) and checks the declared resources against the guardrails in infra/helm/platform/resource-governance BEFORE they reach a cluster."
 run = "go run ./tools/lint-resource-governance"
 
+[tasks."lint:gitops-env-scope"]
+description = "ADR-0201 gate: an environment's bootstrap directory names that environment alone."
+run = "bash scripts/lint-gitops-env-scope.sh"
+
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"
 

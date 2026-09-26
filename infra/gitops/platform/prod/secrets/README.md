@@ -21,6 +21,23 @@ metadata:
   namespace: platform
 spec:
   secretTemplates:
+    # The S3 root credential SeaweedFS is configured with (ADR-0207). Every other
+    # consumer below authenticates AS this identity: the store knows one root, so
+    # a second key pair is a key the store has never heard of.
+    - name: object-storage-root
+      stringData:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        ADMIN_PASSWORD: ""
+    # The registry's own logins (ADR-0105): `htpasswd` carries one BCRYPT line per
+    # identity — a push identity and a pull identity — and `consoleAuthorization`
+    # is the `Basic` header the console proxy presents for the browser.
+    - name: zot-credentials
+      stringData:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        htpasswd: ""
+        consoleAuthorization: ""
     # The registry pull credential (ADR-0105), as a docker config. Every chart
     # running a first-party image names this Secret in `imagePullSecrets`; a
     # kubelet has no credential of its own and the node cannot hold one.

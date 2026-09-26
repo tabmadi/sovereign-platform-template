@@ -21,6 +21,23 @@ metadata:
   namespace: platform
 spec:
   secretTemplates:
+    # The S3 root credential SeaweedFS is configured with (ADR-0207). Every other
+    # consumer below authenticates AS this identity: the store knows one root, so
+    # a second key pair is a key the store has never heard of.
+    - name: object-storage-root
+      stringData:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        ADMIN_PASSWORD: ""
+    # The registry's own logins (ADR-0105): `htpasswd` carries one BCRYPT line per
+    # identity — a push identity and a pull identity — and `consoleAuthorization`
+    # is the `Basic` header the console proxy presents for the browser.
+    - name: zot-credentials
+      stringData:
+        AWS_ACCESS_KEY_ID: ""
+        AWS_SECRET_ACCESS_KEY: ""
+        htpasswd: ""
+        consoleAuthorization: ""
     # The registry pull credential (ADR-0105), as a docker config. Every chart
     # running a first-party image names this Secret in `imagePullSecrets`; a
     # kubelet has no credential of its own and the node cannot hold one.
@@ -40,6 +57,12 @@ spec:
     # `username` has to be the role `cluster.initdb.owner` names in the postgres
     # chart, and the same string every DSN below uses. Three places, one role.
     - name: postgres-superuser
+      type: kubernetes.io/basic-auth
+      stringData:
+        username: ""
+        password: ""
+    # CNPG reconciles the read-only role's password from this Secret (ADR-0401).
+    - name: postgres-readonly
       type: kubernetes.io/basic-auth
       stringData:
         username: ""
@@ -72,6 +95,15 @@ spec:
         # Leaving this empty falls back to the chart placeholder, which is a real
         # relay host — the one outcome the Rule forbids.
         smtpConnectionURI: ""
+    # Only where this environment delivers rather than sinking (ADR-0307). The DKIM
+    # private half, whose public half is the committed `DKIM` record; and the
+    # submission password as the BCRYPT hash maddy compares against.
+    - name: maddy-dkim
+      stringData:
+        private.key: ""
+    - name: maddy-submission
+      stringData:
+        password_hash: ""
     # Only when `hydra_thirdparty` is on (ADR-0305). The Ory release deploys
     # Hydra beside Kratos and reads all three keys from this Secret, because
     # `hydra.secret.enabled` is false in infra/helm/platform/ory/values.yaml.

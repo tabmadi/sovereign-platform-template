@@ -22,7 +22,7 @@ terraform -chdir=infra/terraform/environments/<env> apply
 terraform -chdir=infra/talos/<env> apply
 
 # 3. Re-install Argo CD's root Application; Argo CD reconciles everything else.
-kubectl apply -f infra/gitops/bootstrap/root-application.yaml
+kubectl apply -f infra/gitops/dev-bootstrap/root-application.yaml
 
 # 4. CNPG restores Postgres from PITR in the external bucket. Wait for the
 #    `Cluster` CR to report `Phase: Cluster in healthy state`.

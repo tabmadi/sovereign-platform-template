@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 174 |
+| Machine-enforced | 175 |
 | Review-enforced | 332 |
-| **Total** | **506** |
+| **Total** | **507** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -279,6 +279,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Environment differences live in values files, never in chart logic conditioned on the environment name. | review |
 | An image is built once and promoted by updating values files. Rebuilding for another environment is not done. | `ci:publish` in CI |
 | Promotion to dev and staging is automatic on merge, with cadence enforced by sync windows. Promotion to production is automatic on a release tag and pins by digest. | review |
+| An environment's bootstrap directory names that environment alone. | `lint:gitops-env-scope` in CI |
 | No environment is deployed by hand-opening a values-bump PR. | review |
 | Argo CD Image Updater and similar auto-promoters are not used. | review |
 | Production platform syncs are manual with `selfHeal=false`; production services sync automatically with `selfHeal=true`. | review |
