@@ -62,6 +62,7 @@ infrastructure is not, because it shares fate with what it is meant to recover.
 | --- | --- | --- |
 | An engineer's age private key | that engineer's laptop, plus an offline backup | committed, shared, or held in any shared service |
 | The ops-recovery age key | offline, split across two or three seniors | online, or whole on one machine |
+| A cluster's age key | inside that cluster alone — a lost one is replaced by a new key and `mise run secrets:updatekeys` | backed up, committed, or on a laptop |
 
 **An age key is one line of text, and losing it costs every secret it opens.** Back
 it up the same way the break-glass credentials are backed up, and treat the two as

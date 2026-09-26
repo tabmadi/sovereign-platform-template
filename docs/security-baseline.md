@@ -51,7 +51,8 @@ The security controls every project built from this template inherits, each one 
 | Age private keys are not stored in shared services. Engineer keys live on laptops; cluster keys live only in the cluster they belong to, the local tier's exemption aside. | review |
 | A credential no machine consumes is registered in [`docs/reference/credential-register.md`](reference/credential-register.md) with its home, never its value. | review |
 | A credential that reaches or repairs the infrastructure this repository is served from is held offline as well as here. A recovery credential stored only inside what it recovers is unreachable at the moment it is wanted. | review |
-| Every age private key has an offline backup. The key is one line of text and opens every secret encrypted to it, so losing the laptop it lives on is otherwise a total loss. | review |
+| Every engineer and ops-recovery age private key has an offline backup. The key is one line of text and opens every secret encrypted to it, so losing the laptop it lives on is otherwise a total loss. | review |
+| A cluster key is replaced, never restored: a new key, its public half in `.sops.yaml`, and `mise run secrets:updatekeys`. Every file it opens is also encrypted to the engineers, so a lost cluster key costs one commit and a backup of it is one more copy to guard. | review |
 | Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime. | review |
 | Onboarding adds a public key by PR plus `mise run secrets:updatekeys`. Offboarding removes it by PR plus `mise run secrets:updatekeys` plus rotation of every secret that engineer could read. | review |
 | Rotation on offboarding is mandatory regardless of the circumstances of departure. | review |
