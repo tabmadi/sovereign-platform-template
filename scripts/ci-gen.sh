@@ -6,7 +6,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 source "$LIB/repo-files.sh"
 
 snapshot() {
-  repo_files | xargs -0 sha256sum 2>/dev/null | LC_ALL=C sort
+  # A tracked file deleted in the working tree fails sha256sum, and under pipefail that silently aborts the check.
+  { repo_files | xargs -0 sha256sum 2>/dev/null || true; } | LC_ALL=C sort
 }
 
 before="$(snapshot)"
