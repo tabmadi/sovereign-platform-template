@@ -119,3 +119,21 @@ spec:
         secretsCookie: ""
         dsn: ""
 ```
+
+## `kyverno.enc.yaml` skeleton
+
+Kyverno reads an image's signature from the registry the image lives in, with a credential from its own namespace ([ADR-0104](../../../../../docs/adr/0104-supply-chain-security.md)). The value is the `registry-pull` docker config above; a SopsSecret materialises in its own namespace, so this one is a second CR rather than a second template in the first.
+
+```yaml
+apiVersion: isindir.github.com/v1alpha3
+kind: SopsSecret
+metadata:
+  name: kyverno
+  namespace: kyverno
+spec:
+  secretTemplates:
+    - name: registry-pull
+      type: kubernetes.io/dockerconfigjson
+      stringData:
+        .dockerconfigjson: ""
+```

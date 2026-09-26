@@ -41,6 +41,11 @@ spec:
           # …and a reference that already carries a digest is left alone rather
           # than re-resolved.
           required: true
+          {{- with .Values.policies.registrySecret }}
+          # The signature is a referrer in the same private registry the image is pulled from, read with the same credential.
+          imageRegistryCredentials:
+            secrets: [{{ . | quote }}]
+          {{- end }}
           attestors:
             - count: 1
               entries:

@@ -40,6 +40,10 @@ spec:
                     # and what follows one is a tag or a digest — both of which start
                     # with a character no repository contains.
                     value:
+                      {{- with .Values.policies.imagePrefix }}
+                      # First-party images are built after the list is generated, so the prefix admits them; the other two policies still demand a digest and a signature.
+                      - {{ . | quote }}
+                      {{- end }}
                       {{- range .Values.policies.allowedImageSources }}
                       - {{ printf "%s:*" . | quote }}
                       - {{ printf "%s@*" . | quote }}
