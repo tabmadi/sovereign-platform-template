@@ -24,16 +24,16 @@ tempo:
           endpoint: seaweedfs.platform.svc.cluster.local:8333
           insecure: true
 
-# Lowdefy admin console (ADR-0401): the one repo-built platform image. Pulled from
-# ghcr and promoted by git SHA on merge (promote-on-merge), exactly like the Go
-# services and the frontend. Local uses the local registry (platform/local/values.yaml).
+# Lowdefy admin console (ADR-0401): the one repo-built platform image, promoted by
+# publish.yml like the services and the frontend. Local uses the local registry.
 lowdefy:
   # The registry this environment pulls from authenticates every pull (ADR-0105).
   imagePullSecrets:
     - name: registry-pull
   image:
     repository: ghcr.io/tabmadi/sovereign-platform-template/admin
-    tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
+    tag: "0000000000000000000000000000000000000000"
+    digest: ""
 
 # Talos ships no storage provisioner and nothing else claims the default
 # StorageClass here (ADR-0200), so this is what an unannotated PVC resolves to.
@@ -97,3 +97,8 @@ oathkeeper:
           redirect:
             config:
               to: https://dev.example.com/auth/login
+
+# Admission control (ADR-0104): a first-party image comes from this prefix, pinned by digest and signed with the platform key.
+policies:
+  imagePrefix: "ghcr.io/tabmadi/sovereign-platform-template/*"
+  registrySecret: registry-pull

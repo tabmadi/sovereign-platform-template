@@ -2,7 +2,7 @@
 name: authz
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/authz-server
-  tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
+  tag: "0000000000000000000000000000000000000000"
   digest: ""   # promote-on-release pins prod by digest (ADR-0103)
 worker:
   enabled: true            # RegisterOperator dual write (ADR-0302, ADR-0304)

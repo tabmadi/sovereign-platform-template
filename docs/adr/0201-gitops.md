@@ -76,9 +76,9 @@ A single repo lets one PR change service code, its chart values, and its deploy 
 
 | Field | Value |
 | --- | --- |
-| **Trigger** | values-bump PRs outnumber code PRs on `master`, or a code review is opened against a diff that is more than half values bumps |
-| **Seam** | ✓ deploy state is already one subtree, `infra/gitops/`, and every Application's `source` names a repo URL and a path. Moving it changes those URLs and the CI job that opens bump PRs |
-| **Cost if adopted late** | history for the moved subtree either splits or is rewritten, and every open values-bump PR is invalidated at the cut. The cost grows with the number of environments, not with time |
+| **Trigger** | promotion commits outnumber code commits on `master`, or a code review is opened against a diff that is more than half values bumps |
+| **Seam** | ✓ deploy state is already one subtree, `infra/gitops/`, and every Application's `source` names a repo URL and a path. Moving it changes those URLs and the CI job that commits promotions |
+| **Cost if adopted late** | history for the moved subtree either splits or is rewritten, and every open prod promotion PR is invalidated at the cut. The cost grows with the number of environments, not with time |
 
 ### Templating
 
@@ -144,17 +144,19 @@ The name is a display convenience. **Grouping uses Argo's real primitives:**
 
 ### Image promotion
 
-CI builds one image per service per commit, tagged by SHA ([ADR-0101](0101-monorepo.md)). Promotion is a PR that updates the image reference in an environment's values file.
+CI builds one image per service per commit, tagged by SHA ([ADR-0101](0101-monorepo.md)). Promotion is a commit that pins an environment's values file to the image's digest ([ADR-0105](0105-image-registry.md)).
 
 | Environment | Trigger | Cadence |
 | --- | --- | --- |
-| dev | merge to `master` opens and auto-merges a values bump; Argo syncs continuously | every merge |
-| staging | the same workflow bumps staging simultaneously; a sync window of `05:00 UTC, 1h` batches whatever landed since the last window | daily |
-| prod | the release tag `v<YYYY.0M.MICRO>` ([ADR-0103](0103-release-and-versioning.md)) triggers a values bump to the release **digest**, and publishes the release | per release |
+| dev | once every image a merge to `master` built is in the registry, the same workflow commits the digests to `master`; Argo syncs continuously | every merge |
+| staging | the same commit pins staging; a sync window of `05:00 UTC, 1h` batches whatever landed since the last window | daily |
+| prod | the release tag `v<YYYY.0M.MICRO>` ([ADR-0103](0103-release-and-versioning.md)) opens the digest pin as a pull request that merges when its checks pass, and publishes the release | per release |
 
-**Production pins by digest**, not by tag, because a digest cannot be re-pushed. The promotion workflow gates on rollout completion rather than on Argo reporting Healthy.
+**Every deployed environment pins by digest**, not by tag, because a digest cannot be re-pushed. The prod promotion workflow gates on rollout completion rather than on Argo reporting Healthy.
 
-The sync-window model batches deploys without ceremony: engineers merge freely, environments cohere on a predictable schedule, and the release act is the one human decision that matters. **Argo CD Image Updater is not used** — it would move deploy state outside the PR that driver 4 makes the audit log.
+**Dev and staging promote by commit, prod by pull request.** A pull request a job opens runs CI only if the forge lets a job token trigger workflows, so a bump that waits on those checks can wait forever; a commit made after the images exist cannot. Prod keeps the pull request because a release is the one promotion a person answers for.
+
+The sync-window model batches deploys without ceremony: engineers merge freely, environments cohere on a predictable schedule, and the release act is the one human decision that matters. **Argo CD Image Updater is not used** — it would move deploy state outside the git history that driver 4 makes the audit log.
 
 **A cluster reconciles its own environment and no other.** The ApplicationSets under
 `infra/gitops/<env>-bootstrap/` name one environment, because the generator's
@@ -213,7 +215,7 @@ Argo CD is the engine for the full local tier only, from committed `master`, so 
 ### Negative / Risks
 
 - **The shared service chart is a coupling point.** A breaking change touches every service. Mitigated by chart versioning, CI rendering the chart against every service's values, and a chart-change review checklist.
-- **Single-repo deploy state mixes image-bump PRs with feature PRs.** Mitigated by a title prefix and a separate code owner on the GitOps tree, and bounded by the split deferred above.
+- **Single-repo deploy state mixes promotion commits with feature commits.** Mitigated by a title prefix and a separate code owner on the GitOps tree, and bounded by the split deferred above.
 - **Staging batches by window**, so merge-by-merge behaviour is not observable there. Accepted — it is the explicit goal, and a manual sync is available when the next window is too far away.
 - **A bad merge sits on `master` until the next staging window.** Mitigated by full CI on PRs and by dev continuously running `master`.
 - **Argo CD itself can fail.** Mitigated by an HA install in production. Downtime blocks new syncs; running workloads are unaffected.
@@ -225,7 +227,7 @@ Argo CD is the engine for the full local tier only, from committed `master`, so 
 - Every backend service is deployed through the shared chart with per-env values files; platform components have one chart each. `(CI: lint:service-contract)`
 - Environment differences live in values files, never in chart logic conditioned on the environment name.
 - An image is built once and promoted by updating values files. Rebuilding for another environment is not done. `(CI: ci:publish)`
-- Promotion to dev and staging is automatic on merge, with cadence enforced by sync windows. Promotion to production is automatic on a release tag and pins by digest.
+- Promotion to dev and staging is a commit the publishing workflow makes once every image it built is in the registry, with cadence enforced by sync windows. Promotion to production is automatic on a release tag, through a pull request that merges when its checks pass. Every deployed environment pins by digest.
 - An environment's bootstrap directory names that environment alone. `(CI: lint:gitops-env-scope)`
 - No environment is deployed by hand-opening a values-bump PR.
 - Argo CD Image Updater and similar auto-promoters are not used.

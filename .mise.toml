@@ -519,6 +519,10 @@ depends = ["test"]
 description = "The affected manifest split into the two arrays publish.yml's matrices need, as forge step-output assignments (ADR-0102)."
 run = "bash scripts/ci-affected-matrix.sh"
 
+[tasks."ci:push-promotion"]
+description = "Commit a promotion's values changes and push them to the default branch (ADR-0201)."
+run = "bash scripts/ci-push-promotion.sh"
+
 [tasks."ci:release-pr"]
 description = "Open the prod pin as a pull request the forge merges once its checks pass (ADR-0201)."
 run = "bash scripts/ci-release-pr.sh"
@@ -560,7 +564,7 @@ description = "A CalVer release tag resolved to version + commit, as forge step-
 run = "bash scripts/ci-release-info.sh"
 
 [tasks."promote:dev-staging"]
-description = "Bump dev + staging values for every affected component to $SHA."
+description = "Pin dev + staging values for the components in $SERVICES and $APPS to $SHA by digest."
 run = "bash scripts/promote-dev-staging.sh"
 
 [tasks."promote:prod"]

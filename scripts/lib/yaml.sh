@@ -33,7 +33,8 @@ yaml_set_scalar() {
   local file="$1" path="$2" value="$3" line
 
   [[ -f "$file" ]] || return 1
-  [[ "$(yq "${path} // \"\"" "$file" 2>/dev/null)" != "" ]] || return 1
+  # By tag, not by value: `digest: ""` is a key waiting for its first write, not an absent one.
+  [[ "$(yq "${path} | tag" "$file" 2>/dev/null)" != "!!null" ]] || return 1
 
   line="$(yaml_scalar_line "$file" "$path")"
   if [[ ! "$line" =~ ^[0-9]+$ ]]; then

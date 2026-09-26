@@ -7,6 +7,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 args=(--all)
 if [ -n "${BEFORE:-}" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
   args=(--base "$BEFORE")
+  # No image is built from a values file, and a promotion commit changes nothing else: counted as infra, it would republish everything and promote again.
+  if [ -z "$(git diff --name-only "${BEFORE}...HEAD" | grep -v '^infra/gitops/')" ]; then
+    printf 'services=[]\napps=[]\nimages=[]\n'
+    exit 0
+  fi
 fi
 manifest="$(mise run ci:affected -- "${args[@]}")"
 

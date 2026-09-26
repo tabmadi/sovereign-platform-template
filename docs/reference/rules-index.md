@@ -278,7 +278,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Every backend service is deployed through the shared chart with per-env values files; platform components have one chart each. | `lint:service-contract` in CI |
 | Environment differences live in values files, never in chart logic conditioned on the environment name. | review |
 | An image is built once and promoted by updating values files. Rebuilding for another environment is not done. | `ci:publish` in CI |
-| Promotion to dev and staging is automatic on merge, with cadence enforced by sync windows. Promotion to production is automatic on a release tag and pins by digest. | review |
+| Promotion to dev and staging is a commit the publishing workflow makes once every image it built is in the registry, with cadence enforced by sync windows. Promotion to production is automatic on a release tag, through a pull request that merges when its checks pass. Every deployed environment pins by digest. | review |
 | An environment's bootstrap directory names that environment alone. | `lint:gitops-env-scope` in CI |
 | No environment is deployed by hand-opening a values-bump PR. | review |
 | Argo CD Image Updater and similar auto-promoters are not used. | review |

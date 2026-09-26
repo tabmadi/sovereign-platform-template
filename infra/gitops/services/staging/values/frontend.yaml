@@ -2,6 +2,7 @@ name: frontend
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/frontend
   tag: "0000000000000000000000000000000000000000"
+  digest: ""
 worker: { enabled: false }
 server:
   port: 3000

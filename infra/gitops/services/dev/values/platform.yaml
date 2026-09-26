@@ -3,6 +3,7 @@ name: platform
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/platform-worker
   tag: "0000000000000000000000000000000000000000"
+  digest: ""
 server:
   enabled: false
 worker:
@@ -10,6 +11,7 @@ worker:
   image:
     repository: ghcr.io/tabmadi/sovereign-platform-template/platform-worker
     tag: "0000000000000000000000000000000000000000"
+    digest: ""
 env:
   # The analytics service, east-west (ADR-0303).
   ANALYTICS_API_URL: "http://analytics.platform.svc.cluster.local:8080"

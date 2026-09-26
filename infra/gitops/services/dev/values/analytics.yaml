@@ -3,6 +3,7 @@ name: analytics
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/analytics-server
   tag: "0000000000000000000000000000000000000000"
+  digest: ""
 worker: { enabled: false }
 server:  { replicas: 1 }
 # No /api edge route. Nothing in a browser calls this service: the browser emits

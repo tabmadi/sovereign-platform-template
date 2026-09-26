@@ -150,3 +150,8 @@ oathkeeper:
           redirect:
             config:
               to: https://prod.example.com/auth/login
+
+# Admission control (ADR-0104): a first-party image comes from this prefix, pinned by digest and signed with the platform key.
+policies:
+  imagePrefix: "ghcr.io/tabmadi/sovereign-platform-template/*"
+  registrySecret: registry-pull

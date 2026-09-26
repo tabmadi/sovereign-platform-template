@@ -1,7 +1,8 @@
 name: catalog
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/catalog-server
-  tag: "0000000000000000000000000000000000000000"   # bumped by promote-on-merge
+  tag: "0000000000000000000000000000000000000000"
+  digest: ""
 worker:
   enabled: false
 server:
