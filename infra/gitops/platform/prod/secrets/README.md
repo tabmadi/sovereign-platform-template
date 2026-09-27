@@ -94,6 +94,9 @@ spec:
         dsn: ""
         # Production submits through maddy (ADR-0307), so this is a real
         # submission endpoint. Mailpit is not deployed here.
+        # Submission is plaintext on the pod network, and Kratos demands STARTTLS
+        # unless told otherwise:
+        #   smtp://platform:<password>@maddy.platform.svc.cluster.local:587/?disable_starttls=true
         smtpConnectionURI: ""
     # Only when `hydra_thirdparty` is on (ADR-0305). The Ory release deploys
     # Hydra beside Kratos and reads all three keys from this Secret, because
