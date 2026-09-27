@@ -8,8 +8,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 175 |
-| Review-enforced | 336 |
+| Machine-enforced | 176 |
+| Review-enforced | 335 |
 | **Total** | **511** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
@@ -343,7 +343,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 
 | Rule | Enforced by |
 | --- | --- |
-| Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay. | review |
+| Every environment deploys the same charts. The only sanctioned divergence is a per-env values overlay, enumerated in `infra/gitops/parity-allowlist.txt`: a values key a deployed overlay carries and the local overlay does not is a defect unless the allowlist names the reason. | `lint:parity` in CI |
 | Every tier runs the distribution and datastore [ADR-0200](../adr/0200-cluster-topology.md) decides. From the full local platform upward the machine config is the same too, and a tier differs from a deployed environment only in lifecycle and in how its nodes are provisioned. The inner loop differs in node count alone ([ADR-0600](../adr/0600-local-development-loop.md)). | review |
 | Chart templates do not branch on environment name. A difference that cannot be expressed as a value is a defect outside the inner-loop tier. | review |
 | The Kubernetes API, service chart, service images, and env contract are identical in every tier. | review |

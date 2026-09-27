@@ -1,0 +1,22 @@
+# Values keys a deployed environment may carry that the local overlay does not, each
+# with the divergence ADR-0205 sanctions. A deployed key absent from the local overlay
+# and not listed here fails lint:parity: the local tier covers the code path before a
+# deployed environment adds configuration for it. Every entry carries a reason, and
+# the reason is what a reviewer judges.
+
+cluster.backup.retentionPolicy   # backup lifecycle, placed with the destination below
+cluster.backup.s3                # non-prod backups target the in-cluster store; local keeps none
+localPath.enabled                # Talos ships no provisioner; kind brings its own StorageClass
+externalObjectStorage            # prod's off-cluster bucket, absent below prod
+policies.registrySecret           # the local registry is unauthenticated
+lowdefy.image.digest             # promoted images are digest-pinned; local runs from a tag
+lowdefy.imagePullSecrets         # registry auth, deployed only
+publicTls                        # ACME and the deployed apex; local uses a self-signed wildcard
+maddy                            # the mail agent, deployed only
+maddyEnabled                     # the mail agent's toggle, deployed only
+alertmanager.email               # alert routing, deployed only (ADR-0502)
+grafana.replicas                 # scale
+loki.singleBinary.replicas       # scale
+tempo.replicas                   # scale
+podDisruptionBudgets             # HA is a property of replicas > 1
+resourceQuotas                   # quotas sized for the full platform

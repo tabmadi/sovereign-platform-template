@@ -173,6 +173,10 @@ run = "bash scripts/cluster.sh heal"
 description = "What is running in the active tier and where to reach it: nodes, the registry, the Argo applications or helm releases, and anything not Running."
 run = "bash scripts/cluster.sh status"
 
+[tasks.verify]
+description = "Assert the active tier is up and serving (ADR-0600): nodes, pods, ArgoCD, the edge, and the parity mechanism the local overlay turns on. The acceptance job calls it against every generated project."
+run = "bash scripts/verify.sh"
+
 [tasks."cluster:populate-zot"]
 description = "Mirror the first-party images into the full tier's in-cluster zot so its zot.ops console is not empty (ADR-0105)."
 run = "bash scripts/populate-zot.sh"
@@ -289,7 +293,7 @@ description = "shfmt (mvdan/sh) is the shell formatter, over the same file set l
 run = "bash scripts/format-shell.sh"
 
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity"]
 
 [tasks."lint:go"]
 # In CI the cache lives in the job's temp directory: a runner that keeps its home between jobs would otherwise replay
@@ -368,6 +372,10 @@ run = "go run ./tools/lint-resource-governance"
 [tasks."lint:gitops-env-scope"]
 description = "ADR-0201 gate: an environment's bootstrap directory names that environment alone."
 run = "bash scripts/lint-gitops-env-scope.sh"
+
+[tasks."lint:parity"]
+description = "ADR-0205 gate: every key a deployed environment's values carry exists in the local overlay, or is allowlisted with its sanctioned reason."
+run = "bash scripts/lint-parity.sh"
 
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"
