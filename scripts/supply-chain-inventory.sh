@@ -52,6 +52,11 @@ for path in "${files[@]}"; do
 
   service="$(yq -r '.name // ""' "$path")"
   [ -n "$service" ] || service="$(basename "$path" .yaml)"
+  # The committed placeholder names no image: an environment nothing has been promoted to has nothing to verify.
+  if [ -z "$digest" ] && [ "$tag" = "0000000000000000000000000000000000000000" ]; then
+    detail "${env}/${service}: not yet promoted"
+    continue
+  fi
   total=$((total + 1))
 
   step "${env}/${service}: ${ref}"
