@@ -4,6 +4,8 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/yaml.sh
 source "$LIB/yaml.sh"
+# shellcheck source=lib/image.sh
+source "$LIB/image.sh"
 
 sha="${SHA:-}"
 [[ -n "$sha" ]] || fail "SHA is unset — nothing to promote to"
@@ -20,7 +22,7 @@ bump() { # <values-file> <yaml-path-to-image-block>
   local path="$1" block="$2" repo digest
   repo="$(yq "${block}.repository // \"\"" "$path")"
   [[ -n "$repo" ]] || return 0
-  digest="$(docker buildx imagetools inspect "${repo}:${sha}" --format '{{.Manifest.Digest}}')"
+  digest="$(image_digest "${repo}:${sha}")"
   yaml_set_scalar "$path" "${block}.tag" "$sha" || true
   yaml_set_scalar "$path" "${block}.digest" "$digest" ||
     fail "${path}: ${block} has no digest key — Kyverno admits first-party images by digest only (ADR-0104)"

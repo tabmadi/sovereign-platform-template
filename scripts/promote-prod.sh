@@ -4,6 +4,8 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/yaml.sh
 source "$LIB/yaml.sh"
+# shellcheck source=lib/image.sh
+source "$LIB/image.sh"
 
 sha="${SHA:-}"
 ver="${VER:-}"
@@ -17,7 +19,7 @@ pin() { # <values-file> <yaml-path-to-image-block>
   [[ -f "$path" ]] || return 0
   repo="$(yq "${block}.repository // \"\"" "$path")"
   [[ -n "$repo" ]] || return 0
-  digest="$(docker buildx imagetools inspect "${repo}:${sha}" --format '{{.Manifest.Digest}}')"
+  digest="$(image_digest "${repo}:${sha}")"
   yaml_set_scalar "$path" "${block}.digest" "$digest"
   yaml_set_scalar "$path" "${block}.tag" "$sha"
   docker buildx imagetools create -t "${repo}:${ver}" "${repo}:${sha}"
