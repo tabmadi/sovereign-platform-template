@@ -1,0 +1,28 @@
+{{- if .Values.maddy.enabled }}
+{{- /*
+Submission's certificate (ADR-0307). The senders authenticate with a password, and the Go SMTP clients they use
+refuse to send one over a connection that is not TLS, so the endpoint speaks STARTTLS on the pod network too.
+Self-signed: every sender is in-cluster and skips verification, so a CA would be trusted by nothing. Ten years,
+because maddy reads the file at startup and a renewal it never loads is an expiry it serves anyway.
+*/}}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: maddy-selfsigned
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: maddy-tls
+spec:
+  secretName: maddy-tls
+  duration: 87600h
+  commonName: maddy.{{ .Release.Namespace }}.svc.cluster.local
+  dnsNames:
+    - maddy
+    - maddy.{{ .Release.Namespace }}.svc
+    - maddy.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef: { name: maddy-selfsigned, kind: Issuer }
+{{- end }}

@@ -61,6 +61,7 @@ spec:
             - { name: config, mountPath: /etc/maddy, readOnly: true }
             # The DKIM key, read-only and REQUIRED.
             - { name: dkim, mountPath: /run/secrets/dkim, readOnly: true }
+            - { name: tls, mountPath: /run/secrets/tls, readOnly: true }
             - { name: state, mountPath: /data }
             # maddy probes /tmp for writability at startup and exits when it is not.
             - { name: tmp, mountPath: /tmp }
@@ -84,6 +85,8 @@ spec:
             secretName: {{ .Values.maddy.dkim.secretName }}
             items:
               - { key: private.key, path: private.key }
+        - name: tls
+          secret: { secretName: maddy-tls }
         - name: tmp
           emptyDir: {}
   volumeClaimTemplates:

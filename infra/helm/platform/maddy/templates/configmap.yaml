@@ -25,9 +25,8 @@ data:
     $(hostname) = {{ .Values.maddy.hostname }}
     $(primary_domain) = {{ .Values.maddy.hostname }}
 
-    # Submission arrives over the pod network from Kratos and the services, which the network policy admits and
-    # nothing else reaches.
-    tls off
+    # STARTTLS on submission, with the chart's own self-signed certificate (templates/certificate.yaml).
+    tls file /run/secrets/tls/tls.crt /run/secrets/tls/tls.key
     hostname $(hostname)
 
     # maddy's own delivery counters, for the collector to scrape (ADR-0307, ADR-0500).
