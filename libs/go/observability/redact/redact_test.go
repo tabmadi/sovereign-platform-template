@@ -9,14 +9,14 @@ import (
 
 func TestTokenIsStableAndDoesNotCarryTheValue(t *testing.T) {
 	t.Parallel()
-	a := redact.Token("user@example.com")
-	if a != redact.Token("user@example.com") {
+	a := redact.Token("user@somewhere.test")
+	if a != redact.Token("user@somewhere.test") {
 		t.Fatal("token is not stable: two records for one subject would not correlate")
 	}
-	if a == redact.Token("other@example.com") {
+	if a == redact.Token("other@somewhere.test") {
 		t.Fatal("two subjects share a token")
 	}
-	if strings.Contains(a, "user") || strings.Contains(a, "example") {
+	if strings.Contains(a, "user") || strings.Contains(a, "somewhere") {
 		t.Fatalf("token carries the value: %q", a)
 	}
 	if redact.Token("") != "" {
@@ -26,17 +26,17 @@ func TestTokenIsStableAndDoesNotCarryTheValue(t *testing.T) {
 
 func TestEmailKeepsTheDomainOnly(t *testing.T) {
 	t.Parallel()
-	got := redact.Email("Someone@Example.com")
-	if !strings.HasSuffix(got, "@example.com") {
+	got := redact.Email("Someone@Somewhere.test")
+	if !strings.HasSuffix(got, "@somewhere.test") {
 		t.Fatalf("domain not preserved: %q", got)
 	}
 	if strings.Contains(got, "omeone") {
 		t.Fatalf("mailbox survived: %q", got)
 	}
-	if got != redact.Email("someone@example.com") {
+	if got != redact.Email("someone@somewhere.test") {
 		t.Fatal("case decided the token, so one subject produces two")
 	}
-	for _, bad := range []string{"not-an-address", "@example.com", "trailing@"} {
+	for _, bad := range []string{"not-an-address", "@somewhere.test", "trailing@"} {
 		if !strings.HasPrefix(redact.Email(bad), "[redacted:") {
 			t.Fatalf("malformed address was split rather than masked: %q", bad)
 		}
