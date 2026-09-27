@@ -515,7 +515,8 @@ description = "Triage, not a gate: every dependency finding at every severity, i
 run = "bash scripts/scan.sh report"
 
 [tasks."ci:test"]
-depends = ["test"]
+description = "The CI test gate: the suites plus the repository's own generation (ADR-0106)."
+depends = ["test", "test:template"]
 
 [tasks."ci:affected-matrix"]
 description = "The affected manifest split into the two arrays publish.yml's matrices need, as forge step-output assignments (ADR-0102)."

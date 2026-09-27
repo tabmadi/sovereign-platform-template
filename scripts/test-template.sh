@@ -55,6 +55,7 @@ done
 OLD_MODULE="$(awk '/^module /{print $2; exit}' go.mod)"
 OLD_REGISTRY="ghcr.io/tabmadi/sovereign-platform-template"
 OLD_APEX="example.com"
+OLD_NODE="example-dev-cp"
 MACHINERY=(copier.yml .copier-answers.yml.jinja .template-version scripts/project-rename.sh scripts/project-init.sh)
 
 step "generating valid fixtures"
@@ -69,11 +70,12 @@ for fixture in "$FIXTURES"/valid/*.yml; do
 
   problems=()
   # The template's identity must not survive anywhere in the output.
-  for literal in "$OLD_MODULE" "$OLD_REGISTRY" "$OLD_APEX"; do
+  for literal in "$OLD_MODULE" "$OLD_REGISTRY" "$OLD_APEX" "$OLD_NODE"; do
     # `pipefail` makes a grep that matches nothing fail the whole pipeline, and an
     # assignment takes the pipeline's status — so the success case would abort the
     # script under `set -e`. The brace group absorbs grep's 1 before `wc` sees it.
     hits="$({ grep -rlF --exclude-dir=.git --exclude-dir=node_modules --binary-files=without-match \
+      --exclude=lint-project-identity.sh --exclude=test-template.sh \
       -- "$literal" "$out" 2>/dev/null || true; } | wc -l)"
     [ "$hits" -eq 0 ] || problems+=("${hits} file(s) still carry '${literal}'")
   done

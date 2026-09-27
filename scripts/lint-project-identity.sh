@@ -3,9 +3,47 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-# A project that went through Copier has an identity on the record. This is also the escape hatch for a repository deliberately named differently from its module.
+# The gate and its test name the footprints by definition, so both exclude themselves.
+PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache
+  --exclude=lint-project-identity.sh --exclude=test-template.sh --binary-files=without-match)
+
+# The template's footprints; `project-rename.sh` rewrites this set before the first push.
+FOOTPRINTS=(
+  "github.com/tabmadi/sovereign-platform-template"
+  "ghcr.io/tabmadi/sovereign-platform-template"
+  "example.com"
+  "example-dev-cp"
+  "example-staging-cp"
+  "example-prod-cp"
+)
+
+# A generated project has an identity on the record. The file's presence is not the
+# proof: it is present for the whole life of the project, so the gate checks that the
+# recorded answers were APPLIED and that no footprint survives.
 if [ -f .copier-answers.yml ]; then
-  ok "identity recorded in .copier-answers.yml"
+  module_path="$(yq -r '.module_path // ""' .copier-answers.yml)"
+  project_slug="$(yq -r '.project_slug // ""' .copier-answers.yml)"
+  [ -n "$module_path" ] || fail ".copier-answers.yml carries no module_path"
+  [ -n "$project_slug" ] || fail ".copier-answers.yml carries no project_slug"
+
+  problems=()
+  actual="$(awk '/^module /{print $2; exit}' go.mod)"
+  [ "$actual" = "$module_path" ] ||
+    problems+=("go.mod says '${actual}', the answers say '${module_path}'")
+  grep -rqF -- "${project_slug}-" infra/talos/inventory 2>/dev/null ||
+    problems+=("no Talos node is named '${project_slug}-…' — the inventory still carries the template's names")
+  for footprint in "${FOOTPRINTS[@]}"; do
+    # The brace group absorbs grep's 1 under `pipefail`, which would otherwise end the run.
+    hits="$({ grep -rlF "${PRUNE[@]}" -- "$footprint" . 2>/dev/null || true; } | wc -l)"
+    [ "$hits" -eq 0 ] || problems+=("${hits} file(s) still carry '${footprint}'")
+  done
+
+  if [ "${#problems[@]}" -gt 0 ]; then
+    warn "this project still wears the template's identity:"
+    printf '  · %s\n' "${problems[@]}" >&2
+    fail "adopt the identity with scripts/project-rename.sh, then run 'mise run gen'"
+  fi
+  ok "identity recorded and applied (${project_slug})"
   exit 0
 fi
 
@@ -35,9 +73,8 @@ fi
 
 # Report the whole job rather than the first symptom: the module path fails a build, the registry namespace publishes to someone else's images, and the apex points at a host the project does not own.
 step "counting what still carries the template's identity"
-PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache --binary-files=without-match)
-module_hits="$(grep -rlF "${PRUNE[@]}" -- "$module_path" . 2>/dev/null | wc -l)"
-apex_hits="$(grep -rlF "${PRUNE[@]}" -- "example.com" . 2>/dev/null | wc -l)"
+module_hits="$({ grep -rlF "${PRUNE[@]}" -- "$module_path" . 2>/dev/null || true; } | wc -l)"
+apex_hits="$({ grep -rlF "${PRUNE[@]}" -- "example.com" . 2>/dev/null || true; } | wc -l)"
 detail "module path ${module_path} — ${module_hits} files"
 detail "apex host example.com — ${apex_hits} files"
 

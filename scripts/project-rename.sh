@@ -29,9 +29,10 @@ old_apex="example.com"
 
 [ "$old_module" != "$module" ] || fail "the module path is already ${module}"
 
-# A generated project is not a git repository yet — Copier runs this before the first commit — so grep must be told which directories are not source.
+# A generated project is not a git repository yet — Copier runs this before the first commit — so grep must be told which directories are not source. The identity gate and its test name the template's footprints by definition, so the rename leaves them alone: rewriting them to the project's own name turns the gate against the project it protects.
 step "renaming to ${slug}"
-PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache --binary-files=without-match)
+PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache
+  --exclude=lint-project-identity.sh --exclude=test-template.sh --binary-files=without-match)
 
 replace() { # <from> <to>
   # `|` is the sed delimiter, so it is the one character an argument may not
@@ -54,5 +55,12 @@ done
 replace "mail.${old_apex}" "mail.${apex}"
 replace "$old_apex" "$apex"
 detail "hosts → ${apex}"
+
+# Talos names a node {project}-{env}-{role} (ADR-0003): `<slug>-dev-cp-1`, never `example-`.
+for f in infra/talos/inventory/*/nodes.yml; do
+  [ -f "$f" ] || continue
+  sed -i "s|example-|${slug}-|g" "$f"
+done
+detail "Talos inventory → ${slug}-…"
 
 ok "renamed to ${slug} — run 'mise run gen' and 'mise run check' before the first commit"
