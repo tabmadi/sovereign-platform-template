@@ -11,7 +11,7 @@ step "shellcheck: linting shell scripts"
 # An empty result is a failure, not a clean run: `act` runs outside a git work tree and would otherwise pass having checked nothing.
 mapfile -d '' -t files < <(sh_files)
 if [[ ${#files[@]} -eq 0 ]]; then
-  fail "no shell scripts found via $(sh_source) — this repository has dozens, so the enumeration is broken rather than the tree empty"
+  fail "no shell scripts found via $(repo_source) — this repository has dozens, so the enumeration is broken rather than the tree empty"
 fi
 
 # without failing on style/info chatter such as yq single-quote DSL (SC2016) or
