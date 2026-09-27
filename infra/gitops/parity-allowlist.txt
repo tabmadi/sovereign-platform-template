@@ -4,8 +4,6 @@
 # deployed environment adds configuration for it. Every entry carries a reason, and
 # the reason is what a reviewer judges.
 
-cluster.backup.retentionPolicy   # backup lifecycle, placed with the destination below
-cluster.backup.s3                # non-prod backups target the in-cluster store; local keeps none
 localPath.enabled                # Talos ships no provisioner; kind brings its own StorageClass
 externalObjectStorage            # prod's off-cluster bucket, absent below prod
 policies.registrySecret           # the local registry is unauthenticated

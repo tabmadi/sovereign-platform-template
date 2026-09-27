@@ -21,8 +21,15 @@ selfSigned:
 cluster:
   instances: 1
   storage: { size: 2Gi }
+  # Backups are ON locally, to the in-cluster SeaweedFS the non-prod envs use
+  # (ADR-0205): the backup path is code, and a setting that is off locally is a path
+  # no laptop runs. The data is throwaway; that a backup completes is the assertion.
   backup:
-    enabled: false   # ephemeral local data; no backup destination needed
+    enabled: true
+    retentionPolicy: "7d"
+    s3:
+      destinationPath: "s3://platform-backups/postgres"
+      endpointURL: "http://seaweedfs.platform.svc.cluster.local:8333"
 
 # Top-level `replicas:` — the openfga chart's own values schema has no
 # `openfga:` namespace wrapper.
