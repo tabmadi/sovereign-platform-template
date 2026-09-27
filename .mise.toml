@@ -177,6 +177,10 @@ run = "bash scripts/cluster.sh status"
 description = "Assert the active tier is up and serving (ADR-0600): nodes, pods, ArgoCD, the edge, and the parity mechanism the local overlay turns on. The acceptance job calls it against every generated project."
 run = "bash scripts/verify.sh"
 
+[tasks.acceptance]
+description = "Generate a project from the working tree and prove it reaches a serving cluster (ADR-0106). Needs Docker; runs nightly and on the acceptance label, never in check."
+run = "bash scripts/acceptance.sh"
+
 [tasks."cluster:populate-zot"]
 description = "Mirror the first-party images into the full tier's in-cluster zot so its zot.ops console is not empty (ADR-0105)."
 run = "bash scripts/populate-zot.sh"
