@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	aalLevel2         = "aal2" // operator MFA assurance level (ADR-0304)
-	operatorTraitTrue = "true" // the `operator` identity trait, when set
+	aalLevel2        = "aal2" // operator MFA assurance level (ADR-0304)
+	operatorFlagTrue = "true" // metadata_public.operator, when set
 	// The task queue this service's worker serves. Named for the service, like
 	// every other queue on the platform.
 	taskQueue = "authz-queue"
@@ -55,7 +55,7 @@ func New(
 
 var _ authzsdk.Handler = (*Handlers)(nil)
 
-// Authorize answers in two layers (ADR-0306). Coarse is a claim check — the `operator` trait and AAL2 — and
+// Authorize answers in two layers (ADR-0306). Coarse is a claim check — metadata_public.operator and AAL2 — and
 // makes no OpenFGA call, so a product-authz outage cannot lock operators out of the dashboards that diagnose it.
 // Fine is `dashboard:<tool>#view`, enabled per project. A bare authenticated session never grants tool access.
 func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest) (authzsdk.AuthorizeRes, error) {
@@ -159,9 +159,9 @@ func (h *Handlers) GetIdentity(ctx context.Context, params authzsdk.GetIdentityP
 	return &id, nil
 }
 
-// UpdateIdentity applies the editable traits (name, operator) to an identity. Kratos
+// UpdateIdentity applies the editable fields (name, operator) to an identity. Kratos
 // PUT replaces the whole identity, so it reads the current one first and overlays the
-// changed traits, preserving schema_id, state, and the email identifier.
+// changed fields, preserving schema_id, state, and the email identifier.
 func (h *Handlers) UpdateIdentity(
 	ctx context.Context, req *authzsdk.IdentityUpdate, params authzsdk.UpdateIdentityParams,
 ) (*authzsdk.Identity, error) {
@@ -176,7 +176,11 @@ func (h *Handlers) UpdateIdentity(
 	}
 	operator, ok := req.Operator.Get()
 	if ok {
-		full.Traits.Operator = operator
+		err = full.SetOperator(operator)
+		if err != nil {
+			h.log.Error("set operator flag", "err", err, "id", params.ID)
+			return nil, apierr.Internal("failed to update identity")
+		}
 	}
 	updated, err := h.identities.PutIdentity(ctx, full)
 	if err != nil {
@@ -210,13 +214,12 @@ func (h *Handlers) decide(ctx context.Context, req *authzsdk.AuthorizeRequest) (
 	if req.Subject == "" {
 		return false, "no session", nil
 	}
-	// Coarse gate — a CLAIM, not a Checker call: AAL2 session and the `operator`
-	// trait. No OpenFGA is consulted, so a product-authz outage never locks
-	// operators out.
+	// Coarse gate — a CLAIM, not a Checker call: AAL2 session and the operator flag in metadata_public, which only the
+	// admin API writes. No OpenFGA is consulted, so a product-authz outage never locks operators out.
 	if req.Aal != aalLevel2 {
 		return false, "aal2 required", nil
 	}
-	if req.Operator != operatorTraitTrue {
+	if req.Operator != operatorFlagTrue {
 		return false, "not an operator", nil
 	}
 	// Fine gate (optional): per-tool grant in OpenFGA. Skipped unless enabled.

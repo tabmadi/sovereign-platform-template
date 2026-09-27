@@ -19,7 +19,7 @@ func New(granter authz.Granter, log *slog.Logger) *Activities {
 	return &Activities{identities: kratos.New(log), granter: granter}
 }
 
-// CreateOperatorIdentityActivity: Dual-write leg 1: the Kratos identity carrying the `operator` trait, the coarse
+// CreateOperatorIdentityActivity: Dual-write leg 1: the Kratos identity carrying metadata_public.operator, the coarse
 // ops-tier claim gate (ADR-0306). Not idempotent, and it need not be: Kratos refuses a second identity with the same
 // email address.
 func (a *Activities) CreateOperatorIdentityActivity(ctx context.Context, email, password string) (string, error) {

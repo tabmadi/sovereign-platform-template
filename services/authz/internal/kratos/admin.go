@@ -47,16 +47,20 @@ func NewAt(baseURL string, log *slog.Logger) *Admin {
 
 // identityBody is the request body for POST /admin/identities.
 type identityBody struct {
-	SchemaID            string      `json:"schema_id"`
-	Traits              Traits      `json:"traits"`
-	Credentials         credentials `json:"credentials"`
-	VerifiableAddresses []address   `json:"verifiable_addresses"`
+	SchemaID            string         `json:"schema_id"`
+	Traits              Traits         `json:"traits"`
+	MetadataPublic      map[string]any `json:"metadata_public"`
+	Credentials         credentials    `json:"credentials"`
+	VerifiableAddresses []address      `json:"verifiable_addresses"`
 }
 
 type Traits struct {
-	Email    string `json:"email"`
-	Operator bool   `json:"operator"`
+	Email string `json:"email"`
 }
+
+// operatorKey is the metadata_public key the ops gate reads (ADR-0306). Metadata, not a trait: self-service
+// registration and settings write traits, and only the admin API writes metadata.
+const operatorKey = "operator"
 
 type credentials struct {
 	Password passwordCredential `json:"password"`
@@ -86,14 +90,41 @@ type Identity struct {
 	State          string          `json:"state,omitempty"`
 	MetadataPublic json.RawMessage `json:"metadata_public,omitempty"`
 	Traits         struct {
-		Email    string `json:"email"`
-		Name     string `json:"name,omitempty"`
-		Operator bool   `json:"operator"`
+		Email string `json:"email"`
+		Name  string `json:"name,omitempty"`
 	} `json:"traits"`
 }
 
+// Operator reports the ops-gate flag. Metadata that does not parse reads as not an operator.
+func (k *Identity) Operator() bool {
+	var meta map[string]any
+	if json.Unmarshal(k.MetadataPublic, &meta) != nil {
+		return false
+	}
+	op, _ := meta[operatorKey].(bool)
+	return op
+}
+
+// SetOperator writes the ops-gate flag into metadata_public, keeping every other key the edge reads.
+func (k *Identity) SetOperator(op bool) error {
+	meta := map[string]any{}
+	if len(k.MetadataPublic) > 0 && string(k.MetadataPublic) != "null" {
+		err := json.Unmarshal(k.MetadataPublic, &meta)
+		if err != nil {
+			return fmt.Errorf("decode metadata_public: %w", err)
+		}
+	}
+	meta[operatorKey] = op
+	raw, err := json.Marshal(meta)
+	if err != nil {
+		return fmt.Errorf("encode metadata_public: %w", err)
+	}
+	k.MetadataPublic = raw
+	return nil
+}
+
 func (k *Identity) Flatten() authzsdk.Identity {
-	id := authzsdk.Identity{ID: k.ID, Email: k.Traits.Email, Operator: authzsdk.NewOptBool(k.Traits.Operator)}
+	id := authzsdk.Identity{ID: k.ID, Email: k.Traits.Email, Operator: authzsdk.NewOptBool(k.Operator())}
 	if k.Traits.Name != "" {
 		id.Name = authzsdk.NewOptString(k.Traits.Name)
 	}
@@ -145,8 +176,9 @@ func (a *Admin) PutIdentity(ctx context.Context, ident *Identity) (*Identity, er
 
 func (a *Admin) CreateOperatorIdentity(ctx context.Context, email, password string) (string, error) {
 	payload := identityBody{
-		SchemaID: SchemaUserV1,
-		Traits:   Traits{Email: email, Operator: true},
+		SchemaID:       SchemaUserV1,
+		Traits:         Traits{Email: email},
+		MetadataPublic: map[string]any{operatorKey: true},
 		Credentials: credentials{
 			Password: passwordCredential{
 				Config: passwordConfig{Password: password},

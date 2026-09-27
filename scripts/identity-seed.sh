@@ -26,7 +26,8 @@ create_identity() {
   local body
   body="$(jq -n --argjson i "$1" '{
     schema_id: "user_v1",
-    traits: { email: $i.email, operator: $i.operator },
+    traits: { email: $i.email },
+    metadata_public: { operator: $i.operator },
     credentials: { password: { config: { password: $i.password } } },
     verifiable_addresses: [{ value: $i.email, via: "email", verified: true, status: "completed" }]
   }')"
@@ -90,7 +91,7 @@ grant_operator() {
 }
 
 # group:operator membership feeds the optional fine gate and the admin console (ADR-0304, ADR-0401); the coarse
-# gate is the `operator` trait set above.
+# gate is the metadata_public.operator flag set above.
 grant_operator_membership() {
   local sid i id email identity_id
   step "granting group:operator membership in OpenFGA"

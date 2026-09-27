@@ -17,12 +17,7 @@
             "recovery": { "via": "email" }
           }
         },
-        "name": { "type": "string", "title": "Name" },
-        "operator": {
-          "type": "boolean",
-          "title": "Operator",
-          "description": "Grants the coarse ops-tier gate (ADR-0306): with AAL2, this trait reaches the operator dashboards. Absent/false for product users."
-        }
+        "name": { "type": "string", "title": "Name" }
       },
       "required": ["email"],
       "additionalProperties": false

@@ -44,8 +44,9 @@ async function createIdentity(id: TestIdentity): Promise<string> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       schema_id: SCHEMA_ID,
-      // The `operator` trait is the coarse ops-gate claim and is always enforced (ADR-0306); group:operator membership only feeds the fine gate.
-      traits: { email: id.email, operator: id.operator },
+      // metadata_public.operator is the coarse ops-gate claim and is always enforced (ADR-0306); group:operator membership only feeds the fine gate.
+      traits: { email: id.email },
+      metadata_public: { operator: id.operator },
       // Import path: the password is hashed by Kratos and is NOT run through the
       // sign-up policy (HIBP/length) — deterministic committed creds are fine.
       credentials: { password: { config: { password: id.password } } },

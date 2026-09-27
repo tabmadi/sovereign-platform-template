@@ -136,6 +136,7 @@ The security controls every project built from this template inherits, each one 
 | Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. | `lint:authz-dual-write` in CI |
 | Inline role checks in handlers are not used. Every permission decision goes through `Checker`. | `lint:authz` in CI |
 | Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer. | review |
+| The coarse operator claim is `metadata_public.operator`, written only through the Kratos admin API. It is never an identity trait: self-service registration and settings write traits, so a trait claim is one any visitor can grant themselves. | review |
 | A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine. | review |
 | Tokens are validated once at the edge with the algorithm pinned and `iss`, `aud`, and `exp` checked; services do not validate tokens. | `lint:auth-inline` in CI; standard: RFC 8725 |
 | Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. | `lint:authz` in CI |

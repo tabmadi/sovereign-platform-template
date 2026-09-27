@@ -314,7 +314,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - **Dual-write discipline must be enforced.** A direct write that skips the workflow is a silent authz bug. Mitigated by lint, a review checklist, and integration tests asserting OpenFGA state after every workflow.
 - **ASVS L2 is a design claim, not a test result.** No job proves it; it is asserted by construction and checked by review. Its worth is that a reviewer has a named checklist instead of a private sense of what secure means, and its risk is that an unexamined claim ages into a false one. A conformance review belongs to whoever needs the assurance, and this document does not schedule one.
 - **L2 is not the bar every deployment needs.** A regulated project raises it and records the delta in its own ADR rather than editing this one.
-- **The coarse ops gate is a claim, not a policy check.** An operator whose access should have been revoked keeps it until their session expires or the trait is removed. Accepted deliberately, so the dashboards survive an authz outage.
+- **The coarse ops gate is a claim, not a policy check.** An operator whose access should have been revoked keeps it until their session expires or the flag is removed. Accepted deliberately, so the dashboards survive an authz outage.
 
 ## Rules
 
@@ -333,6 +333,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - Authz-relevant mutations run inside a Temporal workflow with the database write and the OpenFGA write as separate activities. `(CI: lint:authz-dual-write)`
 - Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint:authz)`
 - Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer.
+- The coarse operator claim is `metadata_public.operator`, written only through the Kratos admin API. It is never an identity trait: self-service registration and settings write traits, so a trait claim is one any visitor can grant themselves.
 - A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine.
 - Tokens are validated once at the edge with the algorithm pinned and `iss`, `aud`, and `exp` checked; services do not validate tokens. `(CI: lint:auth-inline; ref: RFC 8725)`
 - Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. `(CI: lint:authz)`

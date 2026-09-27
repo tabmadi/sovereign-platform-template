@@ -18,9 +18,9 @@ const (
 	toolGrafana  = "grafana"
 	toolHubble   = "hubble"
 
-	traitEmail    = "email"
-	traitName     = "name"
-	traitOperator = "operator"
+	traitEmail   = "email"
+	traitName    = "name"
+	metaOperator = "operator"
 
 	opEmail    = "op@example.com"
 	stateValue = "active"
@@ -62,7 +62,7 @@ func decideStatus(t *testing.T, h *Handlers, r *authzsdk.AuthorizeRequest) int {
 	}
 }
 
-// The coarse gate is a claim check: operator trait + AAL2, and — critically — no
+// The coarse gate is a claim check: operator flag + AAL2, and — critically — no
 // OpenFGA call, so a product-authz outage cannot lock operators out (ADR-0306).
 func TestCoarseClaimGate(t *testing.T) {
 	t.Parallel()
@@ -74,12 +74,12 @@ func TestCoarseClaimGate(t *testing.T) {
 		req  *authzsdk.AuthorizeRequest
 		want int
 	}{
-		{"operator + aal2", req(subjectAlice, toolGrafana, aalLevel2, operatorTraitTrue), 200},
-		{"operator + aal2, any tool", req(subjectAlice, toolHubble, aalLevel2, operatorTraitTrue), 200},
-		{"operator but aal1", req(subjectAlice, toolGrafana, "aal1", operatorTraitTrue), 403},
+		{"operator + aal2", req(subjectAlice, toolGrafana, aalLevel2, operatorFlagTrue), 200},
+		{"operator + aal2, any tool", req(subjectAlice, toolHubble, aalLevel2, operatorFlagTrue), 200},
+		{"operator but aal1", req(subjectAlice, toolGrafana, "aal1", operatorFlagTrue), 403},
 		{"aal2 but not operator", req(subjectBob, toolGrafana, aalLevel2, "false"), 403},
-		{"operator trait empty", req(subjectBob, toolGrafana, aalLevel2, ""), 403},
-		{"anonymous", req("", toolGrafana, aalLevel2, operatorTraitTrue), 403},
+		{"operator flag empty", req(subjectBob, toolGrafana, aalLevel2, ""), 403},
+		{"anonymous", req("", toolGrafana, aalLevel2, operatorFlagTrue), 403},
 	}
 	for _, tc := range cases {
 		t.Run(
@@ -104,11 +104,11 @@ func TestFineGrainedGate(t *testing.T) {
 	// alice holds o11y but not map.
 	h := New(&fakeChecker{answers: map[string]bool{"view dashboard:grafana": true}}, nil, true, nil, nil)
 
-	granted := decideStatus(t, h, req(subjectAlice, toolGrafana, aalLevel2, operatorTraitTrue))
+	granted := decideStatus(t, h, req(subjectAlice, toolGrafana, aalLevel2, operatorFlagTrue))
 	if granted != 200 {
 		t.Fatalf("granted tool status = %d, want 200", granted)
 	}
-	ungranted := decideStatus(t, h, req(subjectAlice, toolHubble, aalLevel2, operatorTraitTrue))
+	ungranted := decideStatus(t, h, req(subjectAlice, toolHubble, aalLevel2, operatorFlagTrue))
 	if ungranted != 403 {
 		t.Fatalf("ungranted tool status = %d, want 403", ungranted)
 	}
@@ -125,7 +125,8 @@ func fakeKratos(t *testing.T, gotPut *map[string]any) *httptest.Server {
 	t.Helper()
 	full := map[string]any{
 		"id": "id-1", "schema_id": kratos.SchemaUserV1, "state": stateValue,
-		"traits": map[string]any{traitEmail: opEmail, traitName: "Op One", traitOperator: true},
+		"traits":          map[string]any{traitEmail: opEmail, traitName: "Op One"},
+		"metadata_public": map[string]any{metaOperator: true, "org_id": "org-1"},
 	}
 	writeJSON := func(w http.ResponseWriter, v any) {
 		err := json.NewEncoder(w).Encode(v)
@@ -162,8 +163,8 @@ func newKratosHandlers(url string) *Handlers {
 	return h
 }
 
-// ListIdentities flattens each Kratos identity's traits, defaulting a missing
-// operator trait to false.
+// ListIdentities flattens each Kratos identity, reading the operator flag from metadata_public and defaulting a
+// missing one to false.
 func TestListIdentities(t *testing.T) {
 	t.Parallel()
 	srv := fakeKratos(t, &map[string]any{})
@@ -181,12 +182,12 @@ func TestListIdentities(t *testing.T) {
 		t.Errorf("identity[0] = %+v, want operator op@example.com", ids[0])
 	}
 	if ids[1].Operator.Value {
-		t.Errorf("identity[1] operator = true, want false (trait absent)")
+		t.Errorf("identity[1] operator = true, want false (flag absent)")
 	}
 }
 
-// UpdateIdentity overlays only the changed traits onto the current identity, so a
-// Kratos PUT (which replaces the whole record) keeps schema_id, state, and email.
+// UpdateIdentity overlays only the changed fields onto the current identity, so a Kratos PUT (which replaces the
+// whole record) keeps schema_id, state, email, and the metadata_public keys the edge reads.
 func TestUpdateIdentityPreservesRecord(t *testing.T) {
 	t.Parallel()
 	got := map[string]any{}
@@ -206,8 +207,15 @@ func TestUpdateIdentityPreservesRecord(t *testing.T) {
 	if traits[traitEmail] != opEmail {
 		t.Errorf("PUT changed email to %v, want preserved op@example.com", traits[traitEmail])
 	}
-	if traits[traitName] != "Renamed" || traits[traitOperator] != false {
-		t.Errorf("PUT traits = %+v, want name=Renamed operator=false", traits)
+	if traits[traitName] != "Renamed" {
+		t.Errorf("PUT traits = %+v, want name=Renamed", traits)
+	}
+	if _, ok := traits[metaOperator]; ok {
+		t.Errorf("PUT wrote operator into traits, where self-service can write it: %+v", traits)
+	}
+	meta, _ := got["metadata_public"].(map[string]any)
+	if meta[metaOperator] != false || meta["org_id"] != "org-1" {
+		t.Errorf("PUT metadata_public = %+v, want operator=false with org_id kept", meta)
 	}
 	if updated.Name.Value != "Renamed" || updated.Operator.Value {
 		t.Errorf("returned identity = %+v, want name=Renamed operator=false", updated)

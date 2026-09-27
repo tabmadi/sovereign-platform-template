@@ -44,12 +44,15 @@ identity_id_for() {
     jq -r '.[0].id // ""'
 }
 
-# The coarse ops gate is a claim check on the `operator` trait, not an OpenFGA call, and is always enforced
-# (ADR-0306). group:operator without the trait grants nothing, and the gate additionally requires AAL2.
-set_operator_trait() {
+# The coarse ops gate is a claim check on metadata_public.operator, not an OpenFGA call, and is always enforced
+# (ADR-0306). group:operator without the flag grants nothing, and the gate additionally requires AAL2.
+# The whole object is written back: the edge reads the org and roles from the same metadata.
+set_operator_flag() {
+  local meta
+  meta="$(curl -fsS "http://localhost:4434/admin/identities/${1}" | jq -c --argjson v "${2}" '(.metadata_public // {}) + {operator: $v}')"
   curl -fsS -X PATCH "http://localhost:4434/admin/identities/${1}" \
     -H 'Content-Type: application/json' \
-    -d "[{\"op\":\"add\",\"path\":\"/traits/operator\",\"value\":${2}}]" >/dev/null
+    -d "[{\"op\":\"add\",\"path\":\"/metadata_public\",\"value\":${meta}}]" >/dev/null
 }
 
 # By name, the same discovery the services do.
@@ -89,7 +92,7 @@ fi
 
 op_val=true
 [ "$action" = "delete" ] && op_val=false
-set_operator_trait "$id" "$op_val"
+set_operator_flag "$id" "$op_val"
 
 sid="$(platform_store_id)"
 if [ -z "$sid" ]; then
@@ -100,5 +103,5 @@ apply_membership "$sid" "$id"
 
 verb="granted"
 [ "$action" = "delete" ] && verb="revoked"
-ok "${verb} operator trait + group:operator for ${email} (user:${id})"
+ok "${verb} operator flag + group:operator for ${email} (user:${id})"
 [ "$action" = "write" ] && detail "→ they must have AAL2 (a second factor) enrolled; re-login if already signed in."
