@@ -8,9 +8,7 @@ metadata:
 spec:
   cluster:
     name: {{ .Values.cluster.name }}
-  # CNPG's cron carries a seconds field.
   schedule: {{ .Values.cluster.backup.schedule | quote }}
-  # A cluster that has never been backed up takes one now rather than waiting for the first scheduled run.
   immediate: true
   backupOwnerReference: self
 {{- end }}
