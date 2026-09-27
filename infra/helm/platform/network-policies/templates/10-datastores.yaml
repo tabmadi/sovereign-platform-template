@@ -29,11 +29,12 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: pgweb }
       toPorts:
         - ports: [{ port: "5432", protocol: TCP }]
-    # The cluster talking to ITSELF.
+    # The cluster talking to ITSELF: replication on 5432, and the instance managers polling each other's status on
+    # 8000, which switchover and failover read.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, cnpg.io/cluster: postgres }
       toPorts:
-        - ports: [{ port: "5432", protocol: TCP }]
+        - ports: [{ port: "5432", protocol: TCP }, { port: "8000", protocol: TCP }]
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: cloudnative-pg }
       toPorts:
