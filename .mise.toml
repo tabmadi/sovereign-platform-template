@@ -99,6 +99,11 @@ run = "lefthook install"
 description = "The workspace's node_modules."
 run = "bun install --frozen-lockfile"
 
+[tasks.bootstrap]
+description = "One command for a fresh checkout (ADR-0106): hooks, dependencies, .env, and in a generated project this engineer's SOPS key and the project's own local-tier key. Idempotent."
+depends = ["setup", "setup:node"]
+run = "bash scripts/bootstrap.sh"
+
 # One entrypoint, one verb per task (scripts/cluster.sh). The tier is an argument,
 # not a separate command: both are kind, one node each, and what separates them is
 # which workloads run and what drives them (ADR-0600, ADR-0205).
