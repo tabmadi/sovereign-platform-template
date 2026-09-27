@@ -608,10 +608,6 @@ run = "bash scripts/cluster.sh remove"
 description = "One-shot in-cluster deploy of a service from the working tree (no watch)."
 run = "bash scripts/service-deploy.sh"
 
-[tasks."service:undeploy"]
-description = "Prefer cluster:remove, which also restores GitOps."
-run = "bash scripts/cluster.sh remove"
-
 [tasks."service:dev"]
 description = "Run a service NATIVELY behind the real edge: stamps the per-service edge glue (an IngressRoute + an EndpointSlice at the docker-bridge gateway) so Traefik routes to the host process, then ha."
 run = "bash scripts/service-dev.sh"

@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 175 |
-| Review-enforced | 335 |
-| **Total** | **510** |
+| Review-enforced | 336 |
+| **Total** | **511** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -32,6 +32,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Every component runs on infrastructure we control. Managed services are not adopted to reclaim operational budget. | review |
 | Novelty is spent by exit cost: freely where abandonment costs days, conservatively where it costs months and customer data. | review |
 | One primitive per concern. Parallel mechanisms for the same problem require an ADR that retires the incumbent. | review |
+| One primitive per concern covers the repository's own machinery. A task, script, test, or workflow names the failure class it owns or the mechanism it replaces; one that names neither, or duplicates another's, is deleted. Additions and deletions land in the same change. | review |
 | Go and TypeScript only. No tool may assume a runtime that is not pinned in `.mise.toml`. | `lint:node-scope` in CI |
 | Licence, governing body, and project maturity are **recorded** for every component and **do not veto** a choice. | review |
 | Local and production differ in topology only. Charts, code, and commands do not diverge. | review |
