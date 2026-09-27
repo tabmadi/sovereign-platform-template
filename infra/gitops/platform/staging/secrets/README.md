@@ -54,6 +54,12 @@ spec:
       stringData:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
+    # CNPG's base backups and WAL archive (ADR-0207). Without it archiving fails, and the WAL it cannot ship
+    # accumulates on the primary's disk until the node fills.
+    - name: postgres-backup-creds
+      stringData:
+        ACCESS_KEY_ID: ""
+        SECRET_ACCESS_KEY: ""
     # `username` has to be the role `cluster.initdb.owner` names in the postgres
     # chart, and the same string every DSN below uses. Three places, one role.
     - name: postgres-superuser

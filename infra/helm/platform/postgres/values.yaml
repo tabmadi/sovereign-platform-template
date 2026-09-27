@@ -71,6 +71,7 @@ cluster:
       limits:   { memory: "256Mi" }
   backup:
     enabled: true
+    schedule: "0 0 3 * * *"
     s3:
       destinationPath: "s3://platform-backups/postgres"
       endpointURL: ""          # set per env

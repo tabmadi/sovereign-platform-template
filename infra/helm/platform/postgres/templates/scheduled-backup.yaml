@@ -1,0 +1,16 @@
+{{- if and .Values.cluster.create .Values.cluster.backup.enabled }}
+# The base backup PITR replays WAL onto (ADR-0207). Archived WAL alone restores nothing.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ .Values.cluster.name }}-daily
+  namespace: platform
+spec:
+  cluster:
+    name: {{ .Values.cluster.name }}
+  # CNPG's cron carries a seconds field.
+  schedule: {{ .Values.cluster.backup.schedule | quote }}
+  # A cluster that has never been backed up takes one now rather than waiting for the first scheduled run.
+  immediate: true
+  backupOwnerReference: self
+{{- end }}
