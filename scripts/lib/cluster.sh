@@ -165,14 +165,19 @@ stage_registry() {
   fi
   chmod 600 "$creds"
 
-  # A container created before this mount existed has no credentials and cannot gain
-  # them while it runs. Replacing it is cheap: the cache is a named volume, so the
-  # images survive.
-  if docker inspect "$REGISTRY" >/dev/null 2>&1 &&
-    ! docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' "$REGISTRY" |
-    grep -q /etc/zot/sync-creds.json; then
-    step "recreating '${REGISTRY}' to mount the sync credentials"
-    docker rm -f "$REGISTRY" >/dev/null
+  # A container whose mounts are not this run's cannot be started into it: one created before the credentials mount
+  # existed has none, and one created from another checkout — a moved clone, an earlier CI job's workspace — mounts
+  # files that may be gone. Replacing it is cheap: the store is on the host, so the images survive.
+  local want have
+  want="$(printf '%s\n' "${ROOT}/infra/local/zot-config.yaml:/etc/zot/config.yaml" \
+    "${creds}:/etc/zot/sync-creds.json" "${ZOT_DATA}:/var/lib/zot" | LC_ALL=C sort)"
+  if docker inspect "$REGISTRY" >/dev/null 2>&1; then
+    have="$(docker inspect -f '{{range .Mounts}}{{.Source}}:{{.Destination}}{{"\n"}}{{end}}' "$REGISTRY" |
+      sed '/^$/d' | LC_ALL=C sort)"
+    if [ "$have" != "$want" ]; then
+      step "recreating '${REGISTRY}' against this checkout"
+      docker rm -f "$REGISTRY" >/dev/null
+    fi
   fi
 
   if ! docker inspect "$REGISTRY" >/dev/null 2>&1; then
