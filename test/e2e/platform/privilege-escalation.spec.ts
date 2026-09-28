@@ -1,71 +1,99 @@
-// Self-service cannot grant privileges (ADR-0304): the operator flag lives in
-// metadata_public, which only the admin API writes. A registered identity must come
-// out carrying no grant at all.
-import { expect, test } from "@playwright/test";
-import { register } from "../fixtures/kratos";
+// Self-service cannot grant privileges (ADR-0304). The requests are what an attacker sends, not what the UI renders:
+// the operator field is submitted directly to Kratos's API flows, at registration and in settings.
+import { type APIRequestContext, expect, test } from "@playwright/test";
+import { BASE_URL } from "../fixtures/env";
 import { portForward } from "../fixtures/kube";
 
 const KRATOS_ADMIN = "http://127.0.0.1:4434";
-const EMAIL = `privilege-${Date.now()}@e2e.localtest.me`;
 const PASSWORD = "Tr0ubadour-Fjord-Lantern-9!";
+const ATTACKER = `escalate-${Date.now()}@e2e.localtest.me`;
+const USER = `settings-${Date.now()}@e2e.localtest.me`;
 
 interface Identity {
   id: string;
   traits?: Record<string, unknown>;
-  metadata_public?: Record<string, unknown>;
+  metadata_public?: Record<string, unknown> | null;
 }
 
+const flow = async (request: APIRequestContext, kind: string, token?: string): Promise<string> => {
+  const res = await request.get(`${BASE_URL}/auth/self-service/${kind}/api`, {
+    headers: token ? { "X-Session-Token": token } : {},
+  });
+  expect(res.ok(), `${kind} flow init`).toBeTruthy();
+  return ((await res.json()) as { id: string }).id;
+};
+
+const submit = (request: APIRequestContext, kind: string, id: string, data: object, token?: string) =>
+  request.post(`${BASE_URL}/auth/self-service/${kind}?flow=${id}`, {
+    data,
+    headers: token ? { "X-Session-Token": token } : {},
+  });
+
+const identities = async (email: string): Promise<Identity[]> => {
+  const pf = await portForward("ory-kratos-admin", 4434, 80);
+  try {
+    const res = await fetch(`${KRATOS_ADMIN}/admin/identities?credentials_identifier=${encodeURIComponent(email)}`);
+    return res.ok ? ((await res.json()) as Identity[]) : [];
+  } finally {
+    pf.stop();
+  }
+};
+
 test.describe("self-service privilege escalation", () => {
-  // Anonymous on purpose: an authenticated visitor is bounced off the registration
-  // flow, which is the path under test.
   test.use({ storageState: undefined });
 
   test.afterAll(async () => {
     const pf = await portForward("ory-kratos-admin", 4434, 80);
     try {
-      const res = await fetch(
-        `${KRATOS_ADMIN}/admin/identities?credentials_identifier=${encodeURIComponent(EMAIL)}`,
-      );
-      if (!res.ok) return;
-      const list = (await res.json()) as Identity[];
-      const hit = list.find((i) => i.traits?.email === EMAIL);
-      if (hit) {
-        await fetch(`${KRATOS_ADMIN}/admin/identities/${hit.id}`, { method: "DELETE" });
+      for (const email of [ATTACKER, USER]) {
+        const res = await fetch(`${KRATOS_ADMIN}/admin/identities?credentials_identifier=${encodeURIComponent(email)}`);
+        for (const hit of res.ok ? ((await res.json()) as Identity[]) : []) {
+          await fetch(`${KRATOS_ADMIN}/admin/identities/${hit.id}`, { method: "DELETE" });
+        }
       }
     } finally {
       pf.stop();
     }
   });
 
-  test("a registered identity carries no operator grant @smoke", async ({ browser }) => {
-    const anon = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
-    try {
-      await register(await anon.newPage(), EMAIL, PASSWORD);
-    } finally {
-      await anon.close();
-    }
+  test("registration refuses an operator field @smoke", async ({ request }) => {
+    const id = await flow(request, "registration");
+    const res = await submit(request, "registration", id, {
+      method: "password",
+      password: PASSWORD,
+      traits: { email: ATTACKER, operator: true },
+    });
+    expect(res.ok(), "a registration carrying operator must be rejected").toBeFalsy();
+    expect(await identities(ATTACKER), "no identity may exist for the attacker").toHaveLength(0);
+  });
 
-    const pf = await portForward("ory-kratos-admin", 4434, 80);
-    try {
-      const res = await fetch(
-        `${KRATOS_ADMIN}/admin/identities?credentials_identifier=${encodeURIComponent(EMAIL)}`,
-      );
-      expect(res.ok, "the identity must exist in Kratos").toBeTruthy();
-      const list = (await res.json()) as Identity[];
-      const identity = list.find((i) => i.traits?.email === EMAIL);
-      expect(identity, "registered identity must exist").toBeTruthy();
+  test("settings refuses an operator field @smoke", async ({ request }) => {
+    const reg = await flow(request, "registration");
+    const created = await submit(request, "registration", reg, {
+      method: "password",
+      password: PASSWORD,
+      traits: { email: USER },
+    });
+    expect(created.ok(), "plain registration").toBeTruthy();
 
-      // The grant is the absence of both: the trait is gone from the schema, and
-      // metadata_public is written only by the admin API.
-      expect(identity?.traits ?? {}, "traits must not carry an operator grant").not.toHaveProperty(
-        "operator",
-      );
-      expect(
-        identity?.metadata_public ?? {},
-        "metadata_public must not carry an operator grant from self-service",
-      ).not.toHaveProperty("operator");
-    } finally {
-      pf.stop();
-    }
+    const login = await flow(request, "login");
+    const session = await submit(request, "login", login, { method: "password", identifier: USER, password: PASSWORD });
+    const token = ((await session.json()) as { session_token?: string }).session_token;
+    expect(token, "login yields a session token").toBeTruthy();
+
+    const settings = await flow(request, "settings", token);
+    const res = await submit(
+      request,
+      "settings",
+      settings,
+      { method: "profile", traits: { email: USER, operator: true } },
+      token,
+    );
+    expect(res.ok(), "a settings update carrying operator must be rejected").toBeFalsy();
+
+    const [identity] = await identities(USER);
+    expect(identity, "the user exists").toBeTruthy();
+    expect(identity.traits ?? {}).not.toHaveProperty("operator");
+    expect(identity.metadata_public ?? {}).not.toHaveProperty("operator");
   });
 });
