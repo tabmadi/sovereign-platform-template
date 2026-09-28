@@ -40,7 +40,7 @@ jobs:
     needs: gate
     if: >-
       needs.gate.outputs.run == 'true' && (
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && !github.event.repository.is_template) ||
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && inputs.suite == 'full'))
     runs-on: ubuntu-latest

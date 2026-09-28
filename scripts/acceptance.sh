@@ -39,8 +39,8 @@ mise run cluster:up -- full
 step "verifying the tier serves"
 mise run verify
 
-step "the generated project's e2e smoke suite"
+step "the generated project's full e2e suite"
 mise run e2e:install
-mise run e2e:smoke
+mise run e2e
 
 ok "a generated project reaches a serving cluster and passes its own gates"
