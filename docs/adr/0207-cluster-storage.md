@@ -106,6 +106,14 @@ Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a
 
 Restore is rehearsed quarterly by a Temporal `Schedule` ([ADR-0302](0302-temporal.md)) that opens a tracking issue. The recovery objectives those backups are held to are [ADR-0200](0200-cluster-topology.md)'s.
 
+**Moving to the Barman Cloud plugin is deferred.** CNPG's in-tree `barmanObjectStore` carries both backups and WAL archiving today.
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | a CloudNativePG upgrade to 1.30, which removes the in-tree `barmanObjectStore` |
+| **Seam** | ✓ one chart, `infra/helm/platform/postgres`, renders every backup and recovery setting, and the bucket layout does not change |
+| **Cost if adopted late** | none before the upgrade; at it, the chart moves in the same change or the upgrade leaves no archiving |
+
 ## Who provisions the production store
 
 **The template does not, and that is a decision rather than an omission.**
