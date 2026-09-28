@@ -136,6 +136,7 @@ production. The registry itself stays in-cluster.
 - **The forge runs OUTSIDE the workload cluster it serves.** See below.
 - Pipelines run on Forgejo Actions with runners on controlled infrastructure. No second CI engine is introduced ([ADR-0000](0000-platform-foundations.md), principle 5).
 - A runner executes `ubuntu-latest` jobs on a dedicated machine, not inside a job container and not on a workload-cluster node.
+- The repository lives at `forge.<apex>/platform/<project>`, owned by an organisation and never by a person, and Argo CD reconciles from that URL.
 - Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
 - Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](0000-platform-foundations.md), principle 1).
 - Container images are published to the registry in [ADR-0105](0105-image-registry.md), not to the forge's package registry.

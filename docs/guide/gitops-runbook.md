@@ -101,6 +101,19 @@ A namespace under the `restricted` Pod Security profile needs the four fields
 `capabilities.drop: [ALL]`, `seccompProfile`), so there apply a Pod manifest that
 carries them instead.
 
+## Move the repository
+
+A new owner or name on the forge changes every `repoURL`. Argo CD's git client does not follow the forge's redirect,
+so the move is explicit:
+
+1. Authenticate by the forge's origin, not the repository URL: an `argocd.argoproj.io/secret-type: repo-creds` Secret
+   whose `url` is `https://forge.<apex>/` matches the old and the new path alike.
+2. Commit the new `repoURL` everywhere and push.
+3. Re-apply the root application (`kubectl apply -f infra/gitops/<env>-bootstrap/root-application.yaml`). It cannot
+   fetch the commit that renames it through the old URL.
+4. Annotate every ApplicationSet with `argocd.argoproj.io/application-set-refresh=true`. Their status keeps the failed
+   sync the move caused, and the root's health wait never clears until it refreshes.
+
 ## Break-glass
 
 When the auth plane gating the Argo UI is down, reach it by `kubectl port-forward` ([break-glass](break-glass.md)).

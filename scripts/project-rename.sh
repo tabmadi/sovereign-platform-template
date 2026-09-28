@@ -43,6 +43,10 @@ replace() { # <from> <to>
     xargs -0 -r sed -i "s|${from}|${to}|g"
 }
 
+# Argo CD reconciles from the project's own forge (ADR-0102), which the template's URL is not. Before the module
+# path, whose replacement would otherwise turn it into the GitHub URL of the same name.
+replace "https://${old_module}.git" "https://forge.${apex}/platform/${slug}.git"
+detail "GitOps source → forge.${apex}/platform/${slug}"
 replace "$old_module" "$module"
 detail "module path → ${module}"
 replace "$old_registry" "$registry"
