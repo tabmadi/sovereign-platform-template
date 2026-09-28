@@ -22,6 +22,12 @@ spec:
         any:
           - resources:
               kinds: [Pod]
+      # The control plane's own images are pinned by the Talos release (ADR-0200), not by this list; Kyverno's
+      # resource filters already keep kube-system out of admission, and this keeps its background scan consistent.
+      exclude:
+        any:
+          - resources:
+              namespaces: [kube-system]
       validate:
         message: >-
           This image comes from a repository that is not in the allow-list
