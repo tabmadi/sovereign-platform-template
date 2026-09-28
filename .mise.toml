@@ -225,15 +225,11 @@ run = "bash scripts/identity-seed.sh"
 
 [tasks.gen]
 description = "No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the OpenAPI spec (ADR-0305)."
-depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:zod", "gen:sqlc", "gen:admin", "gen:adr-rules", "gen:data-classes", "gen:image-allowlist", "gen:comment-budget"]
+depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:zod", "gen:sqlc", "gen:admin", "gen:adr-rules", "gen:data-classes", "gen:image-allowlist"]
 
 [tasks."gen:adr-rules"]
 description = "Two documents are views over the ADR set's Rules sections: the rules index and the security baseline (ADR-0203)."
 run = "go run ./tools/adr-rules"
-
-[tasks."gen:comment-budget"]
-description = "Lower the committed comment-line ceiling to what the tree now carries (ADR-0001)."
-run = "go run ./tools/lint-comments -ratchet"
 
 [tasks."gen:data-classes"]
 description = "The data-class and retention registry (ADR-0301) — the checklist a new service is reviewed against."

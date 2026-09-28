@@ -239,11 +239,7 @@ An exported identifier is documented where the doc states a fact its signature c
 | Decorative banners and section dividers | The file structure is the structure |
 | A `TODO` with no issue or ADR behind it | An uncited `TODO` is the "temporary" that [ADR-0000](0000-platform-foundations.md) forbids |
 
-**A grounded comment outranks the budget.** The five grounds decide what exists; the budget decides only what else may. Deleting a grounded comment to afford a new one trades a failure mode nobody can see for a line count, and the ratchet makes that trade silently, because the comment it reaches for is the newest rather than the weakest.
-
-**The tree's comment density only falls.** The budget is comment lines over the code lines they annotate, so a change that adds code earns room for the comments that code needs, and one that adds only comments does not. `tools/lint-comments` carries the figure, `mise run gen` stamps it, and a change that pushes the tree above it fails CI. Raising it is not a repair, and the ratchet only lowers it.
-
-The one exception is shared code under `tools/internal/` and `scripts/lib/`, where a comment is written once and serves every call site, and a control-flow hazard the shared form introduces — an accumulator that must not be an exit, a script that must not adopt the common bootstrap — is cheaper documented than rediscovered. A raise for that reason travels as its own change to `budget.txt`, where review sees the figure and the shared code that earned it; raising it for any other is the repair this rule forbids.
+**No comment count is enforced.** A count or density ceiling cannot tell a grounded comment from a weak one: paying it deletes the newest comment rather than the weakest, and deleting code raises it. The rules above judge each comment on its own grounds, and a linter names the one that fails.
 
 ### Template docs are final-state facts
 
@@ -326,7 +322,6 @@ The mechanism named is one the ADR set decides on. A task or policy that appears
 - A comment is one paragraph and at most three lines; one line is the norm. `(CI: lint:comments)`
 - A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. `(CI: lint:comments)`
 - An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. `(CI: lint:comments)`
-- The tree's comment density — comment lines over the code lines they annotate — only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, where a raise travels as its own change to `budget.txt`. `(CI: lint:comments)`
 - A comment surviving on one of the five grounds is not deleted to afford another.
 - A comment describing a state a later edit makes false is not written; the value it describes states it.
 - A comment does not teach a third-party tool what that tool documents, or restate a convention the path or identifier already carries.

@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 177 |
+| Machine-enforced | 176 |
 | Review-enforced | 336 |
-| **Total** | **513** |
+| **Total** | **512** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -73,7 +73,6 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | A comment is one paragraph and at most three lines; one line is the norm. | `lint:comments` in CI |
 | A fact that outlives the file it annotates is an ADR or a doc, and the comment cites it rather than restating it. | `lint:comments` in CI |
 | An exported identifier is documented only where the doc states a fact the signature cannot; a doc comment that restates the signature is deleted. | `lint:comments` in CI |
-| The tree's comment density — comment lines over the code lines they annotate — only decreases, except for shared code under `tools/internal/` and `scripts/lib/`, where a raise travels as its own change to `budget.txt`. | `lint:comments` in CI |
 | A comment surviving on one of the five grounds is not deleted to afford another. | review |
 | A comment describing a state a later edit makes false is not written; the value it describes states it. | review |
 | A comment does not teach a third-party tool what that tool documents, or restate a convention the path or identifier already carries. | review |
@@ -709,7 +708,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied. | review |
 | Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. | `lint:ports` in CI |
 | Every service ships a values file per environment or declares `# platform/not-deployed: <env>`. Absence is never inferred. | `lint:service-contract` in CI |
-| Argo CD is the engine for `cluster:up full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly. | review |
+| Argo CD is the engine for `cluster:up full` only. Uncommitted infra iterates through `cluster:add` or a branch `targetRevision`, never by editing cluster state directly. | review |
 | API mocking exists for the UI development loop only. The mock appears in no deployed environment, no chart, and no image built from our own source. | review |
 | The mock's only input is the committed `internal.json` projection. Globbing `services/*/openapi.yaml`, hand-written route files, and standalone fixture bodies are not used. | review |
 | The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers. | review |
