@@ -36,9 +36,12 @@ if k get ns argocd >/dev/null 2>&1; then
 fi
 
 step "checking the edge"
+# 2xx or 3xx: a 502 or 503 is the edge answering for a storefront that is down.
 code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 "https://${DOMAIN}:8443/" || true)"
-[ -n "$code" ] && [ "$code" != "000" ] ||
-  failures+=("the edge at https://${DOMAIN}:8443/ did not answer")
+case "$code" in
+2?? | 3??) ;;
+*) failures+=("the storefront at https://${DOMAIN}:8443/ answered ${code:-nothing}") ;;
+esac
 
 # The assertion is the point: a backup setting that is enabled but never exercised is
 # configuration, not coverage. Shared with lint:parity's allowlist entry, which the
