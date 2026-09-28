@@ -72,7 +72,10 @@ cluster:
   backup:
     enabled: true
     schedule: "0 0 3 * * *"
+    serverName: ""             # the archive's name in the bucket; empty is the cluster's name
     s3:
       destinationPath: "s3://platform-backups/postgres"
       endpointURL: ""          # set per env
       retentionPolicy: "30d"   # 7d in non-prod, see per-env values
+  recovery:
+    fromServer: ""             # an archive's serverName to bootstrap from; empty creates an empty cluster

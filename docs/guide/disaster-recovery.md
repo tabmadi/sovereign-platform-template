@@ -24,8 +24,11 @@ terraform -chdir=infra/talos/<env> apply
 # 3. Re-install Argo CD's root Application; Argo CD reconciles everything else.
 kubectl apply -f infra/gitops/dev-bootstrap/root-application.yaml
 
-# 4. CNPG restores Postgres from PITR in the external bucket. Wait for the
-#    `Cluster` CR to report `Phase: Cluster in healthy state`.
+# 4. Restore Postgres from its archive. In the environment's platform values set
+#    `cluster.recovery.fromServer` to the lost cluster's archive name (its
+#    `cluster.backup.serverName`, or `postgres` when unset) and give
+#    `cluster.backup.serverName` a new one: CNPG will not archive into a path that
+#    holds another server's WAL. Commit, and wait for the healthy phase.
 kubectl -n platform get cluster postgres -w
 ```
 

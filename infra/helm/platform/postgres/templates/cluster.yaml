@@ -20,6 +20,12 @@ spec:
     storageClass: {{ . }}
     {{- end }}
   bootstrap:
+    {{- if .Values.cluster.recovery.fromServer }}
+    # A rebuild restores the archive a lost cluster left (ADR-0207, docs/guide/disaster-recovery.md). Bootstrap is read
+    # once, at creation, so the value is inert on a running cluster.
+    recovery:
+      source: archive
+    {{- else }}
     initdb:
       database: {{ .Values.cluster.initdb.database }}
       owner: {{ .Values.cluster.initdb.owner }}
@@ -40,6 +46,21 @@ spec:
         {{- range .Values.cluster.initdb.postInitApplicationSQL }}
         - {{ . | quote }}
         {{- end }}
+    {{- end }}
+  {{- if .Values.cluster.recovery.fromServer }}
+  externalClusters:
+    - name: archive
+      barmanObjectStore:
+        destinationPath: {{ .Values.cluster.backup.s3.destinationPath | quote }}
+        {{- with .Values.cluster.backup.s3.endpointURL }}
+        endpointURL: {{ . | quote }}
+        {{- end }}
+        serverName: {{ .Values.cluster.recovery.fromServer | quote }}
+        s3Credentials:
+          accessKeyId:     { name: postgres-backup-creds, key: ACCESS_KEY_ID }
+          secretAccessKey: { name: postgres-backup-creds, key: SECRET_ACCESS_KEY }
+        wal: { compression: gzip }
+  {{- end }}
   {{- with .Values.cluster.managedRoles }}
   managed:
     roles:
@@ -58,6 +79,8 @@ spec:
       {{- with .Values.cluster.backup.s3.endpointURL }}
       endpointURL: {{ . | quote }}
       {{- end }}
+      # CNPG refuses to archive into a server's non-empty path, so a restored cluster writes under a new name.
+      serverName: {{ .Values.cluster.backup.serverName | default .Values.cluster.name | quote }}
       s3Credentials:
         accessKeyId:     { name: postgres-backup-creds, key: ACCESS_KEY_ID }
         secretAccessKey: { name: postgres-backup-creds, key: SECRET_ACCESS_KEY }
