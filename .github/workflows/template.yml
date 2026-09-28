@@ -1,0 +1,55 @@
+name: template
+
+# The template's own gates, excluded from generated projects (ADR-0106); acceptance is this repository's nightly e2e.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, labeled]
+  schedule:
+    - cron: "0 5 * * *" # after perf (04:00)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generation:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Generate every fixture and compare the adoption paths
+        run: mise run test:template
+
+  acceptance:
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'template-acceptance')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: acceptance-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          go-cache: "true"
+      # Restore-only, like e2e.yml: the lighthouse job is the single writer of the mirror.
+      - name: Restore the registry mirror
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/zot
+          key: zot-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+      - name: Generate a project and prove it serves
+        run: mise run acceptance
+        env:
+          ZOT_DATA: ${{ runner.temp }}/zot
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

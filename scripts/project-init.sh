@@ -82,6 +82,8 @@ detail "wrote .copier-answers.yml"
 
 # What Copier's `_exclude` drops at render time, plus the two scripts that run once.
 # This script goes last: unlinking a file bash is executing is safe, rewriting one in place is not. Nothing may follow these two lines.
-rm -f copier.yml .copier-answers.yml.jinja "$VERSION_FILE" scripts/project-rename.sh
+rm -f copier.yml .copier-answers.yml.jinja "$VERSION_FILE" scripts/project-rename.sh \
+  .config/mise/conf.d/template.toml .github/workflows/template.yml scripts/test-template.sh scripts/acceptance.sh
+rm -rf test/template
 ok "initialised ${project_name} — run 'mise run gen' and 'mise run check' before the first commit"
 rm -f -- "${BASH_SOURCE[0]}"

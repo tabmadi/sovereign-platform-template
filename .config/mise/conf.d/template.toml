@@ -1,0 +1,13 @@
+# The template's own tasks (ADR-0106): copier excludes this file and `project:init` deletes it.
+
+[tasks."test:template"]
+description = "The repository's own generation (ADR-0106): a fixture matrix through `copier copy`, the refusals its validators owe, and the equality between the two adoption paths that `copier update`'s merge relies on."
+run = "bash scripts/test-template.sh"
+
+[tasks.acceptance]
+description = "Generate a project from the working tree and prove it reaches a serving cluster (ADR-0106). Needs Docker; runs nightly and on the acceptance label, never in check."
+run = "bash scripts/acceptance.sh"
+
+[tasks."project:init"]
+description = "Adopt this template as a project, for a repository the forge created from it (ADR-0106)."
+run = "bash scripts/project-init.sh"

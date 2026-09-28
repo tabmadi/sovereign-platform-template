@@ -177,10 +177,6 @@ run = "bash scripts/cluster.sh status"
 description = "Assert the active tier is up and serving (ADR-0600): nodes, pods, ArgoCD, the edge, and the parity mechanism the local overlay turns on. The acceptance job calls it against every generated project."
 run = "bash scripts/verify.sh"
 
-[tasks.acceptance]
-description = "Generate a project from the working tree and prove it reaches a serving cluster (ADR-0106). Needs Docker; runs nightly and on the acceptance label, never in check."
-run = "bash scripts/acceptance.sh"
-
 [tasks."cluster:populate-zot"]
 description = "Mirror the first-party images into the full tier's in-cluster zot so its zot.ops console is not empty (ADR-0105)."
 run = "bash scripts/populate-zot.sh"
@@ -384,10 +380,6 @@ run = "bash scripts/lint-parity.sh"
 [tasks."lint:floating-tags"]
 run = "bash scripts/lint-floating-tags.sh"
 
-[tasks."project:init"]
-description = "Adopt this template as a project, for a repository the forge created from it (ADR-0106)."
-run = "bash scripts/project-init.sh"
-
 [tasks."lint:project-identity"]
 description = "ADR-0106 gate: a project created from this template must own its own name before it pushes."
 run = "bash scripts/lint-project-identity.sh"
@@ -467,10 +459,6 @@ description = "The shared TypeScript libraries under libs/ts/ — not the fronte
 depends = ["setup:node"]
 run = "bun test libs/ts/"
 
-[tasks."test:template"]
-description = "The repository's own generation (ADR-0106): a fixture matrix through `copier copy`, the refusals its validators owe, and the equality between the two adoption paths that `copier update`'s me."
-run = "bash scripts/test-template.sh"
-
 [tasks.build]
 run = "go build ./... ./tools/..."
 
@@ -532,8 +520,7 @@ description = "Triage, not a gate: every dependency finding at every severity, i
 run = "bash scripts/scan.sh report"
 
 [tasks."ci:test"]
-description = "The CI test gate: the suites plus the repository's own generation (ADR-0106)."
-depends = ["test", "test:template"]
+depends = ["test"]
 
 [tasks."ci:affected-matrix"]
 description = "The affected manifest split into the two arrays publish.yml's matrices need, as forge step-output assignments (ADR-0102)."
