@@ -594,7 +594,7 @@ description = "The platform's periodic obligations, from infra/temporal/schedule
 run = "bash scripts/temporal-schedules.sh"
 
 [tasks."ci:gen"]
-description = "The single definition behind ci-drift.yml and the lefthook gen-drift hook: run it locally to reproduce that CI job exactly."
+description = "The single definition behind ci.yml's drift job and the lefthook gen-drift hook: run it locally to reproduce that CI job exactly."
 run = "bash scripts/ci-gen.sh"
 
 [tasks."cluster:add"]

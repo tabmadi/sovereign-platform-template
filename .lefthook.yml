@@ -85,7 +85,7 @@ pre-commit:
       # generated/vendored dirs): Biome checks these extensions ANYWHERE, including
       # infra/ JSON like the Grafana dashboards. The old apps/**+libs/ts/** glob let
       # a misformatted infra/ file slip past this hook and fail CI's repo-wide
-      # `biome ci .` (lint.yml) and the `mise run format` drift check (ci-drift.yml) —
+      # `biome ci .` (ci.yml's lint job) and the `mise run format` drift check (its drift job) —
       # exactly the "gate a commit can slip past locally" this file warns about.
       #
       # `exclude` mirrors biome.jsonc's negated includes, and it is not redundant.

@@ -28,7 +28,7 @@ runs:
         install: true
         cache: true
 
-    # One key across test.yml and build.yml so they share a single cache entry
+    # One key across ci.yml's test and build jobs so they share a single cache entry
     # instead of each warming their own copy of the same compiled packages.
     - if: inputs.go-cache == 'true'
       uses: actions/cache@v4

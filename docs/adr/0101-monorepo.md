@@ -241,8 +241,7 @@ Bun workspaces unify the app and TS libraries:
 
 | Workflow | Runs |
 | --- | --- |
-| `lint.yml`, `test.yml`, `build.yml` | `mise run ci:lint` / `ci:test` / `ci:build` |
-| `ci-drift.yml` | `mise run ci:gen`, failing on `git diff --exit-code` |
+| `ci.yml` | the merge gates: `mise run ci:build`, `ci:test`, `ci:gen` (failing on drift), `ci:lint`, `ci:affected-adversarial`, `ci:scan`, one job each |
 | `publish.yml` | builds and pushes images on merges to `master` |
 | `e2e.yml` | nightly and pre-release full suite, plus a label-gated smoke job ([ADR-0601](0601-testing-strategy.md)) |
 
