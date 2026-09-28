@@ -195,7 +195,8 @@ func TestUpdateIdentityPreservesRecord(t *testing.T) {
 	defer srv.Close()
 	h := newKratosHandlers(srv.URL)
 
-	body := &authzsdk.IdentityUpdate{Name: authzsdk.NewOptString("Renamed"), Operator: authzsdk.NewOptBool(false)}
+	// The operator value is the current one, so no workflow starts: this handler has no Temporal client to start it on.
+	body := &authzsdk.IdentityUpdate{Name: authzsdk.NewOptString("Renamed"), Operator: authzsdk.NewOptBool(true)}
 	updated, err := h.UpdateIdentity(context.Background(), body, authzsdk.UpdateIdentityParams{ID: "id-1"})
 	if err != nil {
 		t.Fatalf("UpdateIdentity: %v", err)
@@ -214,10 +215,10 @@ func TestUpdateIdentityPreservesRecord(t *testing.T) {
 		t.Errorf("PUT wrote operator into traits, where self-service can write it: %+v", traits)
 	}
 	meta, _ := got["metadata_public"].(map[string]any)
-	if meta[metaOperator] != false || meta["org_id"] != "org-1" {
-		t.Errorf("PUT metadata_public = %+v, want operator=false with org_id kept", meta)
+	if meta[metaOperator] != true || meta["org_id"] != "org-1" {
+		t.Errorf("PUT metadata_public = %+v, want operator and org_id kept", meta)
 	}
-	if updated.Name.Value != "Renamed" || updated.Operator.Value {
-		t.Errorf("returned identity = %+v, want name=Renamed operator=false", updated)
+	if updated.Name.Value != "Renamed" || !updated.Operator.Value {
+		t.Errorf("returned identity = %+v, want name=Renamed operator=true", updated)
 	}
 }

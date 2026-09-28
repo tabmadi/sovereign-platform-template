@@ -38,20 +38,6 @@ func encodeCheckRelationRequest(
 	return nil
 }
 
-func encodeCreateOperatorRequest(
-	req *OperatorInput,
-	r *http.Request,
-) error {
-	const contentType = "application/json"
-	e := new(jx.Encoder)
-	{
-		req.Encode(e)
-	}
-	encoded := e.Bytes()
-	ht.SetBody(r, bytes.NewReader(encoded), contentType)
-	return nil
-}
-
 func encodeUpdateIdentityRequest(
 	req *IdentityUpdate,
 	r *http.Request,

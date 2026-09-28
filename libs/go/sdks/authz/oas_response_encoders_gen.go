@@ -49,19 +49,6 @@ func encodeCheckRelationResponse(response *RelationDecision, w http.ResponseWrit
 	return nil
 }
 
-func encodeCreateOperatorResponse(response *WorkflowHandle, w http.ResponseWriter, span trace.Span) error {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(202)
-
-	e := new(jx.Encoder)
-	response.Encode(e)
-	if _, err := e.WriteTo(w); err != nil {
-		return errors.Wrap(err, "write")
-	}
-
-	return nil
-}
-
 func encodeGetIdentityResponse(response *Identity, w http.ResponseWriter, span trace.Span) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)

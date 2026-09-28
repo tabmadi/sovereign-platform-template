@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 176 |
-| Review-enforced | 335 |
-| **Total** | **511** |
+| Review-enforced | 336 |
+| **Total** | **512** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -494,6 +494,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Inline role checks in handlers are not used. Every permission decision goes through `Checker`. | `lint:authz` in CI |
 | Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer. | review |
 | The coarse operator claim is `metadata_public.operator`, written only through the Kratos admin API. It is never an identity trait: self-service registration and settings write traits, so a trait claim is one any visitor can grant themselves. | review |
+| An operator is a registered user promoted in the admin console, whose toggle runs one workflow writing the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. `mise run ops:grant` is the one path outside the console: it needs cluster credentials, and exists for the first operator and for an outage of the console. | review |
 | A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine. | review |
 | Tokens are validated once at the edge with the algorithm pinned and `iss`, `aud`, and `exp` checked; services do not validate tokens. | `lint:auth-inline` in CI; standard: RFC 8725 |
 | Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. | `lint:authz` in CI |

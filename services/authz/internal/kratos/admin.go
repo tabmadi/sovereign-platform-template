@@ -45,41 +45,9 @@ func NewAt(baseURL string, log *slog.Logger) *Admin {
 	return &Admin{baseURL: baseURL, log: log}
 }
 
-// identityBody is the request body for POST /admin/identities.
-type identityBody struct {
-	SchemaID            string         `json:"schema_id"`
-	Traits              Traits         `json:"traits"`
-	MetadataPublic      map[string]any `json:"metadata_public"`
-	Credentials         credentials    `json:"credentials"`
-	VerifiableAddresses []address      `json:"verifiable_addresses"`
-}
-
-type Traits struct {
-	Email string `json:"email"`
-}
-
 // operatorKey is the metadata_public key the ops gate reads (ADR-0306). Metadata, not a trait: self-service
 // registration and settings write traits, and only the admin API writes metadata.
 const operatorKey = "operator"
-
-type credentials struct {
-	Password passwordCredential `json:"password"`
-}
-
-type passwordCredential struct {
-	Config passwordConfig `json:"config"`
-}
-
-type passwordConfig struct {
-	Password string `json:"password"`
-}
-
-type address struct {
-	Value    string `json:"value"`
-	Via      string `json:"via"`
-	Verified bool   `json:"verified"`
-	Status   string `json:"status"`
-}
 
 // Identity is the subset this service reads and writes. schema_id, state and metadata_public are carried through
 // unmodified: Kratos PUT replaces the whole record, and the edge builds X-Org-Id and X-Roles out of
@@ -143,7 +111,7 @@ func (a *Admin) ListIdentities(ctx context.Context, perPage int) ([]authzsdk.Ide
 		u += "?" + q.Encode()
 	}
 	var raw []Identity
-	err := a.do(ctx, http.MethodGet, u, nil, http.StatusOK, &raw)
+	err := a.do(ctx, http.MethodGet, u, nil, &raw)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +124,7 @@ func (a *Admin) ListIdentities(ctx context.Context, perPage int) ([]authzsdk.Ide
 
 func (a *Admin) GetIdentity(ctx context.Context, id string) (*Identity, error) {
 	var out Identity
-	err := a.do(ctx, http.MethodGet, a.identityURL(id), nil, http.StatusOK, &out)
+	err := a.do(ctx, http.MethodGet, a.identityURL(id), nil, &out)
 	if err != nil {
 		return nil, err
 	}
@@ -167,35 +135,26 @@ func (a *Admin) PutIdentity(ctx context.Context, ident *Identity) (*Identity, er
 	body := *ident
 	body.ID = "" // id is the path, not part of the update body
 	var out Identity
-	err := a.do(ctx, http.MethodPut, a.identityURL(ident.ID), body, http.StatusOK, &out)
+	err := a.do(ctx, http.MethodPut, a.identityURL(ident.ID), body, &out)
 	if err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
-func (a *Admin) CreateOperatorIdentity(ctx context.Context, email, password string) (string, error) {
-	payload := identityBody{
-		SchemaID:       SchemaUserV1,
-		Traits:         Traits{Email: email},
-		MetadataPublic: map[string]any{operatorKey: true},
-		Credentials: credentials{
-			Password: passwordCredential{
-				Config: passwordConfig{Password: password},
-			},
-		},
-		VerifiableAddresses: []address{
-			{Value: email, Via: "email", Verified: true, Status: "completed"},
-		},
-	}
-	var out struct {
-		ID string `json:"id"`
-	}
-	err := a.do(ctx, http.MethodPost, a.baseURL+"/admin/identities", payload, http.StatusCreated, &out)
+// SetOperatorFlag writes metadata_public.operator and nothing else. A patch of the one object rather than a PUT of the
+// record, so an edit landing between the read and the write keeps every other field.
+func (a *Admin) SetOperatorFlag(ctx context.Context, id string, op bool) error {
+	ident, err := a.GetIdentity(ctx, id)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return out.ID, nil
+	err = ident.SetOperator(op)
+	if err != nil {
+		return err
+	}
+	patch := []map[string]any{{"op": "add", "path": "/metadata_public", "value": ident.MetadataPublic}}
+	return a.do(ctx, http.MethodPatch, a.identityURL(id), patch, nil)
 }
 
 // identityURL is the Kratos admin URL for one identity.
@@ -204,9 +163,9 @@ func (a *Admin) identityURL(id string) string {
 }
 
 // kratosJSON performs a JSON request to the Kratos admin API and decodes a JSON
-// response, asserting the expected status. reqBody nil sends no body; out nil skips
+// response, asserting a 200. reqBody nil sends no body; out nil skips
 // decoding. It is the shared transport for the identity read/write helpers.
-func (a *Admin) do(ctx context.Context, method, u string, reqBody any, wantStatus int, out any) error {
+func (a *Admin) do(ctx context.Context, method, u string, reqBody any, out any) error {
 	var reader io.Reader
 	if reqBody != nil {
 		b, err := json.Marshal(reqBody)
@@ -232,7 +191,7 @@ func (a *Admin) do(ctx context.Context, method, u string, reqBody any, wantStatu
 			a.log.Error("close kratos response body", "err", closeErr)
 		}
 	}()
-	if resp.StatusCode != wantStatus {
+	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("kratos %d: %s", resp.StatusCode, b)
 	}

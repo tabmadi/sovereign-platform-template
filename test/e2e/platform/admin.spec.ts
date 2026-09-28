@@ -7,11 +7,12 @@ import {
 } from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { OPERATOR, USER } from "../fixtures/identities";
+import { register } from "../fixtures/kratos";
 import { portForward } from "../fixtures/kube";
 
 const CONSOLE = `${opsURL("lowdefy")}/`;
-const CONSOLE_CREATE_OPERATOR = `${opsURL("lowdefy")}/createOperator`;
-const TEST_OPERATOR_EMAIL = "new-op@e2e.localtest.me";
+const PROMOTED_EMAIL = `promoted-${Date.now()}@e2e.localtest.me`;
+const PROMOTED_PASSWORD = "Harbor-Quill-Meadow-7!";
 
 test.describe("lowdefy ops dashboard", () => {
   test("gated: unauthenticated is denied", async () => {
@@ -131,47 +132,59 @@ test.describe("lowdefy ops dashboard", () => {
     });
   });
 
-  // The generated createOperator page starts the RegisterOperator workflow, which creates the Kratos identity and grants group:operator membership as two activities (ADR-0304).
-  test.describe("create operator", () => {
+  // Promotion is the one way to become an operator (ADR-0304): a self-registered user, promoted and demoted from the
+  // identity page, whose toggle runs the SetOperator dual write. Kratos is read back after each save.
+  test.describe("promote and demote an operator", () => {
     test.use({ storageState: OPERATOR_STATE });
+
+    const operatorFlag = async (): Promise<unknown> => {
+      const pf = await portForward("ory-kratos-admin", 4434, 80);
+      try {
+        const res = await fetch(
+          `http://127.0.0.1:4434/admin/identities?credentials_identifier=${encodeURIComponent(PROMOTED_EMAIL)}`,
+        );
+        const list = (await res.json()) as Array<{ metadata_public?: { operator?: unknown } }>;
+        return list[0]?.metadata_public?.operator ?? false;
+      } finally {
+        pf.stop();
+      }
+    };
 
     test.afterAll(async () => {
       const pf = await portForward("ory-kratos-admin", 4434, 80);
       try {
-        // Poll rather than read once: the endpoint returns 202 the moment the workflow starts, so a single read would usually find nothing and leave the identity behind.
-        const deadline = Date.now() + 30_000;
-        while (Date.now() < deadline) {
-          const res = await fetch(
-            `http://127.0.0.1:4434/admin/identities?credentials_identifier=${encodeURIComponent(TEST_OPERATOR_EMAIL)}`,
-          );
-          if (res.ok) {
-            const list = (await res.json()) as Array<{ id: string; traits?: { email?: string } }>;
-            const hit = list.find((i) => i.traits?.email === TEST_OPERATOR_EMAIL);
-            if (hit) {
-              await fetch(`http://127.0.0.1:4434/admin/identities/${hit.id}`, { method: "DELETE" });
-              return;
-            }
-          }
-          await new Promise((resolve) => setTimeout(resolve, 1_000));
+        const res = await fetch(
+          `http://127.0.0.1:4434/admin/identities?credentials_identifier=${encodeURIComponent(PROMOTED_EMAIL)}`,
+        );
+        const list = res.ok ? ((await res.json()) as Array<{ id: string }>) : [];
+        for (const hit of list) {
+          await fetch(`http://127.0.0.1:4434/admin/identities/${hit.id}`, { method: "DELETE" });
         }
       } finally {
         pf.stop();
       }
     });
 
-    test("createOperator page renders and form submits @smoke", async ({ page }) => {
-      await page.goto(CONSOLE_CREATE_OPERATOR);
-      // Wait for the page to paint — the submit button signals the form rendered.
-      await page.getByRole("button", { name: "Create operator" }).waitFor({ timeout: 30_000 });
-      // antd Form.Item lowercases labels in the rendered HTML; use case-insensitive match.
-      await page.getByLabel(/email/i).fill(TEST_OPERATOR_EMAIL);
-      await page.getByLabel(/password/i).fill("NewOp-e2e-Sessi0n!");
-      await page.getByRole("button", { name: "Create operator" }).click();
-      // The onClick SetState runs only if the request resolved, revealing the
-      // generated success Alert — the admin-gen confirmation block.
-      await expect(page.getByText(/Create operator succeeded/)).toBeVisible({
-        timeout: 20_000,
-      });
+    test("the identity toggle promotes and demotes @smoke", async ({ browser, page }) => {
+      const anon = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
+      try {
+        await register(await anon.newPage(), PROMOTED_EMAIL, PROMOTED_PASSWORD);
+      } finally {
+        await anon.close();
+      }
+
+      const admin = opsURL("lowdefy");
+      for (const want of [true, false]) {
+        await page.goto(`${admin}/identities`);
+        await page.getByText(PROMOTED_EMAIL).first().click({ timeout: 30_000 });
+        await expect(page).toHaveURL(/identities_edit\?id=/, { timeout: 15_000 });
+        const toggle = page.getByRole("switch");
+        await expect(toggle).toBeVisible({ timeout: 20_000 });
+        await toggle.click();
+        await page.getByRole("button", { name: "Save", exact: true }).click();
+        await expect(page.getByText("Saved changes")).toBeVisible({ timeout: 30_000 });
+        expect(await operatorFlag(), `metadata_public.operator after saving ${want}`).toBe(want);
+      }
     });
   });
 

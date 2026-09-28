@@ -6,7 +6,7 @@ image:
   tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
   pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
 worker:
-  enabled: true          # RegisterOperator dual write (ADR-0302, ADR-0304)
+  enabled: true          # SetOperator dual write (ADR-0302, ADR-0304)
   image:
     repository: registry.localhost:5000/authz-worker
     tag: local

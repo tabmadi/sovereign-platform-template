@@ -56,8 +56,8 @@ func run() error {
 	// OpenFGA dependency.
 	fineGrained := os.Getenv("OPS_FINE_GRAINED") == "true"
 
-	// A hard dependency of startup rather than a lazy dial: a service that accepts `createOperator` and then discovers
-	// it has nowhere to send it has already told the caller yes.
+	// A hard dependency of startup rather than a lazy dial: a promotion accepted and then found to have no workflow
+	// engine to run on has already told the console yes.
 	tc, err := temporalmw.NewClient(serviceName)
 	if err != nil {
 		return fmt.Errorf("temporal: %w", err)

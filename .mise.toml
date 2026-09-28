@@ -639,7 +639,7 @@ description = "Mint a Kratos session token for local authenticated calls (needs 
 run = "bash scripts/auth-token.sh"
 
 [tasks."ops:grant"]
-description = "Operator onboarding (ADR-0304/0017): add/revoke a human's group:operator membership by email."
+description = "Break-glass operator grant (ADR-0304): the first operator, or any while the admin console is down. Promotion otherwise happens in the console."
 run = "bash scripts/ops-grant.sh"
 
 [tasks."secrets:cosign"]

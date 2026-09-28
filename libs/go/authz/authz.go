@@ -24,6 +24,7 @@ type Checker interface {
 
 type Granter interface {
 	Grant(ctx context.Context, subject, relation, resource string) error
+	Revoke(ctx context.Context, subject, relation, resource string) error
 }
 
 type fga struct {
@@ -115,6 +116,31 @@ func (f *fga) Grant(ctx context.Context, subject, relation, resource string) err
 			return nil
 		}
 		return fmt.Errorf("authz: grant: %w", err)
+	}
+	return nil
+}
+
+// Revoke deletes a relationship tuple. OpenFGA rejects deleting one that does not exist, which is the state the call
+// asks for, so that error is idempotent success like Grant's.
+func (f *fga) Revoke(ctx context.Context, subject, relation, resource string) error {
+	err := f.ensureStore(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = f.c.Write(ctx).Body(
+		client.ClientWriteRequest{
+			Deletes: []client.ClientTupleKeyWithoutCondition{
+				{User: subject, Relation: relation, Object: resource},
+			},
+		},
+	).Execute()
+	if err != nil {
+		var verr openfga.FgaApiValidationError
+		if errors.As(err, &verr) &&
+			verr.ResponseCode() == openfga.ERRORCODE_WRITE_FAILED_DUE_TO_INVALID_INPUT {
+			return nil
+		}
+		return fmt.Errorf("authz: revoke: %w", err)
 	}
 	return nil
 }

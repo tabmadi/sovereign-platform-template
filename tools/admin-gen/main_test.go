@@ -38,7 +38,7 @@ func TestLabels(t *testing.T) {
 	if got := humanize("refundCharge"); got != "Refund charge" {
 		t.Errorf("humanize = %q", got)
 	}
-	if got := humanize("createOperator"); got != "Create operator" {
+	if got := humanize("cancelOrder"); got != "Cancel order" {
 		t.Errorf("humanize = %q", got)
 	}
 	if got := singular("products"); got != "product" {

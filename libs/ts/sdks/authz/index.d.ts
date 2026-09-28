@@ -73,23 +73,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/operators": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Create an operator identity and grant the operator role. */
-        post: operations["createOperator"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -159,7 +142,7 @@ export interface components {
             tool: string;
             /** @description authenticator_assurance_level from the session. */
             aal: string;
-            /** @description The operator identity trait; "true" when set. */
+            /** @description The identity's metadata_public.operator flag; "true" when set. */
             operator: string;
         };
         /** @description A single OpenFGA relation question, in the model's own vocabulary. */
@@ -180,25 +163,6 @@ export interface components {
         RelationDecision: {
             allowed: boolean;
         };
-        /** @description Request body to create an operator. */
-        OperatorInput: {
-            email: string;
-            password: string;
-        };
-        /**
-         * @description Handle to an async Temporal workflow run.
-         * @example {
-         *       "id": "register-operator-ops-example.com",
-         *       "run_id": "01kztn9tsrea7b1597q3yjdeav",
-         *       "status": "running"
-         *     }
-         */
-        WorkflowHandle: {
-            id: string;
-            run_id: string;
-            /** @enum {string} */
-            status: "running" | "completed" | "failed" | "cancelled";
-        };
         /**
          * @description A Kratos identity, flattened from its traits for the admin changelist.
          * @example {
@@ -214,7 +178,7 @@ export interface components {
             name?: string;
             operator?: boolean;
         };
-        /** @description The editable traits of an identity. Email is the login identifier and is not editable here. */
+        /** @description The editable fields of an identity. Email is the login identifier and is not editable here; operator promotes or demotes through a dual write (ADR-0304). */
         IdentityUpdate: {
             name?: string;
             operator?: boolean;
@@ -369,32 +333,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RelationDecision"];
-                };
-            };
-            default: components["responses"]["Error"];
-        };
-    };
-    createOperator: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description The operator to create. */
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OperatorInput"];
-            };
-        };
-        responses: {
-            /** @description The operator registration was accepted and is running. */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkflowHandle"];
                 };
             };
             default: components["responses"]["Error"];

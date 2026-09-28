@@ -2,7 +2,6 @@
 - _ref: pages/dashboard.yaml
 - _ref: _generated/authz/identities.yaml
 - _ref: _generated/authz/identities_edit.yaml
-- _ref: _generated/authz/createOperator.yaml
 - _ref: _generated/catalog/products.yaml
 - _ref: _generated/catalog/products_new.yaml
 - _ref: _generated/catalog/products_edit.yaml

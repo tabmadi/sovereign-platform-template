@@ -17,11 +17,8 @@ var (
 	rn2AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn6AllowedHeaders = map[string]string{
+	rn5AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
-	}
-	rn4AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
 	}
 )
 
@@ -182,7 +179,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "GET,PUT",
-								allowedHeaders: rn6AllowedHeaders,
+								allowedHeaders: rn5AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -191,31 +188,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 
-				}
-
-			case 'o': // Prefix: "operators"
-
-				if l := len("operators"); len(elem) >= l && elem[0:l] == "operators" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				if len(elem) == 0 {
-					// Leaf node.
-					switch r.Method {
-					case "POST":
-						s.handleCreateOperatorRequest([0]string{}, elemIsEscaped, w, r)
-					default:
-						s.notAllowed(w, r, notAllowedParams{
-							allowedMethods: "POST",
-							allowedHeaders: rn4AllowedHeaders,
-							acceptPost:     "application/json",
-							acceptPatch:    "",
-						})
-					}
-
-					return
 				}
 
 			}
@@ -436,31 +408,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						}
 					}
 
-				}
-
-			case 'o': // Prefix: "operators"
-
-				if l := len("operators"); len(elem) >= l && elem[0:l] == "operators" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				if len(elem) == 0 {
-					// Leaf node.
-					switch method {
-					case "POST":
-						r.name = CreateOperatorOperation
-						r.summary = ""
-						r.operationID = "createOperator"
-						r.operationGroup = ""
-						r.pathPattern = "/operators"
-						r.args = args
-						r.count = 0
-						return r, true
-					default:
-						return
-					}
 				}
 
 			}

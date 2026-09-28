@@ -27,4 +27,3 @@ blocks:
 
         - [Refund charge](/refundCharge)
         - [Cancel order](/cancelOrder)
-        - [Create operator](/createOperator)

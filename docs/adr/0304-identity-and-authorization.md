@@ -334,6 +334,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint:authz)`
 - Operator dashboards are gated at the edge by the coarse claim plus AAL2, with no OpenFGA call. Optional per-tool refinement adds the `remote_json` authorizer.
 - The coarse operator claim is `metadata_public.operator`, written only through the Kratos admin API. It is never an identity trait: self-service registration and settings write traits, so a trait claim is one any visitor can grant themselves.
+- An operator is a registered user promoted in the admin console, whose toggle runs one workflow writing the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. `mise run ops:grant` is the one path outside the console: it needs cluster credentials, and exists for the first operator and for an outage of the console.
 - A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine.
 - Tokens are validated once at the edge with the algorithm pinned and `iss`, `aud`, and `exp` checked; services do not validate tokens. `(CI: lint:auth-inline; ref: RFC 8725)`
 - Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`, injected at the edge and forwarded unchanged internally. Services read identity only from these headers. `(CI: lint:authz)`

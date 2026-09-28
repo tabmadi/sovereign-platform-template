@@ -16,11 +16,6 @@
           pageId: identities
           properties:
             title: Identities
-        - id: link_createOperator
-          type: MenuLink
-          pageId: createOperator
-          properties:
-            title: Create operator
     - id: group_catalog
       type: MenuGroup
       properties:

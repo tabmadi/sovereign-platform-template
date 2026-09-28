@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Grant a human the ops tier by adding them to group:operator in OpenFGA, resolving the Kratos identity by email (ADR-0304, ADR-0306). Idempotent.
+# Break-glass operator grant (ADR-0304): the first operator, or any while the admin console is down. Writes the claim and group:operator together, resolving the Kratos identity by email. Idempotent.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

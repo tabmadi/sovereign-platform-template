@@ -27,6 +27,17 @@ Right-sized for a small platform team — no separate operator IdP or PKI, which
 
    This procedure is already printed by the `scripts/cluster.sh` banner as the diagnose path; it is the sanctioned break-glass.
 
+## The first operator
+
+The admin console promotes operators, and reaching it needs one. A new environment's first operator registers on
+the storefront like any user, enrols TOTP, and is promoted from a workstation holding the cluster's kubeconfig:
+
+```sh
+mise run ops:grant -- first.operator@example.com
+```
+
+Every later promotion and demotion happens in the console ([ADR-0304](../adr/0304-identity-and-authorization.md)).
+
 ## Requirements on the break-glass path
 
 - **Pre-provisioned.** The kubeconfig must be obtainable *before* an outage and **must not be gated behind the product SSO** — otherwise it shares fate with the plane it recovers.

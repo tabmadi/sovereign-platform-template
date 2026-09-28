@@ -4,8 +4,6 @@ package authz
 
 import (
 	"fmt"
-
-	"github.com/go-faster/errors"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -26,7 +24,7 @@ type AuthorizeRequest struct {
 	Tool string `json:"tool"`
 	// Authenticator_assurance_level from the session.
 	Aal string `json:"aal"`
-	// The operator identity trait; "true" when set.
+	// The identity's metadata_public.operator flag; "true" when set.
 	Operator string `json:"operator"`
 }
 
@@ -145,7 +143,8 @@ func (s *Identity) SetOperator(val OptBool) {
 	s.Operator = val
 }
 
-// The editable traits of an identity. Email is the login identifier and is not editable here.
+// The editable fields of an identity. Email is the login identifier and is not editable here; operator
+// promotes or demotes through a dual write (ADR-0304).
 // Ref: #/components/schemas/IdentityUpdate
 type IdentityUpdate struct {
 	Name     OptString `json:"name"`
@@ -170,33 +169,6 @@ func (s *IdentityUpdate) SetName(val OptString) {
 // SetOperator sets the value of Operator.
 func (s *IdentityUpdate) SetOperator(val OptBool) {
 	s.Operator = val
-}
-
-// Request body to create an operator.
-// Ref: #/components/schemas/OperatorInput
-type OperatorInput struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-// GetEmail returns the value of Email.
-func (s *OperatorInput) GetEmail() string {
-	return s.Email
-}
-
-// GetPassword returns the value of Password.
-func (s *OperatorInput) GetPassword() string {
-	return s.Password
-}
-
-// SetEmail sets the value of Email.
-func (s *OperatorInput) SetEmail(val string) {
-	s.Email = val
-}
-
-// SetPassword sets the value of Password.
-func (s *OperatorInput) SetPassword(val string) {
-	s.Password = val
 }
 
 // NewOptBool returns new OptBool with value set to v.
@@ -502,97 +474,4 @@ func (s *RelationDecision) GetAllowed() bool {
 // SetAllowed sets the value of Allowed.
 func (s *RelationDecision) SetAllowed(val bool) {
 	s.Allowed = val
-}
-
-// Handle to an async Temporal workflow run.
-// Ref: #/components/schemas/WorkflowHandle
-type WorkflowHandle struct {
-	ID     string               `json:"id"`
-	RunID  string               `json:"run_id"`
-	Status WorkflowHandleStatus `json:"status"`
-}
-
-// GetID returns the value of ID.
-func (s *WorkflowHandle) GetID() string {
-	return s.ID
-}
-
-// GetRunID returns the value of RunID.
-func (s *WorkflowHandle) GetRunID() string {
-	return s.RunID
-}
-
-// GetStatus returns the value of Status.
-func (s *WorkflowHandle) GetStatus() WorkflowHandleStatus {
-	return s.Status
-}
-
-// SetID sets the value of ID.
-func (s *WorkflowHandle) SetID(val string) {
-	s.ID = val
-}
-
-// SetRunID sets the value of RunID.
-func (s *WorkflowHandle) SetRunID(val string) {
-	s.RunID = val
-}
-
-// SetStatus sets the value of Status.
-func (s *WorkflowHandle) SetStatus(val WorkflowHandleStatus) {
-	s.Status = val
-}
-
-type WorkflowHandleStatus string
-
-const (
-	WorkflowHandleStatusRunning   WorkflowHandleStatus = "running"
-	WorkflowHandleStatusCompleted WorkflowHandleStatus = "completed"
-	WorkflowHandleStatusFailed    WorkflowHandleStatus = "failed"
-	WorkflowHandleStatusCancelled WorkflowHandleStatus = "cancelled"
-)
-
-// AllValues returns all WorkflowHandleStatus values.
-func (WorkflowHandleStatus) AllValues() []WorkflowHandleStatus {
-	return []WorkflowHandleStatus{
-		WorkflowHandleStatusRunning,
-		WorkflowHandleStatusCompleted,
-		WorkflowHandleStatusFailed,
-		WorkflowHandleStatusCancelled,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s WorkflowHandleStatus) MarshalText() ([]byte, error) {
-	switch s {
-	case WorkflowHandleStatusRunning:
-		return []byte(s), nil
-	case WorkflowHandleStatusCompleted:
-		return []byte(s), nil
-	case WorkflowHandleStatusFailed:
-		return []byte(s), nil
-	case WorkflowHandleStatusCancelled:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *WorkflowHandleStatus) UnmarshalText(data []byte) error {
-	switch WorkflowHandleStatus(data) {
-	case WorkflowHandleStatusRunning:
-		*s = WorkflowHandleStatusRunning
-		return nil
-	case WorkflowHandleStatusCompleted:
-		*s = WorkflowHandleStatusCompleted
-		return nil
-	case WorkflowHandleStatusFailed:
-		*s = WorkflowHandleStatusFailed
-		return nil
-	case WorkflowHandleStatusCancelled:
-		*s = WorkflowHandleStatusCancelled
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
 }

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info: { title: authz, version: 0.1.0, description: Ops-tier edge authorizer and operator admin (ADR-0304/0012/0017)., x-audience: cluster }
 servers: [{ url: / }]   # east-west control-plane service; no /api edge route (ADR-0305)
-tags: [{ name: authorize }, { name: operators }, { name: identities, x-admin: crud }]
+tags: [{ name: authorize }, { name: identities, x-admin: crud }]
 paths:
   /authorize:
     post:
@@ -23,8 +23,8 @@ paths:
     get:
       operationId: listIdentities
       # The console's Users page (ADR-0401). Only authz may reach Kratos admin (network-policies/30-ory.yaml), so the
-      # console fetches through here. list + get + update only — a create op would scaffold an "add user" page, and
-      # operator creation stays the dedicated createOperator action.
+      # console fetches through here. list + get + update only — a create op would scaffold an "add user" page, and an
+      # operator is a registered user the update's operator toggle promotes (ADR-0304).
       description: List identities (product users and operators) from Kratos, paginated.
       tags: [identities]
       # per_page caps the Kratos admin page; the changelist paginates client-side within that window.
@@ -88,23 +88,6 @@ paths:
         "200":
           description: The decision. A deny is an answer, not an error.
           content: { application/json: { schema: { $ref: "#/components/schemas/RelationDecision" } } }
-        default: { $ref: "#/components/responses/Error" }
-  /operators:
-    post:
-      operationId: createOperator
-      # Generated admin page target (ADR-0401): a control-plane action, not CRUD.
-      x-admin: action
-      description: Create an operator identity and grant the operator role.
-      tags: [operators]
-      requestBody:
-        required: true
-        description: The operator to create.
-        content: { application/json: { schema: { $ref: "#/components/schemas/OperatorInput" } } }
-      responses:
-        # 202 and a handle, not 200 and the operator: creating one is a dual write, and ADR-0304 puts an authz-relevant pair in a workflow, so the identity does not exist yet.
-        "202":
-          description: The operator registration was accepted and is running.
-          content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowHandle" } } }
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
@@ -190,7 +173,7 @@ components:
         subject:  { type: string, description: Kratos identity id; empty for anonymous. }
         tool:     { type: string, description: Ops dashboard slug such as grafana or hubble. }
         aal:      { type: string, description: authenticator_assurance_level from the session. }
-        operator: { type: string, description: The operator identity trait; "true" when set. }
+        operator: { type: string, description: The identity's metadata_public.operator flag; "true" when set. }
     RelationCheck:
       type: object
       description: A single OpenFGA relation question, in the model's own vocabulary.
@@ -212,22 +195,6 @@ components:
       properties:
         allowed: { type: boolean }
       example: { allowed: true }
-    OperatorInput:
-      type: object
-      description: Request body to create an operator.
-      required: [email, password]
-      properties:
-        email:    { type: string, minLength: 1 }
-        password: { type: string, minLength: 1 }
-    WorkflowHandle:
-      type: object
-      description: Handle to an async Temporal workflow run.
-      required: [id, run_id, status]
-      properties:
-        id:     { type: string }
-        run_id: { type: string }
-        status: { type: string, enum: [running, completed, failed, cancelled] }
-      example: { id: register-operator-ops-example.com, run_id: 01kztn9tsrea7b1597q3yjdeav, status: running }
     Identity:
       type: object
       description: A Kratos identity, flattened from its traits for the admin changelist.
@@ -240,7 +207,7 @@ components:
       example: { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b002, email: user@e2e.localtest.me, name: Test User, operator: false }
     IdentityUpdate:
       type: object
-      description: The editable traits of an identity. Email is the login identifier and is not editable here.
+      description: The editable fields of an identity. Email is the login identifier and is not editable here; operator promotes or demotes through a dual write (ADR-0304).
       properties:
         name:     { type: string }
         operator: { type: boolean }

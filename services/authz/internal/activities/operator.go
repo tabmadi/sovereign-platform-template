@@ -1,4 +1,4 @@
-// Package activities holds the two legs of the operator-registration dual write (ADR-0302, ADR-0304).
+// Package activities holds the two legs of the operator dual write (ADR-0302, ADR-0304).
 package activities
 
 import (
@@ -19,23 +19,27 @@ func New(granter authz.Granter, log *slog.Logger) *Activities {
 	return &Activities{identities: kratos.New(log), granter: granter}
 }
 
-// CreateOperatorIdentityActivity: Dual-write leg 1: the Kratos identity carrying metadata_public.operator, the coarse
-// ops-tier claim gate (ADR-0306). Not idempotent, and it need not be: Kratos refuses a second identity with the same
-// email address.
-func (a *Activities) CreateOperatorIdentityActivity(ctx context.Context, email, password string) (string, error) {
-	id, err := a.identities.CreateOperatorIdentity(ctx, email, password)
+// SetOperatorFlagActivity: leg 1, metadata_public.operator, the coarse ops-tier claim (ADR-0306). Idempotent.
+func (a *Activities) SetOperatorFlagActivity(ctx context.Context, identityID string, op bool) error {
+	err := a.identities.SetOperatorFlag(ctx, identityID, op)
 	if err != nil {
-		return "", fmt.Errorf("create operator identity: %w", err)
+		return fmt.Errorf("set operator flag: %w", err)
 	}
-	return id, nil
+	return nil
 }
 
-// GrantOperatorRoleActivity: Dual-write leg 2: `group:operator#member`, seeding the optional fine per-tool layer
-// (ADR-0401). This is the leg whose silent failure the workflow exists to prevent. A tuple write is idempotent.
-func (a *Activities) GrantOperatorRoleActivity(ctx context.Context, identityID string) error {
-	err := a.granter.Grant(ctx, "user:"+identityID, "member", "group:operator")
+// SetOperatorGrantActivity: leg 2, `group:operator#member`, which the fine per-tool gate and the admin console read
+// (ADR-0401). This is the leg whose silent failure the workflow exists to prevent. Idempotent either way.
+func (a *Activities) SetOperatorGrantActivity(ctx context.Context, identityID string, op bool) error {
+	subject := "user:" + identityID
+	var err error
+	if op {
+		err = a.granter.Grant(ctx, subject, "member", "group:operator")
+	} else {
+		err = a.granter.Revoke(ctx, subject, "member", "group:operator")
+	}
 	if err != nil {
-		return fmt.Errorf("grant operator role: %w", err)
+		return fmt.Errorf("set operator grant: %w", err)
 	}
 	return nil
 }

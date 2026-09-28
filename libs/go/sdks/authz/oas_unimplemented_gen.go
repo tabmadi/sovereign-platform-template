@@ -31,15 +31,6 @@ func (UnimplementedHandler) CheckRelation(ctx context.Context, req *RelationChec
 	return r, ht.ErrNotImplemented
 }
 
-// CreateOperator implements createOperator operation.
-//
-// Create an operator identity and grant the operator role.
-//
-// POST /operators
-func (UnimplementedHandler) CreateOperator(ctx context.Context, req *OperatorInput) (r *WorkflowHandle, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // GetIdentity implements getIdentity operation.
 //
 // Fetch one identity by id.

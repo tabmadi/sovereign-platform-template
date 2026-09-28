@@ -1,4 +1,4 @@
-// Temporal worker for authz.RegisterOperator — the operator-creation dual write (ADR-0302, ADR-0304).
+// Temporal worker for authz.SetOperator — the operator promotion and demotion dual write (ADR-0302, ADR-0304).
 package main
 
 import (
@@ -50,11 +50,11 @@ func run() error {
 	defer tc.Close()
 
 	w := temporalmw.NewWorker(tc, serviceName+"-queue")
-	w.RegisterWorkflow(workflows.RegisterOperator)
+	w.RegisterWorkflow(workflows.SetOperator)
 
 	acts := activities.New(granter, slog.Default())
-	w.RegisterActivity(acts.CreateOperatorIdentityActivity)
-	w.RegisterActivity(acts.GrantOperatorRoleActivity)
+	w.RegisterActivity(acts.SetOperatorFlagActivity)
+	w.RegisterActivity(acts.SetOperatorGrantActivity)
 
 	interrupt := make(chan any, 1)
 	go func() { <-ctx.Done(); interrupt <- nil }()

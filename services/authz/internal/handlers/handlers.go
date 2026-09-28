@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"go.temporal.io/sdk/client"
 
@@ -22,6 +23,8 @@ const (
 	// The task queue this service's worker serves. Named for the service, like
 	// every other queue on the platform.
 	taskQueue = "authz-queue"
+	// Both legs are single calls; the bound covers their retries without holding a console request open for long.
+	setOperatorTimeout = 30 * time.Second
 )
 
 type Handlers struct {
@@ -88,30 +91,6 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 	return &authzsdk.AuthorizeOK{}, nil
 }
 
-// CreateOperator starts the workflow and returns its handle: the pair is a dual write across two systems with no
-// shared transaction (ADR-0304). The workflow id is derived from the email, so a repeated submission returns the
-// first handle rather than minting a second identity.
-func (h *Handlers) CreateOperator(
-	ctx context.Context, req *authzsdk.OperatorInput,
-) (*authzsdk.WorkflowHandle, error) {
-	id := "register-operator-" + req.Email
-	run, err := h.tc.ExecuteWorkflow(
-		ctx,
-		client.StartWorkflowOptions{ID: id, TaskQueue: taskQueue},
-		workflows.RegisterOperator,
-		workflows.RegisterOperatorInput{Email: req.Email, Password: req.Password},
-	)
-	if err != nil {
-		h.log.Error("start register operator", "err", err, "email", req.Email)
-		return nil, apierr.Internal("failed to start operator registration")
-	}
-	return &authzsdk.WorkflowHandle{
-		ID:     id,
-		RunID:  run.GetRunID(),
-		Status: authzsdk.WorkflowHandleStatusRunning,
-	}, nil
-}
-
 // CheckRelation is the non-Go door to the same Checker the services use (ADR-0304, ADR-0700).
 // A deny is a 200 with `allowed: false`, not an error: an exception would make "you may not see this"
 // indistinguishable from "authz is down".
@@ -159,9 +138,8 @@ func (h *Handlers) GetIdentity(ctx context.Context, params authzsdk.GetIdentityP
 	return &id, nil
 }
 
-// UpdateIdentity applies the editable fields (name, operator) to an identity. Kratos
-// PUT replaces the whole identity, so it reads the current one first and overlays the
-// changed fields, preserving schema_id, state, and the email identifier.
+// UpdateIdentity: a name is a PUT of the whole record; operator is the SetOperator dual write, the one way to become
+// an operator (ADR-0304), and runs after the PUT so the PUT cannot overwrite the flag it writes.
 func (h *Handlers) UpdateIdentity(
 	ctx context.Context, req *authzsdk.IdentityUpdate, params authzsdk.UpdateIdentityParams,
 ) (*authzsdk.Identity, error) {
@@ -171,23 +149,27 @@ func (h *Handlers) UpdateIdentity(
 		return nil, apierr.Internal("failed to load identity")
 	}
 	name, ok := req.Name.Get()
-	if ok {
+	if ok && name != full.Traits.Name {
 		full.Traits.Name = name
-	}
-	operator, ok := req.Operator.Get()
-	if ok {
-		err = full.SetOperator(operator)
+		full, err = h.identities.PutIdentity(ctx, full)
 		if err != nil {
-			h.log.Error("set operator flag", "err", err, "id", params.ID)
+			h.log.Error("update kratos identity", "err", err, "id", params.ID)
 			return nil, apierr.Internal("failed to update identity")
 		}
 	}
-	updated, err := h.identities.PutIdentity(ctx, full)
-	if err != nil {
-		h.log.Error("update kratos identity", "err", err, "id", params.ID)
-		return nil, apierr.Internal("failed to update identity")
+	operator, ok := req.Operator.Get()
+	if ok && operator != full.Operator() {
+		err = h.setOperator(ctx, params.ID, operator)
+		if err != nil {
+			return nil, err
+		}
+		full, err = h.identities.GetIdentity(ctx, params.ID)
+		if err != nil {
+			h.log.Error("get kratos identity", "err", err, "id", params.ID)
+			return nil, apierr.Internal("failed to load identity")
+		}
 	}
-	id := updated.Flatten()
+	id := full.Flatten()
 	return &id, nil
 }
 
@@ -206,6 +188,27 @@ func (h *Handlers) NewError(ctx context.Context, err error) *authzsdk.ErrorStatu
 		problem.Errors = append(problem.Errors, authzsdk.ProblemErrorsItem{Pointer: v.Pointer, Message: v.Message})
 	}
 	return &authzsdk.ErrorStatusCode{StatusCode: e.Status, Response: problem}
+}
+
+// setOperator runs SetOperator to completion. The workflow id names the identity, so two concurrent edits of one
+// identity share a run rather than racing two dual writes.
+func (h *Handlers) setOperator(ctx context.Context, identityID string, op bool) error {
+	ctx, cancel := context.WithTimeout(ctx, setOperatorTimeout)
+	defer cancel()
+	run, err := h.tc.ExecuteWorkflow(
+		ctx,
+		client.StartWorkflowOptions{ID: "set-operator-" + identityID, TaskQueue: taskQueue},
+		workflows.SetOperator,
+		workflows.SetOperatorInput{IdentityID: identityID, Operator: op},
+	)
+	if err == nil {
+		err = run.Get(ctx, nil)
+	}
+	if err != nil {
+		h.log.Error("set operator", "err", err, "id", identityID, "operator", op)
+		return apierr.Internal("failed to change the operator role")
+	}
+	return nil
 }
 
 // decide returns the allow/deny decision and its reason. The error is non-nil only

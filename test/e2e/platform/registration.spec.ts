@@ -60,7 +60,7 @@ test.describe("self-service registration", () => {
   test.use({ storageState: OPERATOR_STATE });
 
   // The identity outlives the org cleanup below, so remove it directly through the
-  // admin API — same teardown shape as the createOperator suite in admin.spec.ts.
+  // admin API — same teardown shape as the promotion suite in admin.spec.ts.
   test.afterAll(async () => {
     const pf = await portForward("ory-kratos-admin", 4434, 80);
     try {
