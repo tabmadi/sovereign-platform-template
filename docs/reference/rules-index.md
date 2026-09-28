@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 176 |
+| Machine-enforced | 177 |
 | Review-enforced | 336 |
-| **Total** | **512** |
+| **Total** | **513** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -307,6 +307,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | Rotation on offboarding is mandatory regardless of the circumstances of departure. | review |
 | The ops-recovery private key is never online and never on a single machine, and is rotated annually. | review |
 | Every cluster Secret is produced by the sops-operator from an encrypted file in the repo. `kubectl create secret` is not used. | review |
+| A Secret whose data changes rolls every Deployment, StatefulSet and Temporal WorkerDeployment that references it, so a rotation reaches the process reading it. No restart is left to a runbook. | admission: Kyverno |
 
 ## ADR-0203 — Policy Enforcement Strategy
 

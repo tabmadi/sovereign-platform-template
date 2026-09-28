@@ -58,6 +58,7 @@ The security controls every project built from this template inherits, each one 
 | Rotation on offboarding is mandatory regardless of the circumstances of departure. | review |
 | The ops-recovery private key is never online and never on a single machine, and is rotated annually. | review |
 | Every cluster Secret is produced by the sops-operator from an encrypted file in the repo. `kubectl create secret` is not used. | review |
+| A Secret whose data changes rolls every Deployment, StatefulSet and Temporal WorkerDeployment that references it, so a rotation reaches the process reading it. No restart is left to a runbook. | admission: Kyverno |
 
 ## Policy enforcement
 

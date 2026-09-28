@@ -147,3 +147,4 @@ Encrypted files live in git and inherit git's distribution. The private keys do 
 - Rotation on offboarding is mandatory regardless of the circumstances of departure.
 - The ops-recovery private key is never online and never on a single machine, and is rotated annually.
 - Every cluster Secret is produced by the sops-operator from an encrypted file in the repo. `kubectl create secret` is not used.
+- A Secret whose data changes rolls every Deployment, StatefulSet and Temporal WorkerDeployment that references it, so a rotation reaches the process reading it. No restart is left to a runbook. `(enforced: Kyverno)`

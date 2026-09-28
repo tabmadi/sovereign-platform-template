@@ -22,6 +22,16 @@ kyverno:
     # with `-f`, and a wrapper chart's own values.yaml is coalesced instead — where a nil reads as "not set" and the
   backgroundController:
     replicas: 1
+    # templates/restart-on-secret-change.yaml rolls these by patching their pod template.
+    rbac:
+      clusterRole:
+        extraResources:
+          - apiGroups: [apps]
+            resources: [deployments, statefulsets]
+            verbs: [get, list, watch, update, patch]
+          - apiGroups: [temporal.io]
+            resources: [workerdeployments]
+            verbs: [get, list, watch, update, patch]
     resources:
       requests: { cpu: "25m", memory: "96Mi" }
       limits: { memory: "192Mi" }
