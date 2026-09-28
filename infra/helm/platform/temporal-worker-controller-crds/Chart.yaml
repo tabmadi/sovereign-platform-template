@@ -11,7 +11,7 @@ description: |
   matches for kind Connection" on a first install. Separating them puts the CRDs
   in the base tier (wave 0) and the controller plus its Connection in core
   (wave 3), which makes the ordering explicit rather than implicit in ArgoCD's
-  apply-CRDs-first behaviour — and keeps `mise run platform:deploy` working,
+  apply-CRDs-first behaviour — and keeps `mise run cluster:add` working for it,
   since that path is plain `helm upgrade --install` with no such special-casing.
 type: application
 version: "2026.9.0"

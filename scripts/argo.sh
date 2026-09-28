@@ -39,7 +39,7 @@ k -n argocd scale "$STS" --replicas=1 >/dev/null
 k -n argocd rollout status "$STS" --timeout=180s >/dev/null ||
   fail "the application-controller did not come back — 'kubectl -n argocd describe ${STS}'"
 
-# A pause set per app by service:deploy is narrower and survives the controller restarting.
+# A pause set per app by cluster:add is narrower and survives the controller restarting.
 # custom-columns and awk rather than jsonpath: kubectl's jsonpath has no negation, so the filter would match nothing and never fire.
 mapfile -t manual < <(
   k -n argocd get application.argoproj.io --no-headers \
@@ -47,7 +47,7 @@ mapfile -t manual < <(
     awk '$2 == "<none>" { print $1 }'
 )
 if [ "${#manual[@]}" -gt 0 ]; then
-  warn "${#manual[@]} application(s) still have auto-sync off — service:deploy pauses the app it deploys:"
+  warn "${#manual[@]} application(s) still have auto-sync off — cluster:add pauses the app it deploys:"
   printf '    · %s\n' "${manual[@]}" >&2
   detail "hand one back with: argocd app set <name> --sync-policy automated"
 fi

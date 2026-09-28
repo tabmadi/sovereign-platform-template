@@ -5,7 +5,7 @@ How to operate the Argo CD deploy path. The decision is [ADR-0201](../adr/0201-g
 ## Model
 
 - Argo CD reconciles every environment from `master`. **A working-tree change is invisible in-cluster until it is pushed.**
-- `selfHeal` reverts direct `kubectl` and `helm` edits, so a change must land on `master` to persist. The two exceptions — `platform:deploy` and a branch `targetRevision` — are in [ADR-0600](../adr/0600-local-development-loop.md).
+- `selfHeal` reverts direct `kubectl` and `helm` edits, so a change must land on `master` to persist. The two exceptions — `cluster:add` and a branch `targetRevision` — are in [ADR-0600](../adr/0600-local-development-loop.md).
 - Configuration is files in this repo; nothing is set by clicking in the Argo UI ([ADR-0000](../adr/0000-platform-foundations.md), principle 1).
 
 ## Deploy a change

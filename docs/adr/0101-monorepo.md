@@ -189,7 +189,7 @@ The two long-running service tasks are named for the process type they start, ma
 | Shape | Use when | Examples |
 | --- | --- | --- |
 | `activity:target` | one activity fans out across many targets, with an umbrella task | `lint:go`, `lint:ts`, `lint:md` under `lint`; `format:*`; `gen:openapi`, `gen:sqlc` under `gen` |
-| `resource:operation` | a stateful thing has a lifecycle worth grouping | `cluster:up`/`stop`/`down`, `service:deploy`/`dev`, `db:migrate`, `ops:grant` |
+| `resource:operation` | a stateful thing has a lifecycle worth grouping | `cluster:up`/`stop`/`down`, `cluster:add`/`remove`, `db:migrate`, `ops:grant` |
 
 **A task name spells its script.** The two shapes above map onto `scripts/` so the implementation behind a task is found without reading `.mise.toml`: `activity:target` is `scripts/activity-target.sh` (`gen:openapi`, `lint:ports`, `promote:prod`), and `resource:operation` is `scripts/resource.sh operation`, one entrypoint taking the verb as an argument (`cluster:up`, `argo:pause`, `mock:start`). A family whose members share one implementation names the script for the family, not for a member: `dep:*` and `svc:*` enter `dep-apply.sh` and `svc-apply.sh`.
 

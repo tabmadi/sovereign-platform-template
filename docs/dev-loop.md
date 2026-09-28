@@ -86,7 +86,7 @@ Its only input is the committed projection, so a response you disagree with is f
 
 **`cluster:up full` cannot tell you:**
 
-- whether your uncommitted change works, unless you put it there. Argo reconciles committed `master`, not your working tree — use `cluster:add`, `platform:deploy`, or a branch `targetRevision` ([guide/gitops-local.md](guide/gitops-local.md)).
+- whether your uncommitted change works, unless you put it there. Argo reconciles committed `master`, not your working tree — use `cluster:add` or a branch `targetRevision` ([guide/gitops-local.md](guide/gitops-local.md)).
 - whether it survives scale. Everything runs at one replica through the `local` values overlay, so a bug that needs two of something will not appear.
 
 **Neither tells you about node count or the multi-node failure modes**, and neither is a performance measurement: everything shares one machine's CPU with your compiler. Load testing is `mise run perf` against the full tier, and even that is a relative number.

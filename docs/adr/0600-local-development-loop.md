@@ -266,7 +266,7 @@ Three escape hatches cover uncommitted infra:
 
 | Change | Path |
 | --- | --- |
-| Chart or values | `platform:deploy -- <chart>` pauses Argo auto-sync on that one app and `helm upgrade`s from the working tree |
+| Chart or values | `cluster:add -- <chart>` pauses Argo auto-sync on that one app and `helm upgrade`s from the working tree |
 | GitOps wiring — sync-waves, ApplicationSets, App defs | push a branch and point the local root app's `targetRevision` at it, exercising the real delivery path |
 | Machine config, CNI, or CRD | `cluster:down -- full` plus a fresh `cluster:up -- full`, which is how a machine-config change reaches a deployed node too. Hot-swapping a CNI on a live cluster blips networking — inherent to the component, not a tooling gap |
 
@@ -382,7 +382,7 @@ A short enumerated set of manifests has no production analogue:
 - `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script per component, each fast-exiting when already satisfied.
 - Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`; `:8080` stays unassigned. `(CI: lint:ports)`
 - Every service ships a values file per environment or declares `# platform/not-deployed: <env>`. Absence is never inferred. `(CI: lint:service-contract)`
-- Argo CD is the engine for `cluster:up full` only. Uncommitted infra iterates through `platform:deploy` or a branch `targetRevision`, never by editing cluster state directly.
+- Argo CD is the engine for `cluster:up full` only. Uncommitted infra iterates through `cluster:add` or a branch `targetRevision`, never by editing cluster state directly.
 - API mocking exists for the UI development loop only. The mock appears in no deployed environment, no chart, and no image built from our own source.
 - The mock's only input is the committed `internal.json` projection. Globbing `services/*/openapi.yaml`, hand-written route files, and standalone fixture bodies are not used.
 - The mock serves no authentication or authorization behaviour: no `401`, no session awareness, no identity headers.

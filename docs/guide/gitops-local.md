@@ -10,18 +10,18 @@ So the everyday full tier already exercises ArgoCD; there is nothing to opt into
 
 ## Testing uncommitted changes
 
-### Service code → `service:deploy`
+### Service code → `cluster:add`
 
 The fast path. Build your working-tree service into the cluster and let it override the Argo-synced (CI-image) copy:
 
 ```sh
-mise run service:deploy -- catalog     # build → push to the local registry → helm upgrade (Argo auto-sync paused)
+mise run cluster:add -- catalog     # build → push to the local registry → helm upgrade (Argo auto-sync paused)
 ```
 
-### Platform chart / values → `platform:deploy`
+### Platform chart / values → `cluster:add`
 
 ```sh
-mise run platform:deploy -- ory        # working-tree helm upgrade, Argo auto-sync paused on that app
+mise run cluster:add -- ory         # working-tree helm upgrade, Argo auto-sync paused on that app
 ```
 
 Re-enable GitOps for that app when done (the command prints the exact `kubectl patch`), or re-run `cluster:up full`.

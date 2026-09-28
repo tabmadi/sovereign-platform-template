@@ -8,7 +8,7 @@ source "$LIB/cluster.sh"
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
 
-SVC="${1:?usage: mise run service:deploy -- <svc>}"
+SVC="${1:?usage: mise run cluster:add -- <svc>}"
 VALUES="infra/gitops/services/local/values/${SVC}.yaml"
 [ -f "$VALUES" ] || fail "missing local values: ${VALUES}"
 

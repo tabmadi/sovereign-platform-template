@@ -93,7 +93,7 @@ Compare like for like: same profile, same seed size, same tier.
 
 ### The Prometheus side of a baseline is not durable
 
-Prometheus's TSDB is an `emptyDir` on the local tier (the ADR-0500 POC floor), so **any rollout of the observability chart destroys all metric history** — `mise run platform:deploy -- observability` and a `cluster:down` both wipe it, silently and instantly. A resource or capacity comparison that depends on querying "before" numbers out of Prometheus will therefore fail exactly when you redeploy to apply the change you are measuring.
+Prometheus's TSDB is an `emptyDir` on the local tier (the ADR-0500 POC floor), so **any rollout of the observability chart destroys all metric history** — `mise run cluster:add -- observability` and a `cluster:down` both wipe it, silently and instantly. A resource or capacity comparison that depends on querying "before" numbers out of Prometheus will therefore fail exactly when you redeploy to apply the change you are measuring.
 
 The `test/perf/results/*.json` summaries are files and survive, which is why they are the authoritative record. Copy them somewhere before a redeploy, and write the pod-level peaks into the PR (or the values comment) rather than assuming you can re-query them.
 
