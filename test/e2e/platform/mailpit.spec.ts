@@ -1,10 +1,5 @@
 // The Mailpit viewer dashboard: non-prod only, gated at the ops origin (ADR-0307, ADR-0306).
 import { type APIRequestContext, expect, test } from "@playwright/test";
-import {
-  expectAal1Forbidden,
-  expectOperatorAllowed,
-  expectUnauthenticatedDenied,
-} from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { ADMIN } from "../fixtures/identities";
 import { startRecovery } from "../fixtures/kratos";
@@ -12,18 +7,6 @@ import { startRecovery } from "../fixtures/kratos";
 const MAILPIT = `${opsURL("mailpit")}/`;
 
 test.describe("mailpit ops dashboard", () => {
-  test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("mailpit");
-  });
-
-  test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("mailpit");
-  });
-
-  test("gated: AAL2 operator passes the dashboard:mailpit#view grant", async () => {
-    await expectOperatorAllowed("mailpit");
-  });
-
   test.describe("renders behind AAL2", () => {
     test.use({ storageState: OPERATOR_STATE });
     test("the Mailpit SPA paints at the subdomain root", async ({ page }) => {

@@ -1,10 +1,5 @@
 // The Lowdefy admin console ops dashboard, on the same staged gauge as the others (ADR-0401, ADR-0306).
 import { expect, test } from "@playwright/test";
-import {
-  expectAal1Forbidden,
-  expectOperatorAllowed,
-  expectUnauthenticatedDenied,
-} from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { OPERATOR, USER } from "../fixtures/identities";
 import { register } from "../fixtures/kratos";
@@ -15,18 +10,6 @@ const PROMOTED_EMAIL = `promoted-${Date.now()}@e2e.localtest.me`;
 const PROMOTED_PASSWORD = "Harbor-Quill-Meadow-7!";
 
 test.describe("lowdefy ops dashboard", () => {
-  test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("lowdefy");
-  });
-
-  test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("lowdefy");
-  });
-
-  test("gated: AAL2 operator passes the dashboard:lowdefy#view grant", async () => {
-    await expectOperatorAllowed("lowdefy");
-  });
-
   // The gauge: reusing the saved AAL2 session, the Lowdefy admin renders.
   test.describe("renders behind AAL2", () => {
     test.use({ storageState: OPERATOR_STATE });

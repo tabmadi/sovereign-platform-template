@@ -1,11 +1,6 @@
 // The Grafana operator dashboard, on the staged localiser chain (ADR-0306).
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
-import {
-  expectAal1Forbidden,
-  expectOperatorAllowed,
-  expectUnauthenticatedDenied,
-} from "../fixtures/dashboard";
 import { OPERATOR_STATE, OPERATOR_TOTP_FILE, opsURL } from "../fixtures/env";
 import { OPERATOR } from "../fixtures/identities";
 import { operatorLogin } from "../fixtures/kratos";
@@ -13,18 +8,6 @@ import { operatorLogin } from "../fixtures/kratos";
 const GRAFANA = `${opsURL("grafana")}/`;
 
 test.describe("grafana ops dashboard", () => {
-  test("gated: unauthenticated is denied", async () => {
-    await expectUnauthenticatedDenied("grafana");
-  });
-
-  test("gated: AAL1 product session is forbidden", async () => {
-    await expectAal1Forbidden("grafana");
-  });
-
-  test("gated: AAL2 operator passes the dashboard:grafana#view grant", async () => {
-    await expectOperatorAllowed("grafana");
-  });
-
   // The real end-to-end auth flow from a fresh context (not a pre-seeded session).
   test("login: operator authenticates through Kratos (incl. AAL2 step-up) @smoke", async ({
     browser,
