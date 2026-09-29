@@ -92,6 +92,7 @@ NODE_VERSION = "22"
 # `resource:operation` for lifecycles (cluster, service, db).
 
 [tasks.setup]
+description = "The git hooks, installed from .lefthook.yml."
 depends = ["setup:node"]
 run = "lefthook install"
 
@@ -225,17 +226,22 @@ run = "bash scripts/identity-seed.sh"
 
 [tasks.gen]
 description = "No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the OpenAPI spec (ADR-0305)."
-depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:zod", "gen:sqlc", "gen:admin", "gen:adr-rules", "gen:data-classes", "gen:image-allowlist"]
+depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:zod", "gen:sqlc", "gen:admin", "gen:adr-rules", "gen:data-classes", "gen:image-allowlist", "gen:build-path"]
 
 [tasks."gen:adr-rules"]
 description = "Two documents are views over the ADR set's Rules sections: the rules index and the security baseline (ADR-0203)."
 run = "go run ./tools/adr-rules"
+
+[tasks."gen:build-path"]
+description = "The machinery table in docs/reference/build-path.md, from the tasks a workflow or hook reaches (ADR-0000)."
+run = "bash scripts/gen-build-path.sh"
 
 [tasks."gen:data-classes"]
 description = "The data-class and retention registry (ADR-0301) — the checklist a new service is reviewed against."
 run = "go run ./tools/data-classes"
 
 [tasks."gen:zod"]
+description = "The runtime validation schemas generated from the OpenAPI specs for the TypeScript apps (ADR-0303)."
 depends = ["gen:shared-components"]
 # Request bodies only: response shapes are already TypeScript types from openapi-typescript, and a zod schema is for something a form must validate (ADR-0400).
 run = "go run ./tools/zod-gen"
@@ -245,6 +251,7 @@ description = "Writes the canonical error envelope, money, and timestamp compone
 run = "go run ./tools/shared-components"
 
 [tasks."gen:openapi"]
+description = "The Go and TypeScript clients and servers generated from each service's OpenAPI spec (ADR-0303)."
 depends = ["gen:shared-components"]
 run = "bash scripts/gen-openapi.sh"
 
@@ -262,6 +269,7 @@ description = "Regenerate infra/auth/openfga/model.json from the canonical model
 run = "fga model transform --file infra/auth/openfga/model.fga --output-format json | jq -S . > infra/auth/openfga/model.json"
 
 [tasks."gen:sqlc"]
+description = "The typed Go database access generated from each service's queries (ADR-0300)."
 run = "bash scripts/gen-sqlc.sh"
 
 [tasks."gen:clean"]
@@ -275,9 +283,11 @@ mise run gen
 depends = ["format:go", "format:ts", "format:md", "format:shell"]
 
 [tasks."format:go"]
+description = "Go formatting, golangci-lint's formatters in place (ADR-0100)."
 run = "golangci-lint fmt ./... ./tools/..."
 
 [tasks."format:ts"]
+description = "TypeScript, JSON and CSS formatting, biome in place (ADR-0100)."
 run = "biome format --write ."
 
 [tasks."format:md"]
@@ -292,6 +302,7 @@ run = "bash scripts/format-shell.sh"
 depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
 
 [tasks."lint:go"]
+description = "Go correctness and style: golangci-lint's configured analysers over every module (ADR-0100)."
 # In CI the cache lives in the job's temp directory: a runner that keeps its home between jobs would otherwise replay
 # results naming files under an earlier job's checkout, and the generated-file filter cannot read those to exclude them.
 run = '[ -z "${RUNNER_TEMP:-}" ] || export GOLANGCI_LINT_CACHE="$RUNNER_TEMP/golangci-lint"; golangci-lint run ./... ./tools/...'
@@ -301,6 +312,7 @@ description = "Custom layout-based Go style analyzers."
 run = "go run ./tools/gostyle ./..."
 
 [tasks."lint:ts"]
+description = "TypeScript, JSON and CSS: biome lint and format, warnings as errors (ADR-0100)."
 run = "biome ci --error-on-warnings ."
 
 [tasks."lint:template-build"]
@@ -312,9 +324,11 @@ description = "`helm dependency build` needs the repo registered in the caller's
 run = "bash scripts/lint-helm-deps.sh"
 
 [tasks."lint:sql"]
+description = "SQL: sqruff over every migration and sqlc query, and a column holding personal data carries its pii class (ADR-0300, ADR-0301)."
 run = "bash scripts/lint-sql.sh"
 
 [tasks."lint:openapi"]
+description = "OpenAPI contracts: every spec against the platform ruleset, and resource-prefix ownership across the set (ADR-0303)."
 run = "bash scripts/lint-openapi.sh"
 
 [tasks."lint:service-contract"]
@@ -374,6 +388,7 @@ description = "ADR-0205 gate: every key a deployed environment's values carry ex
 run = "bash scripts/lint-parity.sh"
 
 [tasks."lint:floating-tags"]
+description = "Image references pin a digest or an explicit version, never a moving tag (ADR-0101, ADR-0104)."
 run = "bash scripts/lint-floating-tags.sh"
 
 [tasks."lint:project-identity"]
@@ -417,6 +432,7 @@ description = "Drift check for the generated rule documents."
 run = "go run ./tools/adr-rules -check"
 
 [tasks."lint:md"]
+description = "Markdown structure and formatting, rumdl over every document (ADR-0001)."
 run = "rumdl check ."
 
 [tasks."lint:shell"]
@@ -448,6 +464,7 @@ bash scripts/lint-strip-headers.sh
 depends = ["test:go", "test:ts"]
 
 [tasks."test:go"]
+description = "Every Go package's tests, the tools included (ADR-0601)."
 run = "go test ./... ./tools/..."
 
 [tasks."test:ts"]
@@ -456,6 +473,7 @@ depends = ["setup:node"]
 run = "bun test libs/ts/"
 
 [tasks.build]
+description = "Every Go module compiles, the tools included (ADR-0101)."
 run = "go build ./... ./tools/..."
 
 [tasks.pre-commit]
@@ -631,12 +649,15 @@ run = "bash scripts/secrets-updatekeys.sh"
 
 # Thin delegates into the Node island: the real tasks and the node pin live in test/e2e/.mise.toml, and mise tools flow down a config tree, never up.
 [tasks."e2e:install"]
+description = "The e2e island's Node dependencies and its browser (ADR-0601)."
 run = "mise run -C test/e2e install"
 
 [tasks.e2e]
+description = "The full browser suite against a running full tier: acceptance, visual and accessibility (ADR-0601)."
 run = "mise run -C test/e2e test"
 
 [tasks."e2e:smoke"]
+description = "The @smoke subset of the browser suite, for a labelled pull request (ADR-0601)."
 run = "mise run -C test/e2e test:smoke"
 
 # Thin delegates into the k6 island: the pin lives in test/perf/.mise.toml and mise tools flow down a config tree, never up.
