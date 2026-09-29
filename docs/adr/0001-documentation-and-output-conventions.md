@@ -133,7 +133,7 @@ A number is stated when the number **is** the decision. One test settles it:
 
 | Answer | Kind | Example | Treatment |
 | --- | --- | --- | --- |
-| Yes | **Threshold** | "a node disk predicted to reach 85% within 14 days", "funnel-query p95 above 2s" | Stated. Changing it is a reviewed act |
+| Yes | **Threshold** | "a restore rehearsal over half the RTO", "funnel-query p95 above 2s" | Stated. Changing it is a reviewed act |
 | Yes | **Measurement that set a value** | Tempo's measured peak, which sets its explicit limit ([ADR-0204](0204-resource-management.md)) | Stated in the ADR that decides, **with its conditions and how to re-derive it**, and graded *(measured)*. Never repeated in a comment beside the value it set: the figure is this platform's hardware and this platform's load, so an inheriting project reads a number that was never about its cluster, and nothing re-derives it in place |
 | Yes | **Count of what is on the page** | "the six forces below" | Stated. The reader checks it against the table beside it |
 | No | **Illustrative figure** | a footprint quoted to show the platform dominates | **Not stated.** Say the shape: "the platform dominates the footprint" |
