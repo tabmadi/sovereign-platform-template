@@ -18,7 +18,8 @@ on:
 
 concurrency:
   group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # A cancelled job skips its teardown and leaves its cluster on a self-hosted runner: a newer run queues instead.
+  cancel-in-progress: false
 
 permissions:
   contents: read

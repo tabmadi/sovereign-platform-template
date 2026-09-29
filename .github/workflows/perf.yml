@@ -19,7 +19,8 @@ on:
 concurrency:
   # Never two load runs against one cluster: they would measure each other.
   group: perf-${{ github.ref }}
-  cancel-in-progress: true
+  # A cancelled job skips its teardown and leaves its cluster on a self-hosted runner: a newer run queues instead.
+  cancel-in-progress: false
 
 permissions:
   contents: read
