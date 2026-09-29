@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/zot
-          key: zot-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+          key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
       # The floor: real Traefik, cert-manager, Kratos and Oathkeeper, because `/auth/login` is a measured URL.
       # Authenticated Docker Hub pulls for zot's sync, unset on a fork where the secrets do not resolve.
@@ -40,6 +40,8 @@ jobs:
         run: mise run cluster:up
         env:
           ZOT_DATA: ${{ runner.temp }}/zot
+          # The single writer of the mirror cache warms it for the full-tier jobs that only restore it.
+          WARM_TIER: full
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 

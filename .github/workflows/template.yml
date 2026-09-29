@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/zot
-          key: zot-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+          key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
       - name: Generate a project and prove it serves
         run: mise run acceptance
         env:

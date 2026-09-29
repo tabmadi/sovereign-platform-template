@@ -240,16 +240,17 @@ stage_warm() {
   local missed_paths=()
   [ -f "$refs" ] || fail "${refs} is missing — run 'mise run gen:image-allowlist'"
   # The tier's share of the list, by its first column: a base bring-up runs no ArgoCD and none of what ArgoCD deploys.
-  local wanted
+  # WARM_TIER=full lets the job that saves the mirror cache fill it for both tiers.
+  local wanted tier="${WARM_TIER:-$TIER}"
   wanted="$(mktemp)"
-  awk -v tier="$TIER" '
+  awk -v tier="$tier" '
     /^#/ || /^[[:space:]]*$/ { next }
     $1 == "base" || tier == "full" { print $2 }
   ' "$refs" >"$wanted"
   total="$(grep -cvE '^\s*$' "$wanted" || true)"
   [ "$total" -gt 0 ] ||
-    fail "${refs} names no image for the ${TIER} tier — run 'mise run gen:image-allowlist'"
-  step "warming the registry with ${total} third-party image(s) for the ${TIER} tier"
+    fail "${refs} names no image for the ${tier} tier — run 'mise run gen:image-allowlist'"
+  step "warming the registry with ${total} third-party image(s) for the ${tier} tier"
 
   local ref host path reference name tag status attempt
   while read -r ref; do

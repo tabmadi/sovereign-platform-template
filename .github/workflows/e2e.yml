@@ -61,7 +61,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/zot
-          key: zot-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+          key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
       - name: Bring up cluster:up full
         run: mise run cluster:up -- full
@@ -126,7 +126,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/zot
-          key: zot-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+          key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
       - name: Bring up cluster:up full
         run: mise run cluster:up -- full
