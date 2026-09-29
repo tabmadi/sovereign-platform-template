@@ -291,6 +291,9 @@ func zodObject(s *schema, components map[string]*schema, seen map[string]bool, d
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	if len(keys) == 0 {
+		return "z.object({})", nil
+	}
 
 	pad := strings.Repeat("  ", depth+1)
 	var b strings.Builder
