@@ -380,7 +380,12 @@ func (d *doc) appendPrefill(pg *page, svc string, r *resource, fields []prop, id
 	pg.Requests = append(pg.Requests, req)
 	fill := map[string]any{}
 	for _, f := range fields {
-		fill[f.Name] = map[string]any{requestKey: "get.data." + f.Name}
+		var v any = map[string]any{requestKey: "get.data." + f.Name}
+		// A string the record lacks fills as "", so Save sends an empty string rather than a null the API rejects.
+		if f.Type == "string" && f.Ref == "" {
+			v = map[string]any{"_if_none": []any{v, ""}}
+		}
+		fill[f.Name] = v
 	}
 	pg.Events = map[string]any{"onMount": []any{
 		map[string]any{"id": "load", keyType: actRequest, keyParams: "get"},

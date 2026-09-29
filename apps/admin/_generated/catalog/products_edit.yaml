@@ -11,7 +11,9 @@ events:
     - id: fill
       params:
         name:
-          _request: get.data.name
+          _if_none:
+            - _request: get.data.name
+            - ""
         price:
           _request: get.data.price
       type: SetState
