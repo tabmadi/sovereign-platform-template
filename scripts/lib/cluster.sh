@@ -734,13 +734,23 @@ stage_rootapp() {
     done
   }
 
+  # shellcheck disable=SC2329  # invoked by name through wait_for.
+  op_ended() {
+    [[ ! "$(k -n argocd get application "$1" -o jsonpath='{.status.operationState.phase}')" =~ ^(Running|Terminating)$ ]]
+  }
+
   wait_apps() {
     local timeout="$1" app
     shift
     ac app wait "$@" --sync --health --operation --timeout "$timeout" && return 0
     warn "[$*] did not converge in ${timeout}s — terminating their operations (likely stale from a cluster:stop) and re-syncing"
     for app in "$@"; do ac app terminate-op "$app" || true; done
-    for app in "$@"; do ac app sync "$app" --timeout "$timeout"; done
+    # Termination is asynchronous, and a sync issued while it runs is refused as "another operation is already in
+    # progress".
+    for app in "$@"; do
+      wait_for "${app}'s operation to end" 120 op_ended "$app"
+      ac app sync "$app" --timeout "$timeout"
+    done
     # Half the budget on the retry: the first wait already proved the set does not settle on its own.
     ac app wait "$@" --sync --health --operation --timeout "$((timeout / 2))" && return 0
     dump_unhealthy
@@ -748,7 +758,7 @@ stage_rootapp() {
   }
 
   step "waiting for ArgoCD to converge (first run is slow)"
-  wait_apps 600 local-root
+  wait_apps 900 local-root
   # Appset generation lags appset sync, so the set is re-listed until stable.
   local apps
   while :; do
