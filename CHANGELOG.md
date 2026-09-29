@@ -1,6 +1,22 @@
-## Unreleased (ed7b4e5..ae46d1e)
+## Unreleased (ed7b4e5..3538cbd)
 #### Features
+- (**acceptance**) prove a generated project reaches a serving cluster - (d6b50ef) - Tab
+- (**adr**) count the repository's machinery in the floor budget - (5fbbbd8) - Tab
+- (**authz**) promote operators only in the admin console - (5023f62) - Tab
+- (**bootstrap**) provision a fresh checkout with one task - (8ed6621) - Tab
+- (**forge**) reconcile generated projects from forge.<apex>/platform/<project> - (b202c80) - Tab
+- (**frontend**) adopt shadcn/ui, a data seam and day-one localisation - (e40ceae) - Tab
+- (**gitops**) script the bootstrap floor of a deployed environment - (c4af30a) - Tab
+- (**kyverno**) roll a Secret's consumers when its data changes - (68abe45) - Tab
+- (**lint**) enforce the comment rules on every commented surface - (be2c0d6) - Tab
+- (**lint-comments**) budget comment density rather than line count - (3863120) - Tab
+- (**parity**) run CNPG backups on the local tier with its credential - (fda9a05) - Tab
+- (**parity**) gate deployed-only values keys against the local overlay - (c5dab4b) - Tab
+- (**postgres**) restore a rebuilt cluster from its archive - (53838aa) - Tab
+- (**secrets**) add secrets:updatekeys to re-key every SOPS file - (72446a1) - Tab
 - (**template**) add project:init and the project-identity gate - (8d6184f) - Tab
+- (**verify**) check a deployed environment end to end - (6e4bdb7) - Tab
+- (**verify**) assert the active tier is up and serving - (013161c) - Tab
 - package the repo as a Copier template with per-environment gitops - (c188403) - Tab
 - move the local tier to kind, and add mail, alerting, storage, registry and analytics - (e57179c) - Tab
 - add the CI gates, supply-chain signing and workload hardening - (9af072b) - Tab
@@ -9,28 +25,103 @@
 - add the monorepo toolchain, local k3d cluster and ArgoCD gitops - (e31ec90) - Tab
 - prototype the Go service layout behind a Tyk gateway - (ed7b4e5) - Tab
 #### Bug Fixes
+- (**auth**) keep the operator claim out of self-service identity traits - (b96eeb3) - Tab
+- (**ci**) pin dev and staging by digest in a commit the publish workflow makes - (13a78fc) - Tab
+- (**ci**) open and publish prod releases through the forge API - (3840c63) - Tab
+- (**ci**) let the drift check snapshot a tree with a deleted file - (c7ab04b) - Tab
+- (**ci**) diff a push against the commit it replaced so publish builds images - (d89dddb) - Tab
+- (**ci**) grant the nightly gate the actions scope its caller withholds - (526a648) - Tab
+- (**ci**) compare the drift snapshots in one collation - (9c3ff1a) - Tab
+- (**ci**) run the nightly suite when the last one did not pass - (21fd24b) - Tab
 - (**ci**) save a partial registry mirror, and name the docker hub identity - (499503d) - Tab
 - (**ci**) skip the image matrix when no service is affected - (032b4ca) - Tab
+- (**cluster**) recreate the local registry when its mounts are another checkout's - (52d8029) - Tab
+- (**cluster**) replace the sync-credentials path when docker left a directory - (3acaaef) - Tab
+- (**cluster**) report why ArgoCD did not converge, and stop waiting sooner - (f8e1414) - Tab
 - (**cluster**) create the mirror path before docker does, and wait for it to serve - (b5d7ccf) - Tab
 - (**cluster**) report the registry log of the images that missed, not the tail - (7b089d7) - Tab
 - (**cluster**) print the registry log when the warm misses - (071eb6f) - Tab
 - (**cluster**) retry a missed registry warm, and report the status that missed - (a58b378) - Tab
+- (**deploy**) name the working-tree image for the image allow-list - (779ea8b) - Tab
 - (**deps**) take bun 1.4.2, which survives the Next 16.3 build on musl - (ada09fd) - Tab
 - (**deps**) take the next and grpc releases that fix CVE-2026-75604 and CVE-2026-84445 - (e89eee2) - Tab
 - (**deps**) take the grpc release that fixes CVE-2026-84304 - (791aaee) - Tab
+- (**forge**) let the ci machine user push the promotion past branch protection - (3538cbd) - Tab
+- (**gen**) fail when helm cannot fetch a chart dependency - (44ddd61) - Tab
+- (**gitignore**) exempt every vendored subchart, not just observability's - (833b50b) - Tab
+- (**gitops**) scope each cluster's bootstrap to its own environment - (8aebaa5) - Tab
+- (**hooks**) resolve pinned tools through mise - (c411a94) - Tab
+- (**kyverno**) keep the control plane out of the allow-list's background scan - (cc1a1d5) - Tab
+- (**kyverno**) admit first-party images by prefix and verify them with registry credentials - (d3ea9a3) - Tab
+- (**lint**) keep golangci-lint's CI cache inside the job - (917daca) - Tab
+- (**lint**) count only the files git accounts for in the comment budget - (489f878) - Tab
+- (**lint**) ignore comments when checking helm dependency calls - (dc949b7) - Tab
+- (**lint-money**) scan the files git accounts for, not the working tree - (8aa744c) - Tab
+- (**maddy**) serve STARTTLS on submission so senders can authenticate - (112f36a) - Tab
+- (**maddy**) mount a writable tmp so it survives startup - (6a40522) - Tab
+- (**network-policies**) let CNPG instances reach each other's status port - (3d6f6fe) - Tab
+- (**postgres**) take a daily base backup and list its credential - (148a4a4) - Tab
+- (**promote**) read the digest from buildx's JSON and refuse anything else - (20694b2) - Tab
 - (**registry**) authenticate the docker hub sync so a shared runner ip is not the limit - (78f9d98) - Tab
+- (**release**) refresh the lockfile when stamping package versions - (cd9c460) - Tab
 - (**release**) name the template stamp in the dry-run cleanup hint - (3ad2ec6) - Tab
+- (**scripts**) skip deleted paths when enumerating shell files - (7550fab) - Tab
+- (**scripts**) resolve lib through an absolute path set before the cd - (ccb6b94) - Tab
 - (**secrets**) repoint the tyk fingerprint at the squashed root commit - (b6f5716) - Tab
+- (**service-chart**) omit envFrom when a service mounts no secrets - (f30db3b) - Tab
+- (**supply-chain**) skip pins no release has filled yet - (2ae4016) - Tab
 - (**supply-chain**) skip the image inventory in the template, which signs nothing - (ae46d1e) - Tab
+- (**talos**) drop stableHostname, invalid in v1alpha1 on the pinned Talos - (99cc665) - Tab
+- (**template**) keep the template's own machinery out of generated projects - (50bf344) - Tab
+- (**template**) check the identity a generated project actually carries - (d935eb0) - Tab
 - (**toolchain**) improve token handling and add pip configuration for retries - (d693be9) - Tab
+- (**verify**) require the storefront to answer, not just the edge - (c7c3db8) - Tab
 #### Performance
 - (**ci**) restore the registry mirror in the e2e and perf suites - (4dd5afe) - Tab
 - (**ci**) carry the registry mirror between runs - (2a155b6) - Tab
 - (**cluster**) warm only the images the tier will run - (67b5f4c) - Tab
+- (**gen**) skip the chart fetch when the dependencies are already on disk - (fcbd100) - Tab
+#### Documentation
+- (**adr**) record why decryption stays out of Argo CD's repo-server - (922291b) - Tab
+- (**adr**) defer the CNPG Barman Cloud plugin to the 1.30 upgrade - (a157639) - Tab
+- (**adr**) point the machinery rule at the build path and drop its changelog - (250166a) - Tab
+- (**adr**) replace a lost cluster key rather than back it up - (24977fe) - Tab
+- (**adr**) run ubuntu-latest jobs on a dedicated runner machine - (c016a5a) - Tab
+- (**adr**) govern whether a comment exists at all - (01ed6d3) - Tab
+- (**adr-0001**) rank grounded comments above the budget - (a5cf5b6) - Tab
+- (**adr-0001**) let the comment ceiling rise for shared code - (79dd1aa) - Tab
+- (**adr-0101**) clarify task naming conventions and script mapping - (4cf80e0) - Tab
+- (**adr-0101**) admit the tool module and the workspace into the layout - (677ed2f) - Tab
+- (**adr-0200**) record the hypervisor-operated provisioning mode - (e40bc45) - Tab
+- (**build-path**) generate the machinery table and correct the secret and authz rows - (d858836) - Tab
+- (**secrets**) show the maddy SMTP URI Kratos can submit to - (dac65a7) - Tab
+- (**secrets**) register where every credential lives - (a1633c3) - Tab
+- delete repeated, rotting and measured-figure comments - (89e1156) - Tab
 #### Tests
+- (**e2e**) gate every ops dashboard from one table - (56e5ab5) - Tab
+- (**e2e**) attack registration and settings with the operator field - (6f943f6) - Tab
+- (**e2e**) guard self-service against granting the operator claim - (5114baa) - Tab
+- (**redact**) keep the template's apex out of the fixture - (31573c6) - Tab
 - (**template**) add the generation fixture matrix - (82149ec) - Tab
+#### Build
+- (**go**) split tools into their own module behind a workspace - (ecc7988) - Tab
+#### CI
+- (**template**) run the full suite in acceptance and one nightly cluster - (dd340df) - Tab
+- run the merge gates as one workflow - (c15207a) - Tab
 #### Refactor
+- (**apierr**) hoist the repeated error-resolution step into a named function - (d26b2f3) - Tab
 - (**cluster**) keep the mirror on one path for every environment - (3b58108) - Tab
+- (**hooks**) run the same tasks CI runs - (e79944f) - Tab
+- (**lint**) judge each comment on its grounds, drop the density budget - (430775f) - Tab
+- (**scripts**) source one bootstrap and speak one log vocabulary - (841fa54) - Tab
+- (**scripts**) name the identity-seed phases and its repeated lookup - (a938bef) - Tab
+- (**tasks**) drop the second names for cluster:add, bootstrap and Renovate - (0595ffc) - Tab
+- (**tools**) report findings through a shared lint package - (566c3c2) - Tab
+- replace commented steps with named functions - (265b596) - Tab
+- cut every comment to what the code cannot say - (847a48c) - Tab
 - reset the architecture and record the foundational ADRs - (165857d) - Tab
+#### Chore
+- (**comments**) trim what the backup, policy and maddy fixes added - (e87f86f) - Tab
+- (**release**) v2026.09.0 - (3395ac9) - Tab
 
 
