@@ -7,7 +7,7 @@ description: |
   The upstream chart is the mechanism; the policies are this chart's own templates,
   because the policies ARE the decision and belong in the repository that made it.
 type: application
-version: "2026.9.1"
+version: "2026.9.2"
 appVersion: "1.18.2"
 
 dependencies:

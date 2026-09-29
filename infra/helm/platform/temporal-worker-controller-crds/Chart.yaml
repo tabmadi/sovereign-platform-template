@@ -14,7 +14,7 @@ description: |
   apply-CRDs-first behaviour — and keeps `mise run cluster:add` working for it,
   since that path is plain `helm upgrade --install` with no such special-casing.
 type: application
-version: "2026.9.1"
+version: "2026.9.2"
 appVersion: "1.8.0"
 
 dependencies:

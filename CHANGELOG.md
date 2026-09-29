@@ -1,4 +1,4 @@
-## Unreleased (ed7b4e5..3538cbd)
+## Unreleased (ed7b4e5..7be4047)
 #### Features
 - (**acceptance**) prove a generated project reaches a serving cluster - (d6b50ef) - Tab
 - (**adr**) count the repository's machinery in the floor budget - (5fbbbd8) - Tab
@@ -10,6 +10,7 @@
 - (**kyverno**) roll a Secret's consumers when its data changes - (68abe45) - Tab
 - (**lint**) enforce the comment rules on every commented surface - (be2c0d6) - Tab
 - (**lint-comments**) budget comment density rather than line count - (3863120) - Tab
+- (**naming**) lower the project slug floor to five characters - (7be4047) - Tab
 - (**parity**) run CNPG backups on the local tier with its credential - (fda9a05) - Tab
 - (**parity**) gate deployed-only values keys against the local overlay - (c5dab4b) - Tab
 - (**postgres**) restore a rebuilt cluster from its archive - (53838aa) - Tab
@@ -47,12 +48,16 @@
 - (**deps**) take the next and grpc releases that fix CVE-2026-75604 and CVE-2026-84445 - (e89eee2) - Tab
 - (**deps**) take the grpc release that fixes CVE-2026-84304 - (791aaee) - Tab
 - (**forge**) let the ci machine user push the promotion past branch protection - (3538cbd) - Tab
+- (**gen**) emit an empty zod object in the form biome keeps - (d469aec) - Tab
+- (**gen**) render the machinery table in a project without template tasks - (f3f67b9) - Tab
 - (**gen**) fail when helm cannot fetch a chart dependency - (44ddd61) - Tab
 - (**gitignore**) exempt every vendored subchart, not just observability's - (833b50b) - Tab
 - (**gitops**) scope each cluster's bootstrap to its own environment - (8aebaa5) - Tab
 - (**hooks**) resolve pinned tools through mise - (c411a94) - Tab
 - (**kyverno**) keep the control plane out of the allow-list's background scan - (cc1a1d5) - Tab
 - (**kyverno**) admit first-party images by prefix and verify them with registry credentials - (d3ea9a3) - Tab
+- (**lint**) check parity for the environments a project keeps - (6d38415) - Tab
+- (**lint**) ignore the answers file and local notes in the identity gate - (61ae2b1) - Tab
 - (**lint**) keep golangci-lint's CI cache inside the job - (917daca) - Tab
 - (**lint**) count only the files git accounts for in the comment budget - (489f878) - Tab
 - (**lint**) ignore comments when checking helm dependency calls - (dc949b7) - Tab
@@ -122,6 +127,7 @@
 - reset the architecture and record the foundational ADRs - (165857d) - Tab
 #### Chore
 - (**comments**) trim what the backup, policy and maddy fixes added - (e87f86f) - Tab
+- (**release**) v2026.09.1 - (e43d385) - Tab
 - (**release**) v2026.09.0 - (3395ac9) - Tab
 
 

@@ -9,5 +9,5 @@ description: |
   Not deployed in production: production submits through maddy. Set
   mailpit.enabled=false in an env overlay to drop it, as prod does.
 type: application
-version: "2026.9.1"
+version: "2026.9.2"
 appVersion: "1.30.7"
