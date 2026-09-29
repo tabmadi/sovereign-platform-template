@@ -2,18 +2,19 @@
 groups:
   - name: deferral.storage
     rules:
-      # ADR-0207's Longhorn trigger: any volume exceeding 50% of node disk. At that point one volume can fill the node
-      # that hosts every other workload, which is the failure local-path cannot isolate and a real CSI can.
-      - alert: VolumeExceedsHalfNodeDisk
+      # ADR-0207's Longhorn trigger, capacity half. 85% is where kubelet starts deleting images, and 14 days is the
+      # notice a Longhorn move needs: it rebuilds the node image and reprovisions every node. A local-path volume is a
+      # directory on the node disk, so the node's filesystem is the one measure of what the volumes use.
+      - alert: NodeDiskFullWithinTwoWeeks
         expr: |
-          max(k8s_volume_capacity_bytes) / max(k8s_node_filesystem_capacity_bytes) > 0.5
-        for: 30m
+          predict_linear(k8s_node_filesystem_usage_bytes[3d], 14 * 86400) / k8s_node_filesystem_capacity_bytes > 0.85
+        for: 6h
         labels: { severity: ticket }
         annotations:
-          summary: "A volume exceeds 50% of node disk — ADR-0207's Longhorn trigger"
+          summary: "A node disk reaches 85% within two weeks — ADR-0207's Longhorn trigger"
           description: >-
-            A single volume is now more than half the node's disk, so it can fill
-            the node the rest of the platform runs on. This is the documented
+            At the last three days' growth this node's disk passes the point where
+            kubelet starts deleting images within two weeks. This is the documented
             trigger for replicated block storage; read the Longhorn row in
             docs/reference/deferral-register.md before adding disk instead.
 

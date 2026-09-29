@@ -91,9 +91,16 @@ Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a
 
 | Field | Value |
 | --- | --- |
-| **Trigger** | any PVC exceeding 50% of node disk |
+| **Trigger** | a node disk predicted to reach 85% used within 14 days, or a Postgres restore rehearsal taking longer than half the RTO |
 | **Seam** | ⚠ **none.** [Longhorn on Talos](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/) needs system extensions, a `/var/mnt` data path, and a separate disk, so adopting it rebuilds the installer image and reprovisions every node |
 | **Cost if adopted late** | every existing volume migrates per workload while the schematic changes underneath, which is two migrations at once rather than one |
+
+Both halves measure the two things a local-path volume cannot survive. A volume is a directory on its node's disk, so
+the node's filesystem is what the volumes use: 85% is where kubelet starts deleting images, and 14 days is the notice a
+move that rebuilds the node image needs. A volume also dies with its node, and comes back only by a restore from the
+archive, whose time grows with the data: once a restore takes more than half of [ADR-0200](0200-cluster-topology.md)'s
+30-minute RTO, losing one node breaks the objective, and a replicated volume is the fix. The rehearsals in
+`docs/guide/disaster-recovery.md` record that time.
 
 ### Backups, mandatory and off-cluster
 

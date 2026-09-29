@@ -40,3 +40,10 @@ then `kubectl -n platform delete cluster postgres`, which takes its volumes with
 `cluster.recovery.fromServer` once the cluster is healthy: left set, the next recreation restores the old archive.
 
 Rehearsed quarterly against a staging rebuild, tracked as a Temporal `Schedule`. **Record the elapsed time of each rehearsal**: the objectives in ADR-0200 are measurements, and a rehearsal that does not time itself leaves them as intentions.
+
+## Rehearsals
+
+A step-4 time above 15 minutes, half the RTO, is ADR-0207's Longhorn trigger.
+
+| Date | Scope | Data | Step 4 elapsed | Result |
+| --- | --- | --- | --- | --- |
