@@ -185,14 +185,19 @@ test.describe("service observability POC (ADR-0501)", () => {
     expect(ds.ok(), "Loki datasource is provisioned").toBeTruthy();
     const { uid } = await ds.json();
     const start = `${(Date.now() - 24 * 3600 * 1000) * 1e6}`;
-    const res = await ctx.get(
-      `${opsURL("grafana")}/api/datasources/proxy/uid/${uid}/loki/api/v1/label/service_name/values?start=${start}`,
-    );
-    expect(res.ok(), "Loki label API answers via the Grafana proxy").toBeTruthy();
-    const services: string[] = (await res.json()).data ?? [];
-    expect(services, "stdout-only platform workloads have logs in Loki").toEqual(
-      expect.arrayContaining(["postgres", "temporal", "lowdefy", "observability", "otel-cluster"]),
-    );
+    // Polled: a workload the last sync wave started has logged, but its lines may not have reached Loki yet.
+    await expect
+      .poll(
+        async () => {
+          const res = await ctx.get(
+            `${opsURL("grafana")}/api/datasources/proxy/uid/${uid}/loki/api/v1/label/service_name/values?start=${start}`,
+          );
+          expect(res.ok(), "Loki label API answers via the Grafana proxy").toBeTruthy();
+          return ((await res.json()).data ?? []) as string[];
+        },
+        { message: "stdout-only platform workloads have logs in Loki", timeout: 120_000, intervals: [5_000] },
+      )
+      .toEqual(expect.arrayContaining(["postgres", "temporal", "lowdefy", "observability", "otel-cluster"]));
   });
 
   // Marketing events are diverted out of the logs pipeline before Loki, because identity-bearing events in the log
