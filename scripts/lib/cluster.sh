@@ -44,7 +44,7 @@ cluster_name() { cluster_name_of "$TIER"; }
 # created them. The registry, the first host-level stage, carries the job's name and is the lock.
 ci_job() { printf '%s-%s-%s' "${GITHUB_RUN_ID:-}" "${GITHUB_JOB:-}" "${GITHUB_RUN_ATTEMPT:-}"; }
 ci_owned() { [ -z "${CI:-}" ] || grep -qx "$1" "${RUNNER_TEMP:?}/kind-cluster" 2>/dev/null; }
-registry_job() { docker inspect -f '{{index .Config.Labels "platform.ci-job"}}' "$REGISTRY" 2>/dev/null; }
+registry_job() { docker inspect -f '{{index .Config.Labels "platform.ci-job"}}' "$REGISTRY" 2>/dev/null || true; }
 # Another job's registry and cluster are never this job's to replace, resume or displace: wait for that job to finish.
 ci_wait_for_runner() {
   local waited=0 held
