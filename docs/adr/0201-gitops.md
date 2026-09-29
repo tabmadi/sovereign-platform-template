@@ -187,11 +187,10 @@ namespaces chart is among them, the namespace Argo itself runs in.
 After the node provisioning step ([ADR-0200](0200-cluster-topology.md)):
 
 ```sh
-helm install argocd infra/helm/platform/argocd -n argocd --create-namespace
-kubectl apply -f infra/gitops/dev-bootstrap/root-application.yaml
+mise run argocd:bootstrap <env>
 ```
 
-Everything else follows from the root Application, and Argo CD is thereafter reconciled by Argo CD. **The first `helm install argocd` is the single non-GitOps action in a cluster's lifetime.**
+It installs Argo CD and the rest of ADR-0200's bootstrap floor, then applies the root Application. Everything else follows from the root Application, and Argo CD is thereafter reconciled by Argo CD. **The bootstrap is the single non-GitOps action in a cluster's lifetime.**
 
 ### Secrets
 

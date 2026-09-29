@@ -143,3 +143,16 @@ spec:
       stringData:
         .dockerconfigjson: ""
 ```
+
+## `argocd-repo.enc.yaml` skeleton
+
+The read-only credential Argo CD clones a private repository with. It is not a Kubernetes object, so Argo ignores it
+here; `mise run argocd:bootstrap dev` decrypts it into a `repo-creds` Secret for the forge's origin
+([ADR-0200](../../../../../docs/adr/0200-cluster-topology.md)). A public repository needs no file.
+
+```yaml
+stringData:
+  FORGE_REPO_URL: https://forge.<apex>/platform/<project>.git
+  FORGE_REPO_USERNAME: ""
+  FORGE_REPO_PASSWORD: ""
+```

@@ -615,6 +615,10 @@ run = "bash scripts/temporal-schedules.sh"
 description = "The single definition behind ci.yml's drift job and the lefthook gen-drift hook: run it locally to reproduce that CI job exactly."
 run = "bash scripts/ci-gen.sh"
 
+[tasks."argocd:bootstrap"]
+description = "Lay an environment's bootstrap floor in the current kubectl context and apply its root Application (ADR-0200): mise run argocd:bootstrap <env>."
+run = "bash scripts/argocd-bootstrap.sh"
+
 [tasks."cluster:add"]
 description = "One verb for \"put this in the cluster\" (ADR-0600)."
 run = "bash scripts/cluster.sh add"

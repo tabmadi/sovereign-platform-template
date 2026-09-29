@@ -21,8 +21,9 @@ terraform -chdir=infra/terraform/environments/<env> apply
 #    committed inventory of pre-provided Talos nodes.
 terraform -chdir=infra/talos/<env> apply
 
-# 3. Re-install Argo CD's root Application; Argo CD reconciles everything else.
-kubectl apply -f infra/gitops/dev-bootstrap/root-application.yaml
+# 3. Lay the bootstrap floor and the root Application; Argo CD reconciles
+#    everything else.
+mise run argocd:bootstrap <env>
 
 # 4. Restore Postgres from its archive. In the environment's platform values set
 #    `cluster.recovery.fromServer` to the lost cluster's archive name (its
