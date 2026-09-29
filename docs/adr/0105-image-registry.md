@@ -46,9 +46,9 @@ Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that
 | Registry | **zot**, one instance per environment, configured by a committed file |
 | Storage backend | the object storage in [ADR-0207](0207-cluster-storage.md). Image data is never on a node volume |
 | Artefacts | OCI 1.1 referrers hold the cosign signature, SBOM, and provenance from [ADR-0104](0104-supply-chain-security.md) |
-| Authentication | pipeline credentials push; cluster credentials pull. Both are SOPS-encrypted ([ADR-0202](0202-secrets.md)). The pull credential reaches workloads as an `imagePullSecret`, not as node configuration — containerd 2 ignores the node's registry auth once a hosts.d config path is set, which Talos always sets ([infra/talos](../../infra/talos/README.md)) |
+| Authentication | pipeline credentials push and prune; cluster credentials pull. Both are SOPS-encrypted ([ADR-0202](0202-secrets.md)). The pull credential reaches workloads as an `imagePullSecret`, not as node configuration — containerd 2 ignores the node's registry auth once a hosts.d config path is set, which Talos always sets ([infra/talos](../../infra/talos/README.md)) |
 | Third-party images | pinned by digest ([ADR-0104](0104-supply-chain-security.md)) and served through the registry's `sync` extension, which mirrors every upstream the platform pulls from |
-| Retention | untagged manifests unreferenced by a signature or an environment's values are garbage-collected on a schedule |
+| Retention | after each promotion the pipeline deletes the first-party tags no environment's values pin and none of the last ten commits name, with their signature and attestation tags; the registry's garbage collection then reclaims the blobs on a schedule |
 
 ### Where the pipeline pushes
 
@@ -126,6 +126,7 @@ An upstream second endpoint cannot serve as the safety net it resembles: contain
 
 - Images are stored in a self-hosted zot registry backed by object storage.
 - Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI.
+- A first-party image tag is deleted once no environment's values pin it and it is outside the rollback window of the last ten commits. `(CI: ci:prune-registry)`
 - The registry console is served at `zot.ops.<host>` behind the ops forward-auth; the distribution API at `registry.<host>` is gated by the registry's own credentials and never by an operator session ([ADR-0306](0306-trust-tiers-and-urls.md)).
 - Every environment's registry is zot, including the local tiers, where it runs as a host container beside the cluster ([ADR-0600](0600-local-development-loop.md)). Anonymous access and directory storage are permitted there and nowhere else.
 - The local nodes pull from that registry and from nowhere else: no upstream is configured as a fallback endpoint, and `cluster:up` warms the registry before it creates the cluster.

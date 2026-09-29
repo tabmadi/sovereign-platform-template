@@ -8,9 +8,9 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 176 |
+| Machine-enforced | 177 |
 | Review-enforced | 338 |
-| **Total** | **514** |
+| **Total** | **515** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -229,6 +229,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | Images are stored in a self-hosted zot registry backed by object storage. | review |
 | Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI. | review |
+| A first-party image tag is deleted once no environment's values pin it and it is outside the rollback window of the last ten commits. | `ci:prune-registry` in CI |
 | The registry console is served at `zot.ops.<host>` behind the ops forward-auth; the distribution API at `registry.<host>` is gated by the registry's own credentials and never by an operator session ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)). | review |
 | Every environment's registry is zot, including the local tiers, where it runs as a host container beside the cluster ([ADR-0600](../adr/0600-local-development-loop.md)). Anonymous access and directory storage are permitted there and nowhere else. | review |
 | The local nodes pull from that registry and from nowhere else: no upstream is configured as a fallback endpoint, and `cluster:up` warms the registry before it creates the cluster. | review |

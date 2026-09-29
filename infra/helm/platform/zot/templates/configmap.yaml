@@ -83,7 +83,7 @@ data:
           "repositories": {
             "**": {
               "policies": [
-                { "users": ["{{ .Values.zot.auth.pushUser }}"], "actions": ["read", "create", "update"] },
+                { "users": ["{{ .Values.zot.auth.pushUser }}"], "actions": ["read", "create", "update", "delete"] },
                 { "users": ["{{ .Values.zot.auth.pullUser }}"], "actions": ["read"] }
               ],
               "defaultPolicy": [],

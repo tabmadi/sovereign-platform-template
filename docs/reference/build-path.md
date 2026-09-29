@@ -68,6 +68,7 @@ tasks' descriptions by `mise run gen`; a task that owns no class, or one another
 | `ci:gen` | The single definition behind ci.yml's drift job and the lefthook gen-drift hook: run it locally to reproduce that CI job exactly. | .lefthook.yml, ci.yml |
 | `ci:nightly-gate` | Whether tonight's cluster:up full suite should run, as a forge step-output assignment (ADR-0102, ADR-0601). | _nightly-gate.yml |
 | `ci:preview` | The pull-request preview environment (ADR-0205): the full tier at one pull request's images and manifests, destroyed with the run that made it. | preview.yml |
+| `ci:prune-registry` | Delete the first-party image tags no environment pins and the last PRUNE_KEEP commits do not name (ADR-0105). | publish.yml |
 | `ci:push-promotion` | Commit a promotion's values changes and push them to the default branch (ADR-0201). | publish.yml |
 | `ci:release-info` | A CalVer release tag resolved to version + commit, as forge step-output assignments (ADR-0102, ADR-0103). | promote-on-release.yml |
 | `ci:release-pr` | Open the prod pin as a pull request the forge merges once its checks pass (ADR-0201). | promote-on-release.yml |

@@ -157,3 +157,10 @@ jobs:
           SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
         run: mise run ci:push-promotion
+      # After the push: the values that decide what is kept are the ones just committed.
+      - name: Prune the registry
+        env:
+          IMAGE_PREFIX: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+          REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+        run: mise run ci:prune-registry
