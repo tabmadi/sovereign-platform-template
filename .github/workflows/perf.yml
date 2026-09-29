@@ -65,6 +65,9 @@ jobs:
         run: mise run cluster:up -- full
         env:
           ZOT_DATA: ${{ runner.temp }}/zot
+          # The job's token clones a private repository for the full tier's Argo CD.
+          ARGOCD_REPO_USERNAME: ${{ github.actor }}
+          ARGOCD_REPO_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       # Seed before measuring: an empty catalog makes the read scenario a test of
@@ -109,6 +112,9 @@ jobs:
         run: mise run cluster:up -- full
         env:
           ZOT_DATA: ${{ runner.temp }}/zot
+          # The job's token clones a private repository for the full tier's Argo CD.
+          ARGOCD_REPO_USERNAME: ${{ github.actor }}
+          ARGOCD_REPO_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Seed bulk test data

@@ -662,6 +662,28 @@ stage_argocd() {
   k -n argocd rollout status deploy/argocd-server --timeout=300s
   k -n argocd rollout status deploy/argocd-repo-server --timeout=300s
   k -n argocd rollout status deploy/argocd-applicationset-controller --timeout=300s
+  stage_repo_creds
+}
+
+# A private repository needs a credential Argo can clone it with: ARGOCD_REPO_USERNAME/PASSWORD where set (a CI job's
+# own token), else the engineer's git credential for the forge. A public repository needs neither. The url is the
+# forge's origin, as in scripts/argocd-bootstrap.sh.
+stage_repo_creds() {
+  local url host user="${ARGOCD_REPO_USERNAME:-}" pass="${ARGOCD_REPO_PASSWORD:-}" creds
+  url="$(yq -r '.spec.source.repoURL' infra/gitops/local-bootstrap/root-application.yaml)"
+  host="$(sed -E 's|^https://([^/]+)/.*|\1|' <<<"$url")"
+  if [ -z "$pass" ]; then
+    creds="$(printf 'protocol=https\nhost=%s\n\n' "$host" |
+      GIT_TERMINAL_PROMPT=0 GIT_ASKPASS='' SSH_ASKPASS='' git credential fill 2>/dev/null)" || creds=""
+    user="$(sed -n 's/^username=//p' <<<"$creds")"
+    pass="$(sed -n 's/^password=//p' <<<"$creds")"
+  fi
+  [ -n "$pass" ] || return 0
+  step "giving Argo CD a credential for https://${host}/"
+  k -n argocd create secret generic forge-creds --from-literal=type=git --from-literal=url="https://${host}/" \
+    --from-literal=username="${user:-git}" --from-literal=password="$pass" --dry-run=client -o yaml |
+    k label --local -f - argocd.argoproj.io/secret-type=repo-creds -o yaml |
+    k apply -f - >/dev/null
 }
 
 # The local root App-of-Apps, then wait for Argo to converge. Grafana's dashboards
