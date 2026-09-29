@@ -3,8 +3,8 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-# The gate and its test name the footprints by definition, so both exclude themselves.
-PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache
+# The gate and its test name the footprints by definition, the answers file names the template it came from, and a `*.local.md` file is one engineer's untracked notes.
+PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache --exclude=.copier-answers.yml --exclude='*.local.md'
   --exclude=lint-project-identity.sh --exclude=test-template.sh --binary-files=without-match)
 
 # The template's footprints; `project-rename.sh` rewrites this set before the first push.
