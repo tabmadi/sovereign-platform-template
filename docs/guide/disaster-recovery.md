@@ -35,4 +35,8 @@ kubectl -n platform get cluster postgres -w
 
 Steps 2 and 4 dominate the wall clock, and step 3's reconciliation overlaps step 4.
 
+A running cluster refuses the new bootstrap and a smaller volume, so step 4 on a live cluster is: commit the values,
+then `kubectl -n platform delete cluster postgres`, which takes its volumes with it, and Argo CD recreates it. Drop
+`cluster.recovery.fromServer` once the cluster is healthy: left set, the next recreation restores the old archive.
+
 Rehearsed quarterly against a staging rebuild, tracked as a Temporal `Schedule`. **Record the elapsed time of each rehearsal**: the objectives in ADR-0200 are measurements, and a rehearsal that does not time itself leaves them as intentions.
