@@ -1,4 +1,4 @@
-## Unreleased (ed7b4e5..7be4047)
+## Unreleased (ed7b4e5..0a8c9a8)
 #### Features
 - (**acceptance**) prove a generated project reaches a serving cluster - (d6b50ef) - Tab
 - (**adr**) count the repository's machinery in the floor budget - (5fbbbd8) - Tab
@@ -14,6 +14,7 @@
 - (**parity**) run CNPG backups on the local tier with its credential - (fda9a05) - Tab
 - (**parity**) gate deployed-only values keys against the local overlay - (c5dab4b) - Tab
 - (**postgres**) restore a rebuilt cluster from its archive - (53838aa) - Tab
+- (**registry**) prune the image tags no environment can deploy - (73ebb82) - Tab
 - (**secrets**) add secrets:updatekeys to re-key every SOPS file - (72446a1) - Tab
 - (**template**) add project:init and the project-identity gate - (8d6184f) - Tab
 - (**verify**) check a deployed environment end to end - (6e4bdb7) - Tab
@@ -26,7 +27,16 @@
 - add the monorepo toolchain, local k3d cluster and ArgoCD gitops - (e31ec90) - Tab
 - prototype the Go service layout behind a Tyk gateway - (ed7b4e5) - Tab
 #### Bug Fixes
+- (**admin**) fill a string the record lacks as empty, not null - (0b2eb6a) - Tab
+- (**admin**) restore the dashboard heading a comment cleanup deleted - (400b9da) - Tab
 - (**auth**) keep the operator claim out of self-service identity traits - (b96eeb3) - Tab
+- (**ci**) keep a failed report upload from failing a passing run - (a8550e7) - Tab
+- (**ci**) cache the registry mirror only on hosted runners - (5e84411) - Tab
+- (**ci**) cache the registry mirror under a path that is the same in every job - (51fc3eb) - Tab
+- (**ci**) cache the mirror for both tiers from its single writer - (38c4df4) - Tab
+- (**ci**) queue kind jobs instead of cancelling them - (43e38d0) - Tab
+- (**ci**) give each kind job time to wait for the runner - (5acc97a) - Tab
+- (**ci**) tear down the full tier the e2e and perf jobs start - (bf8e0dc) - Tab
 - (**ci**) pin dev and staging by digest in a commit the publish workflow makes - (13a78fc) - Tab
 - (**ci**) open and publish prod releases through the forge API - (3840c63) - Tab
 - (**ci**) let the drift check snapshot a tree with a deleted file - (c7ab04b) - Tab
@@ -36,6 +46,11 @@
 - (**ci**) run the nightly suite when the last one did not pass - (21fd24b) - Tab
 - (**ci**) save a partial registry mirror, and name the docker hub identity - (499503d) - Tab
 - (**ci**) skip the image matrix when no service is affected - (032b4ca) - Tab
+- (**cluster**) let a terminated Argo operation end before re-syncing - (cb7ef14) - Tab
+- (**cluster**) treat a missing registry as a free runner - (f7ffb86) - Tab
+- (**cluster**) hold a shared CI runner through the job-labelled registry - (0ba7b3f) - Tab
+- (**cluster**) give the full tier's Argo CD a credential for a private repository - (25eb4f5) - Tab
+- (**cluster**) make a CI job wait for another job's cluster instead of adopting it - (0507be8) - Tab
 - (**cluster**) recreate the local registry when its mounts are another checkout's - (52d8029) - Tab
 - (**cluster**) replace the sync-credentials path when docker left a directory - (3acaaef) - Tab
 - (**cluster**) report why ArgoCD did not converge, and stop waiting sooner - (f8e1414) - Tab
@@ -47,6 +62,9 @@
 - (**deps**) take bun 1.4.2, which survives the Next 16.3 build on musl - (ada09fd) - Tab
 - (**deps**) take the next and grpc releases that fix CVE-2026-75604 and CVE-2026-84445 - (e89eee2) - Tab
 - (**deps**) take the grpc release that fixes CVE-2026-84304 - (791aaee) - Tab
+- (**e2e**) expect logs only from workloads that write them - (5132a48) - Tab
+- (**e2e**) name the workloads missing from Loki and give the poll its time - (a32b3f9) - Tab
+- (**e2e**) poll Loki for the stdout-only workloads - (ddb92a5) - Tab
 - (**forge**) let the ci machine user push the promotion past branch protection - (3538cbd) - Tab
 - (**gen**) emit an empty zod object in the form biome keeps - (d469aec) - Tab
 - (**gen**) render the machinery table in a project without template tasks - (f3f67b9) - Tab
@@ -56,6 +74,7 @@
 - (**hooks**) resolve pinned tools through mise - (c411a94) - Tab
 - (**kyverno**) keep the control plane out of the allow-list's background scan - (cc1a1d5) - Tab
 - (**kyverno**) admit first-party images by prefix and verify them with registry credentials - (d3ea9a3) - Tab
+- (**lint**) allow the restore keys a deployed overlay carries alone - (32496e7) - Tab
 - (**lint**) check parity for the environments a project keeps - (6d38415) - Tab
 - (**lint**) ignore the answers file and local notes in the identity gate - (61ae2b1) - Tab
 - (**lint**) keep golangci-lint's CI cache inside the job - (917daca) - Tab
@@ -65,15 +84,23 @@
 - (**maddy**) serve STARTTLS on submission so senders can authenticate - (112f36a) - Tab
 - (**maddy**) mount a writable tmp so it survives startup - (6a40522) - Tab
 - (**network-policies**) let CNPG instances reach each other's status port - (3d6f6fe) - Tab
+- (**perf**) run the scenario from the suite's own directory - (0a8c9a8) - Tab
+- (**perf**) mint the seeded products' UUIDv7 ids - (55a2f93) - Tab
+- (**perf**) seed products with a price and currency - (07202a5) - Tab
+- (**perf**) resolve the repository root from the seed script's own depth - (f0df26e) - Tab
 - (**postgres**) take a daily base backup and list its credential - (148a4a4) - Tab
 - (**promote**) read the digest from buildx's JSON and refuse anything else - (20694b2) - Tab
+- (**registry**) mirror Docker Hub through mirror.gcr.io before Hub itself - (3f82a37) - Tab
 - (**registry**) authenticate the docker hub sync so a shared runner ip is not the limit - (78f9d98) - Tab
 - (**release**) refresh the lockfile when stamping package versions - (cd9c460) - Tab
 - (**release**) name the template stamp in the dry-run cleanup hint - (3ad2ec6) - Tab
 - (**scripts**) skip deleted paths when enumerating shell files - (7550fab) - Tab
 - (**scripts**) resolve lib through an absolute path set before the cd - (ccb6b94) - Tab
+- (**seaweedfs**) give the object store room for a full-tier image mirror - (efbda41) - Tab
 - (**secrets**) repoint the tyk fingerprint at the squashed root commit - (b6f5716) - Tab
 - (**service-chart**) omit envFrom when a service mounts no secrets - (f30db3b) - Tab
+- (**storage**) trigger Longhorn on restore time alone - (d4f59e2) - Tab
+- (**storage**) trigger Longhorn on node disk growth and restore time - (d6af091) - Tab
 - (**supply-chain**) skip pins no release has filled yet - (2ae4016) - Tab
 - (**supply-chain**) skip the image inventory in the template, which signs nothing - (ae46d1e) - Tab
 - (**talos**) drop stableHostname, invalid in v1alpha1 on the pinned Talos - (99cc665) - Tab
@@ -99,6 +126,8 @@
 - (**adr-0101**) admit the tool module and the workspace into the layout - (677ed2f) - Tab
 - (**adr-0200**) record the hypervisor-operated provisioning mode - (e40bc45) - Tab
 - (**build-path**) generate the machinery table and correct the secret and authz rows - (d858836) - Tab
+- (**deferral**) stop counting the register's rows - (3782bce) - Tab
+- (**dr**) restore over a live cluster, then drop the recovery value - (a7c9a5b) - Tab
 - (**secrets**) show the maddy SMTP URI Kratos can submit to - (dac65a7) - Tab
 - (**secrets**) register where every credential lives - (a1633c3) - Tab
 - delete repeated, rotting and measured-figure comments - (89e1156) - Tab
@@ -127,6 +156,7 @@
 - reset the architecture and record the foundational ADRs - (165857d) - Tab
 #### Chore
 - (**comments**) trim what the backup, policy and maddy fixes added - (e87f86f) - Tab
+- (**release**) v2026.09.2 - (5339fc7) - Tab
 - (**release**) v2026.09.1 - (e43d385) - Tab
 - (**release**) v2026.09.0 - (3395ac9) - Tab
 

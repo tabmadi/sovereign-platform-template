@@ -15,5 +15,5 @@ description: |
   forge's package registry outright, because an artefact store inside the build
   system couples every pod start to forge availability.
 type: application
-version: "2026.9.2"
+version: "2026.9.3"
 appVersion: "16.0.2"
