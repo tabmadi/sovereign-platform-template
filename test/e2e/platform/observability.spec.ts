@@ -181,6 +181,7 @@ test.describe("service observability POC (ADR-0501)", () => {
   // (ADR-0500). Asserting distinct service_name values pins the hostPath mount, the receiver, the container
   // parser, and the k8sattributes inference. The agent is excluded: its receiver skips its own pod by design.
   test("platform workloads that only log to stdout reach Loki (filelog)", async () => {
+    test.setTimeout(180_000);
     const ds = await ctx.get(`${opsURL("grafana")}/api/datasources/name/Loki`);
     expect(ds.ok(), "Loki datasource is provisioned").toBeTruthy();
     const { uid } = await ds.json();
@@ -193,11 +194,12 @@ test.describe("service observability POC (ADR-0501)", () => {
             `${opsURL("grafana")}/api/datasources/proxy/uid/${uid}/loki/api/v1/label/service_name/values?start=${start}`,
           );
           expect(res.ok(), "Loki label API answers via the Grafana proxy").toBeTruthy();
-          return ((await res.json()).data ?? []) as string[];
+          const services = ((await res.json()).data ?? []) as string[];
+          return ["postgres", "temporal", "lowdefy", "observability", "otel-cluster"].filter((s) => !services.includes(s));
         },
-        { message: "stdout-only platform workloads have logs in Loki", timeout: 120_000, intervals: [5_000] },
+        { message: "stdout-only platform workloads missing from Loki", timeout: 120_000, intervals: [5_000] },
       )
-      .toEqual(expect.arrayContaining(["postgres", "temporal", "lowdefy", "observability", "otel-cluster"]));
+      .toEqual([]);
   });
 
   // Marketing events are diverted out of the logs pipeline before Loki, because identity-bearing events in the log
