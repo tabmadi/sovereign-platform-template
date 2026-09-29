@@ -49,11 +49,11 @@ An **event** row is not a weaker deferral. Some triggers are commercial or organ
 
 ## What the column shows
 
-**Four rows are alerted**, by `LoadGeneratorDroppingIterations`, `ImagePullsFailing` and `AnalyticsStorageGrowthTrigger` in `infra/observability/alerts/deferral-triggers.yaml`, and by `ActiveSeriesNearCeiling` in `cardinality.yaml`. A deferral whose trigger is alertable and unalerted is indistinguishable from a deferral with no trigger, so a row reaches this state only when a rule names the condition the ADR wrote down.
+**The alerted rows** are the ones named by `LoadGeneratorDroppingIterations`, `ImagePullsFailing` and `AnalyticsStorageGrowthTrigger` in `infra/observability/alerts/deferral-triggers.yaml`, and by `ActiveSeriesNearCeiling` in `cardinality.yaml`. A deferral whose trigger is alertable and unalerted is indistinguishable from a deferral with no trigger, so a row reaches this state only when a rule names the condition the ADR wrote down.
 
 **No row is `uncollected`.** The last one was ClickHouse's, and it left the state the way the registry row did — by something collecting its signal first, then a rule naming it. The analytics service now emits the current month's row count as a gauge, and `AnalyticsStorageGrowthTrigger` reads it. Adding the rule before the series would have produced a rule that can never fire, which is the same blindness with a green tick on it.
 
-**Seven rows are queries** — the data exists, and something has to ask. They ride the quarterly `Schedule` described in [`upstream-status.md`](upstream-status.md), which opens one tracking issue covering these rows, that document's upstream facts, and [`asvs-verification.md`](asvs-verification.md)'s concerns. A row's owner is the owner of its owning ADR, and a query row walked without its answer being recorded has not been walked.
+**Query rows** — the data exists, and something has to ask. They ride the quarterly `Schedule` described in [`upstream-status.md`](upstream-status.md), which opens one tracking issue covering these rows, that document's upstream facts, and [`asvs-verification.md`](asvs-verification.md)'s concerns. A row's owner is the owner of its owning ADR, and a query row walked without its answer being recorded has not been walked.
 
 **The rest are events**, and every one is commercial, organisational, or an incident. They are watched by whoever reads this register, which is why it is one document rather than twenty.
 
