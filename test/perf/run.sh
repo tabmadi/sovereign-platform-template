@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # k6 runner (ADR-0601): wires a scenario to the cluster's telemetry plane, then runs it.
 set -euo pipefail
-cd "$(cd "$(dirname "$0")" && pwd)"
+here="$(cd "$(dirname "$0")" && pwd)"
+cd "$here"
 # ../../ — this file lives at test/perf/, two levels under the repo root.
 source ../../scripts/lib/log.sh
 
@@ -14,6 +15,8 @@ script="scenarios/${scenario}.js"
 
 CLUSTER="${CLUSTER:-platform}"
 source ../../scripts/lib/cluster.sh
+# The library works from the repository root; the scenario and result paths below are this directory's.
+cd "$here"
 # The tier comes from whichever cluster is up, so a load run says "no cluster" when
 # there is none rather than reporting a forward that could never have worked.
 require_cluster
