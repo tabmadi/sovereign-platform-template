@@ -24,6 +24,8 @@ mkdir -p "$SRC"
 git ls-files -z | tar --null -T - -cf - | tar -x -C "$SRC"
 git ls-files -z --others --exclude-standard | tar --null -T - -cf - | tar -x -C "$SRC" 2>/dev/null || true
 git -C "$SRC" init -q .
+# A commit this large starts a background `gc --auto`, which repacks the loose objects copier's clone is copying.
+git -C "$SRC" config gc.auto 0
 git -C "$SRC" add -A
 git -C "$SRC" -c user.email=test@local -c user.name=test commit -qm "template under test"
 SRC_REF="$(git -C "$SRC" rev-parse --short HEAD)"
