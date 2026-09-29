@@ -112,7 +112,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | --- | --- |
 | Every named resource derives from `{project}-{env}-{role}[-{n}]`. Shared infrastructure not tied to a product — a team proxy, an internal forge, a registry mirror — is modelled as its own project with its own slug and follows the same grammar. | review |
 | A slug matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters. | `lint:naming` in CI |
-| The project slug is 6–11 characters including any collision token, is globally unique, and stands alone. No org or cross-project prefix is prepended. | `lint:naming` in CI |
+| The project slug is 5–11 characters including any collision token, is globally unique, and stands alone. No org or cross-project prefix is prepended. | `lint:naming` in CI |
 | `env` is `dev`, `staging`, or `prod`, spelled the same way in every surface. Abbreviated forms are not used. | `lint:naming` in CI |
 | `role` is a token from the table in this ADR. A new resource class adds a row in the same PR. | `lint:naming` in CI |
 | The same string is used in files and in every provider's console. Where a namespace rejects hyphens, the compact form — the slug with hyphens removed — is used, and no other transformation is applied. | review |

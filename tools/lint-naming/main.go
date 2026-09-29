@@ -37,7 +37,7 @@ var slugPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
 
 // The project slug's bounds, including any collision token.
 const (
-	minProjectLen = 6
+	minProjectLen = 5
 	maxProjectLen = 11
 	maxSlugLen    = 63
 )

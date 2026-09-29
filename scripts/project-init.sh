@@ -37,8 +37,8 @@ project_name="${args[0]}" slug="${args[1]}" module="${args[2]}" apex="${args[3]}
 # reaches a provider console, and both entry points have to reject it.
 [[ "$slug" =~ ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ ]] ||
   fail "a slug is lower-case alphanumeric with single hyphens: ${slug}"
-[ "${#slug}" -ge 6 ] && [ "${#slug}" -le 11 ] ||
-  fail "a project slug is 6-11 characters: ${slug}"
+[ "${#slug}" -ge 5 ] && [ "${#slug}" -le 11 ] ||
+  fail "a project slug is 5-11 characters: ${slug}"
 
 # This becomes `_commit`, the baseline every future update merges against. A wrong value is worse than an absent one, so there is no guess.
 if [ -z "$ref" ]; then

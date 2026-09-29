@@ -56,7 +56,7 @@ project_name:
 
 project_slug:
   type: str
-  help: "The project slug (ADR-0003): 6-11 characters, globally unique, no org prefix"
+  help: "The project slug (ADR-0003): 5-11 characters, globally unique, no org prefix"
   default: "acmeplat"
   # The grammar is ADR-0003's, enforced here at generation as well as by
   # lint:naming afterwards — a name is cheapest to fix before it is in a provider
@@ -64,8 +64,8 @@ project_slug:
   validator: >-
     {% if not (project_slug | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}
     a slug is lower-case alphanumeric with single hyphens
-    {% elif project_slug | length < 6 or project_slug | length > 11 %}
-    a project slug is 6-11 characters
+    {% elif project_slug | length < 5 or project_slug | length > 11 %}
+    a project slug is 5-11 characters
     {% endif %}
 
 module_path:

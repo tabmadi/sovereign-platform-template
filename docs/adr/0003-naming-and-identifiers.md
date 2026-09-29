@@ -117,7 +117,7 @@ The slug rests on **[RFC 1123](https://www.rfc-editor.org/rfc/rfc1123) DNS label
 | --- | --- | --- |
 | Charset | `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` | An RFC 1123 DNS label — lowercase alphanumerics and interior hyphens — narrowed to a leading letter, which [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035) surfaces such as a Kubernetes Service require. The pattern admits no trailing hyphen and no doubled hyphen, both of which a DNS label rejects |
 | Full slug length | ≤ 63 characters | Four independent standards land on the same number: an RFC 1123 DNS label, a [Kubernetes object name and label value](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/), and a PostgreSQL identifier at `NAMEDATALEN - 1` ([Postgres lexical structure](https://www.postgresql.org/docs/current/sql-syntax-lexical.html)) |
-| Project slug length | 6–11 characters, including any collision token | The upper bound is the compact-form budget below: `24 - len("staging") - 6`, where 6 is the `role` cap. The lower bound is the highest minimum seen on a globally-namespaced provider identifier |
+| Project slug length | 5–11 characters, including any collision token | The upper bound is the compact-form budget below: `24 - len("staging") - 6`, where 6 is the `role` cap. The lower bound is RFC 1123's own: a DNS label is at least one character, and the floor here is set by legibility rather than by any namespace. A namespace with a higher floor is a per-provider constraint, priced in *Negative / Risks* |
 
 A slug passing this rule is reused verbatim in every provider and every file.
 
@@ -172,7 +172,7 @@ northwind       → northwind-prod-assets unavailable in a global namespace
 nwind7q2        ← project slug becomes nwind7q2, applied across all resources
 ```
 
-The token is generated once and recorded as the project slug, inside the 6–11 character budget. It is not a per-resource suffix: the whole project carries it, so every derived name stays consistent and the grammar is unchanged. It is random rather than descriptive for the reason in *Considered options*.
+The token is generated once and recorded as the project slug, inside the 5–11 character budget. It is not a per-resource suffix: the whole project carries it, so every derived name stays consistent and the grammar is unchanged. It is random rather than descriptive for the reason in *Considered options*.
 
 ### A second cluster in one environment
 
@@ -267,6 +267,7 @@ One table, so no surface is left to precedent. Where another ADR owns the naming
 - **The 24-character compact-form budget constrains the project slug to 11 characters** even for projects that will never touch a namespace that short. Accepted: the alternative is discovering the constraint after the names are immutable.
 - The six-character `role` cap forces terse tokens. Mitigated by the table being closed and in this ADR rather than in a glossary elsewhere.
 - A long project name eats the budget. Projects whose natural name exceeds it pick a documented short slug at instantiation.
+- **A slug below six characters is rejected by some globally-namespaced identifiers** — [Google Cloud project IDs](https://cloud.google.com/resource-manager/docs/creating-managing-projects) start at 6. Accepted: the floor is a legibility rule, not a portability one, and a project that meets such a namespace spends the collision token on it, which adds four characters. Encoding one provider's minimum as the rule is the surveyed cap this ADR rejects in *Considered options*.
 - The project slug carries the whole uniqueness guarantee. The random-token backstop covers a true provider-global collision at the cost of readability, so it is a fallback rather than the default.
 - **Prefixed identifiers change every API surface.** A spec's `type: string, format: uuid` becomes a pattern-constrained string, and the generated clients change with it. The encode/decode step is one library per language and is paid on every boundary crossing.
 - Storing the bare UUID while serving the prefixed form means the two differ in a `psql` session. Accepted: the alternative is a `text` primary key, which costs more on every index than the conversion costs on every request.
@@ -277,7 +278,7 @@ One table, so no surface is left to precedent. Where another ADR owns the naming
 
 - Every named resource derives from `{project}-{env}-{role}[-{n}]`. Shared infrastructure not tied to a product — a team proxy, an internal forge, a registry mirror — is modelled as its own project with its own slug and follows the same grammar.
 - A slug matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters. `(CI: lint:naming)`
-- The project slug is 6–11 characters including any collision token, is globally unique, and stands alone. No org or cross-project prefix is prepended. `(CI: lint:naming)`
+- The project slug is 5–11 characters including any collision token, is globally unique, and stands alone. No org or cross-project prefix is prepended. `(CI: lint:naming)`
 - `env` is `dev`, `staging`, or `prod`, spelled the same way in every surface. Abbreviated forms are not used. `(CI: lint:naming)`
 - `role` is a token from the table in this ADR. A new resource class adds a row in the same PR. `(CI: lint:naming)`
 - The same string is used in files and in every provider's console. Where a namespace rejects hyphens, the compact form — the slug with hyphens removed — is used, and no other transformation is applied.
