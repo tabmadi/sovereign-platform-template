@@ -41,7 +41,7 @@ seaweedfs:
   # ADR-0204.
   resources:
     requests: { cpu: "50m", memory: "256Mi" }
-    limits: { memory: "1.5Gi" }
+    limits: { memory: "2Gi" }
 
   # No phone-home: the master reports anonymous cluster statistics to telemetry.seaweedfs.com by default, which
   # default-deny egress would drop anyway.
