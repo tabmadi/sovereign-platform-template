@@ -18,3 +18,5 @@ loki.singleBinary.replicas       # scale
 tempo.replicas                   # scale
 podDisruptionBudgets             # HA is a property of replicas > 1
 resourceQuotas                   # quotas sized for the full platform
+cluster.backup.serverName        # the archive a restore writes to, per environment (docs/guide/disaster-recovery.md)
+cluster.recovery                 # a restore's bootstrap, set only while one runs
