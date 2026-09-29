@@ -195,7 +195,8 @@ test.describe("service observability POC (ADR-0501)", () => {
           );
           expect(res.ok(), "Loki label API answers via the Grafana proxy").toBeTruthy();
           const services = ((await res.json()).data ?? []) as string[];
-          return ["postgres", "temporal", "lowdefy", "observability", "otel-cluster"].filter((s) => !services.includes(s));
+          // Not otel-cluster: a healthy collector logs only at startup, which can precede the agent's tail of its file.
+          return ["postgres", "temporal", "lowdefy", "observability"].filter((s) => !services.includes(s));
         },
         { message: "stdout-only platform workloads missing from Loki", timeout: 120_000, intervals: [5_000] },
       )
