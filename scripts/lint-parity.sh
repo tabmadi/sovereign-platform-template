@@ -31,12 +31,10 @@ step "checking that deployed values keys exist in the local overlay"
 local_paths="$(paths "$LOCAL")"
 
 problems=()
-for env in dev staging prod; do
-  file="${OVERLAY}/${env}/values.yaml"
-  [ -f "$file" ] || {
-    problems+=("no ${file}")
-    continue
-  }
+# Every deployed environment the project keeps: a project may run fewer than the template ships.
+for file in "$OVERLAY"/*/values.yaml; do
+  env="$(basename "$(dirname "$file")")"
+  [ "$env" != local ] || continue
   while IFS= read -r path; do
     grep -qxF "$path" <<<"$local_paths" && continue
     allowed "$path" ||
