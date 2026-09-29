@@ -175,7 +175,7 @@ description = "What is running in the active tier and where to reach it: nodes, 
 run = "bash scripts/cluster.sh status"
 
 [tasks.verify]
-description = "Assert the active tier is up and serving (ADR-0600): nodes, pods, ArgoCD, the edge, and the parity mechanism the local overlay turns on. The acceptance job calls it against every generated project."
+description = "Assert a tier is up and serving (ADR-0600): the active local tier, or with VERIFY_HOST=<apex> the deployed environment in the current kubectl context, where it also walks a purchase, the escalation probe, and mail. The acceptance job calls it against every generated project."
 run = "bash scripts/verify.sh"
 
 [tasks."cluster:populate-zot"]
