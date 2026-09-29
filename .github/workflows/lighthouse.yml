@@ -19,7 +19,8 @@ permissions:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Up to an hour of it can be waiting for another job's cluster on a shared runner (ADR-0102).
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
