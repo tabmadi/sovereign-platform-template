@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Bulk test data for the load suite (ADR-0601).
 set -euo pipefail
-cd "$(cd "$(dirname "$0")/../.." && pwd)"
+# The repository root: this file is three levels under it, at test/perf/seed/.
+cd "$(cd "$(dirname "$0")/../../.." && pwd)"
 source scripts/lib/log.sh
 
 CLUSTER="${CLUSTER:-platform}"
