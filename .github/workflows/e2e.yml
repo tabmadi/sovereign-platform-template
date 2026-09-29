@@ -80,6 +80,8 @@ jobs:
         run: mise run e2e
       - name: Upload Playwright report
         if: always()
+        # A report is a diagnostic: Forgejo's artifact service refuses v4, and that must not fail a passing run.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-full
@@ -147,6 +149,8 @@ jobs:
         run: mise run e2e:smoke
       - name: Upload Playwright report
         if: always()
+        # A report is a diagnostic: Forgejo's artifact service refuses v4, and that must not fail a passing run.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-smoke
