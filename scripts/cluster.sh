@@ -132,6 +132,10 @@ stop)
 
 down)
   name="$(cluster_name)"
+  # Released first: a job that failed before its cluster existed still holds the runner through its registry.
+  if [ -n "${CI:-}" ] && [ "$(registry_job)" = "$(ci_job)" ]; then
+    docker rm -f "$REGISTRY" >/dev/null
+  fi
   # kind exits 0 deleting a cluster that does not exist, so the check is here or the
   # verb reports a deletion it never performed.
   if ! cluster_exists "$name"; then

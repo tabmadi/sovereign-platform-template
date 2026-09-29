@@ -40,8 +40,24 @@ cluster_name_of() {
   if [ "$1" = full ]; then printf '%s-full' "$CLUSTER"; else printf '%s' "$CLUSTER"; fi
 }
 cluster_name() { cluster_name_of "$TIER"; }
-# A CI runner can run two jobs at once and outlives both, so there a cluster is the job's that created it.
+# A CI runner can run two jobs at once and outlives both, so there the registry and the cluster are the job's that
+# created them. The registry, the first host-level stage, carries the job's name and is the lock.
+ci_job() { printf '%s-%s-%s' "${GITHUB_RUN_ID:-}" "${GITHUB_JOB:-}" "${GITHUB_RUN_ATTEMPT:-}"; }
 ci_owned() { [ -z "${CI:-}" ] || grep -qx "$1" "${RUNNER_TEMP:?}/kind-cluster" 2>/dev/null; }
+registry_job() { docker inspect -f '{{index .Config.Labels "platform.ci-job"}}' "$REGISTRY" 2>/dev/null; }
+# Another job's registry and cluster are never this job's to replace, resume or displace: wait for that job to finish.
+ci_wait_for_runner() {
+  local waited=0 held
+  while :; do
+    held="$(registry_job)"
+    { [ -n "$held" ] && [ "$held" != "$(ci_job)" ]; } ||
+      cluster_exists "$(cluster_name_of base)" || cluster_exists "$(cluster_name_of full)" || return 0
+    [ "$waited" -lt 3600 ] || fail "another job has held this runner's registry and edge for an hour"
+    [ "$waited" -gt 0 ] || step "waiting for another job to release this runner's registry and edge"
+    sleep 30
+    waited=$((waited + 30))
+  done
+}
 other_tier() { if [ "$TIER" = full ]; then printf 'base'; else printf 'full'; fi; }
 cluster_exists() { kind get clusters 2>/dev/null | grep -qx "$1"; }
 # A tier-scoped verb that found nothing says so, and names the tier that is up: the
@@ -152,6 +168,7 @@ argo_service_app() {
 # both clusters. It mirrors the upstreams on demand, so nothing is preloaded and no
 # image list has to be maintained. Host-level: it survives cluster delete/recreate.
 stage_registry() {
+  [ -z "${CI:-}" ] || ci_wait_for_runner
   # Outside the repository because it holds a token (ADR-0202). Written every time, `{}` when the environment carries nothing, so the mount always resolves.
   local creds="${XDG_RUNTIME_DIR:-/tmp}/zot-sync-creds-${REGISTRY}.json"
   # Docker creates a missing bind-mount source as a root-owned directory, which every later run then dies on.
@@ -188,7 +205,9 @@ stage_registry() {
     mkdir -p "$ZOT_DATA"
     # As the caller, so a forge cache can archive the store; zot defaults to root and writes mode 0600 throughout.
     # The image's default command names a config.json; this config is YAML.
-    docker run -d --restart=always --name "$REGISTRY" \
+    local label=()
+    [ -z "${CI:-}" ] || label=(--label "platform.ci-job=$(ci_job)")
+    docker run -d --restart=always --name "$REGISTRY" "${label[@]}" \
       -p 127.0.0.1:5000:5000 \
       --user "$(id -u):$(id -g)" \
       -v "${ROOT}/infra/local/zot-config.yaml:/etc/zot/config.yaml:ro" \
@@ -330,17 +349,6 @@ stage_cluster() {
   name="$(cluster_name)"
 
   other="$(cluster_name_of "$(other_tier)")"
-  # Another job's cluster is never this job's to resume or displace: wait for that job to tear it down.
-  if [ -n "${CI:-}" ]; then
-    local waited=0
-    while cluster_exists "$name" || cluster_exists "$other"; do
-      [ "$waited" -lt 3600 ] || fail "another job's cluster has held this runner's edge for an hour"
-      [ "$waited" -gt 0 ] || step "waiting for another job's cluster to leave this runner"
-      sleep 30
-      waited=$((waited + 30))
-    done
-  fi
-
   # The tiers share the edge's host ports, so they are alternatives. Name the
   # conflict rather than letting docker report a bind failure from inside a
   # half-created cluster.
