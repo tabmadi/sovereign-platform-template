@@ -2,9 +2,12 @@
 
 branch: master
 
-# Nothing reaches master except through a reviewed pull request.
+# Nothing reaches master except through a reviewed pull request, and the promotion commit CI makes after the images
+# exist (ADR-0201). The forge's job token cannot be allowlisted, so CI pushes it as the `ci` machine user.
 protection:
-  enable_push: false # no direct push, by anyone, including an admin
+  enable_push: true
+  enable_push_whitelist: true
+  push_whitelist_usernames: [ci] # no one else, including an admin
   required_approvals: 1
   # A dismissed-on-push approval is the difference between reviewing a change and
   # reviewing the change that was there when the reviewer looked.

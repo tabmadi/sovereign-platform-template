@@ -9,8 +9,8 @@ An unannotated rule is enforced by review. It is normative on the same terms as 
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 176 |
-| Review-enforced | 337 |
-| **Total** | **513** |
+| Review-enforced | 338 |
+| **Total** | **514** |
 
 The ratio is a fact about the set rather than a target. A rule moves into the first row when a check is written for it, and the count moving the wrong way is the signal worth reading.
 
@@ -188,6 +188,7 @@ The ratio is a fact about the set rather than a target. A rule moves into the fi
 | The repository lives at `forge.<apex>/platform/<project>`, owned by an organisation and never by a person, and Argo CD reconciles from that URL. | review |
 | Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML. | review |
 | Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](../adr/0000-platform-foundations.md), principle 1). | review |
+| The default branch takes a direct push from one identity: the `ci` machine user, whose `PROMOTE_TOKEN` pushes the dev and staging promotion commit ([ADR-0201](../adr/0201-gitops.md)). Every other change reaches it through a reviewed pull request. | review |
 | Container images are published to the registry in [ADR-0105](../adr/0105-image-registry.md), not to the forge's package registry. | review |
 
 ## ADR-0103 — Release, Tagging & Versioning

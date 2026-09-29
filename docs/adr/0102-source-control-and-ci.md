@@ -139,4 +139,5 @@ production. The registry itself stays in-cluster.
 - The repository lives at `forge.<apex>/platform/<project>`, owned by an organisation and never by a person, and Argo CD reconciles from that URL.
 - Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
 - Branch protection and required checks are configuration in the repository, never set through the forge UI ([ADR-0000](0000-platform-foundations.md), principle 1).
+- The default branch takes a direct push from one identity: the `ci` machine user, whose `PROMOTE_TOKEN` pushes the dev and staging promotion commit ([ADR-0201](0201-gitops.md)). Every other change reaches it through a reviewed pull request.
 - Container images are published to the registry in [ADR-0105](0105-image-registry.md), not to the forge's package registry.
