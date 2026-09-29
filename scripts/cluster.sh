@@ -139,6 +139,10 @@ down)
     other_tier_hint down
     exit 0
   fi
+  if ! ci_owned "$name"; then
+    ok "cluster '${name}' belongs to another job on this runner — left alone"
+    exit 0
+  fi
   step "deleting kind cluster '${name}'"
   kind delete cluster --name "$name"
   ok "deleted '${name}' (the registry container survives — it is host-level)"

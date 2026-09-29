@@ -56,7 +56,7 @@ Both Tier 2 ([ADR-0002](0002-tool-adoption.md)), and both are consequences of th
 
 **Workflow YAML is a portable subset.** Steps are `actions/checkout`, the repository's own composite setup action, and `mise run` calls. That subset runs on both Forgejo Actions and the provider-hosted workflows the template ships, which is what makes the forge cheap to leave in either direction.
 
-**A runner gives `ubuntu-latest` a machine, not a container.** The portable subset assumes what a provider-hosted job gets: a host with Docker whose loopback and filesystem the job owns. A job that starts kind publishes its API and a registry on loopback and bind-mounts its checkout, and inside a job container neither is the host's. A Forgejo runner therefore executes jobs on a dedicated machine that holds nothing else, never on a workload-cluster node: a job controls that machine's Docker, which is root on it.
+**A runner gives `ubuntu-latest` a machine, not a container.** The portable subset assumes what a provider-hosted job gets: a host with Docker whose loopback and filesystem the job owns. A job that starts kind publishes its API and a registry on loopback and bind-mounts its checkout, and inside a job container neither is the host's. A Forgejo runner therefore executes jobs on a dedicated machine that holds nothing else, never on a workload-cluster node: a job controls that machine's Docker, which is root on it. A machine that runs two jobs at once has one set of edge ports, so in CI `cluster:up` waits for a cluster another job created and `cluster:down` removes only its own.
 
 ### The template ships provider-hosted workflows
 

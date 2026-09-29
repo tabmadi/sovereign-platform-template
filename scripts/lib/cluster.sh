@@ -40,6 +40,8 @@ cluster_name_of() {
   if [ "$1" = full ]; then printf '%s-full' "$CLUSTER"; else printf '%s' "$CLUSTER"; fi
 }
 cluster_name() { cluster_name_of "$TIER"; }
+# A CI runner can run two jobs at once and outlives both, so there a cluster is the job's that created it.
+ci_owned() { [ -z "${CI:-}" ] || grep -qx "$1" "${RUNNER_TEMP:?}/kind-cluster" 2>/dev/null; }
 other_tier() { if [ "$TIER" = full ]; then printf 'base'; else printf 'full'; fi; }
 cluster_exists() { kind get clusters 2>/dev/null | grep -qx "$1"; }
 # A tier-scoped verb that found nothing says so, and names the tier that is up: the
@@ -327,10 +329,21 @@ stage_cluster() {
   local name other
   name="$(cluster_name)"
 
+  other="$(cluster_name_of "$(other_tier)")"
+  # Another job's cluster is never this job's to resume or displace: wait for that job to tear it down.
+  if [ -n "${CI:-}" ]; then
+    local waited=0
+    while cluster_exists "$name" || cluster_exists "$other"; do
+      [ "$waited" -lt 3600 ] || fail "another job's cluster has held this runner's edge for an hour"
+      [ "$waited" -gt 0 ] || step "waiting for another job's cluster to leave this runner"
+      sleep 30
+      waited=$((waited + 30))
+    done
+  fi
+
   # The tiers share the edge's host ports, so they are alternatives. Name the
   # conflict rather than letting docker report a bind failure from inside a
   # half-created cluster.
-  other="$(cluster_name_of "$(other_tier)")"
   if cluster_exists "$other" && cluster_running "$other"; then
     fail "cluster '${other}' is running and holds the edge ports 8080/8443.
   Run one tier at a time:
@@ -340,6 +353,7 @@ stage_cluster() {
   if ! kind get clusters 2>/dev/null | grep -qx "$name"; then
     step "creating kind cluster '${name}' from ${KIND_CONFIG}"
     kind create cluster --name "$name" --config "$KIND_CONFIG"
+    [ -z "${CI:-}" ] || printf '%s\n' "$name" >"${RUNNER_TEMP:?}/kind-cluster"
   else
     local n stopped=0
     mapfile -t nodes < <(kind get nodes --name "$name")
