@@ -42,7 +42,8 @@ extensions:
     # the forge — so a warm that pulls 50 images can exhaust a limit it never spent itself.
     credentialsFile: /etc/zot/sync-creds.json
     registries:
-      - urls: ["https://registry-1.docker.io"]
+      # mirror.gcr.io first: Google's cache of Docker Hub has no pull limit, and zot falls through to Hub on a miss.
+      - urls: ["https://mirror.gcr.io", "https://registry-1.docker.io"]
         onDemand: true
         tlsVerify: true
       - urls: ["https://quay.io"]
