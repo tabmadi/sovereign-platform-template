@@ -82,7 +82,7 @@ jobs:
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:down
+        run: mise run cluster:down -- full
 
   # A change spanning more than one service is the class no test below the e2e level can see (ADR-0601). A task, not an expression, because it reads the affected manifest (ADR-0102).
   pr-gate:
@@ -143,4 +143,4 @@ jobs:
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:down
+        run: mise run cluster:down -- full

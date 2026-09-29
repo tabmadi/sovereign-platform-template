@@ -82,7 +82,7 @@ jobs:
           retention-days: 30
       - name: Tear down
         if: always()
-        run: mise run cluster:down
+        run: mise run cluster:down -- full
 
   smoke:
     # Label-gated per-PR, same opt-in shape as e2e-smoke: an unlabeled PR never
@@ -124,4 +124,4 @@ jobs:
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:down
+        run: mise run cluster:down -- full
