@@ -45,11 +45,11 @@ jobs:
       - name: Restore the registry mirror
         uses: actions/cache/restore@v4
         with:
-          path: ${{ runner.temp }}/zot
+          # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
+          path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
       - name: Generate a project and prove it serves
         run: mise run acceptance
         env:
-          ZOT_DATA: ${{ runner.temp }}/zot
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

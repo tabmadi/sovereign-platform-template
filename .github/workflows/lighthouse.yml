@@ -31,7 +31,8 @@ jobs:
         id: registry-cache
         uses: actions/cache/restore@v4
         with:
-          path: ${{ runner.temp }}/zot
+          # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
+          path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
       # The floor: real Traefik, cert-manager, Kratos and Oathkeeper, because `/auth/login` is a measured URL.
@@ -39,7 +40,6 @@ jobs:
       - name: Bring up cluster:up
         run: mise run cluster:up
         env:
-          ZOT_DATA: ${{ runner.temp }}/zot
           # The single writer of the mirror cache warms it for the full-tier jobs that only restore it.
           WARM_TIER: full
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -51,7 +51,8 @@ jobs:
         if: always() && steps.registry-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ${{ runner.temp }}/zot
+          # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
+          path: ~/.cache/zot/registry.localhost
           key: ${{ steps.registry-cache.outputs.cache-primary-key }}
 
       # The production container, not `next dev`. A bundle budget measured against a
