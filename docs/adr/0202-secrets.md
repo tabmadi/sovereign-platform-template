@@ -85,6 +85,7 @@ Service authors reference secrets by Kubernetes Secret name in Helm values, exac
 | An init container per pod | mounted into every pod that reads a secret | the workload itself, before it starts | Spreads the key across every namespace and puts a decryption step in every service chart |
 | A CI-side decrypt | the pipeline | the pipeline, writing plaintext into the cluster | The cluster stops being reconcilable from the repository ([ADR-0201](0201-gitops.md)): Argo CD would sync manifests whose values arrived from somewhere else |
 | External Secrets Operator | in the external store | a controller, against that store | A controller plus a store to back it, rejected in *Considered options* above |
+| KSOPS or helm-secrets in Argo CD's repo-server | in Argo CD's namespace | Argo CD, at render time | One component fewer, and a worse place for the plaintext: Argo CD caches plugin-rendered manifests, their secrets included, in its Redis and serves them through the repo-server API, so every reader of either reads every secret. The repo-server also carries a plugin each Argo CD upgrade must keep working |
 
 ### Local decryption
 
