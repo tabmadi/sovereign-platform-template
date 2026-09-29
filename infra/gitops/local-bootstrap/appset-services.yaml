@@ -46,6 +46,7 @@ spec:
         path: infra/helm/service
         helm:
           valueFiles:
+            - "../../gitops/services/{{ .env }}/shared.yaml"
             - "../../gitops/services/{{ .env }}/values/{{ .path.filename }}"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:

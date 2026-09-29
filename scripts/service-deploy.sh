@@ -122,7 +122,7 @@ if [ -n "$APP" ]; then
 fi
 
 step "helm upgrade ${SVC} (working-tree image ${TAG})"
-h upgrade --install "$SVC" infra/helm/service -n "$NS" -f "$VALUES" \
+h upgrade --install "$SVC" infra/helm/service -n "$NS" -f infra/gitops/services/local/shared.yaml -f "$VALUES" \
   --take-ownership --force-conflicts --set image.pullPolicy=IfNotPresent "${SET[@]}" --timeout 5m
 k rollout restart "deploy/${SVC}-server"
 k rollout status "deploy/${SVC}-server" --timeout=180s

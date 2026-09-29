@@ -163,3 +163,11 @@ policies:
 # OFF locally, and this is the one component whose local source differs from the deployed one (ADR-0600).
 localPath:
   enabled: false
+
+# Temporal's history service is the heaviest CPU consumer under load and near idle at rest; on one node sized down to a
+# 4-core CI runner its measured request would crowd the services out of scheduling (ADR-0204).
+temporal:
+  server:
+    history:
+      resources:
+        requests: { cpu: "100m", memory: "768Mi" }
