@@ -58,6 +58,8 @@ jobs:
       # shares with the whole forge. Unset on a fork, where the secrets do not resolve.
       # Restore-only: the lighthouse job is the single writer, and a full-tier bring-up would cache first-party images.
       - name: Restore the registry mirror
+        # A self-hosted runner keeps the store in its home between jobs; only a fresh hosted machine needs the cache.
+        if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
         with:
           # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
@@ -123,6 +125,8 @@ jobs:
       - name: Provision the local SOPS age key
         run: mise run secrets:age
       - name: Restore the registry mirror
+        # A self-hosted runner keeps the store in its home between jobs; only a fresh hosted machine needs the cache.
+        if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
         with:
           # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.

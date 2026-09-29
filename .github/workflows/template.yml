@@ -43,6 +43,8 @@ jobs:
           go-cache: "true"
       # Restore-only, like e2e.yml: the lighthouse job is the single writer of the mirror.
       - name: Restore the registry mirror
+        # A self-hosted runner keeps the store in its home between jobs; only a fresh hosted machine needs the cache.
+        if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
         with:
           # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
