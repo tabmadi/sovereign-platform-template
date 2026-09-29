@@ -10,7 +10,8 @@ END="<!-- machinery:end -->"
 grep -qF "$BEGIN" "$DOC" || fail "${DOC} has no ${BEGIN} marker"
 
 tasks="$(for f in .mise.toml .config/mise/conf.d/*.toml; do
-  [ -f "$f" ] && yq -p toml -o json '.tasks // {}' "$f"
+  [ -f "$f" ] || continue
+  yq -p toml -o json '.tasks // {}' "$f"
 done | jq -s 'add')"
 
 # Each entry point and the tasks it names, as "<file> <task>" lines.
