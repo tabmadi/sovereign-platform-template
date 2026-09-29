@@ -47,8 +47,8 @@ esac
 step "seeding ${n} products into catalog (primary: ${primary})"
 # One statement, generated server-side: 5,000 round-trips take minutes. Prices vary so the rows are not byte-identical, which would let Postgres and the JSON encoder behave unrealistically well.
 psql_catalog -c "
-  insert into products (name, price_cents)
-  select '${PREFIX}' || g, (g * 37) % 100000
+  insert into products (name, price, currency)
+  select '${PREFIX}' || g, ((g * 37) % 100000) / 100.0, 'EUR'
   from generate_series(1, ${n}) as g;
 " >/dev/null
 
