@@ -45,6 +45,28 @@ mise run cluster:up -- full     # the real charts at single replica, via Argo CD
 
 This is the mechanism the deployed clusters use ([ADR-0600](../adr/0600-local-development-loop.md)). To exercise **uncommitted** GitOps wiring, see [gitops-local](gitops-local.md).
 
+## Bootstrap a deployed environment
+
+With the new cluster in the current kubectl context:
+
+```sh
+CLUSTER_AGE_KEY=<path to its age key> mise run argocd:bootstrap <env>
+```
+
+It lays the floor Argo CD cannot install for itself — Argo CD, Traefik, the age key, and the forge credential of a
+private repository — then applies the root Application ([ADR-0200](../adr/0200-cluster-topology.md)).
+`CLUSTER_AGE_KEY` is needed only where the machine config does not already carry the key.
+
+## Verify an environment
+
+```sh
+mise run verify                          # the local tier that is up
+VERIFY_HOST=<apex> mise run verify       # a deployed environment, through the current kubectl context
+```
+
+The deployed mode adds a purchase through every service with throwaway identities, the self-service escalation probe,
+and a mail submission; it creates nothing it does not delete.
+
 ## Diagnose a stuck sync
 
 - `kubectl get applications -n argocd` — find the app that is OutOfSync or Degraded.
