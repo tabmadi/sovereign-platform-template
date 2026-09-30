@@ -12,9 +12,9 @@ groups:
         annotations:
           summary: "Node filesystem below 15% free"
           description: >-
-            The node disk is filling. kubelet deletes unused images from here on,
-            and evicts pods once free space drops below the eviction-hard floor
-            (10% on Talos nodes, infra/talos/patches/common.yaml).
+            The node disk is filling. kubelet evicts pods once free space drops
+            below its eviction-hard floor: 10% on the Talos nodes
+            (infra/talos/patches/common.yaml), 2% on the local kind node.
             Reclaim with `docker builder prune -af`, `docker image prune -a`, and
             `crictl rmi --prune` inside the node; a local registry also never
             garbage-collects on its own (`registry garbage-collect`).
