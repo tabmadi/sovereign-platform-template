@@ -39,7 +39,7 @@
           "format": "table",
           "instant": true,
           "range": false,
-          "expr": "sum by (service_name) (k8s_pod_cpu_usage{service_namespace=~\"$namespace\"}) / sum by (service_name) (k8s_container_cpu_limit{service_namespace=~\"$namespace\"})"
+          "expr": "sum by (service_name) (k8s_pod_cpu_usage{service_namespace=~\"$namespace\"}) / sum by (service_name) (k8s_container_cpu_request{service_namespace=~\"$namespace\"})"
         },
         {
           "refId": "B",
@@ -101,7 +101,7 @@
             },
             "renameByName": {
               "service_name": "Workload",
-              "Value #A": "CPU (of limit)",
+              "Value #A": "CPU (of request)",
               "Value #B": "Memory (of limit)",
               "Value #C": "Net I/O",
               "Value #D": "Req/s",
@@ -166,13 +166,13 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "CPU (of limit)" },
+            "matcher": { "id": "byName", "options": "CPU (of request)" },
             "properties": [
               { "id": "unit", "value": "percentunit" },
               { "id": "min", "value": 0 },
-              { "id": "max", "value": 1 },
+              { "id": "max", "value": 2 },
               { "id": "decimals", "value": 0 },
-              { "id": "noValue", "value": "no limit" },
+              { "id": "noValue", "value": "no request" },
               {
                 "id": "custom.cellOptions",
                 "value": { "type": "gauge", "mode": "basic", "valueDisplayMode": "text" }
@@ -195,9 +195,9 @@
             "properties": [
               { "id": "unit", "value": "percentunit" },
               { "id": "min", "value": 0 },
-              { "id": "max", "value": 1 },
+              { "id": "max", "value": 2 },
               { "id": "decimals", "value": 0 },
-              { "id": "noValue", "value": "no limit" },
+              { "id": "noValue", "value": "no request" },
               {
                 "id": "custom.cellOptions",
                 "value": { "type": "gauge", "mode": "basic", "valueDisplayMode": "text" }

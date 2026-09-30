@@ -284,8 +284,8 @@
     },
     {
       "type": "timeseries",
-      "title": "CPU usage vs limit (cores)",
-      "description": "Usage from kubeletstats; the dashed red line is the workload's total CPU limit (sum across pods, k8s_cluster receiver). Usage approaching the line means throttling.",
+      "title": "CPU usage vs request (cores)",
+      "description": "Usage from kubeletstats; the dashed red line is the workload's total CPU request (sum across pods, k8s_cluster receiver). There is no CPU limit (ADR-0204), so usage above the line borrows idle CPU, and staying there means the request needs re-measuring.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -301,7 +301,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "limit"
+              "options": "request"
             },
             "properties": [
               {
@@ -334,8 +334,8 @@
         },
         {
           "refId": "B",
-          "legendFormat": "limit",
-          "expr": "sum(k8s_container_cpu_limit{service_namespace=\"platform\",service_name=\"$service\"})"
+          "legendFormat": "request",
+          "expr": "sum(k8s_container_cpu_request{service_namespace=\"platform\",service_name=\"$service\"})"
         }
       ]
     },
