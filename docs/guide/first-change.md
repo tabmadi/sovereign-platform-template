@@ -39,10 +39,10 @@ Three rules bind that field, and each has a gate waiting:
 mise run gen
 ```
 
-This rewrites four trees from the edited spec:
+This rewrites three trees from the edited spec:
 
-- `services/catalog/internal/api/` — the ogen server interface, with validation compiled into the decoder
-- `libs/go/sdks/catalog/` — the Go client other services call through
+- `libs/go/sdks/catalog/` — the ogen server interface, with validation compiled into the decoder, and the Go client
+  other services call through
 - `libs/ts/sdks/catalog/` — the TypeScript client the frontend calls through
 - `apps/admin/_generated/` — the Lowdefy CRUD pages
 
@@ -54,7 +54,7 @@ Your build now fails, and that is the mechanism working: ogen widened the server
 
 ```sh
 cd services/catalog
-mise run db:new -- add_restock_at
+dbmate --migrations-dir migrations new add_restock_at
 ```
 
 Write the `up` and the `down`. The authored SQL is what runs — there is no schema DSL between you and the database ([ADR-0300](../adr/0300-data.md)).

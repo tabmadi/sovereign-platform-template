@@ -1,5 +1,5 @@
 # ADR-0204 guardrails. Every number here was set from a run of the ADR-0601 load
-# suite; `mise run perf:rederive` reproduces one.
+# suite; `mise run perf:re-derive` reproduces one.
 
 #  PriorityClass tiers  Eviction order under real node
 # pressure: batch dies first, Core last.
