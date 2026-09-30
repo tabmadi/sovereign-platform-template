@@ -101,6 +101,8 @@ oathkeeper:
 # (insecure) differ from prod; the S3 credentials come from the observability-bucket Secret via extraEnvFrom
 # (wired in the chart values for every env), so no inline keys here — same mechanism as dev/staging/prod.
 loki:
+  singleBinary:
+    resources: { requests: { cpu: "25m" } }
   loki:
     storage:
       s3:
@@ -110,6 +112,7 @@ loki:
 
 tempo:
   tempo:
+    resources: { requests: { cpu: "25m" } }
     storage:
       trace:
         s3:
@@ -118,6 +121,7 @@ tempo:
 
 # Prometheus' TSDB on a laptop.
 prometheus:
+  resources: { requests: { cpu: "25m" } }
   storage:
     size: 5Gi
 
@@ -132,6 +136,7 @@ opentelemetry-collector:
 # Served at the root of its ops origin (ADR-0306); root_url carries the local
 # edge's :8443 port so post-login redirects land back on the same origin.
 grafana:
+  resources: { requests: { cpu: "25m" } }
   adminPassword: "admin"
   grafana.ini:
     server:
@@ -164,8 +169,17 @@ policies:
 localPath:
   enabled: false
 
-# Temporal's history service is the heaviest CPU consumer under load and near idle at rest; on one node sized down to a
-# 4-core CI runner its measured request would crowd the services out of scheduling (ADR-0204).
+# CPU requests on one node sized down to a 4-core CI runner (ADR-0204). Every request below is a reservation, not a
+# cap: the measured requests of the deployed tiers crowd the services out of scheduling here, and the LimitRange default
+# is paid by every container that declares nothing. A busy container still takes the idle CPU.
+pyroscope:
+  resources: { requests: { cpu: "25m" } }
+alloy:
+  resources: { requests: { cpu: "25m" } }
+limitRanges:
+  platform: { defaultCPURequest: "10m" }
+  argocd: { defaultCPURequest: "10m" }
+  kube-system: { defaultCPURequest: "10m" }
 temporal:
   server:
     history:
