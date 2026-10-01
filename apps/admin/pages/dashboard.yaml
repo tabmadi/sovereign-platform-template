@@ -20,7 +20,8 @@ blocks:
         **Resources**
 
         - [Products](/products): full CRUD
-        - [Organizations](/orgs): full CRUD
+        - [Organizations](/orgs): list, edit, and delete. Registration creates an org, so the console has no create page
+        - [Users](/identities): list and edit. The edit promotes or demotes an operator, per ADR-0304
         - [Orders](/orders): list only, because checkout is an async workflow
         - [Charges](/charges): list only, because charging is an async workflow
 

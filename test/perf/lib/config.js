@@ -98,8 +98,7 @@ export function options(scenario, weight, thresholds) {
     // Thresholds set the process exit code, so a run is a CI gate without a wrapper script.
     // `abortOnFail` is NOT set, on purpose: the run keeps the full curve after a budget fails, most of all under `stress`.
     thresholds,
-    // Response bodies are read, so the timing is honest, but not retained. After a few thousand iterations, the product list alone
-    // would fill the generator's memory and make the generator the bottleneck, not the platform.
+    // Bodies stay on: the checks and the scenarios parse JSON bodies, and with `true` k6 sets every body to null.
     discardResponseBodies: false,
     // Run-level tags apply to EVERY metric, including the custom Trends, which per-request tags cannot reach.
     // `scenario` separates browse series from checkout series in Prometheus. Both export as service.name=k6, so without it the runs look the same.

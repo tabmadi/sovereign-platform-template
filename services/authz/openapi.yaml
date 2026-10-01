@@ -1,5 +1,5 @@
 openapi: 3.1.0
-info: { title: authz, version: 0.1.0, description: "Ops-tier edge authorizer and operator admin, per ADR-0304, ADR-0012, and ADR-0017.", x-audience: cluster }
+info: { title: authz, version: 0.1.0, description: "Ops-tier edge authorizer and operator admin, per ADR-0304, ADR-0305, and ADR-0401.", x-audience: cluster }
 servers: [{ url: / }]   # east-west control-plane service with no /api edge route, per ADR-0305
 tags: [{ name: authorize }, { name: identities, x-admin: crud }]
 paths:
