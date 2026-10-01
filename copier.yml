@@ -25,7 +25,7 @@ _exclude:
   - "scripts/project-init.sh"
   - ".template-version"
   # The template's own machinery, per ADR-0106: its tasks, its workflow, and the scripts and fixtures they run.
-  - ".config/mise/conf.d/template.toml"
+  - "scripts/template-tasks.toml"
   - ".github/workflows/template.yml"
   - "scripts/test-template.sh"
   - "scripts/acceptance.sh"

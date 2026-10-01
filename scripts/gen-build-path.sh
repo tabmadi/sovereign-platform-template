@@ -9,10 +9,11 @@ BEGIN="<!-- machinery:begin -->"
 END="<!-- machinery:end -->"
 grep -qF "$BEGIN" "$DOC" || fail "${DOC} has no ${BEGIN} marker"
 
-tasks="$(for f in .mise.toml .config/mise/conf.d/*.toml; do
-  [ -f "$f" ] || continue
-  yq -p toml -o json '.tasks // {}' "$f"
-done | jq -s 'add')"
+# The include file holds its tasks at the top level, and a generated project does not have it.
+tasks="$({
+  yq -p toml -o json '.tasks // {}' .mise.toml
+  [ ! -f scripts/template-tasks.toml ] || yq -p toml -o json '.' scripts/template-tasks.toml
+} | jq -s 'add')"
 
 # Each entry point and the tasks it names, as `<file> <task>` lines.
 roots="$(grep -oE 'mise run [a-z][a-z0-9:.-]*' .github/workflows/*.yml .lefthook.yml |

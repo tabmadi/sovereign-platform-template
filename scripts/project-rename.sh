@@ -64,4 +64,8 @@ for f in infra/talos/inventory/*/nodes.yml; do
 done
 detail "Talos inventory → ${slug}-<env>-<role>"
 
+# A generated project does not keep the template's own tasks, per ADR-0106, so the table that includes them goes too.
+sed -i '/^# The template.s own tasks, per ADR-0106\./,/^$/d' .mise.toml
+detail "removed the template task include"
+
 ok "renamed to ${slug}. Run 'mise run gen' and 'mise run check' before the first commit"

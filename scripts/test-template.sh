@@ -57,7 +57,7 @@ OLD_REGISTRY="ghcr.io/tabmadi/sovereign-platform-template"
 OLD_APEX="example.com"
 OLD_NODE="example-dev-cp"
 MACHINERY=(copier.yml .copier-answers.yml.jinja .template-version scripts/project-rename.sh scripts/project-init.sh
-  .config/mise/conf.d/template.toml .github/workflows/template.yml scripts/test-template.sh scripts/acceptance.sh test/template)
+  scripts/template-tasks.toml .github/workflows/template.yml scripts/test-template.sh scripts/acceptance.sh test/template)
 
 step "generating valid fixtures"
 for fixture in "$FIXTURES"/valid/*.yml; do

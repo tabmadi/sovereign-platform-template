@@ -74,6 +74,10 @@ rumdl = "0.2.18"
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:mvdan/sh" = "3.13.1"
 
+# The template's own tasks, per ADR-0106. `project-rename.sh` removes this table from a generated project.
+[task_config]
+includes = ["scripts/template-tasks.toml"]
+
 [env]
 GOFLAGS = "-mod=readonly"
 CGO_ENABLED = "0"
