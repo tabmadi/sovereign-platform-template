@@ -1,18 +1,16 @@
-// Cross-service mutation polling (ADR-0302, ADR-0400): a service that starts a workflow answers 202 with a handle.
+// Cross-service mutation polling, per ADR-0302 and ADR-0400: a service that starts a workflow answers 202 with a handle.
 export type WorkflowHandle = {
   id: string;
   run_id: string;
-  // Temporal run status at enqueue time; always "running" for a fresh handle.
+  // Temporal run status at enqueue time. It is always `running` for a new handle.
   status: "running" | "completed" | "failed" | "cancelled";
-  // GET to fetch the terminal status + result. Omitted only by handles that carry
-  // the result inline (none today).
+  // GET to fetch the terminal status and result. Only a handle that carries the result inline omits it.
   result_url?: string;
 };
 
 import { raiseForAuthDenial } from "@/lib/auth/denial";
 
-// The terminal-state shape shared by the resources a workflow settles (orders,
-// charges): a domain status string. "pending"/"running" are non-terminal.
+// The terminal-state shape of the resources that a workflow settles, orders and charges: a domain status string. `pending` and `running` are not terminal.
 export type TerminalResource = { status: string };
 
 const TERMINAL = new Set(["confirmed", "completed", "failed", "cancelled", "settled", "refunded"]);
@@ -20,13 +18,12 @@ const TERMINAL = new Set(["confirmed", "completed", "failed", "cancelled", "sett
 type PollOpts = {
   intervalMs?: number;
   timeoutMs?: number;
-  // How long a 403 on the polled resource is read as "the grant has not landed
-  // yet" rather than as a denial. See the note in the loop below.
+  // How long a 403 on the polled resource means that the grant has not arrived yet, and not a denial. See the note in the loop below.
   forbiddenGraceMs?: number;
   signal?: AbortSignal;
 };
 
-// Resolves on the first terminal status regardless of success or failure: a failed charge is a completed poll, not an error.
+// Resolves on the first terminal status, success or failure: a failed charge is a completed poll, not an error.
 export async function pollWorkflow<T extends TerminalResource>(
   handle: WorkflowHandle,
   { intervalMs = 1000, timeoutMs = 60_000, forbiddenGraceMs = 10_000, signal }: PollOpts = {},
@@ -43,9 +40,9 @@ export async function pollWorkflow<T extends TerminalResource>(
     }
     // biome-ignore lint/performance/noAwaitInLoops: workflow polling is intentionally sequential
     const res = await fetch(handle.result_url, { cache: "no-store", signal });
-    // A denial is terminal for this poll: every non-ok status otherwise reads as "not settled yet", so an expired
-    // session spins until the timeout. One exception — the resource and the tuples that say who may read it are the
-    // workflow's own first leg (ADR-0304), so a 403 inside the grace is a checkout about to succeed. 401 never waits.
+    // A denial ends this poll. Otherwise every non-ok status means not settled yet, and an expired session waits until the timeout.
+    // One exception: the workflow's first leg writes the resource and the tuples that say who can read it, per ADR-0304.
+    // So a 403 inside the grace period is a checkout that is about to succeed. A 401 never waits.
     if (res.status !== 403 || Date.now() > graceEnds) {
       raiseForAuthDenial(res.status);
     }

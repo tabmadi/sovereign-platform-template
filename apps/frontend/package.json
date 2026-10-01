@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "bun server.js",
-    "test": "echo 'no tests yet'"
+    "test": "echo 'no tests'"
   },
   "dependencies": {
     "@formatjs/intl-localematcher": "0.9.0",

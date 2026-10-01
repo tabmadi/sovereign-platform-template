@@ -1,4 +1,4 @@
-# The lower bound of ADR-0003's 5-11 character range.
+# The lower bound of the ADR-0003 range of 5 to 11 characters.
 project_name: Fiver
 project_slug: fiver
 module_path: github.com/fiver/fiver

@@ -5,7 +5,7 @@ import { Link } from "@/i18n/navigation";
 export default async function Landing() {
   const t = await getTranslations("landing");
 
-  // The routes are data, so the list is one map rather than six copies of a <li>.
+  // The routes are data, so the list is one map and not six copies of a <li>.
   const entries = [
     { href: "/auth/login", label: t("signIn") },
     { href: "/auth/register", label: t("createAccount") },

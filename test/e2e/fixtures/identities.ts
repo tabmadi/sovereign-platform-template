@@ -1,11 +1,11 @@
-// The committed deterministic test identities, provisioned the same way everywhere (ADR-0601).
+// The committed deterministic test identities. They are provisioned the same way everywhere, per ADR-0601.
 export type TestIdentity = {
   label: "operator" | "user" | "admin";
   email: string;
   password: string;
-  // operator => enrolled in TOTP (AAL2) and added to group:operator at bootstrap.
+    // true: enrolled in TOTP for AAL2, and added to group:operator at bootstrap.
   operator: boolean;
-  // true => deleted and recreated per e2e run; false => created once, then kept.
+    // true: deleted and created again on each e2e run. false: created once, then kept.
   reset: boolean;
 };
 

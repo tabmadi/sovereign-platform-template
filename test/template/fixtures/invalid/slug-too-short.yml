@@ -1,4 +1,4 @@
-# Four characters — below ADR-0003's floor.
+# Four characters: below the minimum of ADR-0003.
 project_name: Bad
 module_path: github.com/bad/bad
 apex_host: bad.example

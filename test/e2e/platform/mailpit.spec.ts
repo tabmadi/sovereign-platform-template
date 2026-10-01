@@ -1,4 +1,4 @@
-// The Mailpit viewer dashboard: non-prod only, gated at the ops origin (ADR-0307, ADR-0306).
+// The Mailpit viewer dashboard. It runs only outside prod and is gated at the ops origin, per ADR-0307 and ADR-0306.
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { ADMIN } from "../fixtures/identities";
@@ -12,28 +12,27 @@ test.describe("mailpit ops dashboard", () => {
     test("the Mailpit SPA paints at the subdomain root", async ({ page }) => {
       await page.goto(MAILPIT);
       await expect(page).not.toHaveURL(/\/auth\/login/);
-      // Mailpit mounts its SPA at root and titles the document "Mailpit".
+      // Mailpit mounts its SPA at root and sets the document title to `Mailpit`.
       await expect(page).toHaveTitle(/mailpit/i, { timeout: 30_000 });
     });
   });
 
-  // Mailpit exposes an HTTP API over the same store the UI reads (ADR-0307), which is what lets a test assert delivery. It sits behind the same operator gate as the UI.
+  // Mailpit exposes an HTTP API over the same store that the UI reads, per ADR-0307. This API lets a test assert delivery. The same operator gate as the UI protects it.
   test.describe("holds a readable recovery mail", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test("the code in the body matches the code in the subject", async ({ page, browser }) => {
-      // Three waits stack and the 60s default covers none: gotoFlow retries for up to 90s under the auth rate limit, then the courier drains its queue on its own schedule.
+      // Three waits add up, and the 60s default covers none of them. gotoFlow retries for up to 90s under the auth rate limit, then the courier sends its queue on its own schedule.
       test.setTimeout(240_000);
 
       const recipient = ADMIN.email;
-      // Only messages newer than this count. The sink is shared with whoever is
-      // using the cluster, so the run neither clears it nor reads a message an
-      // earlier run left behind.
+      // Only messages newer than this count. The sink is shared with anyone who uses the cluster.
+      // So the run does not clear it, and it does not read a message from an earlier run.
       const since = Date.now();
 
-      // Recovery refuses to start for an identity that already has a session, so it is driven in a context with none.
-      // storageState is emptied explicitly — a bare newContext() under this `test.use` still arrives holding the session.
-      // ignoreHTTPSErrors is restated because the project's `use` block does not reach a hand-made context.
+      // Recovery does not start for an identity that already has a session, so the test uses a context with no session.
+      // storageState is set to empty explicitly: a bare newContext() under this `test.use` still has the session.
+      // ignoreHTTPSErrors is set again, because the project's `use` block does not reach a context made by hand.
       const anon = await browser.newContext({
         ignoreHTTPSErrors: true,
         storageState: { cookies: [], origins: [] },
@@ -54,7 +53,7 @@ test.describe("mailpit ops dashboard", () => {
       const message = found as SinkMessage;
       expect(message.To.map((t) => t.Address)).toContain(recipient);
 
-      // Kratos puts the code in the subject and the body. Asserting only that a message arrived passes on an empty template, and production keeps no store to show it (ADR-0307).
+      // Kratos puts the code in the subject and the body. A check that only a message arrived passes on an empty template, and production keeps no store to show it, per ADR-0307.
       const subjectCode = message.Subject.match(/\b(\d{6})\b/)?.[1];
       expect(subjectCode, `no six-digit code in subject: ${message.Subject}`).toBeDefined();
 
@@ -63,9 +62,8 @@ test.describe("mailpit ops dashboard", () => {
       const { Text } = (await detail.json()) as { Text: string };
       expect(Text).toContain(subjectCode);
 
-      // The sender is deliberately NOT asserted. `from_address` is unset, so Kratos
-      // sends as its own upstream default rather than as the platform, and pinning
-      // that here would make a configuration gap look like a decision.
+      // The sender is NOT asserted, on purpose. `from_address` is unset, so Kratos sends as its own upstream default and not as the platform.
+      // An assertion on it here would make a configuration gap look like a decision.
     });
   });
 });
@@ -78,8 +76,7 @@ type SinkMessage = {
   To: Array<{ Address: string }>;
 };
 
-// newestTo returns the most recent message addressed to `address` that arrived at or
-// after `since`, or null while none has.
+// newestTo returns the newest message to `address` that arrived at or after `since`, or null while there is none.
 async function newestTo(
   request: APIRequestContext,
   address: string,

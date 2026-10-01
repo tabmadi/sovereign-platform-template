@@ -278,7 +278,7 @@
         "tags": [
           "orders"
         ],
-        "description": "Starts the Checkout Temporal saga (ADR-0302). Idempotent on the\nIdempotency-Key header: a retry of the same request returns the order the\nfirst one created rather than placing a second.\n",
+        "description": "Starts the Checkout Temporal saga, per ADR-0302. It is idempotent on the\nIdempotency-Key header: a retry of the same request returns the order that the\nfirst one created and does not place a second order.\n",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -357,7 +357,7 @@
     "/orders/{id}/cancel": {
       "post": {
         "operationId": "cancelOrder",
-        "description": "Cancel an order. Starts the CancelOrder workflow (ADR-0302).",
+        "description": "Cancel an order. Starts the CancelOrder workflow, per ADR-0302.",
         "tags": [
           "orders"
         ],
@@ -591,7 +591,7 @@
         "tags": [
           "charges"
         ],
-        "description": "Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.\nReturns a workflow handle (ADR-0302).\n",
+        "description": "Starts the Charge Temporal workflow. It is idempotent on the Idempotency-Key header.\nReturns a workflow handle, per ADR-0302.\n",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -669,7 +669,7 @@
     "/charges/{id}/refund": {
       "post": {
         "operationId": "refundCharge",
-        "description": "Refund a settled charge. Starts the Refund workflow (ADR-0302).",
+        "description": "Refund a settled charge. Starts the Refund workflow, per ADR-0302.",
         "tags": [
           "charges"
         ],
@@ -729,7 +729,7 @@
     "schemas": {
       "Problem": {
         "type": "object",
-        "description": "RFC 9457 problem details. Served as `application/problem+json` by services and\nby the edge alike, so a generated client has one error branch rather than two.\n",
+        "description": "RFC 9457 problem details. Services and the edge both serve it as\n`application/problem+json`, so a generated client has one error branch, not two.\n",
         "required": [
           "type",
           "title",
@@ -738,36 +738,36 @@
         "properties": {
           "type": {
             "type": "string",
-            "description": "`about:blank`, except where two errors share a status code and a client\nhandles them differently. That case takes a `urn:problem-type:<service>:<slug>`\nURN — never a dereferenceable URL, which would put an error taxonomy into\nthe flat public URL namespace.\n",
+            "description": "`about:blank`, except where two errors share a status code and a client\nhandles them differently. That case uses a `urn:problem-type:<service>:<slug>`\nURN. It is never a dereferenceable URL, which would put an error taxonomy into\nthe flat public URL namespace.\n",
             "default": "about:blank",
             "example": "about:blank"
           },
           "title": {
             "type": "string",
-            "description": "A stable, human-readable summary. Does not vary with the instance.",
+            "description": "A stable, human-readable summary. It does not change with the instance.",
             "example": "Not Found"
           },
           "status": {
             "type": "integer",
-            "description": "The HTTP status, duplicated in the body.",
+            "description": "The HTTP status, repeated in the body.",
             "minimum": 100,
             "maximum": 599,
             "example": 404
           },
           "detail": {
             "type": "string",
-            "description": "Instance-specific and safe to show a user. Never a stack trace, a query, or\nan internal hostname.\n",
+            "description": "Specific to the instance and safe to show a user. Never a stack trace, a query,\nor an internal hostname.\n",
             "example": "No product with that identifier."
           },
           "trace_id": {
             "type": "string",
-            "description": "The W3C Trace Context trace-id of the failing request, so a user-reported\nerror reaches its trace. Supplied from the active span, not by the handler.\n",
+            "description": "The W3C Trace Context trace-id of the failing request, so an error that a user\nreports leads to its trace. The active span supplies it, not the handler.\n",
             "pattern": "^[0-9a-f]{32}$",
             "example": "4bf92f3577b34da6a3ce929d0e0e4736"
           },
           "errors": {
             "type": "array",
-            "description": "Field-level validation failures, populated from the generated validator.\nAbsent when the failure is not a validation failure.\n",
+            "description": "Field-level validation failures, filled from the generated validator.\nAbsent when the failure is not a validation failure.\n",
             "items": {
               "type": "object",
               "required": [
@@ -777,7 +777,7 @@
               "properties": {
                 "pointer": {
                   "type": "string",
-                  "description": "RFC 6901 JSON Pointer to the offending member.",
+                  "description": "RFC 6901 JSON Pointer to the member that failed.",
                   "example": "/price/amount"
                 },
                 "message": {
@@ -798,7 +798,7 @@
       },
       "Event": {
         "type": "object",
-        "description": "One marketing event. The name carries no `marketing.` prefix — that is how the collector routed it, not what it is.",
+        "description": "One marketing event. The name has no `marketing.` prefix. The collector uses the prefix to route the event, and it is not part of the name.",
         "required": [
           "name",
           "occurred_at"
@@ -820,7 +820,7 @@
       },
       "Money": {
         "type": "object",
-        "description": "A monetary amount. The amount is a decimal STRING — a JSON number becomes a\ndouble in the TypeScript client, and a double cannot hold a decimal amount\nexactly. Currency travels with the amount, because an amount without one is\nnot a quantity of anything.\n",
+        "description": "A monetary amount. The amount is a decimal string, because a JSON number becomes\na double in the TypeScript client, and a double cannot hold a decimal amount\nexactly. The currency goes with the amount, because an amount without one is\nnot a quantity of anything.\n",
         "required": [
           "amount",
           "currency"
@@ -828,7 +828,7 @@
         "properties": {
           "amount": {
             "type": "string",
-            "description": "Decimal amount, sign-prefixed when negative. No thousands separators.",
+            "description": "Decimal amount, with a leading sign when negative. No thousands separators.",
             "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
             "example": "1299.00"
           },
@@ -846,7 +846,7 @@
       },
       "ProductId": {
         "type": "string",
-        "description": "A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford\nbase32. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "description": "A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford\nbase32. It is opaque to a consumer: nothing parses, orders, or builds one.\n",
         "pattern": "^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
         "example": "product_01kztmx9e0fq1r13w5d1aerqw6"
       },
@@ -897,7 +897,7 @@
       },
       "OrderId": {
         "type": "string",
-        "description": "An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford\nbase32. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "description": "An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford\nbase32. It is opaque to a consumer: nothing parses, orders, or builds one.\n",
         "pattern": "^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
         "example": "order_01kztnj6c8e0jt7vzw0cn1wxvd"
       },
@@ -928,7 +928,7 @@
           "result_url": {
             "type": "string",
             "format": "uri-reference",
-            "description": "GET to fetch terminal status + result"
+            "description": "GET it to fetch the terminal status and result"
           }
         },
         "example": {
@@ -1001,7 +1001,7 @@
       },
       "OrgId": {
         "type": "string",
-        "description": "An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford\nbase32. The leading character is capped at 7 — 26 characters hold 130 bits and\na UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "description": "An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford\nbase32. The first character is at most 7, because 26 characters hold 130 bits and\na UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.\n",
         "pattern": "^org_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
         "example": "org_01kztn9tsrea7b1597q3yjdeav"
       },
@@ -1040,7 +1040,7 @@
       },
       "ChargeId": {
         "type": "string",
-        "description": "A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford\nbase32. The leading character is capped at 7 — 26 characters hold 130 bits and\na UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.\n",
+        "description": "A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford\nbase32. The first character is at most 7, because 26 characters hold 130 bits and\na UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.\n",
         "pattern": "^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
         "example": "charge_01kztnyqr0f13shqqnx8028xx5"
       },

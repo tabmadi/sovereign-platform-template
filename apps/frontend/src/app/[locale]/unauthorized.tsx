@@ -1,4 +1,4 @@
-// 401 fallback (ADR-0400). Rendered by `unauthorized()` from lib/auth/denial.ts.
+// 401 fallback, per ADR-0400. `unauthorized()` from lib/auth/denial.ts renders it.
 import { useTranslations } from "next-intl";
 import { SignInAgain } from "./sign-in-again";
 

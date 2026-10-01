@@ -1,11 +1,11 @@
-# The Node island (ADR-0100): `next` and Turbopack's workers are `#!/usr/bin/env node` binaries, and bun spawns node for them.
-# Pinned here, not in the root [tools], where every dev running lint/test would install it for nothing.
-# The version resolves from the root [env] NODE_VERSION.
+# The Node island, per ADR-0100: `next` and the Turbopack workers are `#!/usr/bin/env node` binaries, and bun spawns node for them.
+# It is pinned here and not in the root [tools], where every dev who runs lint or test would install it for nothing.
+# The version comes from the root [env] NODE_VERSION.
 [tools]
 node = "{{env.NODE_VERSION}}"
 
 [tasks.dev]
-description = "Root's dev:frontend delegates here with `mise run -C apps/frontend dev`, which activates this node."
+description = "The root dev:frontend task calls this with `mise run -C apps/frontend dev`, which activates this node."
 run = "bun run next dev -H 0.0.0.0"
 
 [tasks.run]

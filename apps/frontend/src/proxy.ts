@@ -1,15 +1,15 @@
-// Kratos session gate + per-request CSP nonce (ADR-0304, ADR-0400, ADR-0305).
+// Kratos session gate and a CSP nonce for each request, per ADR-0304, ADR-0400, and ADR-0305.
 import { match as matchLocale } from "@formatjs/intl-localematcher";
 import { type NextRequest, NextResponse } from "next/server";
 import { isLocale, LOCALE_COOKIE, type Locale, routing } from "@/i18n/routing";
 
 const SESSION_COOKIE = "ory_kratos_session";
 
-// `/analytics` is here for the session half only: the route group performs the authoritative check itself (ADR-0700), and a redirect beats a 403 as a first experience.
+// `/analytics` is here only for the session part. The route group does the authoritative check itself, per ADR-0700, and a redirect is a better first experience than a 403.
 const PROTECTED = ["/panel", "/devportal", "/analytics"];
 
-// A Kratos browser flow cannot begin on our side: Kratos sets its CSRF cookie and hands back a flow id.
-// Issuing the redirect here rather than from the page is a measured LCP fix (ADR-0400).
+// A Kratos browser flow cannot start on our side: Kratos sets its CSRF cookie and returns a flow id.
+// The redirect is issued here and not from the page, because this measurably improves LCP, per ADR-0400.
 // The path segment is not always the flow name: /auth/register starts `registration`.
 const AUTH_FLOWS: Record<string, string> = {
   login: "login",
@@ -19,20 +19,17 @@ const AUTH_FLOWS: Record<string, string> = {
   settings: "settings",
 };
 
-// Kratos refuses these with `session_already_available` and sends the browser to the return URL, so without this
-// the back button after sign-in teleports the user to the landing page.
-// `settings` and `verification` are absent: both are meaningful while signed in.
+// Kratos refuses these with `session_already_available` and sends the browser to the return URL.
+// Without this, the back button after sign-in moves the user to the landing page. `settings` and `verification` are absent: both are useful while signed in.
 const SIGNED_IN_HAS_NO_FLOW = new Set(["login", "register", "recovery"]);
 
-// Telemetry ingest origin for connect-src. Same-origin (/api/rum via Traefik)
-// by default; override when RUM ships to a distinct host.
+// Telemetry ingest origin for connect-src. By default it is same-origin, /api/rum through Traefik. Override it when RUM goes to a different host.
 const INGEST_ORIGIN = process.env.NEXT_PUBLIC_OTEL_INGEST_ORIGIN ?? "";
 
-// next-intl's middleware owns the rewrite, and so does this file; two cannot both rewrite, and the CSP nonce
-// must travel on the rewritten request's headers, which a second middleware's response discards.
-// The matching itself is not hand-rolled: RFC 4647 lookup, the same library next-intl uses.
+// next-intl's middleware does the rewrite, and so does this file. Two cannot both rewrite, and the CSP nonce must be on the rewritten request's headers.
+// A second middleware's response drops those headers. The matching uses RFC 4647 lookup, from the same library that next-intl uses.
 
-/** Split a pathname into its locale prefix, if any, and the rest. */
+/** Split a pathname into its locale prefix, if there is one, and the rest. */
 function splitLocale(pathname: string): { prefix: Locale | null; rest: string } {
   const [, first = "", ...others] = pathname.split("/");
   if (isLocale(first)) {
@@ -42,8 +39,8 @@ function splitLocale(pathname: string): { prefix: Locale | null; rest: string } 
 }
 
 /**
- * The locale for a request with no prefix: the cookie a previous visit wrote, then the browser's preference,
- * then the default. A cookie beats `Accept-Language`: an explicit choice outranks a header the reader never set.
+ * The locale for a request with no prefix: the cookie from an earlier visit, then the browser's preference, then the default.
+ * A cookie wins over `Accept-Language`: an explicit choice ranks above a header that the reader never set.
  */
 function negotiateLocale(req: NextRequest): Locale {
   const fromCookie = req.cookies.get(LOCALE_COOKIE)?.value;
@@ -61,12 +58,12 @@ function negotiateLocale(req: NextRequest): Locale {
   try {
     return matchLocale(requested, routing.locales, routing.defaultLocale) as Locale;
   } catch {
-    // An unparseable tag is a header, not an outage.
+    // A tag that does not parse is a bad header, not an outage.
     return routing.defaultLocale;
   }
 }
 
-/** Prefix a path for a locale, leaving the default locale unprefixed (as-needed). */
+/** Prefix a path for a locale. The default locale has no prefix, per the as-needed mode. */
 function localised(path: string, locale: Locale): string {
   return locale === routing.defaultLocale ? path : `/${locale}${path}`;
 }
@@ -79,7 +76,7 @@ function makeNonce(): string {
 
 function contentSecurityPolicy(nonce: string): string {
   const connectSrc = ["'self'", INGEST_ORIGIN].filter(Boolean).join(" ");
-  // `next dev` injects un-nonced inline HMR scripts and needs eval, and strict-dynamic makes the browser ignore 'unsafe-inline', so the dev server gets an inline-permissive policy.
+  // `next dev` injects inline HMR scripts with no nonce and needs eval. strict-dynamic makes the browser ignore 'unsafe-inline', so the dev server gets a policy that allows inline code.
   const scriptSrc =
     process.env.NODE_ENV === "production"
       ? ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"]
@@ -98,7 +95,7 @@ function contentSecurityPolicy(nonce: string): string {
   ].join("; ");
 }
 
-// A `return_to` is attacker-controllable, so only a same-site absolute path is followed. Kratos applies its own check on the flow side; this function also reads the parameter off a URL Kratos never saw.
+// An attacker can control a `return_to`, so only a same-site absolute path is followed. Kratos checks it on the flow side, and this function also reads it from a URL that Kratos never saw.
 function safeReturnTo(raw: string | null): string | null {
   if (!raw?.startsWith("/") || raw.startsWith("//")) {
     return null;
@@ -116,20 +113,20 @@ function authFlowFor(path: string): { segment: string; kind: string | undefined 
 }
 
 /**
- * A flow id means Kratos asked for this flow, and that outranks the shortcut: an operator stepping up to aal2
- * arrives with both a session and a flow, and bouncing them home means the second factor is never presented.
+ * A flow id means that Kratos asked for this flow, and that wins over the shortcut. An operator who steps up to aal2 has both a session and a flow.
+ * Sending them home means that the second factor never shows.
  */
 function signedInHasNoFlowToStart(segment: string, hasSession: boolean, hasFlow: boolean): boolean {
   return hasSession && !hasFlow && SIGNED_IN_HAS_NO_FLOW.has(segment);
 }
 
-/** Answering here keeps the reader inside the app, and keeps whatever `return_to` the URL carries. */
+/** An answer here keeps the reader inside the app, and keeps any `return_to` in the URL. */
 function redirectHome(req: NextRequest, locale: Locale): NextResponse {
   const back = safeReturnTo(req.nextUrl.searchParams.get("return_to")) ?? localised("/", locale);
   return NextResponse.redirect(new URL(back, req.url));
 }
 
-/** `/auth/self-service/*` is Kratos's own URL space behind Traefik, so it is never localised (ADR-0306). */
+/** `/auth/self-service/*` is the Kratos URL space behind Traefik, so it is never localised, per ADR-0306. */
 function startKratosFlow(req: NextRequest, flowKind: string): NextResponse {
   const start = new URL(`/auth/self-service/${flowKind}/browser`, req.url);
   const returnTo = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
@@ -139,7 +136,7 @@ function startKratosFlow(req: NextRequest, flowKind: string): NextResponse {
   return NextResponse.redirect(start);
 }
 
-/** The panel keeps filters, pagination and tab selection in the URL through nuqs, so the query is part of where the reader was. */
+/** The panel keeps filters, pagination, and tab selection in the URL through nuqs, so the query is part of where the reader was. */
 function pathWithQuery(req: NextRequest): string {
   return `${req.nextUrl.pathname}${req.nextUrl.search}`;
 }
@@ -150,7 +147,7 @@ function redirectToLogin(req: NextRequest, locale: Locale): NextResponse {
   return NextResponse.redirect(login);
 }
 
-/** The root layout stamps this nonce onto its own `<script>` tags, so it travels on the request. */
+/** The root layout sets this nonce on its own `<script>` tags, so the nonce goes on the request. */
 function requestHeadersWithNonce(req: NextRequest, nonce: string, csp: string): Headers {
   const headers = new Headers(req.headers);
   headers.set("x-nonce", nonce);
@@ -159,8 +156,8 @@ function requestHeadersWithNonce(req: NextRequest, nonce: string, csp: string): 
 }
 
 /**
- * The `[locale]` segment is always present internally, so an unprefixed request is rewritten onto the negotiated
- * locale while the address bar keeps the clean URL. A prefixed request already matches, and needs no rewrite.
+ * The `[locale]` segment is always present internally. So an unprefixed request is rewritten to the negotiated locale, and the address bar keeps the clean URL.
+ * A prefixed request already matches and needs no rewrite.
  */
 function localeRewriteTarget(
   req: NextRequest,
@@ -176,7 +173,7 @@ function localeRewriteTarget(
   return rewritten;
 }
 
-/** `lax` because a locale is a preference rather than a credential, and must survive a cross-site navigation back. */
+/** `lax`, because a locale is a preference and not a credential, and it must survive a cross-site navigation back. */
 function rememberLocale(req: NextRequest, res: NextResponse, locale: Locale): void {
   if (req.cookies.get(LOCALE_COOKIE)?.value === locale) {
     return;
@@ -189,7 +186,7 @@ function rememberLocale(req: NextRequest, res: NextResponse, locale: Locale): vo
 }
 
 export function proxy(req: NextRequest) {
-  // Locale first: every decision below is made on the path without its prefix. The other way round is how `/de/panel` ends up unprotected.
+  // Locale first: every decision below uses the path without its prefix. In the other order, `/de/panel` would be unprotected.
   const { prefix, rest } = splitLocale(req.nextUrl.pathname);
   const locale = prefix ?? negotiateLocale(req);
   const path = rest === "" ? "/" : rest;
@@ -230,7 +227,7 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Apply CSP to every document/route except static assets.
+  // Apply CSP to every document and route except static assets.
   matcher: [
     {
       source: "/((?!_next/static|_next/image|favicon.ico).*)",

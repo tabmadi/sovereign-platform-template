@@ -1,13 +1,10 @@
-# Lowdefy admin (ADR-0401). Pure YAML. Day one, every page under custom/ is
-# hand- or LLM-written; the OpenAPI-driven generator (tools/admin-gen, emitting
-# _generated/) is added only when the page count justifies it.
+# Lowdefy admin, per ADR-0401. The pages are YAML only.
 name: platform-admin
-# `local` rather than a pinned semver skips Lowdefy's startup version check, which otherwise makes a raw request to registry.npmjs.org on every boot. The image pins LOWDEFY_VERSION.
+# `local`, not a pinned semver, skips Lowdefy's startup version check. That check makes a raw request to registry.npmjs.org on every boot. The image pins LOWDEFY_VERSION.
 lowdefy: local
 
-# Lowdefy 5 requires every block/connection to be declared as a plugin, pinned to
-# the core version: antd UI blocks, basic layout, markdown, an AgGrid table, and
-# the Axios HTTP connection cover the day-one pages.
+# Lowdefy 5 needs every block and connection declared as a plugin, pinned to the core version.
+# The pages use antd UI blocks, basic layout, markdown, an AgGrid table, and the Axios HTTP connection.
 plugins:
   - { name: "@lowdefy/blocks-antd", version: 5.4.0 }
   - { name: "@lowdefy/blocks-basic", version: 5.4.0 }
@@ -17,13 +14,13 @@ plugins:
 
 config:
   homePageId: dashboard
-  # Served at the root of its own ops origin (ADR-0306). basePath is omitted: Lowdefy requires it to start with
-  # "/" while Next.js rejects exactly "/", so the only root-valid setting is unset.
-  # No Lowdefy auth store — access is gated upstream at the ops edge (ADR-0401).
+  # Served at the root of its own ops origin, per ADR-0306. basePath is omitted: Lowdefy needs it to start with `/`,
+  # and Next.js rejects exactly `/`, so unset is the only valid root setting.
+  # No Lowdefy auth store: the ops edge gates access, per ADR-0401.
 
-# One REST connection per service, id equal to the service name, so the generated pages resolve connectionId directly (ADR-0401).
-# Writes gate on an operator identity, and Lowdefy has no server operator to relay one, so the console asserts a
-# fixed `user:admin-console` the OpenFGA seed grants group:operator. Only the console can reach these ports (ADR-0305).
+# One REST connection per service, with the service name as the id, so the generated pages resolve connectionId directly, per ADR-0401.
+# Writes need an operator identity, and Lowdefy has no server operator to pass one. So the console sends a fixed `user:admin-console`,
+# and the OpenFGA seed grants it group:operator. Only the console can reach these ports, per ADR-0305.
 connections:
   - id: catalog
     type: AxiosHttp
@@ -51,13 +48,12 @@ connections:
       baseURL: http://authz-server.platform.svc.cluster.local
       headers: { X-User-Id: admin-console }
 
-# The nav is generated: _generated/menu.yaml is one `default` menu grouping every
-# resource and action page by service, rendered in the PageSiderMenu left sider
-# across the whole console (tools/admin-gen, ADR-0401).
+# The nav is generated: _generated/menu.yaml is one `default` menu that groups every resource and action page by service.
+# The PageSiderMenu left sider shows it on every console page, per tools/admin-gen and ADR-0401.
 menus:
   _ref: _generated/menu.yaml
 
-# The page index is generated: _generated/pages.yaml lists the hand-written pages
-# (pages/, custom/) first, then every page tools/admin-gen scaffolds from the specs.
+# The page index is generated: _generated/pages.yaml lists the hand-written pages in pages/ and custom/ first,
+# then every page that tools/admin-gen makes from the specs.
 pages:
   _ref: _generated/pages.yaml

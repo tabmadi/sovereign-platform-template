@@ -1,4 +1,4 @@
-// Loads browser observability off the critical path (ADR-0400, ADR-0500).
+// Loads browser observability off the critical path, per ADR-0400 and ADR-0500.
 "use client";
 
 import { useEffect } from "react";
@@ -10,9 +10,8 @@ export function ObservabilityInit() {
       if (cancelled) {
         return;
       }
-      // Failing to load RUM must never break the page it is measuring, so the
-      // rejection is swallowed deliberately — there is nowhere to report it to
-      // when the thing that reports is what failed to load.
+      // A RUM load failure must never break the page that RUM measures. So the rejection is ignored on purpose:
+      // there is nowhere to report it when the reporter itself failed to load.
       import("@/lib/observability/client")
         .then(({ initBrowserObservability }) => {
           if (!cancelled) {

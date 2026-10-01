@@ -1,4 +1,4 @@
-# Underscore is outside the grammar; a hyphen is the only separator.
+# Underscore is outside the grammar. A hyphen is the only separator.
 project_name: Bad
 module_path: github.com/bad/bad
 apex_host: bad.example

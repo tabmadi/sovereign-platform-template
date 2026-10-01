@@ -21,9 +21,9 @@ export default function RootError({
   return (
     <main className="p-6">
       <h1 className="text-xl font-semibold text-foreground">{t("title")}</h1>
-      {/* The message is the exception's own text, from the service or the runtime.
-          It is not copy and is not translated: it is evidence, and it has to match
-          what the logs and the error tracker hold (ADR-0503). */}
+      {/* The message is the exception's own text, from the service or the runtime. It is
+      not copy and is not translated: it is evidence, and it must match what the logs
+      and the error tracker hold, per ADR-0503. */}
       <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
       <div className="mt-4">
         <Button onClick={reset}>{t("retry")}</Button>

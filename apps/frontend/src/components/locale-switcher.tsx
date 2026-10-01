@@ -1,4 +1,4 @@
-// The language picker (ADR-0400): a reader's explicit choice, which outranks negotiation.
+// The language picker, per ADR-0400. It records the reader's explicit choice, which wins over negotiation.
 "use client";
 
 import { useParams } from "next/navigation";
@@ -22,15 +22,14 @@ export function LocaleSwitcher() {
   const params = useParams();
   const [isPending, startTransition] = useTransition();
 
-  // A stable reference: the Select remounts its listener otherwise.
+  // A stable reference. Otherwise the Select remounts its listener.
   const onChange = useCallback(
     (next: string) => {
       startTransition(() => {
-        // `params` carries any dynamic segments of the current route, which
-        // `router.replace` needs to rebuild the same page in the new locale.
+        // `params` carries the dynamic segments of the current route. `router.replace` needs them to rebuild the same page in the new locale.
         router.replace(
-          // @ts-expect-error — typedRoutes cannot prove a runtime pathname is a known
-          // route; it is the pathname this component was rendered on.
+          // @ts-expect-error: typedRoutes cannot prove that a runtime pathname is a known route.
+          // It is the pathname that this component rendered on.
           { pathname, params },
           { locale: next as Locale },
         );

@@ -1,11 +1,10 @@
-// OpenFeature wiring (ADR-0400). Day one runs the NoopProvider, so calls are inert until a provider is set.
+// OpenFeature wiring, per ADR-0400. The NoopProvider runs until a provider is set, so calls have no effect.
 import { type Client, OpenFeature } from "@openfeature/web-sdk";
 
 let client: Client | undefined;
 
 export function flagsClient(): Client {
   if (!client) {
-    // NoopProvider is the default when no provider is registered.
     client = OpenFeature.getClient();
   }
   return client;

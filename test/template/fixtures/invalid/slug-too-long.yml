@@ -1,4 +1,4 @@
-# Twelve characters — above ADR-0003's ceiling.
+# Twelve characters: above the maximum of ADR-0003.
 project_name: Bad
 module_path: github.com/bad/bad
 apex_host: bad.example

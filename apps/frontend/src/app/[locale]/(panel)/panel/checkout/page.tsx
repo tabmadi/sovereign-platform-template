@@ -2,9 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isId } from "@libs/id";
-// Cross-service mutation (ADR-0302, ADR-0400). The orders service returns 202 + a
-// workflow handle, and the seam (lib/data/orders.ts) owns both the POST and the
-// poll — this screen only decides what the user is told at each step.
+// Cross-service mutation, per ADR-0302 and ADR-0400. The orders service returns 202 and a workflow handle.
+// The seam in lib/data/orders.ts owns both the POST and the poll. This screen only decides what the user sees at each step.
 import { useMutation } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
@@ -29,12 +28,11 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { awaitOrder, startOrder } from "@/lib/data/orders";
 
-// The schema is built inside the component, not at module scope, because its
-// message is copy: a validation error the user reads in English on a German page is
-// the half of localisation that gets forgotten.
+// The schema is built inside the component, not at module scope, because its message is copy.
+// An English validation error on a German page is the part of localisation that people forget.
 function makeSchema(invalidId: string) {
   return z.object({
-    // A wire identifier, not a bare UUID (ADR-0003). `isId` is the shared codec both languages check against, so the accepted shape cannot drift from the one the services mint.
+    // A wire identifier, not a bare UUID, per ADR-0003. `isId` is the shared codec that both languages check, so the accepted shape always matches the one the services mint.
     product_id: z.string().refine((v) => isId(v, "product"), invalidId),
     quantity: z.number().int().positive(),
   });
@@ -46,8 +44,7 @@ type Status = { text: string; tone: ComponentProps<typeof Badge>["variant"] };
 
 function ProductIdField({ control }: { control: Control<FormValues> }) {
   const t = useTranslations("panel.checkout");
-  // A stable reference rather than an inline arrow, which react-hook-form would
-  // remount on every keystroke.
+  // A stable reference and not an inline arrow, because react-hook-form would remount an inline arrow on every keystroke.
   const render = useCallback(
     ({
       field,
@@ -67,9 +64,8 @@ function ProductIdField({ control }: { control: Control<FormValues> }) {
           onBlur={field.onBlur}
           aria-invalid={fieldState.invalid}
           placeholder={t("productPlaceholder")}
-          // An identifier is Latin-script in every locale, so it keeps LTR even on
-          // a mirrored page — otherwise the `product_` prefix renders on the wrong
-          // end and the value reads as nonsense.
+          // An identifier is Latin script in every locale, so it keeps LTR on a mirrored page too.
+          // Otherwise the `product_` prefix shows on the wrong end, and the value makes no sense.
           dir="ltr"
         />
         <FieldError errors={[fieldState.error]} />
@@ -81,25 +77,23 @@ function ProductIdField({ control }: { control: Control<FormValues> }) {
   return <Controller control={control} name="product_id" render={render} />;
 }
 
-// A mutation, not an awaited call, and not for the caching: a denial interrupt only reaches forbidden.tsx if it
-// is thrown during a render, and React boundaries never see what an event handler throws.
-// `throwOnError` in the panel providers does the re-throw, for denials only.
+// A mutation, not an awaited call, and not for caching. A denial interrupt reaches forbidden.tsx only if it is thrown during a render,
+// and React boundaries never see what an event handler throws. `throwOnError` in the panel providers throws it again, for denials only.
 function usePlaceOrder(setStatus: Dispatch<SetStateAction<Status>>) {
   const t = useTranslations("panel.checkout");
   return useMutation({
     async mutationFn(values: FormValues) {
       const handle = await startOrder(values);
       setStatus({ text: t("running", { id: handle.id }), tone: "outline" });
-      // The saga confirms the order once catalog + payment succeed (ADR-0302).
+      // The saga confirms the order when catalog and payment succeed, per ADR-0302.
       return await awaitOrder(handle);
     },
     onMutate() {
       setStatus({ text: t("starting"), tone: "outline" });
     },
     onSuccess(order) {
-      // The status is the domain's own value, not copy: it is compared against
-      // "confirmed" and shown as it arrived. A translated status is a status the
-      // next reader cannot grep for in a log.
+      // The status is the domain's own value, not copy. The code compares it with `confirmed` and shows it as it arrived.
+      // A translated status is a status that the next reader cannot grep for in a log.
       setStatus({
         text: order.status,
         tone: order.status === "confirmed" ? "default" : "destructive",

@@ -1,4 +1,4 @@
-// Observability gauge (ADR-0500), two layers:
+// Observability gauge, per ADR-0500.
 import { type APIRequestContext, expect, request, test } from "@playwright/test";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { portForward } from "../fixtures/kube";
@@ -34,9 +34,9 @@ test.describe("grafana datasources", () => {
   }
 });
 
-// Network-policy denials (ADR-0500, ADR-0501). A missing `hubble-drops` dashboard means Grafana's provider is
-// misconfigured — mounting JSON is not enough without a matching dashboardProviders entry.
-// No hubble_drop_total series means the ingest path broke: Hubble metrics off, or the scrape not reaching :9965.
+// Network-policy denials, per ADR-0500 and ADR-0501. A missing `hubble-drops` dashboard means that Grafana's provider config is wrong.
+// Mounting JSON is not enough without a matching dashboardProviders entry.
+// No hubble_drop_total series means that the ingest path broke: Hubble metrics are off, or the scrape does not reach :9965.
 test.describe("network policy denials", () => {
   let ctx: APIRequestContext;
 
@@ -69,8 +69,7 @@ test.describe("network policy denials", () => {
           {
             refId: "A",
             datasource: { type: "prometheus", uid },
-            // `sourceContext=workload` renders a combined "<namespace>/<workload>"
-            // label, so grouping by it proves the workload context is on.
+            // `sourceContext=workload` renders one combined `<namespace>/<workload>` label, so grouping by it proves that the workload context is on.
             expr: "sum by (source, destination) (rate(hubble_drop_total[5m]))",
             instant: true,
           },
@@ -79,16 +78,15 @@ test.describe("network policy denials", () => {
     });
     expect(res.ok(), "Grafana executes the drops query").toBeTruthy();
     const frames = (await res.json()).results?.A?.frames ?? [];
-    expect(frames.length, "hubble_drop_total has series (metrics enabled + scraped)").toBeGreaterThan(
+    expect(frames.length, "hubble_drop_total has series, so metrics are enabled and scraped").toBeGreaterThan(
       0,
     );
   });
 });
 
-// Guards the prerequisites helm-template cannot check: dashboards registered, the Pyroscope datasource
-// answering, alert rules loaded, and each metric family a panel reads present (ADR-0501).
-// The RED check pins the stable otelhttp histogram, with le="0.5" a real 500ms bucket (ADR-0500).
-test.describe("service observability POC (ADR-0501)", () => {
+// Guards the prerequisites that helm-template cannot check, per ADR-0501: dashboards registered, the Pyroscope datasource answering, alert rules loaded, and each metric family that a panel reads.
+// The RED check uses the stable otelhttp histogram, where `le="0.5"` is a real 500ms bucket, per ADR-0500.
+test.describe("service observability POC, ADR-0501", () => {
   let ctx: APIRequestContext;
   let promUid: string;
 
@@ -101,8 +99,8 @@ test.describe("service observability POC (ADR-0501)", () => {
     await ctx?.dispose();
   });
 
-  // Runs an instant PromQL query through Grafana's datasource proxy and reports
-  // whether any series came back (frames are empty when nothing matches).
+  // Runs an instant PromQL query through Grafana's datasource proxy and reports whether any series came back.
+  // The frames are empty when nothing matches.
   async function promHasSeries(expr: string): Promise<boolean> {
     const res = await ctx.post(`${opsURL("grafana")}/api/ds/query`, {
       data: {
@@ -117,12 +115,12 @@ test.describe("service observability POC (ADR-0501)", () => {
     return (((await res.json()).results?.A?.frames ?? []) as unknown[]).length > 0;
   }
 
-  // @smoke, unlike its neighbours (ADR-0601, ADR-0501): a day of exposure for a platform-contract regression is defensible, and for the dashboards someone opens during an incident it is not.
+  // @smoke, unlike the tests near it, per ADR-0601 and ADR-0501. A day of exposure is acceptable for a platform-contract regression, but not for the dashboards that someone opens during an incident.
   test("every POC dashboard is registered with Grafana @smoke", async () => {
     const res = await ctx.get(`${opsURL("grafana")}/api/search?type=dash-db`);
     expect(res.ok(), "Grafana search API answers").toBeTruthy();
     const uids = ((await res.json()) as { uid: string }[]).map((d) => d.uid);
-    expect(uids, "overview + detail + applications + components dashboards are provisioned").toEqual(
+    expect(uids, "the overview, detail, applications, and components dashboards are provisioned").toEqual(
       expect.arrayContaining(["overview", "service-detail", "applications", "platform-components"]),
     );
   });
@@ -136,27 +134,25 @@ test.describe("service observability POC (ADR-0501)", () => {
     expect((await health.json()).status, "Pyroscope answers from Grafana").toBe("OK");
   });
 
-  test("kubeletstats CPU/memory series exist (resource panels)", async () => {
+  test("kubeletstats CPU and memory series exist for the resource panels", async () => {
     expect(await promHasSeries('k8s_pod_cpu_usage{service_namespace="platform"}')).toBeTruthy();
     expect(await promHasSeries('k8s_pod_memory_working_set_bytes{service_namespace="platform"}')).toBeTruthy();
   });
 
-  test("RED reads the stable otelhttp histogram (real 500ms bucket)", async () => {
+  test("RED reads the stable otelhttp histogram with a real 500ms bucket", async () => {
     expect(await promHasSeries('http_server_request_duration_seconds_bucket{le="0.5"}')).toBeTruthy();
   });
 
-  // otel-cluster's two jobs. k8s_cluster feeds the workload-health alerts and the Health row, and its OTLP push
-  // is netpol-gated, which ClusterStateMetricsAbsent fires on.
+  // otel-cluster's two jobs. k8s_cluster feeds the workload-health alerts and the Health row. A netpol gates its OTLP push, and ClusterStateMetricsAbsent fires on that.
   // The exporter scrapes guard their scrape config, the metrics-port ingress rule, and Temporal's delete_key.
-  test("otel-cluster series exist: cluster state + component exporters", async () => {
+  test("otel-cluster series exist: cluster state and component exporters", async () => {
     expect(await promHasSeries('k8s_deployment_desired{service_namespace="platform"}')).toBeTruthy();
     expect(await promHasSeries('cnpg_backends_total{service_name="postgres"}')).toBeTruthy();
     expect(await promHasSeries('service_requests_total{service_name="temporal"}')).toBeTruthy();
   });
 
-  // The rule files must be loaded by Prometheus, not just committed (ADR-0500): this catches the ConfigMap, its
-  // Argo app, the chart's rule_files and mount, and rule-file syntax.
-  // @smoke because an alert that never fires is the difference between a slow incident and an unnoticed one.
+  // Prometheus must load the rule files, not only have them committed, per ADR-0500. This catches the ConfigMap, its Argo app, the chart's rule_files and mount, and rule-file syntax.
+  // @smoke, because an alert that never fires is the difference between a slow incident and an unnoticed incident.
   test("alert rules are loaded into Prometheus @smoke", async () => {
     const res = await ctx.get(
       `${opsURL("grafana")}/api/datasources/proxy/uid/${promUid}/api/v1/rules`,
@@ -170,23 +166,22 @@ test.describe("service observability POC (ADR-0501)", () => {
         "PolicyDropsDetected",
         "DeploymentReplicasUnavailable",
         "ContainerRestartsSpiking",
-        // Admission control (ADR-0104): the rule that fires when the thing checking
-        // image provenance stops running.
+        // Admission control, per ADR-0104: the rule that fires when the image provenance check stops running.
         "KyvernoAdmissionControllerAbsent",
       ]),
     );
   });
 
-  // Platform workloads only write stdout, so they reach Loki solely through the collector's filelog preset
-  // (ADR-0500). Asserting distinct service_name values pins the hostPath mount, the receiver, the container
-  // parser, and the k8sattributes inference. The agent is excluded: its receiver skips its own pod by design.
-  test("platform workloads that only log to stdout reach Loki (filelog)", async () => {
+  // Platform workloads write only to stdout, so they reach Loki only through the collector's filelog preset, per ADR-0500.
+  // A check on distinct service_name values covers the hostPath mount, the receiver, the container parser, and the k8sattributes inference.
+  // The agent is excluded: its receiver skips its own pod by design.
+  test("platform workloads that only log to stdout reach Loki through filelog", async () => {
     test.setTimeout(180_000);
     const ds = await ctx.get(`${opsURL("grafana")}/api/datasources/name/Loki`);
     expect(ds.ok(), "Loki datasource is provisioned").toBeTruthy();
     const { uid } = await ds.json();
     const start = `${(Date.now() - 24 * 3600 * 1000) * 1e6}`;
-    // Polled: a workload the last sync wave started has logged, but its lines may not have reached Loki yet.
+    // Polled: a workload from the last sync wave has logged, but its lines can be late to reach Loki.
     await expect
       .poll(
         async () => {
@@ -195,7 +190,7 @@ test.describe("service observability POC (ADR-0501)", () => {
           );
           expect(res.ok(), "Loki label API answers via the Grafana proxy").toBeTruthy();
           const services = ((await res.json()).data ?? []) as string[];
-          // Not otel-cluster: a healthy collector logs only at startup, which can precede the agent's tail of its file.
+          // Not otel-cluster: a healthy collector logs only at startup, and that can happen before the agent tails its file.
           return ["postgres", "temporal", "lowdefy", "observability"].filter((s) => !services.includes(s));
         },
         { message: "stdout-only platform workloads missing from Loki", timeout: 120_000, intervals: [5_000] },
@@ -203,17 +198,15 @@ test.describe("service observability POC (ADR-0501)", () => {
       .toEqual([]);
   });
 
-  // Marketing events are diverted out of the logs pipeline before Loki, because identity-bearing events in the log
-  // store would breach ADR-0500's PII rule and ADR-0700 states review vigilance is not sufficient.
-  // It asserts a negative, and fails the day someone emits marketing events without the split.
+  // Marketing events leave the logs pipeline before Loki. Identity-bearing events in the log store would break ADR-0500's PII rule, and ADR-0700 states that careful review is not enough.
+  // The test asserts a negative. It fails on the day someone emits marketing events without the split.
   test("no marketing.* event reaches the log store @smoke", async () => {
     const ds = await ctx.get(`${opsURL("grafana")}/api/datasources/name/Loki`);
     expect(ds.ok(), "Loki datasource is provisioned").toBeTruthy();
     const { uid } = await ds.json();
     const start = `${(Date.now() - 24 * 3600 * 1000) * 1e6}`;
-    // Searching Loki for the literal `marketing.` matches its own audit trail, so the naive assertion passes once
-    // and then accuses the platform of a leak that is its own search term.
-    // `marke[t]ing\\.` cannot match itself, and the components whose job is logging request URLs are excluded.
+    // A Loki search for the literal `marketing.` matches its own audit trail. So a naive assertion passes once, then reports its own search term as a leak.
+    // `marke[t]ing\\.` cannot match itself, and the components whose job is to log request URLs are excluded.
     const query = encodeURIComponent(
       '{service_name=~".+", service_name!~"observability|otel-cluster|ory"} |~ "marke[t]ing\\\\."',
     );
@@ -224,12 +217,12 @@ test.describe("service observability POC (ADR-0501)", () => {
     const streams = (await res.json()).data?.result ?? [];
     expect(
       streams,
-      "a marketing.* event in Loki means the routing connector is missing or bypassed (ADR-0700)",
+      "a marketing.* event in Loki means that the routing connector is missing or bypassed, per ADR-0700",
     ).toHaveLength(0);
   });
 });
 
-// Hits the services east-west with a known inbound traceparent, so the trace id is fixed up front and there is no search race. The browser-driven equivalent is purchase.spec.ts.
+// Calls the services east-west with a known inbound traceparent. So the trace id is fixed before the call, and there is no search race. purchase.spec.ts is the browser-driven equivalent.
 test.describe("end-to-end signal correlation", () => {
   const CATALOG_PORT = 18081;
   const ORDERS_PORT = 18082;
@@ -249,7 +242,7 @@ test.describe("end-to-end signal correlation", () => {
     obs?.stop();
   });
 
-  // A synthetic identity, because the suite reaches the service through a port-forward and supplies the headers the edge would inject. The org id only has to be well-formed.
+  // A synthetic identity, because the suite reaches the service through a port-forward and supplies the headers that the edge would inject. The org id only has to be well-formed.
   const BUYER_ID = "obs-e2e-buyer";
   const BUYER_ORG_ID = "org_01kztn9tsrea7b1597q3yjdeav";
 
@@ -258,8 +251,7 @@ test.describe("end-to-end signal correlation", () => {
     const catalog = `http://127.0.0.1:${CATALOG_PORT}`;
     const orders = `http://127.0.0.1:${ORDERS_PORT}`;
 
-    // Operator-authored product (X-User-Id admin-console holds group:operator, the
-    // same subject the admin console writes as — ADR-0401).
+    // Operator-authored product. X-User-Id admin-console holds group:operator, and the admin console writes as the same subject, per ADR-0401.
     const productRes = await fetch(`${catalog}/products`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-user-id": "admin-console" },
@@ -271,7 +263,7 @@ test.describe("end-to-end signal correlation", () => {
     expect(productRes.ok, "operator can create a product").toBeTruthy();
     const productId = ((await productRes.json()) as { id: string }).id;
 
-    // An order belongs to a buyer and to the org they act through (ADR-0304), so the two identity headers are what make it placeable at all.
+    // An order belongs to a buyer and to the org that the buyer acts through, per ADR-0304. So the two identity headers are required to place it.
     const { header, traceId } = newTraceparent();
     const orderRes = await fetch(`${orders}/orders`, {
       method: "POST",
@@ -284,16 +276,15 @@ test.describe("end-to-end signal correlation", () => {
       },
       body: JSON.stringify({ product_id: productId, quantity: 2 }),
     });
-    expect(orderRes.status, "checkout accepted (202)").toBe(202);
+    expect(orderRes.status, "checkout accepted with 202").toBe(202);
     const orderId = ((await orderRes.json()) as { run_id: string }).run_id;
 
-    // The saga is async: poll the order until it confirms (catalog lookup + payment
-    // charge both succeeded — the reachability the netpol fix restored).
+    // The saga is async. Poll the order until it confirms, which means that the catalog lookup and the payment charge both succeeded.
+    // This also proves that the services can reach each other through the netpols.
     await expect
       .poll(
         async () => {
-          // The buyer reads their own order: `order#read` resolves through the owner
-          // tuple the checkout saga wrote for this identity.
+          // The buyer reads their own order: `order#read` resolves through the owner tuple that the checkout saga wrote for this identity.
           const r = await fetch(`${orders}/orders/${orderId}`, {
             headers: { "x-user-id": BUYER_ID },
           });
@@ -303,14 +294,12 @@ test.describe("end-to-end signal correlation", () => {
       )
       .toBe("confirmed");
 
-    // TEMPO: one trace, three services. The cross-service stitch — broken before the
-    // global propagator + otelhttp-transport fixes.
+    // TEMPO: one trace, three services. This checks the cross-service stitch, which depends on the global propagator and the otelhttp transport.
     const services = await waitForTraceServices(traceId, ["orders", "catalog", "payment"]);
     expect(services).toEqual(expect.arrayContaining(["orders", "catalog", "payment"]));
 
-    // LOKI: the same trace_id appears in log structured metadata for each service —
-    // logs↔traces correlation, broken before the access-log-inside-span reorder and
-    // the gRPC log-export fix.
+    // LOKI: the same trace_id appears in log structured metadata for each service. This checks logs and traces correlation.
+    // It depends on the access log inside the span and on the gRPC log export.
     let logServices: string[] = [];
     await expect
       .poll(
@@ -323,7 +312,7 @@ test.describe("end-to-end signal correlation", () => {
       .toBe(true);
     expect(logServices).toEqual(expect.arrayContaining(["orders", "catalog", "payment"]));
 
-    // Prometheus escapes OTLP dotted names to the classic underscore form, and RED reads the stable otelhttp histogram (ADR-0500).
+    // Prometheus escapes OTLP dotted names to the classic underscore form, and RED reads the stable otelhttp histogram, per ADR-0500.
     await expect
       .poll(async () => await promSeriesCount("orders_checkouts_started_total"), { timeout: 60_000 })
       .toBeGreaterThan(0);

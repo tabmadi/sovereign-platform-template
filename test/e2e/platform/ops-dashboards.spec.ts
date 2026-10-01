@@ -1,10 +1,10 @@
-// Every ops dashboard sits behind the same gate (ADR-0306): denied without a session, forbidden to an AAL1 product
-// session, allowed to an AAL2 operator. One table, so a new tool is one row rather than a copied file.
+// Every ops dashboard is behind the same gate, per ADR-0306. It denies no session, forbids an AAL1 product session, and allows an AAL2 operator.
+// One table, so a new tool is one row and not a copied file.
 import { expect, test } from "@playwright/test";
 import { expectAal1Forbidden, expectOperatorAllowed, expectUnauthenticatedDenied } from "../fixtures/dashboard";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 
-// `title` is the document title the tool's SPA sets once it paints; a tool without one is proven by its own spec.
+// `title` is the document title that the tool's SPA sets when it paints. A tool without one is proven by its own spec.
 const TOOLS: Array<{ tool: string; title?: RegExp }> = [
   { tool: "argocd", title: /Argo CD/ },
   { tool: "headlamp", title: /Headlamp/ },

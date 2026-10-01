@@ -1,13 +1,11 @@
-// Web vitals and per-route bundle budgets as a merge gate (ADR-0400).
+// Web vitals and per-route bundle budgets as a merge gate, per ADR-0400.
 //
-// A .cjs config rather than the JSON one it replaces: the two notes below are what
-// a JSON file could not carry, and both name a trap that has already been walked
-// into once. The origin is a variable for the same reason LHCI_URL exists — the
-// budgets are a property of the build, not of the machine serving it.
+// A .cjs config and not JSON, because a JSON file cannot carry the two notes below. Each note names a known trap.
+// The origin is a variable because the budgets are a property of the build, not of the machine that serves it.
 const ORIGIN = process.env.LHCI_URL ?? "https://dev.localtest.me:8443";
 
-// The gate itself. LCP/CLS/TBT are ADR-0400's numbers; TBT stands in for INP,
-// which is a field metric a navigation run has no interaction to measure.
+// The gate. LCP, CLS, and TBT are ADR-0400's numbers. TBT replaces INP, because INP is a field metric
+// and a navigation run has no interaction to measure.
 const ASSERTIONS = {
   "largest-contentful-paint": ["error", { maxNumericValue: 2500 }],
   "cumulative-layout-shift": ["error", { maxNumericValue: 0.1 }],
@@ -22,10 +20,9 @@ const ASSERTIONS = {
 module.exports = {
   ci: {
     collect: {
-      // The app route is /auth/register. Kratos' FLOW is named "registration" and
-      // the two are easy to confuse — /auth/registration is a 404, and lighthouse
-      // reports it as "unable to reliably load the page", naming neither the route
-      // nor the typo. Same trap as test/e2e/fixtures/env.ts guards for the specs.
+      // The app route is /auth/register, and the Kratos flow is named `registration`. The two are easy to confuse.
+      // /auth/registration is a 404, and lighthouse reports only that it is unable to load the page, with no route.
+      // test/e2e/fixtures/env.ts guards the specs against the same trap.
       url: [`${ORIGIN}/`, `${ORIGIN}/auth/login`, `${ORIGIN}/auth/register`],
       numberOfRuns: 3,
       chromePath: "",
@@ -44,16 +41,9 @@ module.exports = {
       },
     },
     assert: {
-      // median, not lhci's default optimistic: a budget answers "what does a
-      // typical load cost", and optimistic answers "what does the best of three
-      // cost", which no user gets and no regression has to clear.
-      //
-      // It only bites on the landing page. lhci groups runs by the URL that was
-      // actually loaded (`_.groupBy(lhrs, lhr => lhr.finalUrl)`), and the two auth
-      // routes 307 to the Kratos flow init, which stamps a fresh `?flow=<uuid>` per
-      // run — so their three runs are three groups of one, and there is nothing to
-      // take a median of. `assertMatrix` does not help: its patterns choose which
-      // assertions apply to a group, after the grouping has happened.
+      // median, not the lhci default optimistic: a budget measures a typical load, not the best of three runs.
+      // It applies only to the landing page. lhci groups runs by finalUrl, and each auth route 307s to a Kratos flow init with a new `?flow=<uuid>`.
+      // So each auth run is a group of one, with no median. `assertMatrix` does not help: it selects assertions after the grouping.
       aggregationMethod: "median",
       assertions: ASSERTIONS,
     },

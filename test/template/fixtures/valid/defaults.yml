@@ -1,6 +1,5 @@
-# The documented defaults. Also the registry namespace that sorts EARLY among the
-# allow-list's third-party entries, which is the position that exposes an ordering
-# bug in a generated artefact.
+# The documented defaults. The registry namespace also sorts EARLY among the third-party entries of the allow-list.
+# That position shows an ordering bug in a generated artefact.
 project_name: Acme Platform
 project_slug: acmeplat
 module_path: github.com/acme/acmeplat

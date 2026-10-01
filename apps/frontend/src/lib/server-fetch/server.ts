@@ -1,16 +1,16 @@
-// Server-only fetcher (ADR-0400) wrapping openapi-fetch, for server components and route handlers.
+// Server-only fetcher around openapi-fetch, for server components and route handlers, per ADR-0400.
 import "server-only";
 
 import { headers } from "next/headers";
 import createClient, { type Client } from "openapi-fetch";
 import { denialMiddleware } from "@/lib/auth/denial";
 
-// Where this process dials the edge: a host `next dev` uses the mapped port, an in-cluster pod uses 443.
-// Both carry the env host, because the /api IngressRoutes match on it and Oathkeeper injects identity there
-// (ADR-0305). No default: every candidate is a wrong guess, and the Host header is client-controlled.
+// Where this process dials the edge: a host `next dev` uses the mapped port, and an in-cluster pod uses 443.
+// Both carry the env host, because the /api IngressRoutes match on it and Oathkeeper injects identity there, per ADR-0305.
+// No default: every candidate is a wrong guess, and the client controls the Host header.
 const API_BASE = process.env.EDGE_INTERNAL_ORIGIN ?? process.env.EDGE_PUBLIC_ORIGIN;
 
-// Flat API (ADR-0306): the typed resource path selects the endpoint. The prefix cannot be relative — a server-side fetch has no document to resolve against.
+// Flat API, per ADR-0306: the typed resource path selects the endpoint. The prefix cannot be relative, because a server-side fetch has no document to resolve against.
 export async function createServerClient<Paths extends object>(): Promise<Client<Paths>> {
   if (!API_BASE) {
     throw new Error(
@@ -34,9 +34,9 @@ export async function createServerClient<Paths extends object>(): Promise<Client
     },
   });
 
-  // Attached to the client, not left to each caller: openapi-fetch reports a denial as an `{ error }` value, so a
-  // page that only checks `data` renders an empty table where it should have said "you do not have access".
-  // A route that needs to handle a denial itself can `eject` it, deliberately and visibly in review.
+  // This is on the client and not in each caller. openapi-fetch reports a denial as an `{ error }` value.
+  // So a page that checks only `data` renders an empty table where it must show that the user has no access.
+  // A route that handles a denial itself can `eject` it, on purpose and visibly in review.
   client.use(denialMiddleware);
   return client;
 }

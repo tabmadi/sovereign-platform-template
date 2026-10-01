@@ -1,4 +1,4 @@
-// Browser observability init (ADR-0500, ADR-0400), on the OpenTelemetry-JS web SDK.
+// Browser observability init on the OpenTelemetry-JS web SDK, per ADR-0500 and ADR-0400.
 "use client";
 
 import { getWebInstrumentations, initializeFaro } from "@grafana/faro-web-sdk";
@@ -17,9 +17,8 @@ type ExceptionPayload = {
   context?: Record<string, string>;
 };
 
-// Attaches the fault identifier to every exception on its way out (ADR-0503). A `beforeSend` hook, because an
-// error reaches Faro from three paths and a fingerprint added at two under-reports the third.
-// It goes in `context`, never a label: the value is high-cardinality by construction (ADR-0500).
+// Adds the fault identifier to every outgoing exception, per ADR-0503. It is a `beforeSend` hook, because an error reaches Faro from three paths, and a fingerprint at two misses the third.
+// It goes in `context`, never in a label, because the value is high-cardinality by design, per ADR-0500.
 function withFingerprint<T extends { type: string; payload: unknown }>(item: T): T {
   if (item.type !== "exception") {
     return item;
@@ -49,9 +48,8 @@ export function initBrowserObservability(): void {
       environment: process.env.NEXT_PUBLIC_DEPLOY_ENV ?? "dev",
     },
     beforeSend: withFingerprint,
-    // Off, and a legal position rather than a tuning choice (ADR-0400). Faro's `persistent: false` still writes
-    // `com.grafana.faro.session` into sessionStorage, which is storage in the user's terminal equipment and so
-    // inside ePrivacy Art. 5(3). With this off the SDK touches no web storage at all.
+    // Off, for a legal reason and not for tuning, per ADR-0400. Faro's `persistent: false` still writes `com.grafana.faro.session` into sessionStorage.
+    // That is storage in the user's terminal equipment, so ePrivacy Art. 5(3) covers it. With this off, the SDK touches no web storage.
     sessionTracking: { enabled: false },
     instrumentations: [
       ...getWebInstrumentations(),
@@ -63,8 +61,8 @@ export function initBrowserObservability(): void {
     ],
   });
 
-  // A per-page correlation id held in a closure: a reload is a new id, so nothing is stored and nothing is read
-  // back (Art. 5(3)). `isSampled` is not decoration — Faro's sampler asks the session, and an unset flag stamps
-  // `traceparent: …-00` on every API request, deleting the whole server-side trace. The rate stays in the collector.
+  // A correlation id for each page, held in a closure. A reload makes a new id, so nothing is stored or read back, per Art. 5(3).
+  // `isSampled` is required: Faro's sampler asks the session, and an unset flag sets `traceparent: ...-00` on every API request, which deletes the whole server-side trace.
+  // The rate stays in the collector.
   faro.api.setSession({ id: crypto.randomUUID(), attributes: { isSampled: "true" } });
 }

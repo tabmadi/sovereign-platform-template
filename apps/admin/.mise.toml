@@ -1,6 +1,6 @@
-# Lowdefy's CLI aborts without pnpm and shells out to `next start`, so these host tasks run under Node — the second Node exception ADR-0100 sanctions.
-# Optional: nothing depends on them, and both paths that matter build the image instead.
-# The version resolves from the root [env] NODE_VERSION; do not repeat the number.
+# Lowdefy's CLI stops without pnpm and calls `next start`, so these host tasks run under Node. This is the second Node exception that ADR-0100 allows.
+# The tasks are optional: nothing depends on them, and both important paths build the image instead.
+# The version comes from the root [env] NODE_VERSION. Do not repeat the number.
 [tools]
 node = "{{env.NODE_VERSION}}"
 
@@ -23,4 +23,4 @@ depends = ["setup"]
 run = "npx lowdefy@{{env.LOWDEFY_VERSION}} validate"
 
 [tasks.test]
-run = "echo 'no tests yet'"
+run = "echo 'no tests'"

@@ -1,5 +1,5 @@
-// Self-service cannot grant privileges (ADR-0304). The requests are what an attacker sends, not what the UI renders:
-// the operator field is submitted directly to Kratos's API flows, at registration and in settings.
+// Self-service cannot grant privileges, per ADR-0304. The requests are what an attacker sends, not what the UI renders.
+// The test submits the operator field directly to the Kratos API flows, at registration and in settings.
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { BASE_URL } from "../fixtures/env";
 import { portForward } from "../fixtures/kube";

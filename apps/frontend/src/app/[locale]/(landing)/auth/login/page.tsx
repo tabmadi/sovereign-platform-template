@@ -1,4 +1,4 @@
-// Kratos self-service login flow, a public route under the landing shell (ADR-0304, ADR-0400).
+// Kratos self-service login flow, a public route under the landing shell, per ADR-0304 and ADR-0400.
 import { getTranslations } from "next-intl/server";
 import { KratosFlow } from "@/components/auth/KratosFlow";
 import { Link } from "@/i18n/navigation";

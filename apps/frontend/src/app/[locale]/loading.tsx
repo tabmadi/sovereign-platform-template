@@ -1,4 +1,4 @@
-// Root loading boundary (ADR-0400). Per-route-group versions override this.
+// Root loading boundary, per ADR-0400. A route group can override it with its own version.
 import { Loader2Icon } from "lucide-react";
 import { useTranslations } from "next-intl";
 

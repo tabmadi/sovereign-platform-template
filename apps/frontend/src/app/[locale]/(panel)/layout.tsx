@@ -1,10 +1,9 @@
-// Panel route-group layout (ADR-0400): it exists to place the client-state providers on this group alone.
+// Panel route-group layout, per ADR-0400. It exists to place the client-state providers on this group only.
 import type { ReactNode } from "react";
 import { PanelProviders } from "./providers";
 
-// Every route here fetches live data through the edge, so none can be prerendered, and without this `next build`
-// fails naming the missing variable rather than the prerender.
-// Supplying an origin at build time would bake one environment's host into an image promoted by digest (ADR-0103).
+// Every route here fetches live data through the edge, so none can be prerendered. Without this, `next build` fails and names the missing variable, not the prerender.
+// An origin at build time would bake one environment's host into an image that is promoted by digest, per ADR-0103.
 export const dynamic = "force-dynamic";
 
 export default function PanelLayout({ children }: { children: ReactNode }) {

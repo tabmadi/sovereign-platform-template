@@ -8,49 +8,49 @@
     "tagline": "Selbst gehostete Microservices-Vorlage.",
     "signIn": "Anmelden",
     "createAccount": "Konto erstellen",
-    "forgotPassword": "Passwort vergessen?",
-    "accountSettings": "Kontoeinstellungen & Sicherheit",
+    "forgotPassword": "Passwort zurücksetzen",
+    "accountSettings": "Kontoeinstellungen und Sicherheit",
     "customerPanel": "Kundenbereich",
     "developerPortal": "Entwicklerportal"
   },
   "auth": {
     "login": {
       "title": "Anmelden",
-      "starting": "Anmeldung wird gestartet…",
+      "starting": "Anmeldung wird gestartet",
       "submit": "Anmelden",
-      "error": "Anmeldung konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "error": "Anmeldung konnte nicht gestartet werden. Erneut versuchen.",
       "toRegister": "Konto erstellen"
     },
     "register": {
       "title": "Konto erstellen",
-      "starting": "Registrierung wird gestartet…",
+      "starting": "Registrierung wird gestartet",
       "submit": "Konto erstellen",
-      "error": "Registrierung konnte nicht gestartet werden. Bitte erneut versuchen.",
-      "toLogin": "Sie haben schon ein Konto? Anmelden"
+      "error": "Registrierung konnte nicht gestartet werden. Erneut versuchen.",
+      "toLogin": "Mit bestehendem Konto anmelden"
     },
     "recovery": {
       "title": "Konto wiederherstellen",
-      "starting": "Wiederherstellung wird gestartet…",
+      "starting": "Wiederherstellung wird gestartet",
       "submit": "Wiederherstellungscode senden",
-      "error": "Wiederherstellung konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "error": "Wiederherstellung konnte nicht gestartet werden. Erneut versuchen.",
       "toLogin": "Zurück zur Anmeldung"
     },
     "verification": {
       "title": "E-Mail-Adresse bestätigen",
-      "starting": "Bestätigung wird gestartet…",
+      "starting": "Bestätigung wird gestartet",
       "submit": "Bestätigungscode senden",
-      "error": "Bestätigung konnte nicht gestartet werden. Bitte erneut versuchen.",
+      "error": "Bestätigung konnte nicht gestartet werden. Erneut versuchen.",
       "toLogin": "Zurück zur Anmeldung"
     },
     "settings": {
-      "title": "Kontoeinstellungen & Sicherheit",
-      "starting": "Einstellungen werden geladen…",
+      "title": "Kontoeinstellungen und Sicherheit",
+      "starting": "Einstellungen werden geladen",
       "submit": "Speichern",
-      "error": "Einstellungen konnten nicht geladen werden. Bitte erneut versuchen."
+      "error": "Einstellungen konnten nicht geladen werden. Erneut versuchen."
     },
     "errorFlow": {
       "title": "Etwas ist schiefgelaufen",
-      "loading": "Fehlerdetails werden geladen…",
+      "loading": "Fehlerdetails werden geladen",
       "generic": "Ein unerwarteter Fehler ist aufgetreten.",
       "toLogin": "Zurück zur Anmeldung"
     },
@@ -70,7 +70,7 @@
     "checkout": {
       "title": "Kasse",
       "productLabel": "Produkt",
-      "productPlaceholder": "Produkt-ID (product_…)",
+      "productPlaceholder": "Produkt-ID, beginnt mit product_",
       "productIdInvalid": "keine Produkt-ID",
       "buy": "Kaufen",
       "starting": "wird gestartet",
@@ -85,8 +85,8 @@
   },
   "analytics": {
     "title": "Produktanalyse",
-    "description": "Ereignisse der letzten {days, plural, one {Tag} other {# Tage}}. „Sitzungen“ beantwortet, wie viele Personen; „Vorkommen“, wie viele Male.",
-    "empty": "Keine Ereignisse in diesem Zeitraum. Marketing-Ereignisse werden nur für Sitzungen mit Einwilligung erfasst — eine leere Tabelle bedeutet also auch „noch niemand hat zugestimmt“.",
+    "description": "Ereignisse der letzten {days, plural, one {Tag} other {# Tage}}. Sitzungen ist die Anzahl der Personen. Vorkommen ist die Anzahl der Male.",
+    "empty": "Keine Ereignisse in diesem Zeitraum. Marketing-Ereignisse werden nur für Sitzungen mit Einwilligung erfasst. Eine leere Tabelle kann also auch bedeuten, dass noch niemand zugestimmt hat.",
     "columnEvent": "Ereignis",
     "columnOccurrences": "Vorkommen",
     "columnSessions": "Sitzungen"
@@ -102,7 +102,7 @@
     },
     "forbidden": {
       "title": "Kein Zugriff",
-      "body": "Ihr Konto ist angemeldet, darf dies aber nicht sehen. Bitten Sie die Administration Ihrer Organisation um Zugriff — die Adresse in der Adresszeile ist die, die Sie ihr schicken sollten.",
+      "body": "Ihr Konto ist angemeldet, hat aber keine Berechtigung für diese Seite. Bitten Sie die Administration Ihrer Organisation um Zugriff. Schicken Sie ihr die Adresse aus der Adresszeile.",
       "backToPanel": "Zurück zum Kundenbereich"
     },
     "unauthorized": {
@@ -110,6 +110,6 @@
       "body": "Melden Sie sich erneut an, um fortzufahren. Sie kehren zu dieser Seite zurück.",
       "signInAgain": "Erneut anmelden"
     },
-    "loading": "Wird geladen…"
+    "loading": "Wird geladen"
   }
 }

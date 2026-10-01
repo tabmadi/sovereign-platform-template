@@ -1,4 +1,4 @@
-// The mirrored layout, pinned (ADR-0400, ADR-0601).
+// The mirrored layout, pinned, per ADR-0400 and ADR-0601.
 import { expect, test } from "@playwright/test";
 import { rtlURL } from "../fixtures/env";
 

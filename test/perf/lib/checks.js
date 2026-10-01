@@ -1,15 +1,12 @@
-// Shared response assertions for k6 scenarios (ADR-0601).
+// Shared response assertions for k6 scenarios, per ADR-0601.
 //
-// A k6 `check` records a pass/fail rate but — unlike a test assertion — does NOT
-// fail the run on its own. That is deliberate here: under load some failures are
-// the finding, not an error. What fails a run is a threshold in the scenario's
-// options, and every helper below feeds the `checks` rate that those thresholds
-// can be written against.
+// A k6 `check` records a pass or fail rate. Unlike a test assertion, it does NOT fail the run on its own, and this is deliberate:
+// under load, some failures are the finding, not an error. A threshold in the scenario's options fails a run,
+// and every helper below feeds the `checks` rate that those thresholds use.
 import { check } from "k6";
 
-// expectStatus asserts the response code and that a body came back at all. The
-// body check catches the specific local failure mode where Traefik answers with
-// an empty 200 because an upstream went away mid-run.
+// expectStatus asserts the response code and that a body came back. The body check catches a local failure:
+// Traefik answers with an empty 200 because an upstream went away during the run.
 export function expectStatus(res, want, name) {
   return check(res, {
     [`${name}: status ${want}`]: (r) => r.status === want,
@@ -17,10 +14,9 @@ export function expectStatus(res, want, name) {
   });
 }
 
-// expectJSON asserts a JSON body and hands the parsed value to a predicate.
-// Parsing is guarded: an RFC 7807 problem document (libs/go/apierr) and an
-// HTML error page from the edge both arrive as "not the JSON you expected", and
-// a bare JSON.parse would abort the VU's iteration instead of recording a check.
+// expectJSON asserts a JSON body and passes the parsed value to a predicate. Parsing is guarded:
+// an RFC 7807 problem document from libs/go/apierr and an HTML error page from the edge are both unexpected JSON,
+// and a bare JSON.parse would stop the VU's iteration and record no check.
 export function expectJSON(res, name, predicate) {
   let parsed = null;
   try {

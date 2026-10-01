@@ -1,4 +1,4 @@
-// The sign-in link on the 401 fallback (ADR-0400): a client component for one interaction.
+// The sign-in link on the 401 fallback, per ADR-0400. It is a client component for one interaction.
 "use client";
 
 import type { Route } from "next";
@@ -8,8 +8,7 @@ import { useEffect, useState } from "react";
 
 export function SignInAgain() {
   const t = useTranslations("errors.unauthorized");
-  // Read after mount, not during render: the server pass has no location, and
-  // deriving the href from it would mismatch on hydration.
+  // Read after mount, not during render: the server pass has no location, and an href from it would not match on hydration.
   const [href, setHref] = useState("/auth/login");
 
   useEffect(() => {
@@ -18,7 +17,7 @@ export function SignInAgain() {
   }, []);
 
   return (
-    // typedRoutes cannot check a template string; the shape is asserted above.
+    // typedRoutes cannot check a template string. The code above asserts the shape.
     <Link href={href as Route} className="text-sm text-primary hover:underline">
       {t("signInAgain")}
     </Link>

@@ -1,4 +1,4 @@
-// The orders seam (ADR-0400, ADR-0701). Browser-side, so no `server-only` import:
+// The orders seam, per ADR-0400 and ADR-0701. It runs in the browser, so it has no `server-only` import.
 import { order as fixtureOrder } from "@/fixtures/orders";
 import { createBrowserClient } from "@/lib/server-fetch/client";
 import { pollWorkflow, type WorkflowHandle } from "@/lib/server-fetch/workflow-handle";
@@ -16,14 +16,13 @@ type OrdersPaths = {
   };
 };
 
-/** Enqueue the order. Resolves with the workflow handle, before it settles. */
+/** Enqueue the order. It resolves with the workflow handle, before the order settles. */
 export async function startOrder(draft: OrderDraft): Promise<WorkflowHandle> {
   if (fixturesEnabled) {
     return fixtureOrder.handle;
   }
   const orders = createBrowserClient<OrdersPaths>();
-  // One key per submit, so the browser retrying a request that already reached the
-  // service gets the order it created rather than a second one (ADR-0003).
+  // One key per submit. So if the browser retries a request that already reached the service, it gets the order it created, not a second one, per ADR-0003.
   const { data, error } = await orders.POST("/orders", {
     body: draft,
     headers: { "Idempotency-Key": crypto.randomUUID() },
@@ -34,7 +33,7 @@ export async function startOrder(draft: OrderDraft): Promise<WorkflowHandle> {
   return data;
 }
 
-/** Poll the enqueued order until the saga settles it (ADR-0302). */
+/** Poll the enqueued order until the saga settles it, per ADR-0302. */
 export async function awaitOrder(handle: WorkflowHandle): Promise<Order> {
   if (fixturesEnabled) {
     return fixtureOrder.settled;

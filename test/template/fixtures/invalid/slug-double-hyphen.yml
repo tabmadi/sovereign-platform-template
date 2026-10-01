@@ -1,4 +1,4 @@
-# A double hyphen is outside the grammar — single separators only.
+# A double hyphen is outside the grammar. Only single separators are allowed.
 project_name: Bad
 module_path: github.com/bad/bad
 apex_host: bad.example

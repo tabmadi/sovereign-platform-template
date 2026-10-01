@@ -1,4 +1,4 @@
-// The catalog seam (ADR-0400, ADR-0701): where a screen's data comes from, and the only thing fixtures change.
+// The catalog seam, per ADR-0400 and ADR-0701. It decides where a screen gets its data, and it is the only thing that fixtures change.
 import type { paths } from "@sdks/catalog";
 import { products as fixtureProducts } from "@/fixtures/catalog";
 import { createServerClient } from "@/lib/server-fetch/server";

@@ -1,14 +1,13 @@
-// WCAG 2.2 AA regression gate for the first-party surfaces (ADR-0400, ADR-0601).
+// WCAG 2.2 AA regression gate for the first-party surfaces, per ADR-0400 and ADR-0601.
 import { expect, test } from "@playwright/test";
 import { expectNoA11yViolations, kitchenSinkSections } from "../fixtures/a11y";
 import { BASE_URL, REGISTER_URL, RTL_LOCALE, rtlURL, USER_STATE } from "../fixtures/env";
 
-// Scalar renders into its own container with its own theme; the route group AROUND
-// it is in scope, the console itself is not.
+// Scalar renders into its own container with its own theme. The route group AROUND it is in scope, and the console is not.
 const SCALAR = ".scalar-app, [data-scalar], #scalar-api-reference";
 
 test.describe("accessibility @a11y", () => {
-  test.describe("kitchen sink — every primitive", () => {
+  test.describe("kitchen sink: every primitive", () => {
     test.use({ storageState: USER_STATE });
 
     test("each section is free of serious and critical violations", async ({ page }) => {
@@ -16,9 +15,8 @@ test.describe("accessibility @a11y", () => {
       await expect(page.getByRole("heading", { name: "Design catalogue" })).toBeVisible();
 
       const sections = await kitchenSinkSections(page);
-      // A page that renders no sections is a broken fixture, not a pass: the whole
-      // point of this scope is that every primitive is covered, so an empty list
-      // would make the test vacuously green.
+      // A page with no sections is a broken fixture, not a pass. This scope exists to cover every primitive,
+      // so an empty list would make the test pass with nothing checked.
       expect(sections.length, "kitchen sink rendered no primitive sections").toBeGreaterThan(0);
 
       for (const [index, title] of sections.entries()) {
@@ -35,9 +33,8 @@ test.describe("accessibility @a11y", () => {
       await expectNoA11yViolations(page, "(landing) /");
     });
 
-    // The same landing page mirrored. A violation only this test can see is one that
-    // depends on direction: a control that lands off-screen, or a label that ends up
-    // on the wrong side of its input.
+    // The same landing page, mirrored. A violation that only this test can see depends on direction:
+    // a control that is off-screen, or a label on the wrong side of its input.
     test("landing, right-to-left", async ({ page }) => {
       await page.goto(rtlURL());
       await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

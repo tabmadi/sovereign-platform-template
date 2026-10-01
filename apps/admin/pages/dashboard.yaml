@@ -9,20 +9,20 @@ blocks:
       content: |
         # Platform admin
 
-        Use the left navigation to manage each service's resources. Every resource
-        opens a Django-admin-style **changelist**: a table of records with an **Add**
-        button, and rows you click to open a dedicated **edit** page (save or delete).
+        Use the left navigation to manage the resources of each service. Every resource
+        opens a **changelist** like the Django admin: a table of records with an **Add**
+        button. Click a row to open its **edit** page, where you can save or delete.
 
-        The pages under each service are generated from the service OpenAPI specs by
-        `tools/admin-gen` (ADR-0401). This landing page is hand-written — the kind of
-        cross-service view the generator does not produce.
+        `tools/admin-gen` generates the pages of each service from the service OpenAPI
+        specs, per ADR-0401. This landing page is hand-written. The generator does not
+        make cross-service views like this one.
 
         **Resources**
 
-        - [Products](/products) — full CRUD
-        - [Organizations](/orgs) — full CRUD
-        - [Orders](/orders) — list only (checkout is an async workflow)
-        - [Charges](/charges) — list only (charging is an async workflow)
+        - [Products](/products): full CRUD
+        - [Organizations](/orgs): full CRUD
+        - [Orders](/orders): list only, because checkout is an async workflow
+        - [Charges](/charges): list only, because charging is an async workflow
 
         **Actions**
 

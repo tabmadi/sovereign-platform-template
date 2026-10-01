@@ -1,4 +1,4 @@
-// The rendered design catalogue (ADR-0400, ADR-0701): the only place the design system can be seen whole.
+// The rendered design catalogue, per ADR-0400 and ADR-0701. It is the only place that shows the whole design system.
 import { ArrowRightIcon, PlusIcon } from "lucide-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -68,8 +68,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-// A colour role, shown as the pair it is: the surface and the text that goes on it.
-// Classes are written out rather than composed, because Tailwind only sees literals.
+// A colour role, shown as its pair: the surface and the text on it.
+// Classes are written out in full and not composed, because Tailwind sees only literals.
 function Swatch({ token, surface, label }: { token: string; surface: string; label: string }) {
   return (
     <figure className="w-40">
@@ -95,13 +95,13 @@ export default function KitchenSink() {
       <header>
         <h1 className="text-2xl font-semibold text-foreground">Design catalogue</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          The brand, then every primitive under <code>src/components/ui/</code>, rendered once. Why
-          each role exists is <code>docs/brand.md</code>; the values themselves live only in{" "}
+          The brand, then every primitive under <code>src/components/ui/</code>, rendered once.{" "}
+          <code>docs/brand.md</code> explains why each role exists. The values are only in{" "}
           <code>src/styles/theme.css</code>.
         </p>
       </header>
 
-      <Section title="Brand — colour roles">
+      <Section title="Brand: colour roles">
         <Swatch
           token="--background / --foreground"
           surface="bg-background text-foreground"
@@ -144,7 +144,7 @@ export default function KitchenSink() {
         />
       </Section>
 
-      <Section title="Brand — chart ramp">
+      <Section title="Brand: chart ramp">
         <div className="flex w-full overflow-hidden rounded-lg border border-border">
           <div className="h-12 flex-1 bg-chart-1" />
           <div className="h-12 flex-1 bg-chart-2" />
@@ -158,20 +158,20 @@ export default function KitchenSink() {
         </p>
       </Section>
 
-      <Section title="Brand — type scale">
+      <Section title="Brand: type scale">
         <div className="w-full space-y-2">
-          <p className="text-4xl font-semibold tracking-tight">Display — 4xl semibold</p>
-          <p className="text-2xl font-semibold">Page title — 2xl semibold</p>
-          <p className="text-lg font-semibold">Section — lg semibold</p>
-          <p className="text-base">Body — base regular, the default for prose.</p>
+          <p className="text-4xl font-semibold tracking-tight">Display: 4xl semibold</p>
+          <p className="text-2xl font-semibold">Page title: 2xl semibold</p>
+          <p className="text-lg font-semibold">Section: lg semibold</p>
+          <p className="text-base">Body: base regular, the default for prose.</p>
           <p className="text-sm text-muted-foreground">
-            Secondary — sm on muted foreground, for anything explanatory.
+            Secondary: sm on muted foreground, for any explanation.
           </p>
-          <p className="font-mono text-sm">Mono — identifiers, amounts, spec fragments.</p>
+          <p className="font-mono text-sm">Mono: identifiers, amounts, and spec fragments.</p>
         </div>
       </Section>
 
-      <Section title="Brand — radius and elevation">
+      <Section title="Brand: radius and elevation">
         <div className="rounded-sm border border-border p-4 text-sm">rounded-sm</div>
         <div className="rounded-md border border-border p-4 text-sm">rounded-md</div>
         <div className="rounded-lg border border-border p-4 text-sm">rounded-lg</div>
@@ -180,7 +180,7 @@ export default function KitchenSink() {
         <div className="rounded-lg bg-card p-4 text-sm shadow-md">shadow-md</div>
       </Section>
 
-      <Section title="Button — variants">
+      <Section title="Button: variants">
         <Button>Default</Button>
         <Button variant="secondary">Secondary</Button>
         <Button variant="outline">Outline</Button>
@@ -189,7 +189,7 @@ export default function KitchenSink() {
         <Button variant="link">Link</Button>
       </Section>
 
-      <Section title="Button — sizes, icons and state">
+      <Section title="Button: sizes, icons, and state">
         <Button size="xs">Extra small</Button>
         <Button size="sm">Small</Button>
         <Button size="lg">Large</Button>
@@ -212,7 +212,7 @@ export default function KitchenSink() {
         <Badge variant="ghost">Ghost</Badge>
       </Section>
 
-      <Section title="Field — the form composition primitive">
+      <Section title="Field: the form composition primitive">
         <FieldGroup className="max-w-xs">
           <Field>
             <FieldLabel htmlFor="ks-email">Email</FieldLabel>
@@ -222,16 +222,16 @@ export default function KitchenSink() {
           <Field data-invalid>
             <FieldLabel htmlFor="ks-invalid">Product id</FieldLabel>
             <Input id="ks-invalid" aria-invalid defaultValue="nope" />
-            <FieldError>That doesn’t look like a product id.</FieldError>
+            <FieldError>This is not a product id.</FieldError>
           </Field>
           <Field>
             <FieldLabel htmlFor="ks-note">Note</FieldLabel>
-            <Textarea id="ks-note" placeholder="Anything the next operator should know." />
+            <Textarea id="ks-note" placeholder="Notes for the next operator" />
           </Field>
         </FieldGroup>
       </Section>
 
-      <Section title="Checkbox, radio and switch">
+      <Section title="Checkbox, radio, and switch">
         <div className="flex items-center gap-2">
           <Checkbox id="ks-check" />
           <Label htmlFor="ks-check">Send me the digest</Label>
@@ -272,7 +272,7 @@ export default function KitchenSink() {
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle>Team seat</CardTitle>
-            <CardDescription>Billed monthly, cancel whenever.</CardDescription>
+            <CardDescription>Billed monthly. Cancel at any time.</CardDescription>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             Includes every console surface, audit log retention, and two support seats.
@@ -291,13 +291,13 @@ export default function KitchenSink() {
             <TabsTrigger value="limits">Limits</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="pt-3 text-sm text-muted-foreground">
-            What the account looks like right now.
+            The current state of the account.
           </TabsContent>
           <TabsContent value="usage" className="pt-3 text-sm text-muted-foreground">
             Consumption over the billing period.
           </TabsContent>
           <TabsContent value="limits" className="pt-3 text-sm text-muted-foreground">
-            The ceilings that apply, and who can raise them.
+            The limits that apply, and who can raise them.
           </TabsContent>
         </Tabs>
       </Section>
@@ -334,9 +334,9 @@ export default function KitchenSink() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Revoke this key?</DialogTitle>
+              <DialogTitle>Revoke this key</DialogTitle>
               <DialogDescription>
-                Anything using it stops working immediately. This cannot be undone.
+                Everything that uses it stops working at once. You cannot undo this.
               </DialogDescription>
             </DialogHeader>
           </DialogContent>
@@ -364,17 +364,17 @@ export default function KitchenSink() {
             <TooltipTrigger asChild>
               <Button variant="outline">Hover me</Button>
             </TooltipTrigger>
-            <TooltipContent>Explains the control, never replaces its label.</TooltipContent>
+            <TooltipContent>Explains the control. It never replaces the label.</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </Section>
 
-      <Section title="Avatar, progress, skeleton and separator">
+      <Section title="Avatar, progress, skeleton, and separator">
         <Avatar>
           <AvatarFallback>TB</AvatarFallback>
         </Avatar>
-        {/* A progressbar with no accessible name is a serious axe violation; the
-            label is what the value is progress TOWARDS. */}
+        {/* A progressbar with no accessible name is a serious axe violation. The label
+            names what the value is progress TOWARDS. */}
         <Progress value={62} className="w-40" aria-label="Storage used" />
         <Skeleton className="h-8 w-40" />
         <Separator orientation="vertical" className="h-8" />

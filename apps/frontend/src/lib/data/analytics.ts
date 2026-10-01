@@ -1,4 +1,4 @@
-// The analytics seam (ADR-0400, ADR-0700, ADR-0701).
+// The analytics seam, per ADR-0400, ADR-0700, and ADR-0701.
 import { summary as fixtureSummary } from "@/fixtures/analytics";
 import { createInternalClient } from "@/lib/server-fetch/internal";
 import { fixturesEnabled } from "./mode";

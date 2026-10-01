@@ -1,4 +1,4 @@
-// Browser log/error forwarding (ADR-0500, ADR-0400).
+// Browser log and error forwarding, per ADR-0500 and ADR-0400.
 "use client";
 
 type Loggable = string | number | boolean | null | undefined | object;

@@ -1,4 +1,4 @@
-// Who may read an order (ADR-0003, ADR-0304): an unguessable identifier is not an access control.
+// Who can read an order, per ADR-0003 and ADR-0304. An identifier that nobody can guess is not an access control.
 import { expect, test, type BrowserContext, type Browser } from "@playwright/test";
 import { BASE_URL, OPERATOR_STATE } from "../fixtures/env";
 import { passwordLogin, register } from "../fixtures/kratos";
@@ -6,14 +6,13 @@ import { portForward } from "../fixtures/kube";
 
 const KRATOS_ADMIN = "http://127.0.0.1:4434";
 
-// Unique per run: Kratos enforces address uniqueness globally.
+// Unique for each run, because Kratos enforces address uniqueness globally.
 const stamp = Date.now();
 const BUYER = { email: `buyer-a-${stamp}@e2e.localtest.me`, password: "Harbour-Sable-Quince-71!" };
 const OTHER = { email: `buyer-b-${stamp}@e2e.localtest.me`, password: "Lantern-Pumice-Drift-83!" };
 
-// A signed-in browser context. `storageState: undefined` is load-bearing: a new
-// context inherits the project's stored operator/user state otherwise, and Kratos
-// bounces an already-authenticated visitor off the registration flow.
+// A signed-in browser context. `storageState: undefined` is required. Without it, a new context inherits the project's stored operator or user state,
+// and Kratos sends an authenticated visitor away from the registration flow.
 async function signedIn(browser: Browser, who: { email: string; password: string }) {
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
   const page = await ctx.newPage();
@@ -23,7 +22,7 @@ async function signedIn(browser: Browser, who: { email: string; password: string
   return ctx;
 }
 
-// Creating a product is operator-gated (ADR-0304), so this needs the stored operator session rather than either buyer's. The price is a Money object, not minor units (ADR-0300).
+// Only an operator can create a product, per ADR-0304. So this needs the stored operator session, not a buyer's session. The price is a Money object, not minor units, per ADR-0300.
 async function createProduct(browser: Browser): Promise<string> {
   const ops = await browser.newContext({ ignoreHTTPSErrors: true, storageState: OPERATOR_STATE });
   try {
@@ -37,14 +36,15 @@ async function createProduct(browser: Browser): Promise<string> {
   }
 }
 
-// It retries because the org is eventually consistent: registration only enqueues RegisterUser, and an order belongs to the org the buyer acts through (ADR-0304). Retrying is the assertion, not a sleep.
+// It retries because the org is eventually consistent, per ADR-0304. Registration only enqueues RegisterUser, and an order belongs to the org that the buyer acts through.
+// The retry is the assertion, not a sleep.
 async function checkout(ctx: BrowserContext, productId: string): Promise<string> {
   let orderId = "";
   await expect(async () => {
     const res = await ctx.request.post(`${BASE_URL}/api/orders`, {
       data: { product_id: productId, quantity: 1 },
-      // Required: a checkout is idempotent on this key (ADR-0003). One per attempt,
-      // so the retry loop below places one order rather than replaying the first.
+      // Required: a checkout is idempotent on this key, per ADR-0003. One key per attempt,
+      // so the retry loop below places one order and does not replay the first.
       headers: { "Idempotency-Key": `authz-e2e-${Date.now()}-${Math.random()}` },
     });
     expect(res.status(), "checkout accepted once the buyer's org exists").toBe(202);
@@ -54,7 +54,7 @@ async function checkout(ctx: BrowserContext, productId: string): Promise<string>
 }
 
 test.describe("order read authorization", () => {
-  // Signed in as nobody: these contexts are created per test from a clean state.
+  // Signed in as nobody: each test creates these contexts from a clean state.
   test.use({ storageState: undefined });
 
   let buyer: BrowserContext;
@@ -66,7 +66,7 @@ test.describe("order read authorization", () => {
   test.beforeAll(async ({ browser }) => {
     anonymous = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
 
-    // This spec buys its own product: a fresh cluster has an empty catalog, so depending on another fixture fails the first run after a bring-up and passes on every one after.
+    // This spec buys its own product. A new cluster has an empty catalog. A dependency on another fixture fails the first run after a bring-up, then passes on every later run.
     productId = await createProduct(browser);
 
     buyer = await signedIn(browser, BUYER);
@@ -79,8 +79,7 @@ test.describe("order read authorization", () => {
   test.afterAll(async ({ browser }) => {
     await Promise.all([buyer?.close(), other?.close(), anonymous?.close()]);
 
-    // The product goes with them, for the same reason the identities do: a fixture
-    // left behind is a fixture some other spec eventually counts.
+    // The product is deleted too, for the same reason as the identities: another spec can later count a fixture that stays behind.
     if (productId) {
       const ops = await browser.newContext({ ignoreHTTPSErrors: true, storageState: OPERATOR_STATE });
       try {
@@ -90,7 +89,7 @@ test.describe("order read authorization", () => {
       }
     }
 
-    // Delete both buyers: the identity changelist paginates client-side, so accumulated test identities push the seeded pair off the first page and admin.spec starts failing.
+    // Delete both buyers. The identity changelist shows pages on the client, so old test identities push the seeded pair off the first page, and admin.spec fails.
     const pf = await portForward("ory-kratos-admin", 4434, 80);
     try {
       for (const who of [BUYER, OTHER]) {
@@ -111,8 +110,7 @@ test.describe("order read authorization", () => {
     }
   });
 
-  // The row is written by the saga's first activity, so it appears just after the
-  // 202 rather than with it.
+  // The saga's first activity writes the row, so it appears just after the 202 and not with it.
   test("its own buyer reads it", async () => {
     await expect(async () => {
       const res = await buyer.request.get(`${BASE_URL}/api/orders/${orderId}`);
@@ -131,7 +129,7 @@ test.describe("order read authorization", () => {
     expect(res.status()).toBe(401);
   });
 
-  // The back-office collections are operator-only; a product user is not one.
+  // The back-office collections are for operators only, and a product user is not an operator.
   test("a buyer cannot list every order", async () => {
     const res = await buyer.request.get(`${BASE_URL}/api/orders`);
     expect(res.status()).toBe(403);

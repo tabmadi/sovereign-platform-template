@@ -1,4 +1,4 @@
-// The Playwright `setup` project: provision the committed identities and save a storage state per role (ADR-0601).
+// The Playwright `setup` project. It provisions the committed identities and saves a storage state for each role, per ADR-0601.
 import fs from "node:fs";
 import { test as setup } from "@playwright/test";
 import { provision } from "./bootstrap";

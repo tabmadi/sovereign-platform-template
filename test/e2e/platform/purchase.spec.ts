@@ -1,4 +1,4 @@
-// The full purchase scenario, end to end through the real UIs (ADR-0601).
+// The full purchase scenario, end to end through the real UIs, per ADR-0601.
 import { expect, test } from "@playwright/test";
 import { BASE_URL, OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { portForward } from "../fixtures/kube";
@@ -6,8 +6,8 @@ import { register, passwordLogin } from "../fixtures/kratos";
 import { tempoSearchByOrderId, TEMPO_PORT, tempoTraceServices } from "../fixtures/observability";
 
 const KRATOS_ADMIN = "http://127.0.0.1:4434";
-// Self-service registration enforces the password policy (min 12, unbreached,
-// dissimilar to the address) — same shape the registration spec uses.
+// Self-service registration enforces the password policy: at least 12 characters, not breached, and not similar to the address.
+// The registration spec uses the same shape.
 const SHOPPER_EMAIL = `shopper-${Date.now()}@e2e.localtest.me`;
 const SHOPPER_PASSWORD = "Meadow-Cipher-Walnut-42!";
 const PRODUCT_NAME = `e2e-purchase-${Date.now()}`;
@@ -27,9 +27,8 @@ test.describe("full purchase scenario", () => {
   });
 
   test.afterAll(async () => {
-    // Delete the product (operator write) and the shopper identity (Kratos admin),
-    // so a re-run starts clean. Orders have no delete endpoint; a stale confirmed
-    // row is harmless.
+    // Delete the product with an operator write, and the shopper identity through Kratos admin, so the next run starts clean.
+    // Orders have no delete endpoint. A stale confirmed row does no harm.
     try {
       if (productId) {
         await fetch(`http://127.0.0.1:${CATALOG_PORT}/products/${productId}`, {
@@ -61,22 +60,22 @@ test.describe("full purchase scenario", () => {
     }
   });
 
-  // @smoke because step 2 is, and step 2 hands over `productId` through the closure. `test:smoke` selects by --grep, which filters per test and does not follow that dependency.
+  // @smoke because step 2 is @smoke, and step 2 gets `productId` through the closure. `test:smoke` selects by --grep, which filters per test and does not follow that dependency.
   test.describe("operator adds a product", () => {
     test.use({ storageState: OPERATOR_STATE });
 
-    test("via the admin console add-product page @smoke", async ({ page }) => {
+    test("through the admin console add-product page @smoke", async ({ page }) => {
       await page.goto(`${opsURL("lowdefy")}/products_new`);
       await page.getByLabel(/^name$/i).fill(PRODUCT_NAME);
-      // Two fields, not one: a price is an amount AND a currency (ADR-0300), and the
-      // admin generator renders the shared Money component as the pair.
+      // Two fields, not one: a price is an amount AND a currency, per ADR-0300.
+      // The admin generator renders the shared Money component as the pair.
       await page.getByLabel(/^price$/i).fill("42.00");
       await page.getByLabel(/^currency$/i).fill("EUR");
       await page.getByRole("button", { name: "Create", exact: true }).click();
       await expect(page).toHaveURL(/\/products$/, { timeout: 20_000 });
       await expect(page.getByText(PRODUCT_NAME)).toBeVisible({ timeout: 30_000 });
 
-      // Resolve the new product's id from catalog (the checkout form takes a UUID).
+      // Find the new product's id from catalog, because the checkout form takes a UUID.
       const res = await fetch(`http://127.0.0.1:${CATALOG_PORT}/products`);
       const products = (await res.json()) as Array<{ id: string; name: string }>;
       productId = products.find((p) => p.name === PRODUCT_NAME)?.id ?? "";
@@ -84,20 +83,19 @@ test.describe("full purchase scenario", () => {
     });
   });
 
-  // Steps 2–4: a brand-new shopper registers, logs in, buys, and the purchase is
-  // observable. A fresh, isolated context (no operator storageState) — the shopper
-  // is a different human in a different app.
+  // Steps 2 to 4: a new shopper registers, logs in, and buys, and the purchase is observable.
+  // The test uses a new, isolated context with no operator storageState, because the shopper is a different human in a different app.
   test("shopper registers, checks out, and the order is traced end to end @smoke", async ({
     browser,
   }) => {
-    // The config's 60s default is a per-step budget, and this test's own waits exceed it: the saga has 60s to settle and Tempo 90s to make the trace searchable.
+    // The config's 60s default is a budget per step, and the waits in this test are longer: the saga has 60s to settle, and Tempo has 90s to make the trace searchable.
     test.setTimeout(240_000);
     expect(productId, "product from step 1").toBeTruthy();
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
     try {
       const page = await ctx.newPage();
 
-      // Register then log in (registration leaves no session by design).
+      // Register, then log in. Registration leaves no session by design.
       await register(page, SHOPPER_EMAIL, SHOPPER_PASSWORD);
       await passwordLogin(page, SHOPPER_EMAIL, SHOPPER_PASSWORD);
 
@@ -106,14 +104,14 @@ test.describe("full purchase scenario", () => {
       await page.locator('input[name="product_id"]').fill(productId);
       await page.getByRole("button", { name: "Buy" }).click();
 
-      // The status badge settles on the terminal order status; "confirmed" means the
-      // saga reached payment and back (catalog lookup + charge both succeeded).
+      // The status badge settles on the terminal order status. `confirmed` means that the saga reached payment and came back,
+      // so the catalog lookup and the charge both succeeded.
       await expect(page.getByText("confirmed", { exact: true })).toBeVisible({ timeout: 60_000 });
     } finally {
       await ctx.close();
     }
 
-    // Listing every order is operator-gated (ADR-0304), so this asserts the console's service identity the way the console does. Port-forwarded, so the edge never strips the header.
+    // Only an operator can list every order, per ADR-0304. So this uses the console's service identity, the same way as the console. The call is port-forwarded, so the edge never strips the header.
     const ordersRes = await fetch(`http://127.0.0.1:${ORDERS_PORT}/orders`, {
       headers: { "x-user-id": "admin-console" },
     });

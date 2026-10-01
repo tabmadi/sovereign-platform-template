@@ -1,26 +1,10 @@
-// Read-path load: the catalog browse journey (ADR-0601).
-//
-//   GET /api/products        — the list, the query every storefront page makes
-//   GET /api/products/{id}   — a detail read, indexed single-row lookup
-//
-// Driven through the edge, so each request pays Traefik routing + the Oathkeeper
-// forward-auth hop (ADR-0305) before catalog ever sees it. Both operations are
-// unauthenticated by design (catalog gates only writes — services/catalog
-// handlers.requireOperator), so this scenario needs no session and its numbers
-// are not distorted by login cost.
-//
-// What it is for: this path is cheap per request, so it saturates the EDGE and
-// the Postgres connection pool long before it saturates catalog itself. That is
-// the ceiling it exists to find.
-//
-// NOTE on what seeding does and does not change here. `ListProducts` is
-// `order by created_at desc limit 100` (services/catalog/.../queries/products.sql),
-// so the RESPONSE never grows past 100 rows no matter how many products exist.
-// Seeding still changes the test, but on the server side only: there is no index
-// on `created_at`, so every list request sorts the whole table to find its top
-// 100. That cost scales with the row count while the response size does not —
-// which is exactly the kind of thing a load test is supposed to surface, and why
-// the seeded row count must be recorded alongside any latency number.
+// Read-path load: the catalog browse journey, per ADR-0601. It calls `GET /api/products`, the list that every storefront page reads, and `GET /api/products/{id}`, an indexed single-row read.
+// Requests go through the edge, so each pays Traefik routing and the Oathkeeper forward-auth hop, per ADR-0305. Both reads are unauthenticated: catalog gates only writes, so no login cost.
+// This path is cheap per request, so it saturates the EDGE and the Postgres connection pool before catalog itself. That ceiling is what it exists to find.
+
+// `ListProducts` is `order by created_at desc limit 100`, so the RESPONSE never has more than 100 rows. Seeding changes only the server side:
+// `created_at` has no index, so every list request sorts the whole table. That cost grows with the row count, and the response size does not.
+// So record the seeded row count with any latency number.
 
 import { sleep } from "k6";
 import http from "k6/http";
@@ -28,33 +12,28 @@ import { Trend } from "k6/metrics";
 import { expectJSON, expectStatus } from "../lib/checks.js";
 import { API, options as buildOptions, summaryTrailer } from "../lib/config.js";
 
-// Rows the list endpoint actually returned at the start of the run. Emitted as a
-// metric so a captured result carries its own context. Because of the `limit 100`
-// above this saturates at 100 and is NOT the table size — it is the page size,
-// and its job is to tell you whether the list response was full (server sorting a
-// big table) or short (a nearly empty one).
+// The rows that the list endpoint returned at the start of the run, as a metric, so a captured result carries its own context.
+// Because of `limit 100`, it stops at 100 and is NOT the table size. It shows whether the list response was full, from a big sorted table, or short, from an almost empty one.
 const pageSize = new Trend("catalog_page_size");
 
 export const options = buildOptions("browse", 1, {
-  // Budgets, not SLOs (ADR-0601). Generous enough that a green run means "no
-  // regression", not "indistinguishable from idle".
+  // Budgets, not SLOs, per ADR-0601. They are large enough that a passing run means no regression, not only a run that looks like idle.
   http_req_failed: ["rate<0.01"],
   "http_req_duration{endpoint:list_products}": ["p(95)<800"],
   "http_req_duration{endpoint:get_product}": ["p(95)<400"],
   checks: ["rate>0.99"],
 });
 
-// setup runs once, before any VU. It resolves the product ids the VUs will read
-// and fails the whole run early if the catalog is empty — otherwise every
-// iteration would 404 and the run would report a beautifully fast error rate.
+// setup runs once, before any VU. It finds the product ids that the VUs read, and fails the whole run early if the catalog is empty.
+// Otherwise every iteration would get 404, and the run would report a fast error rate.
 export function setup() {
   const res = http.get(`${API}/products`, { tags: { endpoint: "list_products" } });
   if (res.status !== 200) {
-    throw new Error(`catalog unreachable at ${API}/products — HTTP ${res.status}`);
+    throw new Error(`catalog unreachable at ${API}/products: HTTP ${res.status}`);
   }
   const products = res.json();
   if (!Array.isArray(products) || products.length === 0) {
-    throw new Error("catalog is empty — run `mise run perf:seed` first, or this measures 404s");
+    throw new Error("catalog is empty. Run `mise run perf:seed` first, or this measures 404s");
   }
   return { ids: products.map((p) => p.id), size: products.length };
 }
@@ -68,8 +47,7 @@ export default function browse(data) {
   });
   expectStatus(list, 200, "list products");
 
-  // Think time. Without it a VU is a tight loop, which measures how fast one
-  // connection can spin rather than how the system behaves under N users.
+  // Think time. Without it, a VU is a tight loop, which measures how fast one connection runs, not how the system behaves under N users.
   sleep(0.5 + Math.random());
 
   // 2. A detail page for a random product from the list.
@@ -78,9 +56,8 @@ export default function browse(data) {
     tags: { endpoint: "get_product" },
   });
   if (expectStatus(detail, 200, "get product")) {
-    // The price is an object with a decimal STRING amount, never a number
-    // (ADR-0300) — asserting the shape here is what catches a spec regression that
-    // a status code would not.
+    // The price is an object with a decimal STRING amount, never a number, per ADR-0300.
+    // A shape check here catches a spec regression that a status code does not show.
     expectJSON(
       detail,
       "get product",
@@ -92,12 +69,10 @@ export default function browse(data) {
   sleep(0.5 + Math.random());
 }
 
-// teardown, not handleSummary: defining handleSummary REPLACES k6's built-in
-// summary table, and hand-rolling that table is either a pile of formatting code
-// or a remote jslib import (a supply-chain dependency for cosmetics). Printing
-// the caveat here leaves the real summary intact directly below it.
+// teardown, not handleSummary: a handleSummary REPLACES k6's built-in summary table. A custom table needs a lot of formatting code
+// or a remote jslib import, which is a supply-chain dependency for looks. Printing the caveat here keeps the real summary below it.
 export function teardown(data) {
   console.log(
-    `browse — list endpoint returned ${data.ids.length} rows (limit 100)${summaryTrailer()}`,
+    `browse: the list endpoint returned ${data.ids.length} rows, limit 100${summaryTrailer()}`,
   );
 }

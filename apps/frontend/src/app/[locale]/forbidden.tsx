@@ -1,4 +1,4 @@
-// 403 fallback (ADR-0400). Rendered by `forbidden()` from lib/auth/denial.ts.
+// 403 fallback, per ADR-0400. `forbidden()` from lib/auth/denial.ts renders it.
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 

@@ -1,7 +1,6 @@
 /**
- * Catalog fixtures (ADR-0701), read only by `lib/data/catalog.ts`. Deterministic: a fixture that changes
- * between renders makes a visual baseline useless.
- * Full, not minimal — two rows hide every layout decision a real table forces.
+ * Catalog fixtures, per ADR-0701. Only `lib/data/catalog.ts` reads them. They are deterministic: a fixture that changes between renders makes a visual baseline useless.
+ * The set is full, not minimal: two rows hide every layout decision that a real table forces.
  */
 import type { Money } from "@libs/money";
 

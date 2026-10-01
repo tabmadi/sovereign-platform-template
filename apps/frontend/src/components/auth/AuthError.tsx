@@ -1,4 +1,4 @@
-// Kratos self-service error flow renderer (ADR-0304, ADR-0400).
+// Renderer for the Kratos self-service error flow, per ADR-0304 and ADR-0400.
 "use client";
 
 import { useTranslations } from "next-intl";

@@ -1,4 +1,4 @@
-// Dev-only RUM ingest shim (ADR-0500, ADR-0400); in the cluster Traefik routes the beacons instead.
+// Dev-only RUM ingest shim, per ADR-0500 and ADR-0400. In the cluster, Traefik routes the beacons.
 import { type NextRequest, NextResponse } from "next/server";
 
 const COLLECT_URL = process.env.FARO_COLLECT_URL;

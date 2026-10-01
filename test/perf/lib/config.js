@@ -1,54 +1,33 @@
-// Shared configuration for every k6 scenario (ADR-0601).
-//
-// Three things live here so a scenario file contains only its request logic:
-//   1. TARGET  — which edge to hit, defaulting to the local one and nothing else.
-//   2. PROFILE — the load shape (smoke/load/stress/soak) as data, so one scenario
-//      file serves all four instead of being copy-pasted per shape.
-//   3. options() — assembles k6's `options` export from a profile + thresholds.
-//
-// This runs on k6's embedded JS engine (Sobek), NOT Node: there is no npm, no
-// package.json and no node_modules in perf/, and there must never be one — that
-// boundary is what keeps ADR-0601's Node escape hatch scoped to e2e/.
+// Shared configuration for every k6 scenario, per ADR-0601. It holds the target, the load profiles, and options(), so a scenario file holds only request logic.
+// This runs on k6's embedded JS engine, Sobek, NOT Node. perf/ has no npm, no package.json, and no node_modules, and must never have one.
+// That boundary keeps ADR-0601's Node exception limited to e2e/.
 
-// ── Target ───────────────────────────────────────────────────────────────────
-// Host-agnostic like the e2e suite (e2e/fixtures/env.ts): override PERF_HOST to
-// point at a deployed environment. The default is the local edge and only the
-// local edge — a load run must never drift onto a shared environment because
-// someone forgot a flag (ADR-0601).
+// The target does not depend on a host, like the e2e suite in e2e/fixtures/env.ts. Set PERF_HOST to target a deployed environment.
+// The default is only the local edge. A load run must never move onto a shared environment because someone forgot a flag, per ADR-0601.
 export const HOST = __ENV.PERF_HOST || "dev.localtest.me:8443";
 export const BASE_URL = `https://${HOST}`;
-// Flat resource namespace behind the gateway (ADR-0306). Scenarios drive this,
-// not a port-forwarded pod, so Traefik and the Oathkeeper forward-auth hop are
-// inside the measurement (ADR-0305, ADR-0601).
+// Flat resource namespace behind the gateway, per ADR-0306. Scenarios call this and not a port-forwarded pod,
+// so Traefik and the Oathkeeper forward-auth hop are inside the measurement, per ADR-0305 and ADR-0601.
 export const API = `${BASE_URL}/api`;
 
-// Everything this suite writes carries this prefix, so seeded and load-generated
-// rows are identifiable and removable afterwards.
+// Everything that this suite writes has this prefix, so a later cleanup can find and remove seeded and load-generated rows.
 export const PERF_PREFIX = "perf-";
 
-// The buyer the write scenarios act as. Checkout requires a signed-in caller with
-// an org (ADR-0304), and this is the committed product-user identity that
-// `mise run auth:seed` provisions — the same credentials
-// test/e2e/fixtures/identities.ts holds. They are copied rather than imported
-// because this island runs on k6's engine and cannot read TypeScript (ADR-0601);
-// a copy that drifts fails `setup()` with the login error, not silently.
+// The buyer for the write scenarios. Checkout needs a signed-in caller with an org, per ADR-0304. This is the committed product-user identity from `mise run auth:seed`.
+// The credentials are a copy of test/e2e/fixtures/identities.ts, because this island runs on k6's engine and cannot read TypeScript, per ADR-0601.
+// If the copy drifts, `setup()` fails with the login error, so the drift is visible.
 export const PERF_USER = {
   email: __ENV.PERF_USER_EMAIL || "user@e2e.localtest.me",
   password: __ENV.PERF_USER_PASSWORD || "Pr0duct-e2e-Sessi0n!",
 };
 
-// ── Load profiles ────────────────────────────────────────────────────────────
-// `vus` is the profile's headline concurrency; a scenario scales it by its own
-// weight (a checkout is far heavier than a product list, so the same profile
-// name means fewer VUs there). Override any profile's peak with PERF_VUS.
-//
-// stages are k6 ramping-vus stages: [{ duration, target }, ...].
+// `vus` is the profile's main concurrency. A scenario scales it by its own weight: a checkout is much heavier than a product list, so it gets fewer VUs.
+// PERF_VUS overrides the peak of any profile. stages are k6 ramping-vus stages: [{ duration, target }, ...].
 const PROFILES = {
-  // Proves the script and the target are wired. Cheap enough for a per-PR lane.
+  // Proves that the script and the target are connected. It is cheap enough for the lane of each PR.
   smoke: { vus: 1, stages: (v) => [{ duration: "10s", target: v }] },
 
-  // The steady baseline. This is the number nightly runs track over time, so its
-  // shape must stay stable — changing it invalidates the history.
+  // The steady baseline. Nightly runs track this number over time, so its shape must stay stable. A change breaks the history.
   load: {
     vus: 20,
     stages: (v) => [
@@ -58,8 +37,7 @@ const PROFILES = {
     ],
   },
 
-  // Ramp past the knee. Thresholds are EXPECTED to break here; the output of a
-  // stress run is the step at which they broke, not a pass/fail.
+  // Ramp past the knee. The thresholds are EXPECTED to break here. The output of a stress run is the step where they broke, not a pass or fail.
   stress: {
     vus: 20,
     stages: (v) => [
@@ -71,7 +49,7 @@ const PROFILES = {
     ],
   },
 
-  // Sustained, for leak detection: memory that climbs while throughput is flat.
+  // Sustained load for leak detection: memory that rises while throughput is flat.
   soak: {
     vus: 10,
     stages: (v) => [
@@ -84,24 +62,13 @@ const PROFILES = {
 
 export const PROFILE = __ENV.PERF_PROFILE || "smoke";
 
-// ── Cardinality control ──────────────────────────────────────────────────────
-// ADR-0500 forbids high-cardinality metric labels, and k6's default system tags
-// violate that badly against a Prometheus every service shares. This is an
-// ALLOW-LIST: any system tag not named here is not emitted. What is deliberately
-// missing, and why:
-//
-//   url, name  the FULL request URL. `GET /products/{id}` against a seeded
-//              catalog mints one series per product id — thousands from a single
-//              stress run, resident in the TSDB until retention expires them.
-//              The hand-written `endpoint` tag on each request carries the route
-//              template instead, which is what a dashboard actually groups by.
-//   error      the free-text Go error string ("EOF", "connection reset by peer
-//              …"). Unbounded by construction. `error_code` below is the
-//              enumerated k6 equivalent and is kept.
-//   scenario   k6's own value here is the EXECUTOR name ("default"), not the
-//              scenario file — useless, and it would collide with the run-level
-//              `scenario` tag set in options() below. Dropped so ours wins.
+// ADR-0500 forbids high-cardinality metric labels, and k6's default system tags break that rule on a Prometheus that every service shares.
+// This is an ALLOW-LIST: a system tag not named here is not emitted. The comments in the array name each omission and its reason.
 const SYSTEM_TAGS = [
+  // Omitted: url and name, the full request URL. It makes one series per product id, thousands per stress run, and they stay until TSDB retention.
+  // The `endpoint` tag on each request carries the route template, which is what a dashboard groups by.
+  // Omitted: error, the free-text Go error string, which has no bound. `error_code` is the enumerated k6 equivalent and stays.
+  // Omitted: scenario, which k6 sets to the executor name. It would collide with the run-level `scenario` tag in options() below.
   "proto",
   "status",
   "method",
@@ -111,20 +78,14 @@ const SYSTEM_TAGS = [
   "expected_response",
 ];
 
-// options builds the k6 `options` export.
-//
-//   scenario   this file's name ("browse"/"checkout"), tagged onto every metric
-//              so the two runs stay distinguishable in Prometheus.
-//   weight     scenario-specific multiplier on the profile's VU count (1 = the
-//              profile's headline number; 0.25 = a quarter of it, for heavy paths).
-//   thresholds the scenario's budgets. Budgets, not SLOs (ADR-0601) — a load run
-//              deliberately pushes past the SLO, so reusing the SLO here would
-//              make every run red and teach everyone to ignore it.
+// options builds the k6 `options` export. `scenario` is this file's name, and it tags every metric so the two runs stay separate in Prometheus.
+// `weight` multiplies the profile's VU count: 1 is the profile's number, and 0.25 is a quarter of it, for heavy paths.
+// `thresholds` are budgets, not SLOs, per ADR-0601. A load run pushes past the SLO on purpose, so the SLO would make every run fail.
 export function options(scenario, weight, thresholds) {
   const profile = PROFILES[PROFILE];
   if (!profile) {
     throw new Error(
-      `unknown PERF_PROFILE "${PROFILE}" — expected one of: ${Object.keys(PROFILES).join(", ")}`,
+      `unknown PERF_PROFILE ${PROFILE}, expected one of: ${Object.keys(PROFILES).join(", ")}`,
     );
   }
   const peak = Math.max(1, Math.round((Number(__ENV.PERF_VUS) || profile.vus) * weight));
@@ -132,38 +93,31 @@ export function options(scenario, weight, thresholds) {
 
   return {
     stages,
-    // The local edge serves the local wildcard cert, which is self-signed — the
-    // same reason playwright.config.ts sets ignoreHTTPSErrors.
+    // The local edge serves the local wildcard cert, which is self-signed. playwright.config.ts sets ignoreHTTPSErrors for the same reason.
     insecureSkipTLSVerify: true,
-    // Thresholds set the process exit code, which is what makes a run a CI gate
-    // without a wrapper script. `abortOnFail` is deliberately NOT set: we want
-    // the full curve even after a budget is blown, especially under `stress`.
+    // Thresholds set the process exit code, so a run is a CI gate without a wrapper script.
+    // `abortOnFail` is NOT set, on purpose: the run keeps the full curve after a budget fails, most of all under `stress`.
     thresholds,
-    // Response bodies are read (so the timing is honest) but not retained: at a
-    // few thousand iterations the product list alone would otherwise dominate
-    // the generator's own memory and make it, not the platform, the bottleneck.
+    // Response bodies are read, so the timing is honest, but not retained. After a few thousand iterations, the product list alone
+    // would fill the generator's memory and make the generator the bottleneck, not the platform.
     discardResponseBodies: false,
-    // Run-level tags: applied to EVERY metric including the custom Trends, which
-    // per-request tags cannot reach. `scenario` is what separates browse from
-    // checkout series in Prometheus — both export under service.name=k6, so
-    // without it the two runs would be indistinguishable there.
+    // Run-level tags apply to EVERY metric, including the custom Trends, which per-request tags cannot reach.
+    // `scenario` separates browse series from checkout series in Prometheus. Both export as service.name=k6, so without it the runs look the same.
     tags: { profile: PROFILE, scenario },
     userAgent: `k6-perf/${PROFILE}`,
     systemTags: SYSTEM_TAGS,
   };
 }
 
-// summaryTrailer is printed from every scenario's teardown() so a captured run
-// always carries the caveat with it — a co-hosted generator competes with the
-// cluster for host CPU, so these are relative regression signals, not capacity
-// figures (ADR-0601).
+// summaryTrailer prints from every scenario's teardown(), so a captured run always carries the caveat.
+// A generator on the same host competes with the cluster for CPU, so the numbers are relative regression signals, not capacity figures, per ADR-0601.
 export function summaryTrailer() {
   return [
     "",
     `  target:  ${BASE_URL}`,
     `  profile: ${PROFILE}`,
-    "  note:    generator runs on the host and shares CPU with the kind node —",
-    "           read these as a regression signal, not an absolute capacity figure.",
+    "  note:    the generator runs on the host and shares CPU with the kind node.",
+    "           Read these numbers as a regression signal, not as an absolute capacity figure.",
     "",
   ].join("\n");
 }

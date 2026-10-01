@@ -1,4 +1,4 @@
-// Component visual regression against committed baselines (ADR-0601, ADR-0400).
+// Component visual regression against committed baselines, per ADR-0601 and ADR-0400.
 import { expect, test } from "@playwright/test";
 import { kitchenSinkSections } from "../fixtures/a11y";
 import { BASE_URL, USER_STATE } from "../fixtures/env";
@@ -11,8 +11,7 @@ test.describe("visual regression @visual", () => {
     await expect(page.getByRole("heading", { name: "Design catalogue" })).toBeVisible();
 
     const sections = await kitchenSinkSections(page);
-    // An empty page would pass vacuously, and a vacuous pass on a regression gate
-    // is worse than no gate: it reports coverage that does not exist.
+    // An empty page would pass with nothing checked. On a regression gate, that is worse than no gate: it reports coverage that does not exist.
     expect(sections.length, "kitchen sink rendered no primitive sections").toBeGreaterThan(0);
 
     for (const [index, title] of sections.entries()) {
@@ -20,11 +19,9 @@ test.describe("visual regression @visual", () => {
       await expect(section, `kitchen sink § ${title}`).toHaveScreenshot(
         `kitchen-sink-${index + 1}.png`,
         {
-          // Animations mid-flight are the single largest source of a diff nobody
-          // introduced.
+          // Animations in progress are the largest source of a diff that no change caused.
           animations: "disabled",
-          // Antialiasing differs by a pixel or two between runs on the same
-          // machine; anything larger is a real change.
+          // Antialiasing differs by a pixel or two between runs on the same machine. Anything larger is a real change.
           maxDiffPixelRatio: 0.01,
         },
       );

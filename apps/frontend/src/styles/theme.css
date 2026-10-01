@@ -1,21 +1,10 @@
-/* The design tokens (ADR-0400). This file is the ONLY source of colour, radius,
- * and font values: there is no JS token mirror, and no route group redefines a
- * token. A TypeScript consumer that needs a raw value reads the CSS variable.
- *
- * Roles, and what each is for, are documented in docs/brand.md. Rebranding a
- * generated project is editing the two blocks below and nothing else — every
- * surface moves at once, which is why `mise run lint:contrast` gates this file
- * rather than individual components.
- *
- * Every `--<role>-foreground` is the text colour used ON `--<role>`; that pairing
- * is what lint:contrast checks, in both palettes. Adding a role means adding it to
- * BOTH :root and .dark. */
+/* The design tokens, per ADR-0400. This file is the ONLY source of colour, radius, and font values. No JS token mirror exists, no route group redefines a token,
+ * and a TypeScript consumer that needs a raw value reads the CSS variable. docs/brand.md documents the roles. A rebrand edits only the two blocks below, and every surface changes at once.
+ * So `mise run lint:contrast` gates this file and not each component. Every `--<role>-foreground` is the text colour ON `--<role>`, and `mise run lint:contrast` checks that pair in both palettes. A new role goes in BOTH :root and .dark. */
 
 @theme inline {
-    /* Fonts. `--font-app` is declared by whichever next/font the locale layout
-     * loaded — Inter for Latin locales, Vazirmatn for Persian — so one token covers
-     * every script. The fallback chain applies when it is absent, so the tokens
-     * never depend on a network font. */
+    /* Fonts. The next/font that the locale layout loaded declares `--font-app`: Inter for Latin locales, Vazirmatn for Persian.
+     * So one token covers every script. The fallback chain applies when it is absent, so the tokens never depend on a network font. */
     --font-sans: var(--font-app, "Inter"), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
         "Courier New", monospace;
@@ -83,9 +72,8 @@
     --destructive: oklch(0.505 0.213 27.518);
     --destructive-foreground: oklch(0.985 0 0);
     --border: oklch(0.922 0 0);
-    /* Darker than shadcn's default, and deliberately: a form control's boundary and
-     * the focus ring are each the only visual information identifying something, so
-     * WCAG 2.2 SC 1.4.11 asks 3:1 of them. `mise run lint:contrast` holds it. */
+    /* Darker than the shadcn default, on purpose: a form control's boundary and the focus ring are each the only visual sign of something.
+     * So WCAG 2.2 SC 1.4.11 requires 3:1 for them, and `mise run lint:contrast` enforces it. */
     --input: oklch(0.65 0 0);
     --ring: oklch(0.65 0 0);
     --chart-1: oklch(0.87 0 0);
@@ -103,9 +91,8 @@
     --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* The dark palette. next-themes writes this class onto <html>; it overrides only
- * what changes, so a role added above without a line here inherits the light value
- * and lint:contrast fails on the pair it cannot satisfy. */
+/* The dark palette. next-themes writes this class onto <html>. It overrides only what changes, so a role added above without a line here
+ * inherits the light value, and lint:contrast fails on the pair that it cannot satisfy. */
 .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);

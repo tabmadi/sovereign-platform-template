@@ -1,4 +1,4 @@
-// Minimal kubectl port-forward helper for the bootstrap, which reaches admin APIs no edge route exposes.
+// Minimal kubectl port-forward helper for the bootstrap. The bootstrap reaches admin APIs that no edge route exposes.
 import { type ChildProcess, spawn } from "node:child_process";
 import net from "node:net";
 
@@ -29,8 +29,8 @@ async function waitForPort(port: number, timeoutMs = 20_000): Promise<void> {
   throw new Error(`port-forward to 127.0.0.1:${port} did not come up within ${timeoutMs}ms`);
 }
 
-// portForward starts `kubectl -n <ns> port-forward svc/<svc> <local>:<remote>` and
-// resolves once the local port accepts connections. Call stop() to tear it down.
+// portForward starts `kubectl -n <ns> port-forward svc/<svc> <local>:<remote>` and resolves when the local port accepts connections.
+// Call stop() to end it.
 export async function portForward(
   svc: string,
   local: number,

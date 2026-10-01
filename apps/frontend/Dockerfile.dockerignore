@@ -1,8 +1,6 @@
-# Per-Dockerfile ignore (ADR-0400). BuildKit uses <Dockerfile>.dockerignore in
-# preference to the repo-root .dockerignore — which is tuned for the Go service
-# images and excludes apps/, libs/ts, and package.json, all of which the frontend
-# build needs. Here we exclude only VCS/dep/build-output dirs and the unrelated
-# admin app, keeping the context correct for `bun run build`.
+# Ignore file for this Dockerfile, per ADR-0400. BuildKit uses <Dockerfile>.dockerignore before the repo-root .dockerignore.
+# The root file is for the Go service images and excludes apps/, libs/ts, and package.json, which the frontend build needs.
+# This file excludes only VCS, dep, and build-output dirs and the unrelated admin app, so the context is correct for `bun run build`.
 **/.git
 **/.DS_Store
 **/node_modules

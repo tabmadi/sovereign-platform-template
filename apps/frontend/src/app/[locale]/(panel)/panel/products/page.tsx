@@ -1,4 +1,4 @@
-// A server component reading through the data seam (ADR-0400, ADR-0701).
+// A server component that reads through the data seam, per ADR-0400 and ADR-0701.
 import { formatMoney } from "@libs/money";
 import { getTranslations } from "next-intl/server";
 import {
@@ -29,9 +29,9 @@ export default async function Products() {
           {products.map((product) => (
             <TableRow key={product.id}>
               <TableCell className="font-medium">{product.name}</TableCell>
-              {/* formatMoney, not `/ 100` and a hardcoded `$`: the minor digits and the
-                  symbol belong to the currency, and the amount is a decimal string
-                  precisely so it never passes through a double (ADR-0300). */}
+              {/* formatMoney, not `/ 100` and a hardcoded `$`: the minor digits and the symbol
+              belong to the currency. The amount is a decimal string, so it never passes
+              through a double, per ADR-0300. */}
               <TableCell className="tabular-nums">{formatMoney(product.price)}</TableCell>
             </TableRow>
           ))}

@@ -1,4 +1,4 @@
-// Shared Kratos self-service flow renderer, used by every /auth/* route (ADR-0304, ADR-0400).
+// Shared renderer for the Kratos self-service flows, used by every /auth/* route, per ADR-0304 and ADR-0400.
 "use client";
 
 import { useTranslations } from "next-intl";
@@ -19,7 +19,7 @@ export type FlowStrings = {
 
 type UiText = { id: number; text: string };
 type UiNode = {
-  type?: string; // node_type at the node level: input | text | img | script | a
+  type?: string; // node_type at the node level: input, text, img, script, or a
   group?: string;
   attributes: {
     node_type?: string;
@@ -28,12 +28,12 @@ type UiNode = {
     value?: string | number | boolean;
     required?: boolean;
     disabled?: boolean;
-    // text node (e.g. the TOTP secret) and img node (the TOTP QR code)
+    // text node, for example the TOTP secret, and img node, the TOTP QR code
     text?: UiText;
     src?: string;
-    // webauthn registration is a submit button whose handler the script node sets
+    // webauthn registration is a submit button, and the script node sets its handler
     onclick?: string;
-    // script node attributes (Kratos WebAuthn helper)
+    // script node attributes for the Kratos WebAuthn helper
     id?: string;
     async?: boolean;
     referrerpolicy?: string;
@@ -59,8 +59,7 @@ type Flow = {
   ui: { action: string; method: string; nodes: UiNode[]; messages?: UiText[] };
 };
 
-// Kratos sets the CSRF cookie and redirects back here with ?flow=<id>; (re)start
-// the browser flow, preserving any return_to.
+// Kratos sets the CSRF cookie and redirects back here with ?flow=<id>. Start the browser flow, or start it again, and keep any return_to.
 function restartFlow(kind: FlowKind): void {
   const returnTo = new URLSearchParams(window.location.search).get("return_to");
   const init = new URL(`/auth/self-service/${kind}/browser`, window.location.origin);
@@ -70,8 +69,8 @@ function restartFlow(kind: FlowKind): void {
   window.location.replace(init.toString());
 }
 
-// Kratos WebAuthn helper script. Same-origin src; the nonce lets it run under the
-// strict CSP (strict-dynamic). It defines window.__oryWebAuthn* used by buttons.
+// Kratos WebAuthn helper script. The src is same-origin, and the nonce lets it run under the strict CSP with strict-dynamic.
+// It defines the window.__oryWebAuthn* functions that the buttons use.
 function ScriptNode({ attr }: { attr: UiNode["attributes"] }) {
   return (
     <script
@@ -85,8 +84,7 @@ function ScriptNode({ attr }: { attr: UiNode["attributes"] }) {
   );
 }
 
-// TOTP QR code. A plain <img> is correct: Kratos returns a data: URL (allowed by
-// img-src 'self' data:), not a routable next/image asset.
+// TOTP QR code. A plain <img> is correct: Kratos returns a data: URL, which img-src 'self' data: allows, and not a routable next/image asset.
 function ImgNode({ src, alt }: { src?: string; alt: string }) {
   // biome-ignore lint/performance/noImgElement: data: URL QR, not a next/image asset.
   return <img src={src} alt={alt} width={200} height={200} className="my-2" />;
@@ -101,7 +99,7 @@ function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string })
     return <input type="hidden" name={attr.name} value={value} />;
   }
   if (attr.type === "submit" || attr.type === "button") {
-    // Kratos identifies the pressed method by name=value, and a settings flow renders every method in one form, where `formNoValidate` stops one method's empty field blocking another's submit.
+    // Kratos finds the pressed method by name=value. A settings flow renders every method in one form, and `formNoValidate` stops an empty field of one method from blocking another method's submit.
     return (
       <Button
         type={attr.type === "button" ? "button" : "submit"}
@@ -123,7 +121,7 @@ function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string })
       <Input
         id={fieldId}
         name={attr.name}
-        // Kratos drives the input type (email, password, text, …).
+        // Kratos sets the input type: email, password, text, and others.
         type={attr.type as "text" | "email" | "password" | "search" | "tel" | "url"}
         required={attr.required}
         disabled={attr.disabled}
@@ -136,9 +134,8 @@ function InputNode({ node, submitLabel }: { node: UiNode; submitLabel: string })
   );
 }
 
-// Renders a single Kratos UI node. Beyond inputs, settings flows for MFA emit
-// `text` (the TOTP secret), `img` (the TOTP QR code) and `script` (the WebAuthn
-// helper) nodes, so an operator can enrol a second factor (AAL2, ADR-0304).
+// Renders one Kratos UI node. Besides inputs, MFA settings flows emit `text` for the TOTP secret, `img` for the TOTP QR code, and `script` for the WebAuthn helper.
+// With these, an operator can enrol a second factor for AAL2, per ADR-0304.
 function FlowNode({ node, submitLabel }: { node: UiNode; submitLabel: string }) {
   const t = useTranslations("auth");
   const qrAlt = t("qrAlt");
@@ -146,7 +143,7 @@ function FlowNode({ node, submitLabel }: { node: UiNode; submitLabel: string }) 
   const labelText = node.meta.label ? node.meta.label.text : undefined;
   switch (nodeType(node)) {
     case "text":
-      // e.g. the TOTP shared secret to type into an authenticator app.
+      // for example, the TOTP shared secret to type into an authenticator app.
       return (
         <p className="break-all rounded bg-muted p-2 font-mono text-sm text-foreground">
           {attr.text?.text}
@@ -185,7 +182,7 @@ export function KratosFlow({
     })
       .then((res) => {
         if (res.status === 404 || res.status === 410) {
-          // Expired or unknown flow — start a fresh one.
+          // The flow is expired or unknown, so start a new one.
           restartFlow(kind);
           return null;
         }

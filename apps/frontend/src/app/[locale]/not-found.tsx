@@ -7,9 +7,8 @@ export default function NotFound() {
   return (
     <main className="p-6">
       <h1 className="text-xl font-semibold">{t("title")}</h1>
-      {/* `t.rich`, not two keys: a sentence broken into "That page does not exist."
-          plus "Go home" is a sentence no translator can reorder, and word order is
-          exactly what changes between languages. */}
+      {/* `t.rich`, not two keys. A sentence split into two keys cannot be reordered by a
+      translator, and word order is what changes between languages. */}
       <p className="mt-2 text-sm text-muted-foreground">
         {t.rich("body", {
           home: (chunks) => (

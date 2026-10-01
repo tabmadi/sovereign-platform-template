@@ -1,4 +1,4 @@
-/* We cannot use type `unknown` instead of `any` here because it will break the type assertion `isReactComponent` function is providing. */
+/* The type must be `any`, not `unknown`: `unknown` breaks the type assertion that the `isReactComponent` function provides. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type React from "react";
 

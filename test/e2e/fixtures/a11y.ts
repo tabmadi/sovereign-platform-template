@@ -1,4 +1,4 @@
-// Accessibility scanning for the e2e suite (ADR-0400, ADR-0601). One toolchain:
+// Accessibility scanning for the e2e suite, per ADR-0400 and ADR-0601.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 
@@ -6,26 +6,24 @@ import { expect, type Page } from "@playwright/test";
 const BLOCKING = new Set(["serious", "critical"]);
 
 /**
- * WCAG 2.2 AA is the target across every route group, so the tag set is the AA
- * ladder plus the two "best practice"-free WCAG 2.2 additions. `best-practice` is
- * deliberately absent: it is axe's opinion, not a success criterion.
+ * WCAG 2.2 AA is the target for every route group. So the tag set is the AA levels plus the two WCAG 2.2 additions.
+ * `best-practice` is absent on purpose: it is axe's opinion, not a success criterion.
  */
 const WCAG22AA = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 export interface ScanOptions {
-  /** CSS selector to scope the scan to, e.g. one kitchen-sink section. */
+    /** CSS selector that limits the scan, for example one kitchen-sink section. */
   include?: string;
-  /**
-   * Selectors to exclude. Vendored islands with their own theme are not claimed
-   * (ADR-0400): Scalar's rendered console is the standing example.
-   */
+    /**
+     * Selectors to exclude. The scan does not cover vendored islands with their own theme, per ADR-0400.
+     * Scalar's rendered console is the standard example.
+     */
   exclude?: string[];
 }
 
 /**
  * Scan the current page and fail on any serious or critical violation.
- * `label` names the surface in the failure message, because "3 violations" without
- * a surface is a message that costs a bisect to act on.
+ * `label` names the surface in the failure message. A violation count with no surface needs a bisect before anyone can act on it.
  */
 export async function expectNoA11yViolations(
   page: Page,
@@ -58,13 +56,13 @@ export async function expectNoA11yViolations(
 
   expect(
     blocking,
-    `${label}: ${blocking.length} serious/critical WCAG 2.2 AA violation(s)\n${detail}`,
+    `${label}: ${blocking.length} serious or critical WCAG 2.2 AA violations\n${detail}`,
   ).toHaveLength(0);
 }
 
 /**
- * Every `<section>` on the kitchen-sink page, by its heading text. A primitive's conformance is proven once
- * here rather than in every consumer (ADR-0400), so the scan is per section and a failure names the primitive.
+ * Every `<section>` on the kitchen-sink page, by its heading text. A primitive's conformance is proven once here, not in every consumer, per ADR-0400.
+ * So the scan runs per section, and a failure names the primitive.
  */
 export async function kitchenSinkSections(page: Page): Promise<string[]> {
   return page.locator("main section h2").allInnerTexts();

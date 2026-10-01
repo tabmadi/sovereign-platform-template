@@ -1,19 +1,9 @@
-// Write-path load: the checkout saga (ADR-0601).
-//
-//   POST /api/orders          — starts the Checkout Temporal workflow (ADR-0302)
-//   GET  /api/orders/{id} …   — polled until the saga reaches a terminal status
-//
-// This is the expensive path and the interesting one. A single iteration touches
-// the edge, orders, Postgres, the Temporal frontend/history/matching services,
-// the orders worker, and — inside the workflow — catalog and payment. It
-// therefore finds a completely different ceiling from browse.js: not requests
-// per second, but WORKFLOW THROUGHPUT. The number to watch is not
-// `http_req_duration` on the POST (which returns 202 as soon as the workflow is
-// started) but `checkout_settle`, the wall time to a terminal order.
-//
-// The gap between those two is the whole point: an async API stays fast under
-// load long after the work behind it has fallen hours behind. Measuring only the
-// synchronous response would report a healthy system while the queue explodes.
+// Write-path load: the checkout saga, per ADR-0601. `POST /api/orders` starts the Checkout Temporal workflow, per ADR-0302, and `GET /api/orders/{id}` polls until a terminal status.
+// One iteration touches the edge, orders, Postgres, the Temporal frontend, history, and matching services, the orders worker, and catalog and payment inside the workflow.
+// So it finds a different ceiling from browse.js: WORKFLOW THROUGHPUT, not requests per second.
+
+// Watch `checkout_settle`, the wall time to a terminal order, and not `http_req_duration` on the POST, which returns 202 when the workflow starts.
+// An async API stays fast under load long after the work behind it is hours late. A check on the synchronous response alone reports a healthy system while the queue grows.
 
 import { sleep } from "k6";
 import http from "k6/http";
@@ -29,55 +19,47 @@ import {
 } from "../lib/config.js";
 import { authHeaders, login, requireOrg } from "../lib/session.js";
 
-// Wall time from "checkout accepted" to "order reached a terminal status". This
-// is the saga's real latency and the metric a capacity decision reads.
+// Wall time from checkout accepted to a terminal order status. This is the saga's real latency, and a capacity decision reads it.
 const settle = new Trend("checkout_settle", true);
-// Share of checkouts that reached `confirmed` rather than failing or timing out.
+// Share of checkouts that reached `confirmed` and did not fail or time out.
 const confirmed = new Rate("checkout_confirmed");
-// Share that were still non-terminal when we stopped polling — the backlog
-// signal. This rising while `settle` stays flat means the workers are keeping up
-// with some checkouts and starving others, which an average would hide.
+// Share that were not terminal yet when polling stopped. This is the backlog signal.
+// If it rises while `settle` stays flat, the workers keep up with some checkouts and starve others, and an average would hide that.
 const timedOut = new Rate("checkout_timeout");
 
-// How long a single checkout is given to settle, and how often it is polled.
-// Polling is itself load on the edge, so the interval is deliberately not tight.
+// How long one checkout has to settle, and how often it is polled. Polling is also load on the edge, so the interval is not tight, on purpose.
 const SETTLE_TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_S = 1;
 const TERMINAL = ["confirmed", "failed", "cancelled"];
 
-// weight 0.25: a checkout costs far more than a product read, so the same
-// profile name means a quarter of the VUs here. Without this, `stress` would
-// bury Temporal while browse.js was still warming up, and the two runs would not
-// be comparable.
+// weight 0.25: a checkout costs much more than a product read, so the same profile name means a quarter of the VUs here.
+// Without this, `stress` would overload Temporal while browse.js was still warming up, and the two runs would not be comparable.
 export const options = buildOptions("checkout", 0.25, {
   "http_req_failed{endpoint:create_order}": ["rate<0.01"],
   // The synchronous half: how fast the API accepts work.
   "http_req_duration{endpoint:create_order}": ["p(95)<1500"],
-  // The asynchronous half: how fast the platform actually does it.
+  // The asynchronous half: how fast the platform does the work.
   checkout_settle: ["p(95)<30000"],
   checkout_confirmed: ["rate>0.95"],
   checkout_timeout: ["rate<0.05"],
 });
 
-// setup resolves one product to buy. Every VU checks out the same product on
-// purpose: it holds the catalog side constant so the measurement is of the saga,
-// and it puts every iteration in contention for the same row — which is where a
-// write-path lock problem would show up if there were one.
+// setup finds one product to buy. Every VU buys the same product, on purpose. This keeps the catalog side constant, so the run measures the saga.
+// It also makes every iteration compete for the same row, which shows a write-path lock problem if one exists.
 export function setup() {
   const session = login(BASE_URL, PERF_USER.email, PERF_USER.password);
-  // A session alone is not enough to buy anything — see requireOrg.
+  // A session alone cannot buy anything. requireOrg explains why.
   requireOrg(BASE_URL, session, PERF_USER.email);
 
   const res = http.get(`${API}/products`, { tags: { endpoint: "list_products" } });
   if (res.status !== 200) {
-    throw new Error(`catalog unreachable at ${API}/products — HTTP ${res.status}`);
+    throw new Error(`catalog unreachable at ${API}/products: HTTP ${res.status}`);
   }
   const products = res.json();
   if (!Array.isArray(products) || products.length === 0) {
-    throw new Error("catalog is empty — run `mise run perf:seed` first");
+    throw new Error("catalog is empty. Run `mise run perf:seed` first");
   }
-  // Prefer a product this suite seeded, so a load run does not depend on
-  // whatever the e2e suite happens to have left behind.
+  // Prefer a product that this suite seeded, so a load run does not depend on what the e2e suite left behind.
   const seeded = products.filter((p) => String(p.name).startsWith(PERF_PREFIX));
   const [chosen] = seeded.length > 0 ? seeded : products;
   return { productId: chosen.id, productName: chosen.name, session };
@@ -100,19 +82,18 @@ function startCheckout(data, auth) {
       tags: { endpoint: "create_order" },
     },
   );
-  // 202 Accepted, not 201: the order exists but the saga has not run yet.
+  // 202 Accepted, not 201: the order exists, but the saga has not run yet.
   if (!expectStatus(res, 202, "create order")) {
     return null;
   }
   const { ok, body } = expectJSON(res, "create order", (h) => typeof h.run_id === "string");
-  // The handle's run_id is the order id (services/orders handlers.Checkout).
+  // The handle's run_id is the order id, from services/orders handlers.Checkout.
   return ok ? body.run_id : null;
 }
 
 /**
- * As the buyer: an order is readable by whoever placed it and by nobody else (ADR-0003), so the poll carries the
- * session the checkout did. A non-200 is not a failure — the order may not be readable yet, and the timeout is
- * the real verdict.
+ * As the buyer: only the person who placed an order can read it, per ADR-0003. So the poll sends the same session as the checkout.
+ * A non-200 is not a failure, because the order can be unreadable at first. The timeout is the real verdict.
  */
 function pollToTerminal(orderId, auth, started) {
   let status = "pending";
@@ -146,9 +127,7 @@ export default function checkout(data) {
   const reachedTerminal = TERMINAL.includes(status);
   timedOut.add(!reachedTerminal);
   confirmed.add(status === "confirmed");
-  // Only record settle time for checkouts that actually settled: folding the 60s
-  // timeout into the Trend would make the p95 a measure of the timeout constant
-  // rather than of the platform.
+  // Record settle time only for checkouts that settled. With the 60s timeout in the Trend, the p95 would measure the timeout constant and not the platform.
   if (reachedTerminal) {
     settle.add(Date.now() - started);
   }
@@ -157,5 +136,5 @@ export default function checkout(data) {
 }
 
 export function teardown(data) {
-  console.log(`checkout — bought "${data.productName}"${summaryTrailer()}`);
+  console.log(`checkout: bought ${data.productName}${summaryTrailer()}`);
 }

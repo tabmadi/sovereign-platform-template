@@ -1,4 +1,4 @@
-// Root providers (ADR-0400) — theming only, and that limit is the point.
+// Root providers, per ADR-0400. They cover theming only, and that limit is deliberate.
 "use client";
 
 import { ThemeProvider } from "next-themes";
