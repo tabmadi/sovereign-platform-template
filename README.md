@@ -16,12 +16,14 @@ Fork it, generate from it, or read the ADRs and ignore the code. All three are v
 
 This template ships one profile and documents three neighbours. Find your profile before you read on.
 
-| Profile | You are here if | Style | Deployables | Platform floor | What platform work looks like |
-| --- | --- | --- | --- | --- | --- |
-| `modular-monolith` | No decomposition force applies. See the next section | Modular monolith | 1 | whatever the provider runs for you | nobody's job. The provider operates it |
-| `service-based` | Teams block each other on deploys | Service-based | 3 to 8 | a few components, on managed foundations | part of a backend role |
-| `microservices` | Coordination cost is larger than engineering cost | Microservices | 15+ | large, but still on managed foundations | a standing responsibility that a named person owns |
-| **`sovereign`**, **this repo** | Self-hosting is *binding*, not preferred | Microservices | 15+ | **everything, and it is fixed for any service count** | **a primary responsibility, and it never rests on one person** |
+| Profile | You are here if | Style | Data | Deployables | Platform floor | What platform work looks like |
+| --- | --- | --- | --- | --- | --- | --- |
+| `modular-monolith` | No decomposition force applies. See the next section | Modular monolith | one database | 1 | whatever the provider runs for you | nobody's job. The provider operates it |
+| `service-based` | Teams block each other on deploys, and a shared database is still acceptable | Service-based | services share a database | usually 3 to 8 | a few components, on managed foundations | part of a backend role |
+| `microservices` | Services must change their data without coordination, so each service owns its data | Microservices | each service owns its data | often 15 or more | large, but still on managed foundations | a standing responsibility that a named person owns |
+| **`sovereign`**, **this repo** | Self-hosting is *binding*, not preferred | Microservices | each service owns its data | often 15 or more | **everything, and it is fixed for any service count** | **a primary responsibility, and it never rests on one person** |
+
+**The line between `service-based` and `microservices` is data ownership, not the count.** Services that share a database change two domains in one transaction. Services that own their data need a workflow with compensation for the same change, and that need creates most of the machinery. This repo ships fewer than 15 services, and it is microservices in style.
 
 Only the last two rows differ on sovereignty and not on architecture. That one difference creates most of this repo. [ADR-0000](docs/adr/0000-platform-foundations.md) sets the positions. [`docs/operational-surface.md`](docs/operational-surface.md) is the component inventory of this repo, and it is the only place where components are counted.
 
@@ -44,7 +46,7 @@ The service count is an **outcome**, not a target. Each force alone justifies a 
 | 5 | Technology heterogeneity | A part must run on another runtime, such as ML in Python or chain code in Rust |
 | 6 | Compliance boundary | Data residency or audit scope is cheaper to enforce by structure than by policy |
 
-Count the forces that truly apply. That is your service count.
+Each boundary that you draw names the force that justifies it. The service count follows from the boundaries.
 
 ---
 
