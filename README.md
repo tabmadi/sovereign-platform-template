@@ -14,7 +14,7 @@ Fork it, generate from it, or read the ADRs and ignore the code. All three are v
 
 ## Find your profile
 
-This template ships one profile and documents three neighbours. Find your profile before you read on.
+This template ships one profile and documents three neighbours.
 
 | Profile | You are here if | Style | Data | Deployables | Platform floor | What platform work looks like |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -23,13 +23,11 @@ This template ships one profile and documents three neighbours. Find your profil
 | `microservices` | Services must change their data without coordination, so each service owns its data | Microservices | each service owns its data | often 15 or more | large, but still on managed foundations | a standing responsibility that a named person owns |
 | **`sovereign`**, **this repo** | Self-hosting is *binding*, not preferred | Microservices | each service owns its data | often 15 or more | **everything, and it is fixed for any service count** | **a primary responsibility, and it never rests on one person** |
 
-**The line between `service-based` and `microservices` is data ownership, not the count.** Services that share a database change two domains in one transaction. Services that own their data need a workflow with compensation for the same change, and that need creates most of the machinery. This repo ships fewer than 15 services, and it is microservices in style. The two styles and their data rule come from Richards and Ford. The cost of the second is Fowler's [*MicroservicePremium*](https://martinfowler.com/bliki/MicroservicePremium.html). [Prior art](#prior-art) lists both.
+[ADR-0000](docs/adr/0000-platform-foundations.md) sets the positions. [`docs/operational-surface.md`](docs/operational-surface.md) is the component inventory of this repo, and it is the only place where components are counted.
 
-Only the last two rows differ on sovereignty and not on architecture. That one difference creates most of this repo. [ADR-0000](docs/adr/0000-platform-foundations.md) sets the positions. [`docs/operational-surface.md`](docs/operational-surface.md) is the component inventory of this repo, and it is the only place where components are counted.
+> **These are not maturity levels.** For most systems, a modular monolith is a correct *final* state. Higher rows are more expensive answers to pressures that you may not have. Richards and Ford treat architecture styles as **risk profiles rated against characteristics**, not as a ladder.
 
-> **These are not maturity levels.** For most systems, a modular monolith is a correct *final* state. It is not a stop on the road to microservices. Higher rows are not better. They are more expensive answers to pressures that you may not have. This follows Richards and Ford, who treat architecture styles as **risk profiles rated against characteristics**. It rejects the numbered-ladder genre on purpose, such as CMMI and the maturity models that came after it. DORA and *Accelerate* also argue against that framing.
-
-**This repo implements `sovereign`.** The other three rows are positions to find yourself in. They are not presets to generate. A project at one of them does better with a smaller template than with this one and most of it deleted. For `modular-monolith`, that smaller template is [nextjs-mvp-template](https://github.com/tabmadi/nextjs-mvp-template). It has the same conventions at that scale.
+**This repo implements `sovereign`.** The other three rows are positions, not presets to generate. A project at one of them does better with a smaller template. For `modular-monolith`, that is [nextjs-mvp-template](https://github.com/tabmadi/nextjs-mvp-template), with the same conventions at that scale.
 
 ---
 
@@ -45,8 +43,6 @@ The service count is an **outcome**, not a target. Each force alone justifies a 
 | 4 | Resource heterogeneity | Truly different scaling profiles: CPU, IO, or memory |
 | 5 | Technology heterogeneity | A part must run on another runtime, such as ML in Python or chain code in Rust |
 | 6 | Compliance boundary | Data residency or audit scope is cheaper to enforce by structure than by policy |
-
-Each boundary that you draw names the force that justifies it. The service count follows from the boundaries.
 
 ---
 
@@ -68,27 +64,26 @@ The product category, such as `fintech`, `B2B SaaS`, or `marketplace`, decides a
 
 > **Need decides what you build. Capacity decides what you can run. The gap is your risk.**
 
-Team size is a **budget, not a design driver**. It never tells you to build thirty services. It tells you only whether you can operate what you have.
+Team size is a **budget, not a design driver**. It tells you only whether you can operate what you have.
 
 What `sovereign` costs to run:
 
 - **An always-on platform floor of about two dozen components**: gateway, GitOps, identity, authz, workflow, data, storage, observability, registry, forge, and outbound mail. [`docs/operational-surface.md`](docs/operational-surface.md) is the inventory.
 - **Platform work as a primary responsibility, not a rotation.** A rotation optimises for the incident in front of it. The real cost of this floor is the upgrades and drills that nothing forces you to do this week. This is the most common way a self-hosted platform decays.
 - **No Core component whose only competent operator is one person.** The floor stays operable through a departure and an absence at the same time.
-- The component count is **fixed**. It does not get smaller with fewer services.
 
 **This repo states no headcount, and you should not infer one.** The answer depends on your coverage hours, your operational skill, and your tolerance for detection latency. `docs/operational-surface.md` has the recurring obligation and the failure-response requirement of every component. Sum that against your own facts, and you get your number, not ours.
 
-**If the number is higher than what you have**, read [`docs/adoption-path.md`](docs/adoption-path.md). It is the ranked list of what to give up, and in what order. Deferrals come first, then managed swaps. It also shows the point past which you run a different platform.
+**If the number is higher than what you have**, read [`docs/adoption-path.md`](docs/adoption-path.md). It is the ranked list of what to give up, and in what order.
 
 **Building it with an LLM changes the authoring cost and nothing else.** Generating a service, a chart, or a migration is now cheap. This moves the bottleneck, and it does not remove it:
 
 - The operational surface does not change.
 - Coherent review gets harder as the volume of generated change grows. A reviewer must know that a generated change agrees with the twenty decisions it touches.
 
-That is an argument about capacity, not about need, and it belongs on this side of the line. The ADRs and the Rules sections exist partly for this reason. They are the constraint that an agent must follow when nobody has time to work out the reasons again.
+The ADRs and the Rules sections exist partly for this reason. They are the constraint that an agent must follow when nobody has time to work out the reasons again.
 
-A consequence to remember: **fewer services make the platform relatively heavier.** With many services, the ratio of application work to platform work is comfortable. With a few services, the ratio is about 1:1. Fewer services make the case for austerity *stronger*. They do not relax it.
+**Fewer services make the platform relatively heavier.** The floor is fixed. So with a few services, the ratio of application work to platform work is about 1:1, and the case for austerity is *stronger*.
 
 ---
 
@@ -96,7 +91,7 @@ A consequence to remember: **fewer services make the platform relatively heavier
 
 Not everything here ships at once. Capabilities are deferred behind a **hard trigger**: an *observable* condition, never `when we grow`. A deferral without a trigger is `temporary`, and [ADR-0000](docs/adr/0000-platform-foundations.md) forbids that.
 
-A deferral is safe only when a **seam** exists. A seam is a pre-built slot where the capability fits in without restructuring. This difference matters more than the list:
+A deferral is safe only when a **seam** exists. A seam is a pre-built slot where the capability fits in without restructuring:
 
 - ✅ **The seam exists.** Adoption is additive. Deferral costs nothing but the wait.
 - ⚠️ **No full seam.** Adoption is structural. This is a *bet*, not a deferral. Adopt earlier, or accept a rewrite later.
@@ -108,7 +103,6 @@ A deferral is safe only when a **seam** exists. A seam is a pre-built slot where
 | Tail sampling | Trace volume makes head sampling lose data | ✅ services only emit to `localhost:4317` | Scale |
 | Loki and Tempo microservices mode | The ingest volume of a single backend needs it | ✅ the same storage and the same API | Scale |
 | Rust or Python service | A *measured* shortfall of Go, or a need for an ecosystem native to that runtime | ✅ contracts are HTTP with OpenAPI, not shared code | Opt-in |
-| i18n with `next-intl` | A second locale on the roadmap | ⚠️ retrofitting strings across routes is real work | Opt-in |
 | Storybook | A second frontend app, or a design-system maintainer | ⚠️ | Opt-in |
 | Service mesh | A measured need that Cilium with WireGuard cannot meet | ⚠️ partial. mTLS is covered, and policy for each request is not | Scale |
 | Escalation and paging | An on-call rota exists | ⚠️ **no credible self-hosted escalation layer exists**. Alertmanager does the routing, and a hosted service does the paging, per [0502](docs/adr/0502-alerting-and-on-call.md) | Opt-in |
@@ -161,7 +155,7 @@ Ten principles decide every entry in the stack table below. A principle must pas
 
 A principle that cannot name a casualty is a statement of virtue, not a criterion.
 
-Each principle is **anchored** to an external standard. Where no standard applies, it is marked **local**. This difference is on purpose. A borrowed criterion survives a new debate, and a house rule gets argued again every year. You should see at a glance which is which. [ADR-0000](docs/adr/0000-platform-foundations.md) has the full reasons.
+Each principle is **anchored** to an external standard. Where no standard applies, it is marked **local**. A borrowed criterion survives a new debate, and a house rule gets argued again every year. [ADR-0000](docs/adr/0000-platform-foundations.md) has the full reasons.
 
 **Selection: how a tool gets in:**
 
@@ -189,14 +183,7 @@ Read principle 4 twice, because people often misread it as conservatism. **Be ad
 
 ## Stack at a glance
 
-Every row is a decision recorded in an ADR, with a comparison against the alternatives. The comparison lists:
-
-- the options considered
-- what each option was judged on
-- why the alternatives lost
-- what would open the decision again
-
-A tool with no recorded comparison is an assumption, not a decision.
+Every row is a decision recorded in an ADR, with a comparison against the alternatives and the trigger that would open it again. A tool with no recorded comparison is an assumption, not a decision.
 
 Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.md). The row has its exit-cost tier, licence, governing body, and the alternatives it was recorded against.
 
@@ -263,7 +250,7 @@ The full walkthrough is [`docs/dev-loop.md`](docs/dev-loop.md).
 
 ```text
 services/<name>/     Go service: OpenAPI contract, server, worker, sqlc, migrations
-apps/frontend/       one Next.js app, with the route groups landing, panel, and devportal
+apps/frontend/       one Next.js app, with the route groups landing, panel, analytics, and devportal
 apps/admin/          Lowdefy YAML for internal admin
 libs/go/<name>/      shared Go packages: observability, middleware, errors
 libs/{go,ts}/sdks/   generated OpenAPI clients, committed and drift-checked in CI
@@ -298,13 +285,13 @@ Build real services from `services/_template/`.
 - **[ADRs](docs/adr)**: every load-bearing decision, with a comparison against the alternatives and the trigger that would open it again. Start at [ADR-0000](docs/adr/0000-platform-foundations.md). [`docs/adr/README.md`](docs/adr/README.md) has the block map and the full index.
 - **[ADR-0001](docs/adr/0001-documentation-and-output-conventions.md)**: the rules for these documents. It covers density, banned constructs, section order, and the same rules for code comments.
 - **Rules sections**: each ADR ends with flat, greppable normative statements. They are written so that humans and LLMs apply them the same way.
-- **Fitness functions**: machines enforce rules wherever possible, through admission control, type checking, drift-checked codegen, and static analysis for architectural invariants. Every rule has an annotation that says how it is enforced, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md). So a reader can tell a hard invariant from a goal. Review is the fallback, not the mechanism.
+- **Fitness functions**: machines enforce rules wherever possible, through admission control, type checking, drift-checked codegen, and static analysis for architectural invariants. A rule that a machine enforces names its mechanism, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md).
 
 ---
 
 ## Prior art
 
-This template borrows its framing. It does not invent it:
+This template borrows its framing:
 
 - **Richards and Ford, *Fundamentals of Software Architecture***: architecture styles rated against characteristics as risk profiles. This is the source of the profile table above, and of the term *service-based architecture*.
 - **Team Topologies**: cognitive load as the sizing unit. Here it applies to the people who run the platform, not to the people who build on it.
