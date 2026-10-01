@@ -8,130 +8,152 @@
 
 ## Context
 
-Every deployable is a container image referenced by digest ([ADR-0103](0103-release-and-versioning.md)). [ADR-0104](0104-supply-chain-security.md) attaches a cosign signature, an SPDX SBOM, and SLSA provenance to each one, and Kyverno verifies them at admission. Those attachments are **OCI artifacts stored alongside the image**, so the registry is part of the supply-chain control, not a bucket the pipeline pushes to.
+Every deployable is a container image referenced by digest, per [ADR-0103](0103-release-and-versioning.md). [ADR-0104](0104-supply-chain-security.md) attaches a cosign signature, an SPDX SBOM, and SLSA provenance to each image, and Kyverno verifies them at admission. Those attachments are **OCI artifacts stored beside the image**. So the registry is part of the supply-chain control, not only a bucket that the pipeline pushes to.
 
-At axis B maximal the registry is a first-class decision. It also sits on the critical path of every node: a registry outage during a scale-up or a node replacement stalls pod starts for any image not already cached.
+At axis B maximal, the registry is a first-class decision. It also sits on the critical path of every node. During a scale-up or a node replacement, a registry outage stalls pod starts for any image that is not already cached.
 
 ## Decision drivers
 
-1. **OCI 1.1 referrers**, so signatures, SBOMs, and attestations live with the image ([ADR-0104](0104-supply-chain-security.md)).
-2. **Thinnest viable platform** ([ADR-0000](0000-platform-foundations.md), principle 2). The registry is one concern, and must not arrive with a datastore fleet.
-3. **A pull depends on as little as possible.** Every node start reads the registry, so whatever it is coupled to becomes a dependency of scheduling itself.
-4. **Configuration in the repository** (principle 1). Projects, quotas, and retention are files, not UI state.
+1. **OCI 1.1 referrers**, so signatures, SBOMs, and attestations live with the image, per [ADR-0104](0104-supply-chain-security.md).
+2. **Thinnest viable platform**, per principle 2 of [ADR-0000](0000-platform-foundations.md). The registry is one concern, and must not arrive with a datastore fleet.
+3. **A pull depends on as little as possible.** Every node start reads the registry. So anything the registry is coupled to becomes a dependency of scheduling itself.
+4. **Configuration in the repository**, per principle 1. Projects, quotas, and retention are files, not UI state.
 
-Object storage as the backend ([ADR-0207](0207-cluster-storage.md)) is a platform constraint rather than a driver: every option below supports it, so it selects nothing and appears in the Decision instead.
+Object storage as the backend, per [ADR-0207](0207-cluster-storage.md), is a platform constraint, not a driver. Every option below supports it. So it selects nothing, and it appears in the Decision instead.
 
 ## Considered options
 
 | Option | Always-on workloads | OCI 1.1 artifacts | Config as files | Verdict |
 | --- | --- | --- | --- | --- |
 | **zot** | **one Go binary** | [native](https://zotregistry.dev/latest/), with S3-compatible storage | a single committed config file | **Chosen.** The only option that closes the concern without expanding the floor *(reasoned)* |
-| Harbor | registry, registry controller, core, jobservice, portal, **its own Postgres and a Redis** | yes | partly — projects, robots, and retention are API and UI objects, reconciled only by a separate operator | Feature-complete and the reflexive answer. Five workloads and two datastores for one concern is the purchase principle 2 exists to refuse |
-| [Project Quay](https://github.com/quay/quay) | registry, **its own Postgres and a Redis**, and Clair beside it for scanning | yes | a config bundle, authored through its own config tool | Harbor's shape under a different name. The scanning it brings is the gate [ADR-0104](0104-supply-chain-security.md) already runs in CI |
-| CNCF Distribution | one binary | yes — it is the reference implementation, and the [referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers) arrived in its 3.x line, so the long-deployed 2.x images answer only through the fallback tag schema | one config file | The thinnest of all. No authentication model beyond htpasswd or a token service, no retention policy, no UI — each of which then becomes its own decision |
-| Forgejo package registry | none — the forge is already a decided component ([ADR-0102](0102-source-control-and-ci.md)) | partial | forge config | Free in component count and rejected anyway, on the coupling argument below rather than on capability |
-| Managed registry | none | yes | provider API | Fails principle 3. Ranked late on the [ADR-0000](0000-platform-foundations.md) swap list, so it is a concession taken well after the ones above it |
-| Do nothing | none | n/a | n/a | The honest baseline: images live wherever CI last pushed them. Incompatible with digest-pinned admission |
+| Harbor | registry, registry controller, core, jobservice, portal, **its own Postgres, and a Redis** | yes | partly. Projects, robots, and retention are API and UI objects. Only a separate operator reconciles them | Feature-complete, and the reflex answer. Five workloads and two datastores for one concern is the purchase that principle 2 exists to refuse |
+| [Project Quay](https://github.com/quay/quay) | registry, **its own Postgres, and a Redis**, with Clair beside it for scanning | yes | a config bundle, written through its own config tool | The same shape as Harbor under a different name. The scanning it brings is the gate that [ADR-0104](0104-supply-chain-security.md) already runs in CI |
+| CNCF Distribution | one binary | yes. It is the reference implementation. The [referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers) arrived in its 3.x line. So the widely deployed 2.x images answer only through the fallback tag schema | one config file | The thinnest of all. It has no authentication model beyond htpasswd or a token service, no retention policy, and no UI. Each of those then becomes its own decision |
+| Forgejo package registry | none, because the forge is already a decided component, per [ADR-0102](0102-source-control-and-ci.md) | partial | forge config | Free in component count, and still rejected. The reason is the coupling argument below, not capability |
+| Managed registry | none | yes | provider API | Fails principle 3. It ranks late on the swap list of [ADR-0000](0000-platform-foundations.md), so it is a concession taken well after the ones above it |
+| Do nothing | none | not applicable | not applicable | The honest baseline: images live wherever CI last pushed them. It is not compatible with digest-pinned admission |
 
-Harbor loses on component weight rather than on capability. Its replication, quota, and multi-tenancy features answer a problem a single platform team with one registry does not have, and its Postgres and Redis are exactly the "always-on floor is the budget" cost principle 2 is written to stop. Its Trivy scanner is optional and would stay off regardless, for the reason below.
+Harbor loses on component weight, not on capability. Its replication, quota, and multi-tenancy features answer a problem that a single platform team with one registry does not have. Its Postgres and Redis are exactly the always-on floor cost that principle 2 is written to stop. Its Trivy scanner is optional and would stay off in any case, for the reason below.
 
-**No forge's bundled registry is eligible, whichever forge is chosen.** GitLab and Forgejo both ship one, so a bundled registry reads as free in component count. It is not: an artefact store inside the build system couples every pod start to forge availability, and makes the system that produces an image the system that stores what vouches for it ([ADR-0104](0104-supply-chain-security.md)).
+**No bundled forge registry is eligible, whichever forge is chosen.** GitLab and Forgejo both ship one, so a bundled registry looks free in component count. It is not free. An artefact store inside the build system couples every pod start to forge availability. It also makes the system that produces an image the system that stores what vouches for it, against [ADR-0104](0104-supply-chain-security.md).
 
-Separating them is what lets [ADR-0102](0102-source-control-and-ci.md) hold that a forge outage does not stop the running system, and it is why the registry is a decision the forge cannot settle.
+This separation lets [ADR-0102](0102-source-control-and-ci.md) hold that a forge outage does not stop the running system. It is also why the forge cannot settle the registry decision.
 
 ## Decision
 
 | Concern | Decision |
 | --- | --- |
 | Registry | **zot**, one instance per environment, configured by a committed file |
-| Storage backend | the object storage in [ADR-0207](0207-cluster-storage.md). Image data is never on a node volume |
+| Storage backend | the object storage of [ADR-0207](0207-cluster-storage.md). Image data is never on a node volume |
 | Artefacts | OCI 1.1 referrers hold the cosign signature, SBOM, and provenance from [ADR-0104](0104-supply-chain-security.md) |
-| Authentication | pipeline credentials push and prune; cluster credentials pull. Both are SOPS-encrypted ([ADR-0202](0202-secrets.md)). The pull credential reaches workloads as an `imagePullSecret`, not as node configuration — containerd 2 ignores the node's registry auth once a hosts.d config path is set, which Talos always sets ([infra/talos](../../infra/talos/README.md)) |
-| Third-party images | pinned by digest ([ADR-0104](0104-supply-chain-security.md)) and served through the registry's `sync` extension, which mirrors every upstream the platform pulls from |
-| Retention | after each promotion the pipeline deletes the first-party tags no environment's values pin and none of the last ten commits name, with their signature and attestation tags; the registry's garbage collection then reclaims the blobs on a schedule |
+| Authentication | pipeline credentials push and prune. Cluster credentials pull. Both are SOPS-encrypted, per [ADR-0202](0202-secrets.md). The pull credential reaches workloads as an `imagePullSecret`, not as node configuration. containerd 2 ignores the registry auth of the node once a hosts.d config path is set, and Talos always sets one, per [infra/talos](../../infra/talos/README.md) |
+| Third-party images | pinned by digest, per [ADR-0104](0104-supply-chain-security.md). The `sync` extension of the registry serves them, and it mirrors every upstream that the platform pulls from |
+| Retention | after each promotion, the pipeline deletes first-party tags that no environment's values pin and that none of the last ten commits name. It also deletes their signature and attestation tags. The garbage collection of the registry then reclaims the blobs on a schedule |
 
 ### Where the pipeline pushes
 
-The registry the pipeline pushes to is **configuration, not a constant**. A project generated from this template has a forge and no cluster, so the default is the forge's own registry; a deployment that runs zot re-points the pipeline by setting two forge variables and two secrets, and no workflow is edited.
+The registry that the pipeline pushes to is **configuration, not a constant**. A project generated from this template has a forge and no cluster. So the default is the own registry of the forge. A deployment that runs zot re-points the pipeline by setting two forge variables and two secrets. No workflow is edited.
 
 | Setting | Default | Set it to |
 | --- | --- | --- |
-| `IMAGE_REGISTRY` | `ghcr.io` | the registry's origin ([ADR-0306](0306-trust-tiers-and-urls.md)) |
-| `IMAGE_REPOSITORY` | the forge repository path | the path images live under |
-| `REGISTRY_USERNAME` / `REGISTRY_PASSWORD` | the forge's own token | the push identity above |
+| `IMAGE_REGISTRY` | `ghcr.io` | the origin of the registry, per [ADR-0306](0306-trust-tiers-and-urls.md) |
+| `IMAGE_REPOSITORY` | the forge repository path | the path that images live under |
+| `REGISTRY_USERNAME` and `REGISTRY_PASSWORD` | the own token of the forge | the push identity above |
 
-This is the same property the thin-YAML rule buys for build logic ([ADR-0102](0102-source-control-and-ci.md)): moving is a re-target rather than a rewrite. A registry that could only ever be the forge's would make the pipeline the thing that has to change when the platform grows its own.
+The thin-YAML rule of [ADR-0102](0102-source-control-and-ci.md) buys the same property for build logic: a move is a re-target, not a rewrite. If the registry could only ever be the one of the forge, the pipeline would have to change when the platform gets its own registry.
 
-**Scanning is not the registry's job.** [ADR-0104](0104-supply-chain-security.md) makes it a merge gate in CI. zot can run a scanner; it stays off, so the concern stays in one place ([ADR-0000](0000-platform-foundations.md), principle 5).
+**Scanning is not the job of the registry.** [ADR-0104](0104-supply-chain-security.md) makes it a merge gate in CI. zot can run a scanner. It stays off, so the concern stays in one place, per principle 5 of [ADR-0000](0000-platform-foundations.md).
 
 ### Mirroring the upstream registries
 
-zot is also a **pull-through cache** for every upstream the platform pulls from, and on the local tiers it is the **only** source: each upstream is mirrored at the one address, none is configured as a fallback endpoint, and `cluster:up` fills the cache before it creates the cluster.
+zot is also a **pull-through cache** for every upstream that the platform pulls from. On the local tiers, it is the **only** source:
 
-The reason is egress surface rather than registry performance. Every layer that pulls an image otherwise carries its own network configuration — each deployed node, each local kind node, each build host — so on a proxied network one credential and one allow-list entry are maintained once per puller, and the failure when one is missed never names the network: a node reports `403 Forbidden` fetching etcd and never bootstraps, or Traefik sits in `ContainerCreating` while an upstream times out mid-handshake. Pointing every node at zot collapses that to one component with egress and one firewall rule.
+- Each upstream is mirrored at the one address.
+- No upstream is configured as a fallback endpoint.
+- `cluster:up` fills the cache before it creates the cluster.
+
+The reason is egress surface, not registry performance. Without a mirror, every layer that pulls an image has its own network configuration: each deployed node, each local kind node, and each build host. On a proxied network, one credential and one allow-list entry are then maintained once per puller. When one is missed, the failure never names the network. For example, a node reports `403 Forbidden` while fetching etcd and never bootstraps. Or Traefik sits in `ContainerCreating` while an upstream times out in the middle of the handshake. When every node points at zot, this becomes one component with egress and one firewall rule.
 
 | Option | Verdict |
 | --- | --- |
-| **zot's `sync` extension in `onDemand` mode, filled ahead of the cluster** | **Chosen.** zot is the registry already, so this is configuration rather than a component, and one instance serves every upstream *(reasoned)* |
-| `onDemand` alone, filled by the cluster's own pulls | zot copies a whole image before it answers the manifest request that triggered it, so a cold pull costs tens of seconds. A bring-up asks for its images at once: zot saturates, every pull exceeds containerd's deadline, and the pods back off while zot goes on caching images nothing waits for. Most of a full tier's pods sit in `ImagePullBackOff` against a registry that is answering correctly — re-derived by emptying the cache directory and running `cluster:up full` *(measured)* |
-| A push-filled mirror | It needs a list of images derived from the charts, and a hand-maintained list rots: an image nobody adds falls back to the upstream and the mirror bought nothing. An image behind a chart's conditional is invisible to any derivation that does not render the chart |
-| `registry:2` as a pull-through cache | The obvious tool, and it proxies exactly **one** upstream per instance, so each upstream is another registry to run |
-| Per-node proxy configuration, no mirror | Correct, and it is the same configuration repeated once per puller — every copy of which has to be right, and none of which says so when it is not |
+| **The `sync` extension of zot in `onDemand` mode, filled before the cluster** | **Chosen.** zot is already the registry, so this is configuration, not a component. One instance serves every upstream *(reasoned)* |
+| `onDemand` alone, filled by the own pulls of the cluster | zot copies a whole image before it answers the manifest request that triggered it. So a cold pull costs tens of seconds. A bring-up asks for all its images at once. zot saturates, and every pull passes the containerd deadline. The pods back off while zot keeps caching images that nothing waits for. Most pods of a full tier sit in `ImagePullBackOff` against a registry that answers correctly. Re-derive this by emptying the cache directory and running `cluster:up full` *(measured)* |
+| A push-filled mirror | It needs a list of images derived from the charts, and a hand-maintained list goes stale. An image that nobody adds falls back to the upstream, and the mirror bought nothing. A derivation that does not render the chart cannot see an image behind a conditional in that chart |
+| `registry:2` as a pull-through cache | The obvious tool. It proxies exactly **one** upstream per instance, so each upstream is another registry to run |
+| Per-node proxy configuration, no mirror | Correct. It is the same configuration repeated once per puller. Every copy must be right, and no copy says so when it is wrong |
 
-**The local tiers run the same registry, as a host container.** A laptop's mirror is zot rather than a second product, so the mirroring above is the mirroring a developer gets and the image path is not a place the environments differ ([ADR-0205](0205-environment-parity.md)). It sits beside the cluster rather than inside it: the in-cluster instance stores its images in the object store, and cannot serve the images the object store's own pods need to start. Two deltas are local-only and both are properties of a throwaway host container — its storage is a directory rather than a bucket, and it serves anonymously, because a credential on a laptop mirror guards nothing and every pull would carry it.
+**The local tiers run the same registry, as a host container.** The mirror on a laptop is zot, not a second product. So a developer gets the mirroring described above, and the image path is not a place where the environments differ, per [ADR-0205](0205-environment-parity.md). It sits beside the cluster, not inside it. The in-cluster instance stores its images in the object store. So it cannot serve the images that the pods of the object store need to start. Two deltas are local-only, and both are properties of a throwaway host container:
 
-**The in-cluster instance still runs on the full local tier — as an exercised chart, not as the node's registry.** Every platform chart is applied there so a chart change is caught before a deployed environment ([ADR-0205](0205-environment-parity.md)), and zot is no exception: it deploys, is backed by the local object store, and is reached at `zot.ops.<host>`. What it is *not* is the source the nodes pull from — that is the host container above, because `*.localtest.me` does not resolve inside a node ([ADR-0306](0306-trust-tiers-and-urls.md)), a node-provisioning delta [ADR-0205](0205-environment-parity.md) permits. So its catalogue is empty by default, which reads as a broken console rather than the parity artifact it is. `cluster:up full` therefore mirrors the first-party images into it after the platform is healthy — the same images CI pushes to the in-cluster registry in a deployed environment — so its push, object-store, and console path is exercised locally rather than only in production. The nodes keep pulling from the host container; the in-cluster instance holds the same images so nothing about it is untested but the one hop the node networking forbids.
+- Its storage is a directory, not a bucket.
+- It serves anonymously. A credential on a laptop mirror guards nothing, and every pull would carry it.
 
-**Why the registry is in-cluster at all** is the placement rule [ADR-0207](0207-cluster-storage.md) states: a component lives off-cluster only where its data must outlive the cluster. The registry's contents are reproducible — re-pushed by CI, or re-read from a surviving bucket — so it needs no independent survival and stays in-cluster, where the object store it depends on already is. The backup store is the opposite case and goes off-cluster in production for exactly that reason.
+**The in-cluster instance still runs on the full local tier, as an exercised chart, not as the registry of the node.** Every platform chart is applied there, so that the tier catches a chart change before a deployed environment, per [ADR-0205](0205-environment-parity.md). zot is no exception. It deploys, the local object store backs it, and it is reached at `zot.ops.<host>`. It is *not* the source that the nodes pull from. That is the host container above, because `*.localtest.me` does not resolve inside a node, per [ADR-0306](0306-trust-tiers-and-urls.md). [ADR-0205](0205-environment-parity.md) permits this node-provisioning delta.
 
-**The cache is filled before the cluster exists, and the local nodes have no fallback.** `cluster:up` warms zot from a generated list, sequentially, with nothing waiting on it, and the nodes then read locally. A miss fails loudly and names the image instead of becoming a slow direct pull that differs per machine.
+So by default its catalogue is empty. An empty catalogue looks like a broken console, not like the parity artifact it is. So `cluster:up full` mirrors the first-party images into it after the platform is healthy. These are the same images that CI pushes to the in-cluster registry in a deployed environment. Its push path, object-store path, and console path are then exercised locally, not only in production. The nodes keep pulling from the host container. The in-cluster instance holds the same images, so only the one hop that the node networking forbids stays untested.
 
-An upstream second endpoint cannot serve as the safety net it resembles: containerd falls through to the next endpoint only on a fast failure, and a saturated mirror fails by timing out, which ends the pull. What it delivers is an image path that varies with the network, so none is configured.
+**The registry is in-cluster because of the placement rule** that [ADR-0207](0207-cluster-storage.md) states. A component lives off-cluster only where its data must outlive the cluster. The contents of the registry are reproducible: CI pushes them again, or they are read again from a surviving bucket. So the registry needs no independent survival. It stays in-cluster, where its object store already is. The backup store is the opposite case, and it goes off-cluster in production for exactly that reason.
 
-**This is not an authorization boundary.** The allow-list is Kyverno's ([ADR-0104](0104-supply-chain-security.md)), and that separation is deliberate: a cache that silently became an authorization boundary would be one nobody could safely flush. Being the only *route* is a determinism property; what may run is still admission's question.
+**The cache is filled before the cluster exists, and the local nodes have no fallback.** `cluster:up` warms zot from a generated list, one image at a time, with nothing waiting on it. The nodes then read locally. A miss fails loudly and names the image. It does not become a slow direct pull that differs per machine.
 
-**The warm list is generated, never written by hand**, which is what disqualifies the push-filled mirror above rather than the mirroring itself. `mise run gen:image-allowlist` renders every chart and emits both Kyverno's repository allow-list and `infra/local/image-refs.txt`, the full references the warm reads. One render, two outputs, drift-checked in CI, so the warm set cannot fall behind the charts and an image behind a chart's conditional is as visible as any other.
+A second upstream endpoint looks like a safety net, but it cannot act as one. containerd falls through to the next endpoint only on a fast failure. A saturated mirror fails by timing out, and that ends the pull. The only result is an image path that varies with the network, so no second endpoint is configured.
 
-**Docker Hub is `onDemand` only and is never polled.** It rate-limits pulls and does not support catalog listing, so a scheduled sync walks a catalog that is not there and spends the rate limit discovering it.
+**This is not an authorization boundary.** The allow-list belongs to Kyverno, per [ADR-0104](0104-supply-chain-security.md), and that separation is deliberate. If a cache silently became an authorization boundary, nobody could safely flush it. Being the only *route* is a determinism property. What may run is still the question of admission.
 
-**Image pulls are the whole of what this covers, and not all of them.** `kind` downloads its node image through the host's docker, and the build path needs egress for base images and language modules. Non-image traffic — chart repositories, the git remote Argo syncs, ACME, mail delivery, DMARC reports — is untouched. This reduces the number of layers that need a proxy; it removes neither the proxy nor the network from a local bring-up.
+**The warm list is generated, never written by hand.** This disqualifies the push-filled mirror above, not the mirroring itself. `mise run gen:image-allowlist` renders every chart and emits two outputs:
+
+- the repository allow-list of Kyverno
+- `infra/local/image-refs.txt`, the full references that the warm reads
+
+One render gives both outputs, and CI checks them for drift. So the warm set cannot fall behind the charts. An image behind a conditional in a chart is as visible as any other.
+
+**Docker Hub is `onDemand` only, and is never polled.** It rate-limits pulls and does not support catalog listing. So a scheduled sync walks a catalog that is not there, and spends the rate limit to find that out.
+
+**This covers only image pulls, and not all of them.** `kind` downloads its node image through the docker of the host. The build path needs egress for base images and language modules. This does not touch traffic that is not images:
+
+- chart repositories
+- the git remote that Argo syncs
+- ACME
+- mail delivery
+- DMARC reports
+
+This reduces the number of layers that need a proxy. It does not remove the proxy or the network from a local bring-up.
 
 ## Consequences
 
 ### Positive
 
-- One binary on the floor instead of five workloads and two datastores.
-- Registry durability is object-storage durability, and a registry rebuild is a redeploy rather than a restore.
-- Signatures and SBOMs live with their images, so [ADR-0104](0104-supply-chain-security.md)'s admission check is a registry read.
+- One binary on the floor, in place of five workloads and two datastores.
+- Registry durability is object-storage durability. A registry rebuild is a redeploy, not a restore.
+- Signatures and SBOMs live with their images, so the admission check of [ADR-0104](0104-supply-chain-security.md) is a registry read.
 
-### Negative / Risks
+### Negative and Risks
 
-- **The registry is on the critical path for pod starts.** A registry outage stalls scale-ups and node replacements for uncached images. Mitigated by object-storage-backed statelessness, which makes recovery a redeploy.
-- **zot is a younger project than Harbor**, with a smaller operator population. Accepted under principle 4 on exit cost: images are re-pushable and the OCI API is the interface. **The exit cost is not the whole cost.** The operator population is a second, independent price — nobody arriving has debugged this component before, so the first incident is also the first hour anyone has spent inside it. That is the same class of cost [ADR-0200](0200-cluster-topology.md) accepts openly for Talos, and it is paid at the worst moment rather than at adoption.
-- **The console reads; it does not administer.** zot's `ui` and `search` extensions serve the catalogue at `zot.ops.<host>` ([ADR-0306](0306-trust-tiers-and-urls.md)), which answers "what is in the registry" without a shell. Projects, quotas and retention remain committed files with no screen that writes one, and scripted inspection is a `crane` or `cosign` call. CVE scanning is a sub-key of the same extension and is off: it pulls a vulnerability database on a schedule, and scanning belongs to the merge gate ([ADR-0203](0203-policy-enforcement.md)).
-- **The console does not ask for a second login.** zot's access policy is one configuration for one process, so a browser that cleared the ops gate would otherwise meet the same htpasswd the distribution API uses. An anonymous read policy would remove the prompt, but it opens every pull on `registry.<host>` to do it. So the credential is presented for the browser instead: a small reverse proxy rides in the zot pod, adds the pull identity's `Authorization` header, and serves the `zot.ops.<host>` origin ([ADR-0306](0306-trust-tiers-and-urls.md)). The `registry.<host>` origin still reaches zot directly and its clients authenticate as before — the header is added on the console path alone.
-- **Robot credentials are long-lived** where the forge cannot mint short-lived ones, which is the same constraint [ADR-0102](0102-source-control-and-ci.md) records for signing identity.
+- **The registry is on the critical path for pod starts.** A registry outage stalls scale-ups and node replacements for uncached images. Statelessness backed by object storage mitigates this, because it makes recovery a redeploy.
+- **zot is a younger project than Harbor**, with a smaller operator population. This is accepted under principle 4 on exit cost: images can be pushed again, and the OCI API is the interface. **The exit cost is not the whole cost.** The operator population is a second, independent price. No new engineer has debugged this component before. So the first incident is also the first hour that anyone spends inside it. [ADR-0200](0200-cluster-topology.md) openly accepts the same class of cost for Talos. It is paid at the worst moment, not at adoption.
+- **The console reads. It does not administer.** The `ui` and `search` extensions of zot serve the catalogue at `zot.ops.<host>`, per [ADR-0306](0306-trust-tiers-and-urls.md). This shows what is in the registry without a shell. Projects, quotas, and retention stay committed files, and no screen writes them. Scripted inspection is a `crane` or `cosign` call. CVE scanning is a sub-key of the same extension, and it is off. It pulls a vulnerability database on a schedule, and scanning belongs to the merge gate, per [ADR-0203](0203-policy-enforcement.md).
+- **The console does not ask for a second login.** The access policy of zot is one configuration for one process. Without a fix, a browser that passed the ops gate would meet the same htpasswd that the distribution API uses. An anonymous read policy would remove the prompt, but it would open every pull on `registry.<host>`. So the credential is presented for the browser instead. A small reverse proxy runs in the zot pod. It adds the `Authorization` header of the pull identity and serves the `zot.ops.<host>` origin, per [ADR-0306](0306-trust-tiers-and-urls.md). The `registry.<host>` origin still reaches zot directly, and its clients authenticate as before. The proxy adds the header on the console path only.
+- **Robot credentials are long-lived** where the forge cannot mint short-lived ones. [ADR-0102](0102-source-control-and-ci.md) records the same constraint for signing identity.
 
 ### What would change this decision
 
 | Change | Effect |
 | --- | --- |
-| The forge is replaced | **None.** No forge's bundled registry is eligible, whichever forge it is, for the coupling reason above |
-| Multi-tenancy, quotas, or replication becomes a requirement | **Decisive.** Those are the capabilities Harbor was rejected for carrying, and needing one of them means the concern grew past what a single-instance registry answers |
-| The registry needs an administrative console for a non-engineer | **Decisive.** The console above reads the catalogue; a surface that writes projects, quotas or retention is the capability Harbor was rejected for carrying |
-| Scanning is wanted at the registry rather than in CI | **None.** [ADR-0203](0203-policy-enforcement.md) assigns provenance to admission and scanning to the merge gate; moving it here would be a policy-layer change, not a registry choice |
-| The image estate outgrows one instance per environment | **None** on the component, decisive on its topology: zot mirrors in the same config file, which is the recorded seam |
+| The forge is replaced | **None.** No bundled forge registry is eligible, whichever forge it is, for the coupling reason above |
+| Multi-tenancy, quotas, or replication becomes a requirement | **Decisive.** Harbor was rejected for carrying those capabilities. A need for one of them means the concern grew past what a single-instance registry answers |
+| The registry needs an administrative console for a non-engineer | **Decisive.** The console above reads the catalogue. A surface that writes projects, quotas, or retention is the capability that Harbor was rejected for carrying |
+| Scanning is wanted at the registry, not in CI | **None.** [ADR-0203](0203-policy-enforcement.md) assigns provenance to admission and scanning to the merge gate. A move here would be a policy-layer change, not a registry choice |
+| The image estate outgrows one instance per environment | **None** on the component, and decisive on its topology. zot mirrors in the same config file, which is the recorded seam |
 
 ## Rules
 
 - Images are stored in a self-hosted zot registry backed by object storage.
 - Registry configuration is a committed file. Projects, quotas, and retention are never set through an API call or a UI.
 - A first-party image tag is deleted once no environment's values pin it and it is outside the rollback window of the last ten commits. `(CI: ci:prune-registry)`
-- The registry console is served at `zot.ops.<host>` behind the ops forward-auth; the distribution API at `registry.<host>` is gated by the registry's own credentials and never by an operator session ([ADR-0306](0306-trust-tiers-and-urls.md)).
-- Every environment's registry is zot, including the local tiers, where it runs as a host container beside the cluster ([ADR-0600](0600-local-development-loop.md)). Anonymous access and directory storage are permitted there and nowhere else.
-- The local nodes pull from that registry and from nowhere else: no upstream is configured as a fallback endpoint, and `cluster:up` warms the registry before it creates the cluster.
-- The warm set is generated from the charts alongside Kyverno's allow-list, never hand-written. `(CI: lint:image-allowlist)`
-- Signatures, SBOMs, and provenance are OCI referrers on the image they describe ([ADR-0104](0104-supply-chain-security.md)). `(ref: OCI 1.1)`
+- The registry console is served at `zot.ops.<host>` behind the ops forward-auth. The own credentials of the registry gate the distribution API at `registry.<host>`, never an operator session, per [ADR-0306](0306-trust-tiers-and-urls.md).
+- The registry of every environment is zot, including the local tiers. There it runs as a host container beside the cluster, per [ADR-0600](0600-local-development-loop.md). Anonymous access and directory storage are permitted there and nowhere else.
+- The local nodes pull from that registry and from nowhere else. No upstream is configured as a fallback endpoint, and `cluster:up` warms the registry before it creates the cluster.
+- The warm set is generated from the charts together with the allow-list of Kyverno, never written by hand. `(CI: lint:image-allowlist)`
+- Signatures, SBOMs, and provenance are OCI referrers on the image they describe, per [ADR-0104](0104-supply-chain-security.md). `(ref: OCI 1.1)`
 - Vulnerability scanning runs in CI, not in the registry.
-- The registry the pipeline pushes to is set by forge variables, never written into a workflow.
-- Deployments reference images by digest ([ADR-0103](0103-release-and-versioning.md)). `(enforced: Kyverno)`
+- Forge variables set the registry that the pipeline pushes to. It is never written into a workflow.
+- Deployments reference images by digest, per [ADR-0103](0103-release-and-versioning.md). `(enforced: Kyverno)`

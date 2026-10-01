@@ -1,184 +1,174 @@
-# ADR-0207: Cluster Storage & Backups
+# ADR-0207: Cluster Storage and Backups
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0200](0200-cluster-topology.md), [ADR-0205](0205-environment-parity.md), [ADR-0300](0300-data.md), [ADR-0302](0302-temporal.md), [ADR-0500](0500-observability.md)
-- **Decides:** Volumes are node-local, object storage is SeaweedFS in every environment and outside the cluster in production, and backups are written to it under Object Lock.
+- **Decides:** Volumes are node-local, object storage is SeaweedFS in every environment and outside the cluster in production, and backups go to it under Object Lock.
 
 ## Context
 
-[ADR-0200](0200-cluster-topology.md) puts three Talos nodes per environment on plain instances. Two storage questions follow and are separable: what backs a pod's volume between reschedules, and where durable data lives.
+[ADR-0200](0200-cluster-topology.md) puts three Talos nodes per environment on plain instances. Two separate storage questions follow:
 
-They are separable because the answer to the second removes most of the first. Once Postgres backups, logs, traces, profiles, and the registry's own store are in object storage, a block volume holds cache and working state, and replicating it would be paying for durability twice.
+- What backs a pod's volume between reschedules.
+- Where durable data lives.
 
-The store that holds durable data is also **what a cluster is rebuilt from**, so it cannot share a failure domain with the cluster it restores. That constraint is what makes this a decision rather than a component choice.
+They are separate because the answer to the second removes most of the first. Postgres backups, logs, traces, profiles, and the registry's own store all live in object storage. So a block volume holds only cache and working state, and replication of it would pay for durability twice.
 
-Parity is inherited from [ADR-0205](0205-environment-parity.md): topology may differ between environments, interfaces may not.
+The store that holds durable data is also **what a cluster is rebuilt from**. So it cannot share a failure domain with the cluster it restores. This constraint makes this ADR a decision and not only a component choice.
+
+Parity comes from [ADR-0205](0205-environment-parity.md). Topology may differ between environments. Interfaces may not.
 
 ## Decision drivers
 
-1. **The recovery path survives losing the cluster.** Whatever the backups are on is out of scope for the failure it recovers from.
-2. **The recovery path survives a credential.** An operator credential that can delete backups is an incident away from a total loss, so immutability is a requirement rather than a feature.
-3. **One implementation everywhere** ([ADR-0205](0205-environment-parity.md)). S3 dialects differ in exactly the places that fail late, and a difference only production exercises is a difference discovered in production.
-4. **Operational sovereignty** ([ADR-0000](0000-platform-foundations.md), principle 3). The store is a component the platform runs, not a signup.
-5. **The always-on floor is the budget** (principle 2). Durability is bought once, at the layer that needs it.
+1. **The recovery path survives the loss of the cluster.** The store that holds the backups is outside the failure it recovers from.
+2. **The recovery path survives a leaked credential.** With an operator credential that can delete backups, one incident can cause a total loss. So immutability is a requirement, not a feature.
+3. **One implementation everywhere**, per [ADR-0205](0205-environment-parity.md). S3 dialects differ in the places that fail late. A difference that only production exercises is found in production.
+4. **Operational sovereignty**, per principle 3 of [ADR-0000](0000-platform-foundations.md). The store is a component that the platform runs, not a signup.
+5. **The always-on floor is the budget**, per principle 2. Durability is bought once, at the layer that needs it.
 
 ## Considered options
 
 ### Block storage
 
-Object storage carries the durable data, so this decides only the volumes that back a pod between reschedules.
+Object storage carries the durable data. So this section decides only the volumes that back a pod between reschedules.
 
 | Option | Added components | Survives node loss | Talos cost | Verdict |
 | --- | --- | --- | --- | --- |
-| **`local-path-provisioner`** | one small provisioner | **no** — a volume is pinned to its node | none: a directory under `/var`, the writable path | **Chosen.** The durable data is already off-cluster, so replication here would be paid twice *(reasoned)* |
-| Longhorn | a controller, per-node engines, and a UI | yes, replicated | `iscsi-tools` and `util-linux-tools` extensions, a data path under `/var/mnt`, and a separate disk | The answer once a volume is too large to lose. It is the storage trigger below, and it is an OS-image change rather than a chart |
-| OpenEBS Mayastor | a control plane and per-node data planes | yes | hugepages and a dedicated device | Longhorn's guarantee at higher performance and higher operational surface, for a workload profile no component here has |
-| Rook-Ceph | a full Ceph cluster | yes, strongly | extensions plus dedicated disks | A distributed storage system to operate, which principle 2 refuses for volumes that hold no durable data |
-| A provider CSI driver | none in-cluster | yes | none | Fails driver 4, and re-couples the cluster to one provider's API |
+| **`local-path-provisioner`** | one small provisioner | **no.** A volume is pinned to its node | none. It uses a directory under `/var`, the writable path | **Chosen.** The durable data is already off-cluster, so replication here would pay twice *(reasoned)* |
+| Longhorn | a controller, engines on each node, and a UI | yes, replicated | the `iscsi-tools` and `util-linux-tools` extensions, a data path under `/var/mnt`, and a separate disk | The answer when a volume is too large to lose. It is the storage trigger below. It is an OS-image change, not a chart |
+| OpenEBS Mayastor | a control plane, and data planes on each node | yes | hugepages and a dedicated device | Longhorn's guarantee with higher performance and a larger operational surface. No component here has a workload profile that needs it |
+| Rook-Ceph | a full Ceph cluster | yes, strongly | extensions and dedicated disks | A distributed storage system to operate. Principle 2 refuses this for volumes that hold no durable data |
+| A provider CSI driver | none in the cluster | yes | none | It fails driver 4, and it couples the cluster to the API of one provider again |
 
 ### Object storage
 
-One component, in every environment. The parity contract is not "the S3 API" but **the same implementation** (driver 3), because the dialects differ in multipart, conditional writes, checksum trailers, and list pagination.
+One component runs in every environment. The parity contract is **the same implementation**, not only the S3 API, per driver 3. The dialects differ in multipart, conditional writes, checksum trailers, and list pagination.
 
-**In production it runs outside the cluster.** That is the whole environment delta, and it is driver 1. External means external to the cluster, not to the organisation: hardware the organisation owns satisfies it, and a provider bucket is the [`adoption-path.md`](../adoption-path.md) concession rather than the default.
+**In production, the store runs outside the cluster.** That is the only difference between environments, and it is driver 1. External means outside the cluster, not outside the organisation. Hardware that the organisation owns meets the requirement. A provider bucket is the concession in [`adoption-path.md`](../adoption-path.md), not the default.
 
-Selection is therefore one comparison against one set of requirements: it runs at `instances=1` on a laptop ([ADR-0600](0600-local-development-loop.md)) *and* as a durable off-cluster store holding Postgres backups with their WAL archive, Loki, Tempo, and Pyroscope.
+So the selection is one comparison against one set of requirements. The store runs at `instances=1` on a laptop, per [ADR-0600](0600-local-development-loop.md). It also runs as a durable off-cluster store for Postgres backups with their WAL archive, Loki, Tempo, and Pyroscope.
 
-Because that store holds the backups an operator credential can reach, driver 2 makes **Object Lock a requirement rather than a feature**: it is the only control that survives an attacker holding valid credentials.
+This store holds backups that an operator credential can reach. So driver 2 makes **Object Lock a requirement, not a feature**. It is the only control that survives an attacker with valid credentials.
 
 | Option | One component everywhere | Object Lock | Storage cost | Operator UI | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| **SeaweedFS** | **yes** — `weed mini` is the whole store in one process for local and dev; master, volume, filer and S3 off-cluster in production, from the same binary | **yes** — versioning with GOVERNANCE and COMPLIANCE retention | erasure coding on warm data, ~1.4× | master, filer and admin UIs, started by the same command | **Chosen.** The only option that holds driver 3 and driver 2 together *(reasoned)* |
-| Garage | yes — a single binary in both | **no**, and not reachable: Object Lock requires versioning, which it does not implement | replication only, **3×** | none first-party; a CLI and an HTTP admin API | The most elegant fit and the lightest to operate. Conceding Object Lock here is a **bet rather than a deferral** — there is no seam, and adopting it later is an object-store migration with every byte moved |
-| Ceph RGW | **no** — cannot run in the local loop at any configuration | yes, the most complete | erasure coding, tunable | Ceph Dashboard, the strongest here | Eliminated by driver 3 itself. It remains the right answer for an organisation **already operating Ceph**, where the marginal cost is a pool and a gateway rather than a second distributed system |
-| MinIO | yes | yes | erasure coding | stripped from the community edition in 2025 | The incumbent, and **no longer maintained**: the repository was archived in April 2026, distribution is source-only, and the maintained build is a proprietary-licensed AIStor binary. Abandonment rather than novelty risk, the failure [ADR-0502](0502-alerting-and-on-call.md) records for Grafana OnCall |
-| RustFS | yes | young | — | a console | Principle 4 places object storage in the conservative class, and this slot is unambiguously the data plane |
-| A provider bucket in every environment | **no** — breaks the offline local loop and puts a credential in every developer's environment | yes | n/a | the provider's | Abandons axis B for the one Core data path where it was never recorded as abandoned. Correct as a ranked concession, not as the default |
-| Two implementations, one per tier — the honest baseline | no | varies | — | varies | Buys a lighter non-prod component and pays for it with a dialect gap that only production can find |
+| **SeaweedFS** | **yes.** `weed mini` is the whole store in one process for local and dev. Production runs master, volume, filer, and S3 off-cluster, from the same binary | **yes.** Versioning with GOVERNANCE and COMPLIANCE retention | erasure coding on warm data, about 1.4 times | master, filer, and admin UIs, started by the same command | **Chosen.** It is the only option that meets driver 3 and driver 2 together *(reasoned)* |
+| Garage | yes. A single binary in both | **no, and it cannot get it.** Object Lock requires versioning, and Garage does not implement versioning | replication only, **3 times** | none first-party. A CLI and an HTTP admin API | The best fit and the lightest to operate. Without Object Lock, it is a **bet, not a deferral**. There is no seam, and a later adoption is an object-store migration that moves every byte |
+| Ceph RGW | **no.** It cannot run in the local loop in any configuration | yes, the most complete | erasure coding, tunable | Ceph Dashboard, the strongest here | Driver 3 removes it. It stays the right answer for an organisation that **already operates Ceph**. There, the extra cost is a pool and a gateway, not a second distributed system |
+| MinIO | yes | yes | erasure coding | removed from the community edition in 2025 | The incumbent, and **no longer maintained**. The repository was archived in April 2026. Distribution is source-only, and the maintained build is an AIStor binary under a proprietary licence. The risk is abandonment, not novelty. [ADR-0502](0502-alerting-and-on-call.md) records the same failure for Grafana OnCall |
+| RustFS | yes | young | not assessed | a console | Principle 4 puts object storage in the conservative class, and this slot is the data plane |
+| A provider bucket in every environment | **no.** It breaks the offline local loop and puts a credential in the environment of every developer | yes | not applicable | the provider's | It gives up axis B on the one Core data path where the platform never recorded that choice. It is correct as a ranked concession, not as the default |
+| Two implementations, one per tier, the honest baseline | no | varies | varies | varies | It buys a lighter component for non-prod. The price is a dialect gap that only production can find |
 
-**Neither remaining candidate was free of S3-dialect defects, and the failure modes differed.** When AWS SDKs began sending CRC32 checksum trailers by default in January 2025, Garage rejected the requests outright and SeaweedFS wrote the trailer into stored object bodies. Both are fixed. A store that corrupted quietly on the path Postgres backups use is the more serious of the two, and it is recorded in *Negative / Risks* rather than treated as history.
+**Both remaining candidates had S3-dialect defects, and the failure modes were different.** In January 2025, AWS SDKs started to send CRC32 checksum trailers by default. Garage rejected those requests. SeaweedFS wrote the trailer into the stored object bodies. Both defects are fixed. Silent corruption on the path that Postgres backups use is the more serious failure. So *Negative and Risks* records it as a current risk, not as history.
 
 ## Decision
 
 | Kind | Day one | On the storage-scale trigger |
 | --- | --- | --- |
-| Block | `local-path-provisioner`, backed by a directory under `/var`, which is the writable path on an otherwise read-only node | Longhorn becomes the default for new volumes |
-| Object | **SeaweedFS in every environment**, in-cluster for local, dev and staging, and **outside the cluster in production** | unchanged |
+| Block | `local-path-provisioner`, backed by a directory under `/var`. That is the writable path on a node that is otherwise read-only | Longhorn becomes the default for new volumes |
+| Object | **SeaweedFS in every environment.** It runs in the cluster for local, dev, and staging, and **outside the cluster in production** | unchanged |
 
-**Outside the cluster is a failure-domain requirement, not an implementation one.** No store placed on the cluster it serves is acceptable in production whatever it is — an objection separate from, and stronger than, the component-weight one that rejects Rook-Ceph for block storage above.
+**Outside the cluster is a failure-domain requirement, not an implementation requirement.** In production, no store on the cluster it serves is acceptable, whatever the store is. This objection is separate from the component-weight objection that rejects Rook-Ceph for block storage above, and it is stronger.
 
-**Placement follows whether the data must outlive the cluster.** This store holds the backups a rebuild reads, so its contents are irreplaceable — nothing regenerates a database's point-in-time history — and it goes off-cluster where recovery is real. The image registry sits the other way up ([ADR-0105](0105-image-registry.md)): its contents are reproducible — re-pushed by CI, or re-read from a surviving bucket — so it needs no independent survival and stays in-cluster. Store and registry differ by this rule rather than by inconsistency: **off-cluster exactly where the data cannot be regenerated, in-cluster otherwise.**
+**Placement depends on whether the data must outlive the cluster.** This store holds the backups that a rebuild reads, so its contents cannot be replaced. Nothing can regenerate the point-in-time history of a database. So the store goes off-cluster where recovery is real. The image registry is the opposite case, per [ADR-0105](0105-image-registry.md). CI can push its contents again, or they can be read again from a surviving bucket. So the registry needs no independent survival, and it stays in the cluster. The store and the registry differ because of this rule, not by accident: **off-cluster where the data cannot be regenerated, in the cluster otherwise.**
 
-**Production buckets enable Object Lock.** The store sits inside the same administrative boundary as the cluster whose backups it holds, and WORM retention is what keeps a compromised or mistaken credential from taking the recovery path with it.
+**Production buckets enable Object Lock.** The store sits inside the same administrative boundary as the cluster whose backups it holds. WORM retention stops a compromised or mistaken credential from destroying the recovery path as well.
 
-**The lock window EQUALS the backup retention — not "at least".** A longer lock is not the safer choice it looks like: CNPG deletes backups past their retention, and a lock outliving that retention makes every one of those deletes fail. The bucket then grows without bound while the operator logs delete errors nobody reads, which is a slower outage than the one the lock prevents. Equality is what makes the two agree.
+**The lock window EQUALS the backup retention. It is not a minimum.** A longer lock is not safer. CNPG deletes backups after their retention ends. A lock that lasts longer than the retention makes each of those deletes fail. The bucket then grows without limit, and the operator logs delete errors that nobody reads. This is a slower outage than the one the lock prevents. Equality keeps the two in agreement.
 
-**Mode is per bucket, and it turns on what the bucket holds.**
+**The mode is set per bucket, and it depends on what the bucket holds.**
 
 | Bucket | Mode | Why |
 | --- | --- | --- |
-| CNPG backups | **COMPLIANCE** | This is the bucket the lock exists for. COMPLIANCE cannot be shortened or bypassed by anyone, including the root credential — which is the whole threat: an attacker holding valid credentials, or an operator holding a bad one |
-| Loki, Tempo, Pyroscope | **GOVERNANCE** | Operational telemetry with short retention and no recovery role. The ability to delete on request is worth more here than immutability, and GOVERNANCE keeps that available to an authorised identity |
-| The registry's bucket | **GOVERNANCE** | Images are rebuildable from source; the bucket holds no unique state ([ADR-0105](0105-image-registry.md)) |
+| CNPG backups | **COMPLIANCE** | The lock exists for this bucket. Nobody can shorten or bypass COMPLIANCE, including the root credential. That is the threat: an attacker with valid credentials, or an operator with a bad one |
+| Loki, Tempo, Pyroscope | **GOVERNANCE** | Operational telemetry with short retention and no role in recovery. Here, deletion on request is worth more than immutability. GOVERNANCE keeps deletion available to an authorised identity |
+| The registry's bucket | **GOVERNANCE** | Images can be rebuilt from source, and the bucket holds no unique state, per [ADR-0105](0105-image-registry.md) |
 
-**COMPLIANCE collides with erasure, and the collision is disclosed rather than discovered.** A subject's data inside a locked backup cannot be deleted before the window expires — that is what COMPLIANCE means. So [ADR-0301](0301-data-lifecycle-privacy.md)'s erasure obligation has a bound this ADR sets: erasure removes the subject from every live store immediately, and from backups **by expiry** of the lock window. That bound is short precisely because the window equals the backup retention rather than exceeding it, and it is stated to a subject rather than left to be found during an audit.
+**COMPLIANCE conflicts with erasure, and this ADR discloses the conflict.** Nobody can delete a subject's data inside a locked backup before the window ends. That is the meaning of COMPLIANCE. So this ADR bounds the erasure obligation of [ADR-0301](0301-data-lifecycle-privacy.md):
 
-Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a local TSDB and needs none; its Mimir Scale swap does ([ADR-0500](0500-observability.md)).
+- Erasure removes the subject from every live store immediately.
+- Erasure removes the subject from backups **when the lock window expires**.
+
+The bound is short, because the window equals the backup retention and is not longer. The platform states the bound to the subject, so nobody first finds it during an audit.
+
+Loki, Tempo, CNPG backups, and Pyroscope write to the bucket. Prometheus keeps a local TSDB and needs no bucket. Its Mimir swap at Scale does need one, per [ADR-0500](0500-observability.md).
 
 ### The storage-scale trigger is a bet, not a seam
 
 | Field | Value |
 | --- | --- |
-| **Trigger** | a Postgres restore rehearsal taking longer than half the RTO |
-| **Seam** | ⚠ **none.** [Longhorn on Talos](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/) needs system extensions, a `/var/mnt` data path, and a separate disk, so adopting it rebuilds the installer image and reprovisions every node |
-| **Cost if adopted late** | every existing volume migrates per workload while the schematic changes underneath, which is two migrations at once rather than one |
+| **Trigger** | A Postgres restore rehearsal takes longer than half the RTO |
+| **Seam** | ⚠ **none.** [Longhorn on Talos](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/) needs system extensions, a `/var/mnt` data path, and a separate disk. Its adoption rebuilds the installer image and reprovisions every node |
+| **Cost if adopted late** | Every existing volume migrates per workload while the schematic changes under it. That is two migrations at once, not one |
 
-The trigger is recovery time, not capacity. A local-path volume dies with its node and comes back only by a restore
-from the archive, whose time grows with the data: once a restore takes more than half of
-[ADR-0200](0200-cluster-topology.md)'s 30-minute RTO, losing one node breaks the objective, and a replicated volume is
-the fix. The rehearsals in `docs/guide/disaster-recovery.md` record that time. Disk use is not a trigger: Longhorn keeps
-two or three replicas of every volume, so it needs more disk rather than less, and a filling node is the capacity
-alerts' concern.
+The trigger is recovery time, not capacity. A local-path volume dies with its node. It comes back only through a restore from the archive, and the restore time grows with the data. The RTO in [ADR-0200](0200-cluster-topology.md) is 30 minutes. When a restore takes more than half of it, the loss of one node breaks the objective, and a replicated volume is the fix. The rehearsals in `docs/guide/disaster-recovery.md` record that time. Disk use is not a trigger. Longhorn keeps two or three replicas of every volume, so it needs more disk, not less. The capacity alerts cover a node that fills up.
 
 ### Backups, mandatory and off-cluster
 
 | Data | Mechanism | Retention |
 | --- | --- | --- |
-| Postgres | CNPG `ScheduledBackup` to the external bucket, with WAL archiving for PITR | 30 days prod, 7 days non-prod |
-| Temporal history | lives on Postgres, so it is covered above | as above |
-| Observability long-term | already in the bucket; the cluster volume holds hot cache only | per lifecycle policy |
-| Whole node | provider snapshots daily, as a catastrophic-recovery fallback | provider default |
+| Postgres | CNPG `ScheduledBackup` to the external bucket, with WAL archiving for PITR | 30 days in prod, 7 days in non-prod |
+| Temporal history | It lives on Postgres, so the row above covers it | the same as Postgres |
+| Long-term observability data | already in the bucket. The cluster volume holds hot cache only | per lifecycle policy |
+| Whole node | daily provider snapshots, as a fallback for catastrophic recovery | provider default |
 
-Restore is rehearsed quarterly by a Temporal `Schedule` ([ADR-0302](0302-temporal.md)) that opens a tracking issue. The recovery objectives those backups are held to are [ADR-0200](0200-cluster-topology.md)'s.
+A Temporal `Schedule` rehearses the restore quarterly and opens a tracking issue, per [ADR-0302](0302-temporal.md). [ADR-0200](0200-cluster-topology.md) sets the recovery objectives for these backups.
 
-**Moving to the Barman Cloud plugin is deferred.** CNPG's in-tree `barmanObjectStore` carries both backups and WAL archiving today.
+**The move to the Barman Cloud plugin is deferred.** CNPG's in-tree `barmanObjectStore` carries both backups and WAL archiving.
 
 | Field | Value |
 | --- | --- |
-| **Trigger** | a CloudNativePG upgrade to 1.30, which removes the in-tree `barmanObjectStore` |
-| **Seam** | ✓ one chart, `infra/helm/platform/postgres`, renders every backup and recovery setting, and the bucket layout does not change |
-| **Cost if adopted late** | none before the upgrade; at it, the chart moves in the same change or the upgrade leaves no archiving |
+| **Trigger** | A CloudNativePG upgrade to 1.30, which removes the in-tree `barmanObjectStore` |
+| **Seam** | ✓ One chart, `infra/helm/platform/postgres`, renders every backup and recovery setting. The bucket layout does not change |
+| **Cost if adopted late** | None before the upgrade. At the upgrade, the chart moves in the same change, or archiving stops |
 
 ## Who provisions the production store
 
-**The template does not, and that is a decision rather than an omission.**
+**The template does not provision it. This is a decision, not an omission.**
 
-[ADR-0200](0200-cluster-topology.md) already makes Terraform per-project and skips
-it entirely where infrastructure is pre-provided. Shipping a reference module for
-the object store would reverse that for one component: a module has to name a
-provider, and naming one picks a cloud on every adopter's behalf — for the single
-component this ADR says must sit outside the cluster and outside its failure domain.
-An adopter on a different provider would then delete a module rather than fill in a
-blank, which is worse than being handed nothing.
+[ADR-0200](0200-cluster-topology.md) already makes Terraform a per-project tool and skips it where infrastructure is pre-provided. A reference module for the object store would reverse that for one component. A module must name a provider, and that choice picks a cloud for every adopter. It would do so for the one component that this ADR places outside the cluster and outside its failure domain. An adopter on a different provider would then delete a module instead of filling in a blank. That is worse than no module.
 
-So provisioning the store is a **per-project obligation**. What the template owes in
-exchange is a requirement precise enough to satisfy without guessing, which is this:
+So the provisioning of the store is a **per-project obligation**. In exchange, the template owes a requirement exact enough to meet without guessing:
 
 | Requirement | Why it is not negotiable |
 | --- | --- |
-| Outside the cluster's failure domain | A store on the cluster it backs cannot survive the loss it exists to survive |
-| S3-compatible, addressed by endpoint and credentials | That is the whole interface the platform uses; anything meeting it works |
-| Versioning enabled | Object Lock requires it, and without it an overwrite is a deletion |
+| Outside the cluster's failure domain | A store on the cluster it backs cannot survive the loss it exists for |
+| S3-compatible, addressed by endpoint and credentials | This is the whole interface that the platform uses. Anything that meets it works |
+| Versioning enabled | Object Lock requires it. Without it, an overwrite is a deletion |
 | Object Lock, COMPLIANCE on the backup bucket | The lock's threat model is a valid credential in the wrong hands |
-| Lock window EQUAL to backup retention | Longer makes CNPG's retention deletes fail and the bucket grow without bound |
+| Lock window EQUAL to backup retention | A longer window makes CNPG's retention deletes fail, and the bucket grows without limit |
 | Reachable from the cluster over TLS | The production store is not on the pod network |
 
-An adopter who satisfies that table has discharged K2 on any provider, including a
-rack in an office. One who cannot is told exactly which line they failed.
+An adopter who meets this table has met K2 on any provider, including a rack in an office. An adopter who cannot meet it sees exactly which line fails.
 
-**The gap this leaves is verification, not provisioning.** Nothing in the platform
-checks that the configured bucket has versioning and a correctly-sized lock
-window — an adopter can point at a bucket with neither and every backup will appear
-to succeed, right up until the restore that needed them. That check belongs in the
-platform because it is the platform's requirement, and it is the honest remaining
-work here.
+**The platform does not verify these requirements.** Nothing checks that the configured bucket has versioning and a lock window of the correct size. An adopter can point at a bucket with neither, and every backup appears to succeed until the restore that needs them. This check belongs in the platform, because the requirement is the platform's.
 
 ## Consequences
 
 ### Positive
 
-- **One object store, one dialect, one set of operator habits.** A multipart or checksum difference cannot hide until production, because every environment runs the same implementation.
-- The recovery path survives both losing the cluster and losing a credential, which are the two failures a backup exists for.
-- Block storage costs one small provisioner, because durability is bought once at the object layer.
+- **One object store, one dialect, and one set of operator habits.** A multipart or checksum difference cannot hide until production, because every environment runs the same implementation.
+- The recovery path survives the loss of the cluster and the loss of a credential. These are the two failures that a backup exists for.
+- Block storage costs one small provisioner, because durability is bought once, at the object layer.
 
-### Negative / Risks
+### Negative and Risks
 
-- **Production object storage is a stateful component the platform operates.** Offloading it to a provider would be a saving, and that saving is spent here to keep the one Core data path from being a signup. The obligation lands on the same team that runs the cluster.
-- **SeaweedFS's S3 layer is younger than its storage layer.** When AWS SDKs began sending CRC32 checksum trailers in January 2025 it wrote the trailer into stored object bodies rather than rejecting the request — silent corruption on the path Postgres backups use, since fixed. Backup verification is what catches a recurrence, which is why the restore rehearsal is not optional.
-- **Development is concentrated in one maintainer.** Accepted under principle 4 on the same terms as the registry: the exit is an S3 endpoint change plus a data copy, and the interface is the API rather than the product.
-- **Erasure coding is available at a fixed ratio in the open version.** Tuning it is an upstream commercial feature. Adequate here, and recorded so it is not discovered during a capacity exercise.
-- **A block volume does not survive node loss.** Correct for cache and working state, and the trigger above is what says when it stops being correct.
-- **Bucket fees grow with retention.** Mitigated by lifecycle policies moving to a cold tier after 30 days.
+- **Production object storage is a stateful component that the platform operates.** A provider would save this work. The platform gives up that saving so that the one Core data path is not a signup. The obligation falls on the same team that runs the cluster.
+- **SeaweedFS's S3 layer is younger than its storage layer.** In January 2025, AWS SDKs started to send CRC32 checksum trailers. SeaweedFS wrote the trailer into stored object bodies and did not reject the request. This was silent corruption on the path that Postgres backups use, and it is fixed. Backup verification catches a recurrence, so the restore rehearsal is not optional.
+- **One maintainer does most of the development.** Accepted under principle 4, on the same terms as the registry. The exit is a change of S3 endpoint plus a data copy, and the interface is the API, not the product.
+- **The open version offers erasure coding at a fixed ratio.** Tuning it is a commercial upstream feature. This is enough here. The ADR records it so that nobody discovers it during a capacity exercise.
+- **A block volume does not survive node loss.** This is correct for cache and working state. The trigger above says when it stops being correct.
+- **Bucket fees grow with retention.** Lifecycle policies that move data to a cold tier after 30 days reduce the cost.
 
 ## Rules
 
-- The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires, then Longhorn with the extensions that requires.
-- Object storage is SeaweedFS in every environment. A second S3 implementation is not introduced for any tier.
-- Production runs it outside the cluster. No object store holding production data runs on the cluster it serves.
-- Production buckets have Object Lock enabled, with the lock window EQUAL to the backup retention — a longer window makes CNPG's retention deletes fail and the bucket grow without bound.
-- Object Lock mode is COMPLIANCE on the backup bucket and GOVERNANCE on the telemetry and registry buckets.
-- Erasure reaches live stores immediately and locked backups by expiry of the lock window, and that bound is disclosed.
-- Database backups are written off-cluster to that bucket and the restore is rehearsed quarterly.
-- Loki, Tempo, CNPG backups, and Pyroscope write to object storage rather than to a block volume.
+- The storage class is `local-path-provisioner` over a directory under `/var` until the storage-scale trigger fires. After that it is Longhorn, with the extensions it requires.
+- Object storage is SeaweedFS in every environment. No tier introduces a second S3 implementation.
+- Production runs it outside the cluster. No object store that holds production data runs on the cluster it serves.
+- Production buckets have Object Lock enabled, with the lock window EQUAL to the backup retention. A longer window makes CNPG's retention deletes fail, and the bucket grows without limit.
+- The Object Lock mode is COMPLIANCE on the backup bucket and GOVERNANCE on the telemetry and registry buckets.
+- Erasure reaches live stores immediately and locked backups when the lock window expires, and this bound is disclosed.
+- Database backups are written off-cluster to that bucket, and the restore is rehearsed quarterly.
+- Loki, Tempo, CNPG backups, and Pyroscope write to object storage, not to a block volume.
