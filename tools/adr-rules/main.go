@@ -1,4 +1,5 @@
-// Command adr-rules generates the rules index and the security baseline from the ADR set's Rules sections (ADR-0203).
+// Command adr-rules generates the rules index and the security baseline from the ADR set's Rules sections, per
+// ADR-0203.
 package main
 
 import (
@@ -23,23 +24,23 @@ const (
 // The prose each generated document opens with. Held as constants so the renderers
 // read as structure rather than as paragraphs.
 const (
-	rulesIntro = "Every normative rule in the ADR set, in one place, with the mechanism that enforces it. The" +
-		" rule's owning ADR carries the reasoning; this document carries only the rule, so a reviewer can" +
+	rulesIntro = "This document lists every normative rule in the ADR set, with the mechanism that enforces it." +
+		" The owning ADR carries the reasoning. This document carries only the rule, so a reviewer can" +
 		" read the whole law without reading the whole set.\n\n"
-	rulesReview = "An unannotated rule is enforced by review. It is normative on the same terms as an annotated" +
-		" one — the annotation states where the gate is, not how binding the rule is" +
-		" ([ADR-0001](../adr/0001-documentation-and-output-conventions.md)).\n\n"
-	rulesRatio = "The ratio is a fact about the set rather than a target. A rule moves into the first row when a" +
-		" check is written for it, and the count moving the wrong way is the signal worth reading.\n"
-	baselineIntro = "The security controls every project built from this template inherits, each one a rule from the" +
-		" ADR that owns it and the mechanism that enforces it. It is generated from those Rules sections," +
-		" so a control cannot be described here and decided differently there.\n\n"
-	baselineScope = "**Scope.** Controls that hold for every instance. What a particular project turns on for its" +
-		" own risk profile or its own compliance framework is" +
-		" [`per-instance-hardening.md`](reference/per-instance-hardening.md), which is written rather" +
-		" than generated because it is a property of the project rather than of the template.\n\n"
-	baselineReview = "**A control with no annotation is enforced by review.** That is a weaker gate and a normative rule" +
-		" either way, and the distinction is visible here for the same reason it is visible in the ADRs.\n"
+	rulesReview = "Review enforces a rule with no annotation. That rule binds in the same way as an annotated one." +
+		" The annotation states where the gate is, not how strong the rule is," +
+		" per [ADR-0001](../adr/0001-documentation-and-output-conventions.md).\n\n"
+	rulesRatio = "The ratio is a fact about the set, not a target. A rule moves into the first row when someone" +
+		" writes a check for it. A count that moves the wrong way is the signal to read.\n"
+	baselineIntro = "These are the security controls that every project built from this template inherits." +
+		" Each one is a rule from the ADR that owns it, with the mechanism that enforces it. This document is" +
+		" generated from those Rules sections, so a control cannot be described here and decided differently there.\n\n"
+	baselineScope = "**Scope.** These controls hold for every instance. A particular project turns on more controls for" +
+		" its own risk profile or compliance framework. Those are in" +
+		" [`per-instance-hardening.md`](reference/per-instance-hardening.md). That file is written by hand," +
+		" because it is a property of the project, not of the template.\n\n"
+	baselineReview = "**Review enforces a control with no annotation.** Review is a weaker gate, but the rule binds" +
+		" in both cases. The difference is visible here for the same reason it is visible in the ADRs.\n"
 )
 
 var (
@@ -168,9 +169,8 @@ func loadADRs() ([]adr, error) {
 	return set, nil
 }
 
-// parseRule splits a bullet into its statement and its gates. A rule may name more
-// than one — digest pinning is linted in CI and enforced at admission — and the two are
-// different subjects rather than a repetition, so both are kept.
+// parseRule splits a bullet into its statement and its gates. A rule can name more than one gate: CI lints
+// digest pinning, and admission enforces it. The two are different subjects, not a repetition, so both stay.
 func parseRule(text string) rule {
 	r := rule{text: text}
 	m := annotation.FindStringSubmatch(text)
@@ -224,7 +224,7 @@ func renderRulesIndex(set []adr) string {
 		if len(a.rules) == 0 {
 			continue
 		}
-		w(&b, fmt.Sprintf("\n## ADR-%s — %s\n\n", a.num, a.title))
+		w(&b, fmt.Sprintf("\n## ADR-%s: %s\n\n", a.num, a.title))
 		w(&b, fmt.Sprintf("[Full decision](../adr/%s)\n\n", a.file))
 		w(&b, "| Rule | Enforced by |\n| --- | --- |\n")
 		for _, r := range a.rules {
@@ -253,7 +253,7 @@ func renderBaseline(set []adr) string {
 				continue
 			}
 			w(&b, fmt.Sprintf("\n## %s\n\n", securityAreas[num]))
-			w(&b, fmt.Sprintf("[ADR-%s — %s](adr/%s)\n\n", a.num, a.title, a.file))
+			w(&b, fmt.Sprintf("[ADR-%s: %s](adr/%s)\n\n", a.num, a.title, a.file))
 			w(&b, "| Control | Enforced by |\n| --- | --- |\n")
 			for _, r := range a.rules {
 				w(&b, fmt.Sprintf("| %s | %s |\n", cell(rebase(r.text, "adr/", "")), enforcement(r)))
@@ -280,7 +280,7 @@ func enforcement(r rule) string {
 			parts = append(parts, "standard: "+g.via)
 		}
 	}
-	return strings.Join(parts, "; ")
+	return strings.Join(parts, ", ")
 }
 
 // cell makes a rule safe inside a table: a pipe in a rule would end the column.

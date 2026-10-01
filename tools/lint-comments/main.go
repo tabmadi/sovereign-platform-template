@@ -1,4 +1,5 @@
-// Command lint-comments enforces ADR-0001's comment rules across Go, TypeScript, shell, YAML, and TOML.
+// Command lint-comments enforces ADR-0001's comment rules and its Simple English profile across Go, TypeScript,
+// shell, YAML, TOML, and SQL.
 package main
 
 import (
@@ -12,6 +13,7 @@ import (
 
 	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
+	"github.com/tabmadi/sovereign-platform-template/tools/internal/simple"
 )
 
 // maxBlockLines is ADR-0001's length test. One line is the norm; three is the ceiling.
@@ -37,12 +39,12 @@ var rules = []rule{
 	{
 		name:    "intensifier",
 		pattern: word("very", "really", "quite", "obviously", "of course"),
-		reason:  "delete it — a claim needing an intensifier is not established",
+		reason:  "delete it. A claim that needs an intensifier is not established",
 	},
 	{
 		name:    "hedge",
 		pattern: word("arguably", "essentially", "basically", "somewhat"),
-		reason:  "decide — a hedge is an unfinished decision",
+		reason:  "decide. A hedge is an unfinished decision",
 	},
 	{
 		name:    "meta-commentary",
@@ -94,7 +96,7 @@ var assignmentish = regexp.MustCompile(`^\s*[\w.\[\]]+(\s*(?::?=|\+=)|\()[^)]*[)
 // directive matches a comment a tool reads. Excluded before any rule runs: deleting one changes behaviour.
 var directive = regexp.MustCompile(
 	`(?i)^\s*(shellcheck\s|renovate:|yaml-language-server:|SPDX-|nolint:|eslint-|biome-ignore|ts-|prettier-|` +
-		`sqlc:|go:generate|go:build|\+build|noqa|type:\s|platform/not-deployed)`,
+		`sqlc:|go:generate|go:build|\+build|noqa|type:\s|platform/not-deployed|name:\s\w+\s:|migrate:|/\s*<reference\s)`,
 )
 
 // exported matches a Go or TypeScript declaration of an exported identifier, and
@@ -142,7 +144,7 @@ func run(r *lint.Report) error {
 	}
 
 	for _, f := range found {
-		r.Addf("%s:%d: %s — %s\n    %s", f.file, f.line, f.rule, f.reason, strings.TrimSpace(f.text))
+		r.Addf("%s:%d: %s: %s\n    %s", f.file, f.line, f.rule, f.reason, strings.TrimSpace(f.text))
 	}
 	r.Hintf("ADR-0001's comment rules. A line may opt out with `lint:comments-allow`.")
 	r.Okf("comments conform to ADR-0001 (%d comment lines)", total)
@@ -233,6 +235,8 @@ func syntax(path string) (marks, bool) {
 		return marks{line: []string{"//"}, open: "/*", close: "*/"}, true
 	case ".sh", ".toml":
 		return marks{line: []string{"#"}}, true
+	case ".sql":
+		return marks{line: []string{"--"}}, true
 	case ".yaml", ".yml":
 		return marks{line: []string{"#"}, open: "{{/*", close: "*/}}"}, true
 	default:
@@ -370,20 +374,25 @@ func commentBody(line string, m marks, inBlock *bool) (string, bool, bool) {
 }
 
 func checkBlock(path string, b block) []finding {
+	// A migration's comments get only the profile: the comment rules predate SQL in this linter's scope.
+	if filepath.Ext(path) == ".sql" {
+		return checkSimple(path, b)
+	}
 	var out []finding
 	add := func(line int, name, reason, text string) {
 		out = append(out, finding{file: path, line: line, rule: name, reason: reason, text: text})
 	}
 	out = append(out, checkLines(path, b)...)
+	out = append(out, checkSimple(path, b)...)
 	if b.trailing {
 		return out
 	}
 	if paragraphs(b.bodies) > 1 {
-		add(b.start, "multi-paragraph comment", "a second paragraph is a document — move it to docs/ and cite it", b.lines[0])
+		add(b.start, "multi-paragraph comment", "a second paragraph is a document. Move it to docs/ and cite it", b.lines[0])
 	}
 	n := contentLines(b.bodies)
 	if n > maxBlockLines {
-		reason := fmt.Sprintf("%d lines, max %d — one line is the norm", n, maxBlockLines)
+		reason := fmt.Sprintf("%d lines, max %d. One line is the norm", n, maxBlockLines)
 		add(b.start, "over-length comment", reason, b.lines[0])
 	}
 	// An echo of the declaration is short and fits on one line. A doc that runs
@@ -391,7 +400,8 @@ func checkBlock(path string, b block) []finding {
 	name, isExported := exportedName(b.next)
 	if isExported && len(b.bodies) == 1 && len(strings.TrimSpace(b.bodies[0])) < maxEchoChars &&
 		!signal.MatchString(b.bodies[0]) {
-		reason := "state a fact `" + name + "`'s signature cannot — units, nil-ness, bounds, side effects — or delete it"
+		reason := "state a fact `" + name + "`'s signature cannot: units, nil values, bounds, or side effects." +
+			" Otherwise delete it"
 		add(b.start, "echo doc comment", reason, b.lines[0])
 	}
 	return out
@@ -484,7 +494,7 @@ func splicedYAML(lines []string) map[int]bool {
 }
 
 // rawStringSpans marks the lines a generator writes as data rather than as
-// comments — a Go raw-string literal or a shell heredoc. Deleting a comment marker
+// comments: a Go raw-string literal or a shell heredoc. Deleting a comment marker
 // inside one changes what the generator emits.
 func rawStringSpans(path string, lines []string) map[int]bool {
 	out := map[int]bool{}
@@ -521,6 +531,29 @@ func rawStringSpans(path string, lines []string) map[int]bool {
 		if ticks%2 == 1 {
 			inRaw = !inRaw
 		}
+	}
+	return out
+}
+
+// docCode is a line of a rendered code block inside a doc comment: a tab or a deeper indent.
+var docCode = regexp.MustCompile(`^(\t|\s{3,})`)
+
+// checkSimple applies ADR-0001's Simple English profile to a block's prose. A sentence can span lines, so
+// the block is joined first. Banned characters are lint:prose's, which reads every file.
+func checkSimple(path string, b block) []finding {
+	var prose []string
+	for _, body := range b.bodies {
+		if docCode.MatchString(body) || blankComment(body) {
+			continue
+		}
+		prose = append(prose, strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(body), "*")))
+	}
+	text := simple.StripCode(strings.Join(prose, " "))
+	opts := simple.Options{English: true, MaxWords: simple.MaxWords, SkipChars: true}
+	findings := simple.Check(text, opts)
+	out := make([]finding, 0, len(findings))
+	for _, f := range findings {
+		out = append(out, finding{path, b.start, f.Rule + " " + fmt.Sprintf("%q", f.Match), f.Reason, b.lines[0]})
 	}
 	return out
 }
