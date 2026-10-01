@@ -10,10 +10,10 @@ spec:
     component: server
   ports:
     - { name: http,  port: 80,   targetPort: http }
-    {{- /* Only when the workload actually has an admin port. A service with
-           server.adminPort null (the frontend: a Next standalone server serves
-           everything on one port) declares no `admin` container port, so this
-           entry would target a name that resolves to nothing. */}}
+    {{- /* Only when the workload has an admin port. A service with
+           server.adminPort null declares no `admin` container port. The frontend
+           is one: a Next standalone server serves everything on one port. This
+           entry would then target a name that resolves to nothing. */}}
     {{- if .Values.server.adminPort }}
     - { name: admin, port: 9090, targetPort: admin }
     {{- end }}

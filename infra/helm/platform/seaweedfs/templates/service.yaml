@@ -1,9 +1,9 @@
 {{- if .Values.seaweedfs.enabled }}
 {{- /*
-A stable `seaweedfs` name regardless of the release name. Under ArgoCD the release
-is `<env>-platform-seaweedfs`, and the consumers address the store by DNS from
-their own values (`seaweedfs.platform.svc.cluster.local:8333`) — a Service named
-after the release would resolve for nobody.
+A stable `seaweedfs` name for any release name. Under Argo CD, the release is
+`<env>-platform-seaweedfs`. The consumers address the store by DNS from their own
+values, as `seaweedfs.platform.svc.cluster.local:8333`. A Service named after the
+release would resolve for nobody.
 */}}
 apiVersion: v1
 kind: Service

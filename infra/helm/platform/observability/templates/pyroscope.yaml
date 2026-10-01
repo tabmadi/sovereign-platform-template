@@ -1,17 +1,17 @@
-# Pyroscope (ADR-0501 POC — continuous profiling). Single-binary monolith (-target=all), filesystem storage on an
-# emptyDir (POC; a real deployment uses the off-cluster bucket like Loki/Tempo).
+# Pyroscope, the ADR-0501 POC for continuous profiling. A single-binary monolith with `-target=all`, and filesystem
+# storage on an emptyDir for the POC. A real deployment uses the off-cluster bucket, like Loki and Tempo.
 {{- $py := .Values.pyroscope }}
-{{/* Config in a define so the Deployment stamps checksum/config and rolls on config edits. Without it the
-     analytics opt-out sits in the ConfigMap while the running pod keeps phoning home. */}}
+{{/* Config in a define, so the Deployment stamps checksum/config and rolls on config edits. Without it, the
+     analytics opt-out is in the ConfigMap, but the running pod still sends usage data. */}}
 {{- define "observability.pyroscope.config" }}
     server:
       http_listen_port: 4040
-    # No phone-home (same stance as grafana.ini analytics): without this
-    # Pyroscope dials Grafana Labs' usage-stats endpoint on 443, which the
-    # default-deny egress correctly drops — pure PolicyDropsDetected noise.
+    # No phone-home, as in grafana.ini analytics. Without this, Pyroscope dials the
+    # usage-stats endpoint of Grafana Labs on 443. The default-deny egress drops it
+    # correctly, and that only adds noise to PolicyDropsDetected.
     analytics:
       reporting_enabled: false
-    # Local profile store. emptyDir at /data (POC); swap for a bucket to persist.
+    # Local profile store: an emptyDir at /data for the POC. Use a bucket to persist it.
     pyroscopedb:
       data_path: /data
 {{- end }}
@@ -36,12 +36,12 @@ spec:
   template:
     metadata:
       labels: { app.kubernetes.io/name: pyroscope }
-      # Roll the pod whenever the config changes — Pyroscope only reads its
-      # config at startup.
+      # Roll the pod when the config changes. Pyroscope reads its config only
+      # at startup.
       annotations:
         checksum/config: {{ include "observability.pyroscope.config" . | sha256sum }}
     spec:
-      # `restricted` (ADR-0200).
+      # `restricted`, per ADR-0200.
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

@@ -3,7 +3,7 @@
   "uid": "platform-components",
   "schemaVersion": 39,
   "tags": ["platform", "components"],
-  "description": "Component-native metrics for the platform tier (ADR-0501): postgres via the CNPG instance manager's built-in exporter (:9187, includes the pgbouncer poolers) and the Temporal server roles (:9090) \u2014 scraped by the otel-cluster collector and re-exported over OTLP, so Prometheus itself still scrapes nothing (ADR-0500). These are the components' REAL golden signals (transactions, task latencies) \u2014 they are not HTTP servers, so forcing them into the service-detail SLO/RED panels would be fake. Universal health for the same workloads (pods/restarts/logs/resources) lives on service-detail.",
+  "description": "Component-native metrics for the platform tier, per ADR-0501. Postgres reports through the built-in exporter of the CNPG instance manager on :9187, which includes the pgbouncer poolers. The Temporal server roles report on :9090. The otel-cluster collector scrapes them and exports them again over OTLP, so Prometheus itself still scrapes nothing, per ADR-0500. These are the REAL golden signals of the components, such as transactions and task latencies. They are not HTTP servers, so the service-detail SLO and RED panels would show false data for them. General health for the same workloads, such as pods, restarts, logs, and resources, is on service-detail.",
   "links": [
     {
       "title": "\u25c0 Back to Applications",
@@ -18,7 +18,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "PostgreSQL (CNPG exporter)",
+      "title": "PostgreSQL, CNPG exporter",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -30,7 +30,7 @@
     {
       "type": "timeseries",
       "title": "Transactions/s by database",
-      "description": "Commits + rollbacks per second per database \u2014 postgres's request rate.",
+      "description": "Commits and rollbacks per second for each database. This is postgres's request rate.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -54,7 +54,7 @@
     {
       "type": "timeseries",
       "title": "Backends by database",
-      "description": "Open server connections per database. The poolers keep this low and steady (ADR-0300, transaction mode); a climb here means something is bypassing pgbouncer or leaking connections.",
+      "description": "Open server connections for each database. The poolers keep this low and steady, in transaction mode, per ADR-0300. A climb here means that something bypasses pgbouncer or leaks connections.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -77,8 +77,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Cache hit ratio / deadlocks",
-      "description": "Shared-buffers hit ratio (left, should sit near 100%) and deadlocks per second (right, should sit at zero).",
+      "title": "Cache hit ratio and deadlocks",
+      "description": "Shared-buffers hit ratio on the left, which should be near 100%. Deadlocks per second on the right, which should be zero.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -130,7 +130,7 @@
     {
       "type": "timeseries",
       "title": "WAL write rate",
-      "description": "Bytes of WAL generated per second \u2014 the write-load signal, and (with backups enabled) what ships to the object store.",
+      "description": "Bytes of WAL generated per second. This is the write-load signal. With backups on, it is also what goes to the object store.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -178,7 +178,7 @@
     {
       "type": "timeseries",
       "title": "Longest transaction",
-      "description": "Max open-transaction duration across backends. Long-running transactions block vacuum and bloat the poolers (transaction mode holds a server connection for the whole transaction).",
+      "description": "The longest open transaction across backends. Long transactions block vacuum and bloat the poolers, because transaction mode holds a server connection for the whole transaction.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -201,7 +201,7 @@
     },
     {
       "type": "row",
-      "title": "Temporal (server metrics)",
+      "title": "Temporal server metrics",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -213,7 +213,7 @@
     {
       "type": "timeseries",
       "title": "gRPC request rate by role",
-      "description": "service_requests_total per second, split by server role (the per-role identity survives in the `type` label; the exporter's own service_name label is dropped by otel-cluster to keep the workload identity whole).",
+      "description": "service_requests_total per second, split by server role. The per-role identity stays in the `type` label. otel-cluster drops the exporter's own service_name label to keep the workload identity whole.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -236,8 +236,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Frontend latency p50 / p95 / p99",
-      "description": "Client-facing gRPC latency at the frontend role \u2014 Temporal's own \"D\" of RED. Long-poll operations are excluded: they block ~60s by design and would swamp the percentiles.",
+      "title": "Frontend latency p50, p95, p99",
+      "description": "Client-facing gRPC latency at the frontend role. This is the D of Temporal's own RED. Long-poll operations are excluded. They block for about 60s by design and would distort the percentiles.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -270,8 +270,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Persistence requests / errors",
-      "description": "Temporal's calls into its postgres store. Error rate here (right axis) is the first place database trouble surfaces.",
+      "title": "Persistence requests and errors",
+      "description": "Temporal's calls into its postgres store. The error rate here, on the right axis, is the first place where database trouble shows.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -345,7 +345,7 @@
     {
       "type": "timeseries",
       "title": "Task schedule-to-start p95",
-      "description": "How long tasks sit in matching queues before a worker picks them up \u2014 the backlog/worker-starvation signal. Rising p95 with flat request rate means workers are under-provisioned.",
+      "description": "How long tasks wait in matching queues before a worker picks them up. This is the signal for backlog and worker starvation. A rising p95 with a flat request rate means that there are too few workers.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -362,13 +362,13 @@
         {
           "refId": "A",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(task_schedule_to_start_latency_bucket{service_name=\"temporal\"}[5m])))",
-          "legendFormat": "p95 schedule\u2192start"
+          "legendFormat": "p95 schedule-to-start"
         }
       ]
     },
     {
       "type": "row",
-      "title": "Kyverno (admission control)",
+      "title": "Kyverno admission control",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -379,8 +379,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Admission review latency p50 / p95 / p99",
-      "description": "kyverno_admission_review_duration_seconds. This is time the API SERVER spends waiting: every create and update in the cluster is blocked on it. The webhook timeout is 30s, and a review that reaches it is decided by the failurePolicy rather than by the policy (ADR-0104).",
+      "title": "Admission review latency p50, p95, p99",
+      "description": "kyverno_admission_review_duration_seconds. This is time that the API SERVER spends waiting: every create and update in the cluster waits for it. The webhook timeout is 30s. For a review that reaches the timeout, the failurePolicy decides, and not the policy, per ADR-0104.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -414,7 +414,7 @@
     {
       "type": "timeseries",
       "title": "Policy results by rule",
-      "description": "kyverno_policy_results_total split by policy, rule and outcome. A `fail` here is an image this platform refused to run \u2014 an unsigned build, a floating tag, or a registry that is not on the allow-list. Sustained fails mean a pipeline is producing images the cluster will not accept.",
+      "description": "kyverno_policy_results_total, split by policy, rule, and outcome. A `fail` here is an image that this platform refused to run: an unsigned build, a floating tag, or a registry that is not on the allow-list. Sustained fails mean that a pipeline makes images that the cluster will not accept.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -438,7 +438,7 @@
     {
       "type": "timeseries",
       "title": "Controller reconciles/s",
-      "description": "kyverno_controller_reconcile_total by controller. Flat zero on every controller is what the KyvernoAdmissionControllerAbsent alert fires on: a controller that is not running exports nothing, so absence \u2014 not a threshold \u2014 is the signal.",
+      "description": "kyverno_controller_reconcile_total by controller. The KyvernoAdmissionControllerAbsent alert fires on flat zero for every controller. A controller that does not run exports nothing. So absence is the signal, and not a threshold.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -462,7 +462,7 @@
     {
       "type": "timeseries",
       "title": "Admission requests/s by operation",
-      "description": "kyverno_admission_requests_total. The volume the webhook is carrying; read beside the latency panel, since the two together are what decides whether the 30s timeout is anywhere near being reached.",
+      "description": "kyverno_admission_requests_total: the volume that the webhook carries. Read it next to the latency panel. Together, the two show how close the 30s timeout is.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,

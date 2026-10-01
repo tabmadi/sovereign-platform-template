@@ -1,7 +1,7 @@
 {{/*
-ResourceQuota per namespace (ADR-0204): the aggregate cap. It evicts nothing — it rejects new pods once the
-summed requests would exceed the cap, and the reason lands on the owning ReplicaSet rather than on a pod.
-It depends on the LimitRange at wave -4 defaulting every resource the quota tracks.
+ResourceQuota per namespace, per ADR-0204: the total cap. It evicts nothing. It rejects new pods when the
+sum of requests would go over the cap. The reason shows on the owning ReplicaSet, and not on a pod.
+It depends on the LimitRange at wave -4, which gives a default to every resource that the quota tracks.
 */}}
 {{- range $ns, $cfg := .Values.resourceQuotas }}
 {{- if $cfg.enabled }}
@@ -15,16 +15,16 @@ metadata:
     app.kubernetes.io/name: resource-governance
     app.kubernetes.io/part-of: platform
   annotations:
-    # Wave -3: strictly after the LimitRange that makes its tracked resources
-    # declarable. Reversing these two is the classic way to wedge a bring-up.
+    # Wave -3: always after the LimitRange that makes its tracked resources
+    # declarable. If the two are in the other order, a bring-up hangs.
     argocd.argoproj.io/sync-wave: "-3"
 spec:
   hard:
     requests.cpu: {{ $cfg.requestsCPU | quote }}
     requests.memory: {{ $cfg.requestsMemory | quote }}
-    # No `limits.cpu` key: nothing in this platform sets a CPU limit (ADR-0204), so a quota on it would be a cap on
-    # zero — and worse, it would force every future container to declare a cpu limit just to be admitted, quietly
-    # reintroducing the throttling policy we rejected.
+    # No `limits.cpu` key. Nothing in this platform sets a CPU limit, per ADR-0204. So a quota on it would be a cap on
+    # zero. Also, it would force every new container to declare a cpu limit to be admitted. That would bring back
+    # the throttling policy that we rejected.
     limits.memory: {{ $cfg.limitsMemory | quote }}
 {{- end }}
 {{- end }}

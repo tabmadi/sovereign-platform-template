@@ -1,16 +1,16 @@
 {{- if .Values.maddy.enabled }}
 {{- /*
-maddy's configuration, which is the whole component (ADR-0307). It is a submission
-endpoint and a DKIM signer, and the things it does NOT contain are as decided as
-the things it does: no `smtp` endpoint on 25, no `storage.imapsql`, no local
-mailboxes, no alias table. The platform sends mail and does not receive it, so an
-inbound listener would be a surface with nothing behind it.
+maddy's configuration, which is the whole component, per ADR-0307. It is a
+submission endpoint and a DKIM signer. What it does NOT contain is decided as
+well: no `smtp` endpoint on 25, no `storage.imapsql`, no local mailboxes, and no
+alias table. The platform sends mail and does not receive it. So an inbound
+listener would be a surface with nothing behind it.
 
-Two blocks carry the transport-security rule, and both are required for it:
-`mx_auth` opts into DANE and MTA-STS where a receiver publishes either, and
-`local_policy`'s `min_tls_level encrypted` is what makes a failed policy validation
-a DEFERRED message rather than a cleartext one. Removing either turns the rule into
-best-effort silently.
+Two blocks carry the transport-security rule, and the rule needs both:
+- `mx_auth` opts into DANE and MTA-STS where a receiver publishes either.
+- `local_policy`'s `min_tls_level encrypted` makes a failed policy validation a
+  DEFERRED message, and not a cleartext one.
+If either is removed, the rule becomes best-effort, with no warning.
 */}}
 apiVersion: v1
 kind: ConfigMap
@@ -25,11 +25,11 @@ data:
     $(hostname) = {{ .Values.maddy.hostname }}
     $(primary_domain) = {{ .Values.maddy.hostname }}
 
-    # STARTTLS on submission, with the chart's own self-signed certificate (templates/certificate.yaml).
+    # STARTTLS on submission, with the chart's own self-signed certificate from `templates/certificate.yaml`.
     tls file /run/secrets/tls/tls.crt /run/secrets/tls/tls.key
     hostname $(hostname)
 
-    # maddy's own delivery counters, for the collector to scrape (ADR-0307, ADR-0500).
+    # maddy's own delivery counters, for the collector to scrape, per ADR-0307 and ADR-0500.
     openmetrics tcp://0.0.0.0:{{ .Values.maddy.metrics.port }} { }
 
     auth.pass_table submission_auth {

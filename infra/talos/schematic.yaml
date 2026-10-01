@@ -1,7 +1,7 @@
-# The Image Factory schematic (ADR-0200, ADR-0104).
+# The Image Factory schematic, per ADR-0200 and ADR-0104.
 customization:
   systemExtensions:
     officialExtensions:
-      # iSCSI + util-linux tools.
+      # iSCSI and util-linux tools.
       - siderolabs/iscsi-tools
       - siderolabs/util-linux-tools

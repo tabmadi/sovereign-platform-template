@@ -1,5 +1,5 @@
-# The API mock for the UI development loop (ADR-0600). Local-only, like the rest of infra/local/: it appears in no
-# chart, no deployed environment, and no tier in docs/operational-surface.md.
+# The API mock for the UI development loop, per ADR-0600. It is local-only, like the rest of `infra/local/`. It is
+# in no chart, no deployed environment, and no tier in `docs/operational-surface.md`.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,13 +18,13 @@ spec:
         app.kubernetes.io/name: mock
         local.platform/component: mock
       annotations:
-        # Roll the pod whenever the stamped spec changes. Prism reads the document
-        # once at startup, so without this a re-stamped ConfigMap would leave the
-        # old contract being served until someone noticed.
+        # Roll the pod when the stamped spec changes. Prism reads the document once,
+        # at startup. Without this, a stamped ConfigMap would leave the old contract
+        # in service until someone noticed.
         local.platform/spec-hash: "stamped-by-mock-start"
     spec:
-      # `restricted` (ADR-0200) — this lands in `platform`, which enforces it. uid
-      # 1000 is the `node` user the Prism image inherits from its node base.
+      # `restricted`, per ADR-0200, because this lands in `platform`, which enforces it.
+      # uid 1000 is the `node` user that the Prism image inherits from its node base.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -32,10 +32,10 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: prism
-          # A vendored container: no package.json, no lockfile, no node_modules
-          # anywhere in the repo (ADR-0600, enforced by lint:node-scope).
+          # A vendored container: no package.json, no lockfile, and no node_modules
+          # anywhere in the repo, per ADR-0600. lint:node-scope enforces this.
           image: stoplight/prism:5.15.10
-          # `-h 0.0.0.0` because the container's default binding is loopback, which a Service cannot reach.
+          # `-h 0.0.0.0`, because the container binds to loopback by default, and a Service cannot reach loopback.
           args:
             - mock
             - -h
@@ -56,8 +56,8 @@ spec:
           resources:
             requests: { cpu: "50m", memory: "128Mi" }
             limits: { memory: "256Mi" }
-          # Prism reads the document at startup and serves it from memory; the only
-          # writes are Node's scratch under /tmp, which is the emptyDir below.
+          # Prism reads the document at startup and serves it from memory. It writes only
+          # Node's scratch files under /tmp, which is the emptyDir below.
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -83,7 +83,7 @@ spec:
   ports:
     - { name: http, port: 80, targetPort: http }
 ---
-# The /api takeover.
+# The `/api` takeover.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

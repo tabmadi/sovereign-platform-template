@@ -1,4 +1,4 @@
-# Local Grafana dashboards Application (ADR-0500, ADR-0205).
+# Local Grafana dashboards Application, per ADR-0500 and ADR-0205.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

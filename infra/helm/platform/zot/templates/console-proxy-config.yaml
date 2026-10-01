@@ -1,20 +1,20 @@
 {{- if and .Values.zot.enabled .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
 {{- /*
-The console proxy's nginx config (ADR-0306, ADR-0105). It fronts zot's console on
-a second port and adds the one thing the browser cannot: the pull identity's
-`Authorization` header, so an operator the edge already vouched for is not asked
-for it a second time.
+The console proxy's nginx config, per ADR-0306 and ADR-0105. It fronts zot's
+console on a second port. It adds the one thing that the browser cannot: the pull
+identity's `Authorization` header. So an operator that the edge already checked
+does not have to give it a second time.
 
-`${CONSOLE_AUTHORIZATION}` is NOT a value in this file — nginx's entrypoint
-templates it in from the container's environment (`20-envsubst-on-templates.sh`
-renders `/etc/nginx/templates/*.template` into `/etc/nginx/conf.d`), and that env
-var is read from the Secret. So the credential reaches the header without ever
-appearing in this ConfigMap. nginx's own runtime variables ($host, $remote_addr,
-…) are not environment variables, so envsubst leaves them untouched.
+`${CONSOLE_AUTHORIZATION}` is NOT a value in this file. nginx's entrypoint fills it
+in from the container's environment: `20-envsubst-on-templates.sh` renders
+`/etc/nginx/templates/*.template` into `/etc/nginx/conf.d`. That env var comes from
+the Secret. So the credential reaches the header and never appears in this
+ConfigMap. nginx's own runtime variables, such as $host and $remote_addr, are not
+environment variables, so envsubst does not change them.
 
-proxy_pass to loopback: the registry container listens on the same pod. Buffering
-off and HTTP/1.1 so the console's streamed responses and its search API's chunked
-replies pass through as they arrive rather than being staged whole.
+proxy_pass to loopback, because the registry container listens in the same pod.
+Buffering is off, with HTTP/1.1. So the console's streamed responses and the
+chunked replies of its search API pass through as they arrive, and are not staged whole.
 */}}
 apiVersion: v1
 kind: ConfigMap
@@ -30,9 +30,9 @@ data:
       listen {{ .Values.zot.service.consolePort }};
       server_name _;
 
-      # The largest thing the console fetches is a page and a search response, not
-      # a layer — but keep the same generous ceilings the registry origin has so a
-      # big manifest listing is never the thing that times out.
+      # The largest things the console fetches are a page and a search response, not
+      # a layer. But keep the same large limits as the registry origin, so a big
+      # manifest listing never times out.
       proxy_read_timeout {{ .Values.zot.http.readTimeout }};
       proxy_send_timeout {{ .Values.zot.http.writeTimeout }};
       client_max_body_size 0;
@@ -43,7 +43,7 @@ data:
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        # The whole point of this proxy. A client-supplied Authorization is
+        # This is the purpose of this proxy. A client-supplied Authorization is
         # replaced, never merged, so a stale browser credential cannot reach zot.
         proxy_set_header Authorization "${CONSOLE_AUTHORIZATION}";
         proxy_buffering off;

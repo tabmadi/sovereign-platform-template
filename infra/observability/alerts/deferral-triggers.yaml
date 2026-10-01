@@ -1,45 +1,45 @@
-# Deferral triggers, as rules (ADR-0000, docs/reference/deferral-register.md).
+# Deferral triggers, as rules, per ADR-0000 and `docs/reference/deferral-register.md`.
 groups:
   - name: deferral.load
     rules:
-      # ADR-0601's k6-operator trigger: dropped_iterations above 0 means the load generator could not keep up, so the
-      # run measured the generator rather than the platform and its numbers are not a capacity result.
+      # ADR-0601's k6-operator trigger. dropped_iterations above 0 means that the load generator could not keep up. So
+      # the run measured the generator and not the platform, and its numbers are not a capacity result.
       - alert: LoadGeneratorDroppingIterations
         expr: |
           increase(k6_dropped_iterations_total[5m]) > 0
         for: 5m
         labels: { severity: ticket }
         annotations:
-          summary: "k6 dropped iterations — the load run measured the generator"
+          summary: "k6 dropped iterations, so the load run measured the generator"
           description: >-
-            The generator could not schedule its target rate, so this run's
-            numbers describe the generator's limit rather than the platform's.
-            This is the documented trigger for moving load generation in-cluster
-            with k6-operator (docs/reference/deferral-register.md).
+            The generator could not schedule its target rate. So the numbers of
+            this run show the generator's limit, and not the platform's. This is
+            the documented trigger to move load generation into the cluster with
+            k6-operator, in docs/reference/deferral-register.md.
 
   - name: deferral.registry
     rules:
-      # ADR-0105's mirroring trigger: an upstream registry rate-limits or removes a pinned digest the cluster depends
-      # on.
+      # ADR-0105's mirroring trigger: an upstream registry rate-limits or removes a pinned digest that the cluster
+      # depends on.
       - alert: ImagePullsFailing
         expr: |
           increase(kubelet_runtime_operations_errors_total{operation_type="pull_image"}[1h]) > 0
         for: 15m
         labels: { severity: ticket }
         annotations:
-          summary: "The kubelet is failing to pull images — ADR-0105's mirroring trigger"
+          summary: "The kubelet fails to pull images: ADR-0105's mirroring trigger"
           description: >-
-            Image pulls are failing on at least one node. If the cause is an
-            upstream registry rate-limiting or having removed a pinned digest,
-            this is the documented trigger for enabling pull-through mirroring in
-            the registry's config (docs/reference/deferral-register.md). Check
-            which image before reaching for the seam: a failing pull of a
-            first-party image is a different problem entirely.
+            Image pulls fail on at least one node. The cause can be an upstream
+            registry that rate-limits or that removed a pinned digest. Then this is
+            the documented trigger to turn on pull-through mirroring in the
+            registry's config, in docs/reference/deferral-register.md. Check which
+            image fails before you use the seam. A failing pull of a first-party
+            image is a different problem.
 
   - name: deferral.analytics
     rules:
-      # ADR-0700's storage-growth trigger: the events table sustaining more than about 10M rows per month is the point
-      # at which a column store earns its place and Postgres stops being the obvious answer.
+      # ADR-0700's storage-growth trigger: more than about 10M rows per month in the events table. At that point, a
+      # column store is worth its cost, and Postgres stops being the obvious answer.
       - alert: AnalyticsStorageGrowthTrigger
         expr: |
           max(analytics_events_rows_current_month) > 10000000
@@ -48,7 +48,7 @@ groups:
         annotations:
           summary: "The analytics store has passed ADR-0700's column-store trigger"
           description: >-
-            The events table is holding more than 10M rows this month, which is the
-            volume ADR-0700 names as the point to reconsider Postgres. This is a
-            capacity review, not an outage — read the deferral register's ClickHouse
-            row before changing anything.
+            The events table holds more than 10M rows this month. ADR-0700 names
+            this volume as the point to reconsider Postgres. This is a capacity
+            review, not an outage. Read the ClickHouse row of the deferral register
+            before you change anything.

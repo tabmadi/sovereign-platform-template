@@ -11,11 +11,11 @@ spec:
     metadata: { labels: { app.kubernetes.io/name: lowdefy } }
     spec:
       {{- with .Values.lowdefy.imagePullSecrets }}
-      # The registry authenticates every pull (ADR-0105), and a kubelet holds no credential of its own.
+      # The registry authenticates every pull, per ADR-0105, and a kubelet holds no credential of its own.
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      # `restricted` (ADR-0200).
+      # `restricted`, per ADR-0200.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

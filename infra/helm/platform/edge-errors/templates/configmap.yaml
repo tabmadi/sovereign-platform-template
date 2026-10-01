@@ -2,8 +2,8 @@
 {{- $ee := .Values.edgeErrors }}
 {{- /*
 One document per status, plus the MIME mapping that makes them problem details
-rather than plain JSON. The Content-Type is the half a client actually branches on,
-and busybox httpd will not send it without this file.
+and not plain JSON. A client branches on the Content-Type, and busybox httpd
+does not send it without this file.
 */}}
 apiVersion: v1
 kind: ConfigMap
@@ -14,8 +14,8 @@ metadata:
     app.kubernetes.io/name: edge-errors
     app.kubernetes.io/part-of: platform
 data:
-  # Every document here is `.json`, and there is nothing else to serve, so mapping
-  # the extension wholesale is exact rather than broad.
+  # Every document here is `.json`, and there is nothing else to serve. So a mapping
+  # for the whole extension is exact, not broad.
   httpd.conf: |
     .json:application/problem+json
   {{- range $ee.problems }}

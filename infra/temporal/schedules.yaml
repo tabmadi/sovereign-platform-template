@@ -1,51 +1,51 @@
-# Temporal Schedules for the platform's periodic obligations (ADR-0302).
+# Temporal Schedules for the platform's periodic obligations, per ADR-0302.
 schedules:
   - id: dr-drill
     workflow: DisasterRecoveryDrill
     taskQueue: platform-queue
-    # Quarterly, on the first of the month at 09:00 UTC. ADR-0207 sets the cadence;
-    # the hour is arbitrary and deliberately inside a working day, because what this
-    # produces is a task for a person.
+    # Quarterly, on the first of the month at 09:00 UTC. ADR-0207 sets the cadence.
+    # The hour is arbitrary and inside a working day, on purpose, because the output
+    # is a task for a person.
     cron: "0 9 1 1,4,7,10 *"
-    note: ADR-0200 and ADR-0207 — the restore rehearsal that makes the recovery objectives measurements rather than intentions.
+    note: ADR-0200 and ADR-0207. The restore rehearsal makes the recovery objectives measurements, and not intentions.
 
   - id: trigger-review
     workflow: TriggerReview
     taskQueue: platform-queue
     cron: "0 9 1 1,4,7,10 *"
-    note: ADR-0000 — the deferral register's `query` rows and the ASVS cadence. Both decay silently, which is why the reminder is mechanical.
+    note: ADR-0000. The deferral register's `query` rows and the ASVS cadence. Both go stale with no warning, so the reminder is automatic.
 
   - id: cardinality-audit
     workflow: CardinalityAudit
     taskQueue: platform-queue
-    # Monthly. Cardinality grows with releases rather than with time, so the cadence
-    # is a compromise: often enough to catch a bad label before the retention window
-    # is full of it, rare enough that the report is read.
+    # Monthly. Cardinality grows with releases and not with time, so the cadence is
+    # a compromise. It is often enough to catch a bad label before the retention
+    # window fills with it, and rare enough that people read the report.
     cron: "0 9 1 * *"
-    note: ADR-0500 — which labels are growing. The ceiling itself is alerted by `ActiveSeriesNearCeiling`.
+    note: ADR-0500. Which labels grow. The ceiling itself is alerted by `ActiveSeriesNearCeiling`.
 
   - id: retention-pass
     workflow: RetentionPass
     taskQueue: platform-queue
-    # Daily. Retention periods are expressed in days, so a slower cadence would mean
-    # data outliving its declared period by up to the gap.
+    # Daily. Retention periods are in days, so with a slower cadence, data would
+    # outlive its declared period by up to the gap.
     cron: "0 3 * * *"
-    note: ADR-0301 — prunes or anonymises data past its class's retention, driven by docs/reference/data-classes.md.
+    note: ADR-0301. Prunes or anonymises data past the retention of its class, as docs/reference/data-classes.md defines.
 
   - id: funnel-rollup
     workflow: FunnelRollup
     taskQueue: platform-queue
-    # Daily, shortly after midnight UTC, so the day that just ended is the first complete bucket the pass sees.
+    # Daily, shortly after midnight UTC, so the day that just ended is the first complete bucket that the pass sees.
     cron: "20 0 * * *"
-    # The funnels to recompute, matching the ids in infra/analytics/funnels.yaml.
-    # Named here rather than discovered, so adding a funnel to that file does not
-    # silently change what a schedule does — the two edits are one review.
+    # The funnels to recompute, matching the ids in `infra/analytics/funnels.yaml`.
+    # They are named here, and not discovered. So a new funnel in that file does not
+    # change a schedule without notice. The two edits are one review.
     args: [[checkout, registration]]
-    note: ADR-0700 — the panel reads these buckets, so an interactive funnel question is a lookup rather than a scan over every event in the window.
+    note: ADR-0700. The panel reads these buckets. So an interactive funnel question is a lookup, and not a scan over every event in the window.
 
   - id: restore-verification
     workflow: RestoreVerification
     taskQueue: platform-queue
-    # Weekly, early Sunday.
+    # Weekly, early on Sunday.
     cron: "0 3 * * 0"
-    note: ADR-0207 — restores into a scratch namespace and asserts row counts, because a restore that produces an empty database also succeeds.
+    note: ADR-0207. Restores into a scratch namespace and checks row counts, because a restore that produces an empty database also succeeds.

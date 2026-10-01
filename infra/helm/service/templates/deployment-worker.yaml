@@ -1,13 +1,13 @@
 {{- if .Values.worker.enabled }}
 {{- /*
-Two shapes, one pod spec. With versioning on (the default) the worker is a
-`WorkerDeployment` and the Temporal Worker Controller owns the Deployments —
-one per Build ID — so a version's pods survive the rollout that replaced it and
-Pinned Workflows always have a worker to run on. With versioning off (a service
-that needs Temporal sessions, which the SDK refuses to combine with versioning)
-it is an ordinary Deployment and the operator is not involved.
+Two shapes, one pod spec. With versioning on, the default, the worker is a
+`WorkerDeployment`. The Temporal Worker Controller owns one Deployment per Build ID.
+So a version's pods survive the rollout that replaced it, and Pinned Workflows
+always have a worker. With versioning off, the worker is an ordinary Deployment,
+and the operator is not involved. A service that needs Temporal sessions turns
+versioning off, because the SDK does not combine sessions with versioning.
 
-The pod template below is shared verbatim, so the two modes cannot drift.
+Both modes share the pod template below exactly, so they cannot drift.
 */ -}}
 {{- if .Values.worker.versioning.enabled }}
 apiVersion: temporal.io/v1alpha1
@@ -18,7 +18,7 @@ metadata:
     component: worker
 spec:
   replicas: {{ .Values.worker.replicas }}
-  # Stated explicitly even though these ARE the CRD's schema defaults.
+  # Set explicitly, even though these ARE the CRD's schema defaults.
   minReadySeconds: 0
   progressDeadlineSeconds: 600
   workerOptions:
@@ -27,8 +27,8 @@ spec:
     temporalNamespace: {{ .Values.temporal.namespace | quote }}
   # How new versions take traffic.
   rollout: {{- toYaml .Values.worker.versioning.rollout | nindent 4 }}
-  # How drained versions go away. Scaling a version down is only safe once Temporal reports it Drained, and
-  # deleting it early re-creates the gap this controller exists to close.
+  # How drained versions go away. Scaling a version down is safe only after Temporal reports it Drained. Deleting it
+  # early creates again the gap that this controller exists to close.
   sunset: {{- toYaml .Values.worker.versioning.sunset | nindent 4 }}
   template:
 {{- else }}
@@ -50,18 +50,18 @@ spec:
         component: worker
     spec:
       {{- with .Values.imagePullSecrets }}
-      # The registry authenticates every pull (ADR-0105) and a kubelet holds no credential of its own.
+      # The registry authenticates every pull, per ADR-0105, and a kubelet holds no credential of its own.
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "service.fullname" . }}
-      # ADR-0204 eviction order. Declared explicitly (not inherited) because the
-      # PriorityClass globalDefault is platform-critical — product workloads must sit
-      # BELOW the platform they depend on, so this is the one place that opts down.
+      # ADR-0204 eviction order. It is set explicitly and not inherited, because the
+      # PriorityClass globalDefault is platform-critical. Product workloads must sit BELOW
+      # the platform they depend on, so this is the one place that opts down.
       priorityClassName: {{ .Values.priorityClassName }}
       securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      # Strictly longer than the worker's own stop timeout, so kubelet never
-      # SIGKILLs a worker that is still draining Activities (values.yaml).
+      # Always longer than the worker's own stop timeout, so kubelet never
+      # SIGKILLs a worker that is still draining Activities. See `values.yaml`.
       terminationGracePeriodSeconds: {{ add .Values.worker.stopTimeoutSeconds .Values.worker.terminationGraceBufferSeconds }}
       containers:
         - name: worker
@@ -69,20 +69,20 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           ports:
-            # `protocol` is likewise defaulted by the API server; spelling it out keeps the WorkerDeployment manifest
-            # byte-comparable with the live object (see minReadySeconds above).
+            # The API server also sets a default `protocol`. Writing it out keeps the WorkerDeployment manifest
+            # byte-comparable with the live object. See `minReadySeconds` above.
             - { name: admin, containerPort: {{ .Values.server.adminPort }}, protocol: TCP }
           env:
             {{- include "service.otelEnv" . | nindent 12 }}
             - { name: TEMPORAL_WORKER_STOP_TIMEOUT, value: "{{ .Values.worker.stopTimeoutSeconds }}s" }
             {{- /*
-            No TEMPORAL_DEPLOYMENT_NAME / TEMPORAL_WORKER_BUILD_ID here, on
-            purpose. In versioned mode the controller injects both (its Build ID
-            is the image tag plus a hash of this pod template, so a config-only
-            change is also a new version — strictly better than anything the
-            chart could compute), and upstream is explicit that they must not be
-            set by hand. In unversioned mode their absence is what makes
-            libs/go/temporalmw poll unversioned.
+            No TEMPORAL_DEPLOYMENT_NAME or TEMPORAL_WORKER_BUILD_ID here, on
+            purpose. In versioned mode, the controller injects both. Its Build ID
+            is the image tag plus a hash of this pod template. So a change to
+            config alone is also a new version, which is better than any value
+            the chart could compute. Upstream says that they must not be set by
+            hand. In unversioned mode, their absence makes libs/go/temporalmw
+            poll unversioned.
             */ -}}
             {{- range $k, $v := .Values.env }}
             - { name: {{ $k }}, value: {{ $v | quote }} }
@@ -93,8 +93,8 @@ spec:
             - secretRef: { name: {{ . }} }
             {{- end }}
           {{- end }}
-          # Workers take no inbound traffic, so readiness would gate nothing — only
-          # liveness (shallow: process alive) is meaningful here (ADR-0500).
+          # Workers take no inbound traffic, so readiness would gate nothing. Only
+          # liveness, which is shallow and checks that the process is alive, is useful here, per ADR-0500.
           livenessProbe: { httpGet: { path: /livez, port: admin }, periodSeconds: 30 }
           resources: {{- toYaml .Values.worker.resources | nindent 12 }}
 {{- end }}

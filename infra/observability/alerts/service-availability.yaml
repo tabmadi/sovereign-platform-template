@@ -1,4 +1,4 @@
-# Service-availability alert (ADR-0500).
+# Service-availability alert, per ADR-0500.
 groups:
   - name: service.availability
     rules:
@@ -10,4 +10,4 @@ groups:
         for: 10m
         labels: { severity: page }
         annotations:
-          summary: "{{ $labels.service_name }} has >5% 5xx rate for 10m"
+          summary: "{{ $labels.service_name }} has a 5xx rate over 5% for 10m"

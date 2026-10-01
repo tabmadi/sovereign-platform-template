@@ -1,13 +1,13 @@
-## Explicit deny of the cloud metadata endpoint (ADR-0206). A deny takes precedence over any allow, so even a
-## future broad `world` egress grant cannot become an SSRF path to instance credentials.
+## Explicit deny of the cloud metadata endpoint, per ADR-0206. A deny wins over any allow. So even a future broad
+## `world` egress grant cannot become an SSRF path to instance credentials.
 apiVersion: cilium.io/v2
 kind: CiliumClusterwideNetworkPolicy
 metadata:
   name: deny-cloud-metadata
 spec:
   endpointSelector: {}
-  # CRITICAL: this policy selects every pod cluster-wide ({} selector) and carries an egressDeny rule. In Cilium, an
-  # endpoint selected by ANY egress rule — including a deny — flips to egress DEFAULT-DENY.
+  # CRITICAL: this policy selects every pod in the cluster with a `{}` selector, and it has an egressDeny rule. In
+  # Cilium, an endpoint that ANY egress rule selects, also a deny, changes to egress DEFAULT-DENY.
   enableDefaultDeny:
     egress: false
   egressDeny:

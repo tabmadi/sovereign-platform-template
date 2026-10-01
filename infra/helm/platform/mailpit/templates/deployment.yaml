@@ -11,7 +11,7 @@ spec:
   template:
     metadata: { labels: { app.kubernetes.io/name: mailpit } }
     spec:
-      # `restricted` (ADR-0200).
+      # `restricted`, per ADR-0200.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -27,27 +27,27 @@ spec:
             capabilities:
               drop: ["ALL"]
           env:
-            # No MP_DATABASE: messages stay in memory and die with the pod, which
-            # is the whole intent of a sink — a mail nobody read is not state worth
-            # keeping, and it keeps the component off the storage tier entirely.
+            # No MP_DATABASE: messages stay in memory and are lost with the pod. That is the
+            # purpose of a sink. A mail that nobody read is not state worth keeping, and this
+            # keeps the component off the storage tier.
             - { name: MP_SMTP_BIND_ADDR, value: "0.0.0.0:{{ .Values.mailpit.service.smtpPort }}" }
             - { name: MP_UI_BIND_ADDR, value: "0.0.0.0:{{ .Values.mailpit.service.httpPort }}" }
-            # The sink accepts anything. Kratos's connection_uri carries no
-            # credentials and no TLS, so requiring either here would reject every
-            # message with an error visible only in the courier's retry log.
+            # The sink accepts anything. Kratos's connection_uri carries no credentials and
+            # no TLS. If this required either, it would reject every message. The error
+            # would show only in the courier's retry log.
             - { name: MP_SMTP_AUTH_ACCEPT_ANY, value: "true" }
             - { name: MP_SMTP_AUTH_ALLOW_INSECURE, value: "true" }
           ports:
             - { name: smtp, containerPort: {{ .Values.mailpit.service.smtpPort }} }
             - { name: http, containerPort: {{ .Values.mailpit.service.httpPort }} }
-          # SMTP readiness, not HTTP: the courier is the only consumer that must
-          # work, and the viewer being up says nothing about the listener being up.
+          # SMTP readiness, not HTTP. The courier is the only consumer that must work. A
+          # running viewer says nothing about the listener.
           readinessProbe: { tcpSocket: { port: smtp } }
           livenessProbe: { tcpSocket: { port: smtp } }
           volumeMounts:
             - { name: tmp, mountPath: /tmp }
-      # readOnlyRootFilesystem leaves nowhere to write; Mailpit holds messages in
-      # memory but still wants a scratch path.
+      # readOnlyRootFilesystem leaves no place to write. Mailpit holds messages in
+      # memory, but it still needs a scratch path.
       volumes:
         - { name: tmp, emptyDir: {} }
 ---

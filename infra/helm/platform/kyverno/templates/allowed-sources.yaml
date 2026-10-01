@@ -1,5 +1,5 @@
 {{- if .Values.policies.allowedImageSources }}
-# Where an image may come from at all (ADR-0104). The other two policies answer questions about OUR images.
+# The only places an image can come from, per ADR-0104. The other two policies check OUR images.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -22,16 +22,16 @@ spec:
         any:
           - resources:
               kinds: [Pod]
-      # The control plane's own images are pinned by the Talos release (ADR-0200), not by this list; Kyverno's
-      # resource filters already keep kube-system out of admission, and this keeps its background scan consistent.
+      # The Talos release pins the control plane's own images, per ADR-0200, not this list. Kyverno's resource filters
+      # already keep kube-system out of admission. This keeps its background scan consistent.
       exclude:
         any:
           - resources:
               namespaces: [kube-system]
       validate:
         message: >-
-          This image comes from a repository that is not in the allow-list
-          (ADR-0104). If the repository is legitimate, add it by regenerating:
+          This image comes from a repository that is not in the allow-list,
+          per ADR-0104. If the repository is valid, add it. To do this, run
           `mise run gen:image-allowlist`.
         foreach:
           - list: "request.object.spec.[containers || `[]`, initContainers || `[]`, ephemeralContainers || `[]`][]"
@@ -39,15 +39,15 @@ spec:
               conditions:
                 all:
                   - key: "{{ `{{ element.image }}` }}"
-                    # AllNotIn, not NotEquals: the value is a LIST, and NotEquals compares against it as a whole — every image is "not
-                    # equal to the list", so the rule rejects everything, including what it allows.
+                    # AllNotIn, not NotEquals. The value is a LIST, and NotEquals compares with the whole list. Every image is not equal
+                    # to the list. So the rule would reject everything, also what it allows.
                     operator: AllNotIn
-                    # Wildcards rather than a regex: the entries are repositories,
-                    # and what follows one is a tag or a digest — both of which start
-                    # with a character no repository contains.
+                    # Wildcards, not a regex. The entries are repositories. What follows
+                    # one is a tag or a digest. Both start with a character that no
+                    # repository contains.
                     value:
                       {{- with .Values.policies.imagePrefix }}
-                      # First-party images are built after the list is generated, so the prefix admits them; the other two policies still demand a digest and a signature.
+                      # First-party images are built after the list is generated, so the prefix admits them. The other two policies still require a digest and a signature.
                       - {{ . | quote }}
                       {{- end }}
                       {{- range .Values.policies.allowedImageSources }}

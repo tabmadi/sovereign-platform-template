@@ -1,8 +1,8 @@
 {{- if .Values.edgeErrors.enabled }}
 {{- /*
-A stable `edge-errors` name regardless of the release name: the Traefik Middleware
-in infra/gateway/middlewares.yaml addresses this Service by name, and under ArgoCD
-the release is `<env>-platform-edge-errors`.
+A stable `edge-errors` name for any release name. The Traefik Middleware in
+infra/gateway/middlewares.yaml addresses this Service by name. Under Argo CD, the
+release is `<env>-platform-edge-errors`.
 */}}
 apiVersion: v1
 kind: Service

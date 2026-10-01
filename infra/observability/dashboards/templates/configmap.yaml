@@ -1,7 +1,7 @@
 {{/*
 The dashboard JSON in the chart root, as one ConfigMap. `AsConfig` renders each as a
 `<basename>: <content>` entry.
-The name is fixed, not release-derived: the Grafana chart references `grafana-dashboards` by name.
+The name is fixed, and not derived from the release, because the Grafana chart references `grafana-dashboards` by name.
 */}}
 apiVersion: v1
 kind: ConfigMap

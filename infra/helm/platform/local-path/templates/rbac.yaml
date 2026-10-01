@@ -1,8 +1,8 @@
 {{- if .Values.localPath.enabled }}
 {{- /*
-The provisioner watches PVCs cluster-wide and creates PVs, so its permissions are
-cluster-scoped by nature. It also creates a helper Pod per volume in its own
-namespace, which is the one write it makes to something other than storage objects.
+The provisioner watches PVCs across the cluster and creates PVs. So its
+permissions are cluster-scoped. It also creates a helper Pod per volume in its
+own namespace. That is its one write to an object that is not storage.
 */}}
 apiVersion: v1
 kind: ServiceAccount
@@ -33,9 +33,9 @@ rules:
   - apiGroups: [storage.k8s.io]
     resources: [storageclasses]
     verbs: [get, list, watch]
-  # The helper Pod that makes and removes each volume's directory. Namespaced to
-  # this chart's own namespace by the RoleBinding below rather than granted
-  # cluster-wide: pod-create everywhere is a much larger grant than this needs.
+  # The helper Pod that creates and removes each volume's directory. The RoleBinding
+  # below limits it to this chart's own namespace. It is not granted
+  # cluster-wide, because pod-create everywhere is a much larger grant than needed.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

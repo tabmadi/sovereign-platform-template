@@ -3,7 +3,7 @@
   "uid": "service-detail",
   "schemaVersion": 39,
   "tags": ["service", "detail", "poc"],
-  "description": "POC (see docs): the 'click a service, see everything' unified page. One templated dashboard scoped by $service, mixing Prometheus + Loki + Tempo + Pyroscope on one screen: SLO (availability + latency + error budget), RED, CPU/Memory (kubeletstats), Logs, Traces, and a CPU flame graph (Alloy \u2192 Pyroscope). All six signal groups are wired on the full-tier stack.",
+  "description": "POC, see the docs: the unified page where you click a service and see everything. One templated dashboard, scoped by $service, shows Prometheus, Loki, Tempo, and Pyroscope on one screen. It has SLO with availability, latency, and error budget, RED, CPU and memory from kubeletstats, Logs, Traces, and a CPU flame graph from Alloy through Pyroscope. All six signal groups are connected on the full-tier stack.",
   "links": [
     {
       "title": "\u25c0 Back to Applications",
@@ -25,7 +25,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "SLO (over the selected time range)",
+      "title": "SLO over the selected time range",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -36,7 +36,7 @@
     {
       "type": "stat",
       "title": "Availability",
-      "description": "Share of non-5xx requests over the time range for HTTP-instrumented services. Platform components have no HTTP telemetry, so the same tile falls back to serving availability: average ready/desired (Deployments/StatefulSets), then average fraction of pods Running (bare pods, e.g. CNPG). Target 99.9%.",
+      "description": "Share of requests that are not 5xx, over the time range, for HTTP-instrumented services. Platform components have no HTTP telemetry. For them, the same tile falls back to serving availability. That is the average of ready to desired for Deployments and StatefulSets, and then the average fraction of pods Running for bare pods, such as CNPG. The target is 99.9%.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 5,
@@ -85,8 +85,8 @@
     },
     {
       "type": "stat",
-      "title": "Latency SLO \u2014 % faster than 500ms",
-      "description": "Share of requests completing under 500ms. HTTP-only by nature \u2014 a platform component with no HTTP telemetry shows 'no HTTP traffic' here, not a fake number.",
+      "title": "Latency SLO: % faster than 500ms",
+      "description": "Share of requests that complete under 500ms. This is HTTP-only by nature. A platform component with no HTTP telemetry shows `no HTTP traffic` here, and not a false number.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 5,
@@ -136,8 +136,8 @@
     },
     {
       "type": "stat",
-      "title": "Error budget remaining (99.9% target)",
-      "description": "Budget left of the 0.1% error allowance over the range \u2014 burned by 5xx responses for HTTP services, by not-ready/not-running time for platform components (same fallback chain as Availability). Negative = budget overdrawn.",
+      "title": "Error budget remaining, 99.9% target",
+      "description": "The budget left of the 0.1% error allowance over the range. For HTTP services, 5xx responses burn it. For platform components, time not ready or not running burns it, with the same fallback chain as Availability. Negative means that the budget is overdrawn.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 5,
@@ -185,7 +185,7 @@
     },
     {
       "type": "row",
-      "title": "Golden signals (RED)",
+      "title": "Golden signals, RED",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -216,7 +216,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Error rate (5xx)",
+      "title": "Error rate, 5xx",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -241,7 +241,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Latency p50 / p95 / p99",
+      "title": "Latency p50, p95, p99",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -274,7 +274,7 @@
     },
     {
       "type": "row",
-      "title": "Resources (CPU / Memory)",
+      "title": "Resources: CPU and memory",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -284,8 +284,8 @@
     },
     {
       "type": "timeseries",
-      "title": "CPU usage vs request (cores)",
-      "description": "Usage from kubeletstats; the dashed red line is the workload's total CPU request (sum across pods, k8s_cluster receiver). There is no CPU limit (ADR-0204), so usage above the line borrows idle CPU, and staying there means the request needs re-measuring.",
+      "title": "CPU usage and request, cores",
+      "description": "Usage from kubeletstats. The dashed red line is the workload's total CPU request, summed across pods, from the k8s_cluster receiver. There is no CPU limit, per ADR-0204. So usage above the line uses idle CPU. If usage stays there, the request needs a new measurement.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -342,7 +342,7 @@
     {
       "type": "timeseries",
       "title": "Memory usage vs limit",
-      "description": "Usage from kubeletstats; the dashed red line is the workload's total memory limit (sum across pods, k8s_cluster receiver). Usage touching the line means OOM-kill territory.",
+      "description": "Usage from kubeletstats. The dashed red line is the workload's total memory limit, summed across pods, from the k8s_cluster receiver. Usage that touches the line is close to an OOM kill.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -398,8 +398,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Replicas \u2014 available vs desired",
-      "description": "From the k8s_cluster receiver (otel-cluster singleton). A gap between the lines is pods that should exist but don't \u2014 Pending or crash-looping; drill into Headlamp for the why. Restart history rides along as the yellow line.",
+      "title": "Replicas: available and desired",
+      "description": "From the k8s_cluster receiver of the otel-cluster singleton. A gap between the lines is pods that should exist but do not: Pending or crash-looping. Go to Headlamp for the reason. The yellow line shows the restart history.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,
@@ -496,7 +496,7 @@
     },
     {
       "type": "row",
-      "title": "Logs (Loki)",
+      "title": "Logs, Loki",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -506,8 +506,8 @@
     },
     {
       "type": "stat",
-      "title": "Error logs (5m)",
-      "description": "Lines Loki level-detects as error over the last 5 minutes \u2014 works for every workload, instrumented or not.",
+      "title": "Error logs, 5m",
+      "description": "Lines that Loki detects as level error over the last 5 minutes. This works for every workload, with or without instrumentation.",
       "datasource": "Loki",
       "gridPos": {
         "h": 10,
@@ -573,7 +573,7 @@
     },
     {
       "type": "row",
-      "title": "Traces (Tempo)",
+      "title": "Traces, Tempo",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -583,7 +583,7 @@
     },
     {
       "type": "table",
-      "title": "Recent traces \u2014 click a traceID to open the flame graph",
+      "title": "Recent traces: click a traceID to open the flame graph",
       "datasource": "Tempo",
       "gridPos": {
         "h": 10,
@@ -603,7 +603,7 @@
     },
     {
       "type": "row",
-      "title": "Profiling (Pyroscope)",
+      "title": "Profiling, Pyroscope",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -613,7 +613,7 @@
     },
     {
       "type": "flamegraph",
-      "title": "CPU profile \u2014 scraped from the service's pprof endpoint by Alloy",
+      "title": "CPU profile, scraped by Alloy from the service's pprof endpoint",
       "datasource": "Pyroscope",
       "gridPos": {
         "h": 12,

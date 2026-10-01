@@ -2,15 +2,15 @@ apiVersion: v2
 name: network-policies
 description: |
   Zero-trust CiliumNetworkPolicies for the platform namespace. A namespace-wide
-  default-deny (00-baseline) flips every pod to deny-by-default; the remaining
-  templates additively allow only the flows observed in Hubble + derived from
-  config. The demo app services keep their own k8s NetworkPolicies (service
-  chart); these policies cover the platform infrastructure those apps depend on.
+  default-deny in 00-baseline makes every pod deny by default. The other templates
+  add rules that allow only the flows seen in Hubble or derived from config. The
+  demo app services keep their own k8s NetworkPolicies from the service chart.
+  These policies cover the platform infrastructure that those apps depend on.
 
-  Ingress is the enforcement boundary (who may reach each backend). Egress is
-  kept namespace-granular on purpose — intra-platform egress is allowed and the
-  per-backend ingress rules gate what actually connects — while all egress OUT of
-  the namespace is denied except DNS and the Kubernetes API server.
+  Ingress is the enforcement boundary: it decides who can reach each backend.
+  Egress is per namespace, on purpose. Egress inside the platform is allowed, and
+  the ingress rule of each backend gates what connects. All egress OUT of the
+  namespace is denied, except DNS and the Kubernetes API server.
 type: application
 version: "2026.9.3"
 appVersion: "1.0.0"

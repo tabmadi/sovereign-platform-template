@@ -1,6 +1,6 @@
-# Local Prometheus alerts Application (ADR-0500, ADR-0205). Local counterpart to
-# bootstrap/app-prometheus-alerts.yaml: the chart at infra/observability/alerts generates the `prometheus-alerts`
-# ConfigMap from the *.yaml beside it for the observability chart to mount into Prometheus (rule_files).
+# Local Prometheus alerts Application, per ADR-0500 and ADR-0205. It is the local copy of
+# `bootstrap/app-prometheus-alerts.yaml`. The chart at `infra/observability/alerts` generates the `prometheus-alerts`
+# ConfigMap from the `*.yaml` files next to it. The observability chart mounts it into Prometheus as `rule_files`.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

@@ -1,8 +1,8 @@
-# Values namespaced under `alertmanager:` so this chart shares the platform overlay with its siblings (ADR-0205).
+# Values are under `alertmanager:`, so this chart shares the platform overlay with the other charts, per ADR-0205.
 
-# The hygiene report runs promtool, which ships in the Prometheus image. Pinned
-# here rather than read from the observability chart: a chart renders from its
-# own values alone.
+# The hygiene report runs promtool, which ships in the Prometheus image. It is
+# pinned here and not read from the observability chart, because a chart renders
+# from its own values only.
 prometheusImage: prom/prometheus:v3.1.0
 
 alertmanager:
@@ -14,57 +14,57 @@ alertmanager:
   replicas: 1
   httpPort: 9093
 
-  # Alertmanager holds notification state (what has fired, what is silenced) on disk. One replica on an emptyDir:
-  # the state is a de-duplication cache, and losing it re-notifies rather than loses an alert.
+  # Alertmanager keeps notification state on disk: what has fired and what is silenced. One replica on an emptyDir.
+  # The state is a de-duplication cache. If it is lost, Alertmanager notifies again, and no alert is lost.
   resources:
     requests: { cpu: "20m", memory: "64Mi" }
     limits:   { memory: "256Mi" }
 
-  # The `ticket` path. ADR-0307 makes every sender speak SMTP, so this is a host,
-  # a port, and a credential like any other relay target — mailpit below the
-  # production tier, maddy in it.
+  # The `ticket` path. ADR-0307 makes every sender use SMTP. So this is a host,
+  # a port, and a credential, like any other relay target: mailpit below the
+  # production tier, and maddy in it.
   email:
     to: platform-alerts@localtest.me
     from: alertmanager@localtest.me
     smarthost: mailpit.platform.svc.cluster.local:1025
-    # The sink speaks plaintext and authenticates nobody. A deployed environment
-    # sets this true and points smarthost at maddy.
+    # The sink uses plaintext and authenticates nobody. A deployed environment
+    # sets this to true and points `smarthost` at maddy.
     requireTLS: false
 
-  # The `page` path, and the seam ADR-0502 defers on-call rotation behind. It
-  # resolves to nothing until a paging service is attached, which is a URL and a
-  # credential — no rule and no severity changes when it is.
+  # The `page` path. ADR-0502 puts the on-call rotation behind this seam, for later.
+  # It goes nowhere until a paging service is attached. That needs a URL and a
+  # credential. No rule and no severity changes when it is attached.
   webhook:
     url: ""
 
-  # The heartbeat path, and a SEPARATE seam from the webhook above.
+  # The heartbeat path. It is a SEPARATE seam from the webhook above.
   watchdogWebhook:
     url: ""
 
-  # Reconciles live silences to infra/observability/alertmanager/silences.yaml.
-  # Ten minutes bounds how long a silence created in the UI survives, which is
-  # what makes the runbook's "vanishes on the next reconcile" true.
+  # Reconciles live silences to `infra/observability/alertmanager/silences.yaml`.
+  # Ten minutes is the longest time that a silence created in the UI survives.
+  # This makes the runbook's statement true: the silence goes away on the next reconcile.
   silenceSync:
     schedule: "*/10 * * * *"
 
-  # Asserts the Watchdog is still arriving. Five minutes matches the routing
-  # tree's repeat interval for it, so a missed heartbeat is caught in one cycle
-  # rather than averaged away.
+  # Checks that the Watchdog still arrives. Five minutes matches its repeat interval
+  # in the routing tree. So one cycle catches a missed heartbeat, and it does not
+  # get lost in an average.
   watchdogCheck:
     schedule: "*/5 * * * *"
 
-  # The page/ticket hygiene report. Weekly, because it is a trend rather than an
-  # event and a daily copy of the same list is itself alert fatigue.
+  # The page and ticket hygiene report. It is weekly, because it is a trend and not
+  # an event. A daily copy of the same list is itself alert fatigue.
   hygieneReport:
     schedule: "0 6 * * 1"
     prometheusURL: http://prometheus.platform.svc.cluster.local:9090
-    # Minutes a `page` rule may spend firing in 30 days before it is proposed for
-    # demotion. Six hours: a severity asserting a human acts within minutes has
-    # no business firing for a working day a month.
+    # Minutes that a `page` rule can fire in 30 days before the report proposes to
+    # demote it. Six hours: a severity that says a human acts within minutes must not
+    # fire for a working day each month.
     firingMinutesThreshold: 360
 
-  # How long Alertmanager waits to batch an alert group, and how long before it
-  # re-notifies about a group that is still firing.
+  # How long Alertmanager waits to batch an alert group, and how long it waits before
+  # it notifies again about a group that still fires.
   groupWait: 30s
   groupInterval: 5m
   repeatInterval: 12h

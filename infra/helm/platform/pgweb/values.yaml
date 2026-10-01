@@ -1,9 +1,9 @@
-# Values namespaced under `pgweb:` so this chart shares the platform ApplicationSet's single per-env values
-# overlay without key collisions.
+# Values are under `pgweb:`, so this chart shares the single per-environment values overlay of the platform
+# ApplicationSet with no key collisions.
 pgweb:
-  # Core (ADR-0401): deployed in every environment. The gate stays here so a
-  # project can drop pgweb by setting `enabled: false` in an env overlay, like
-  # any Core component removed per its ADR.
+  # Core, per ADR-0401: deployed in every environment. The gate stays here, so a
+  # project can drop pgweb with `enabled: false` in an environment overlay, like
+  # any Core component removed under its ADR.
   enabled: true
 
   image:
@@ -15,17 +15,17 @@ pgweb:
   service:
     port: 80
 
-  # Postgres DSN pgweb connects to. Empty by default; each env's overlay supplies it, and it MUST name the
-  # `readonly` role rather than a schema owner (ADR-0401).
+  # The Postgres DSN that pgweb connects to. Empty by default. Each environment's overlay supplies it, and it MUST
+  # name the `readonly` role, and not a schema owner, per ADR-0401.
   databaseUrl: ""
 
-  # The deployed shape: the parts of the DSN that are not secret, plus the Secret
-  # the password comes from. Used whenever `databaseUrl` above is empty.
+  # The deployed shape: the parts of the DSN that are not secret, and the Secret
+  # that the password comes from. Used when `databaseUrl` above is empty.
   database:
     host: postgres-rw.platform.svc.cluster.local
     port: 5432
-    # Which database the inspector opens on. Any of them shows the same cluster;
-    # this is the one it starts in.
+    # The database that the inspector opens on. Any of them shows the same cluster.
+    # This is the one it starts in.
     name: orders
     user: readonly
     sslMode: disable

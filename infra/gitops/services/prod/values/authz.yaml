@@ -1,22 +1,22 @@
-# Prod values for the authz edge authorizer (ADR-0306).
+# Prod values for the authz edge authorizer, per ADR-0306.
 name: authz
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/authz-server
   tag: "0000000000000000000000000000000000000000"
-  digest: ""   # promote-on-release pins prod by digest (ADR-0103)
+  digest: ""   # promote-on-release pins prod by digest, per ADR-0103
 worker:
-  enabled: true            # SetOperator dual write (ADR-0302, ADR-0304)
+  enabled: true            # SetOperator dual write, per ADR-0302 and ADR-0304
   image:
     repository: ghcr.io/tabmadi/sovereign-platform-template/authz-worker
     tag: "0000000000000000000000000000000000000000"
-    digest: ""   # promote-on-release pins prod by digest (ADR-0103)
+    digest: ""   # promote-on-release pins prod by digest, per ADR-0103
 server:
   replicas: 1
 ingress:
-  enabled: false     # internal authorizer — no edge route
+  enabled: false     # internal authorizer, so no edge route
 migrations:
   enabled: false     # no database
-# Not edge-exposed, so the chart's Traefik→server-port default must be off.
+# Not exposed at the edge, so the chart's default rule from Traefik to the server port must be off.
 networkPolicy:
   allowFromGateway: false
   allowFrom: [oathkeeper, lowdefy, frontend]
@@ -24,5 +24,5 @@ secrets:
   envFrom: [openfga-creds]
 env:
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
-  # Blank so libs/go/authz falls back to openfga-creds.preshared_key (envFrom).
+  # Blank, so `libs/go/authz` falls back to `openfga-creds.preshared_key` from `envFrom`.
   OPENFGA_PRESHARED_KEY: ""

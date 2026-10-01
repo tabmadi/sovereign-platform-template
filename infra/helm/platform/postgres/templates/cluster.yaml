@@ -1,7 +1,7 @@
-{{- /* cluster.create lets the operator + CRDs install in a first pass before the
-   Cluster/Pooler CRs exist — the helm-direct local path needs that ordering
-   (prod gets it from ArgoCD sync-waves). Defaults true, so the GitOps path is
-   unchanged. */ -}}
+{{- /* cluster.create lets the operator and CRDs install in a first pass, before the
+   Cluster and Pooler CRs exist. The helm-direct local path needs that order.
+   Prod gets it from Argo CD sync-waves. The default is true, so the GitOps path
+   does not change. */ -}}
 {{- if .Values.cluster.create }}
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -11,7 +11,7 @@ metadata:
 spec:
   instances: {{ .Values.cluster.instances }}
   imageName: {{ .Values.cluster.imageName }}
-  # ADR-0204.
+  # Per ADR-0204.
   resources: {{- toYaml .Values.cluster.resources | nindent 4 }}
   priorityClassName: {{ .Values.cluster.priorityClassName }}
   storage:
@@ -21,8 +21,8 @@ spec:
     {{- end }}
   bootstrap:
     {{- if .Values.cluster.recovery.fromServer }}
-    # A rebuild restores the archive a lost cluster left (ADR-0207, docs/guide/disaster-recovery.md). Bootstrap is read
-    # once, at creation, so the value is inert on a running cluster.
+    # A rebuild restores the archive that a lost cluster left, per ADR-0207 and `docs/guide/disaster-recovery.md`.
+    # Bootstrap is read once, at creation, so the value has no effect on a running cluster.
     recovery:
       source: archive
     {{- else }}
@@ -79,7 +79,7 @@ spec:
       {{- with .Values.cluster.backup.s3.endpointURL }}
       endpointURL: {{ . | quote }}
       {{- end }}
-      # CNPG refuses to archive into a server's non-empty path, so a restored cluster writes under a new name.
+      # CNPG refuses to archive into a non-empty path of a server. So a restored cluster writes under a new name.
       serverName: {{ .Values.cluster.backup.serverName | default .Values.cluster.name | quote }}
       s3Credentials:
         accessKeyId:     { name: postgres-backup-creds, key: ACCESS_KEY_ID }
@@ -92,9 +92,9 @@ spec:
 apiVersion: postgresql.cnpg.io/v1
 kind: Pooler
 metadata:
-  # Must NOT collide with the Cluster's own auto-managed Services
-  # (<name>-rw/-ro/-r) — CNPG's ownership check rejects a Pooler whose Service
-  # name is already owned by the Cluster controller.
+  # Must NOT collide with the Cluster's own auto-managed Services,
+  # `<name>-rw`, `-ro`, and `-r`. CNPG's ownership check rejects a Pooler whose Service
+  # name the Cluster controller already owns.
   name: {{ .Values.cluster.name }}-pgbouncer-rw
   namespace: platform
 spec:
@@ -102,9 +102,9 @@ spec:
     name: {{ .Values.cluster.name }}
   instances: {{ .Values.cluster.pooler.instances }}
   type: rw
-  # The Pooler CR takes a full pod template override; `containers` is matched by
-  # name, so `pgbouncer` here patches the operator's own container rather than
-  # adding a second one.
+  # The Pooler CR takes a full pod template override. `containers` is matched by
+  # name, so `pgbouncer` here patches the operator's own container, and does not
+  # add a second one.
   template:
     spec:
       priorityClassName: {{ .Values.cluster.priorityClassName }}

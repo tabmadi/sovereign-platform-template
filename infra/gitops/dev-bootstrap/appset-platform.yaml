@@ -1,4 +1,4 @@
-# Platform ApplicationSets (ADR-0201), one per dependency layer so Argo CD can order them.
+# Platform ApplicationSets, per ADR-0201. There is one per dependency layer, so Argo CD can order them.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -12,7 +12,7 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
+  # A manual pause of auto-sync must survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -26,23 +26,23 @@ spec:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               directories:
-                  # Namespaces + their Pod Security Admission profile (ADR-0200). First in the base tier and sync-wave -1 inside it:
-                  # a namespace labelled after its pods are admitted governs nothing, because PSA is an admission check.
+                  # Namespaces and their Pod Security Admission profile, per ADR-0200. First in the base tier, at sync-wave -1 in it.
+                  # PSA is an admission check, so a namespace labelled after its pods are admitted governs nothing.
                 - { path: "infra/helm/platform/namespaces" }
-                  # The default StorageClass (ADR-0200). Base tier, and ahead of the data tier by construction: a PVC created before
-                  # a default StorageClass exists stays Pending with no class to resolve, and nothing re-binds it when one appears.
+                  # The default StorageClass, per ADR-0200. It is in the base tier, so it always comes before the data tier. A PVC
+                  # created before a default StorageClass exists stays Pending. Nothing binds it again when the class appears.
                 - { path: "infra/helm/platform/local-path" }
-                  # Admission control (ADR-0104). In the BASE tier because a
-                  # policy that arrives after the workloads it gates has already
-                  # missed them: admission is evaluated once, at creation.
+                  # Admission control, per ADR-0104. It is in the BASE tier, because admission
+                  # runs once, at creation. A policy that arrives after the workloads it gates
+                  # has already missed them.
                 - { path: "infra/helm/platform/kyverno" }
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
                 - { path: "infra/helm/platform/resource-governance" }
                 - { path: "infra/helm/platform/temporal-worker-controller-crds" }
-                # CILIUM AND ARGO CD ARE DELIBERATELY NOT HERE, in any tier. Neither can be installed by the thing it is a
-                # prerequisite of: no pod schedules before the CNI exists, and Argo cannot apply its own first install.
+                # CILIUM AND ARGO CD ARE NOT HERE, in any tier, on purpose. Neither can be installed by the thing that needs it
+                # first. No pod schedules before the CNI exists, and Argo CD cannot apply its own first install.
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
@@ -57,17 +57,17 @@ spec:
         targetRevision: master
         path: "{{ .path.path }}"
         helm:
-          # Stable Helm release name = chart basename, so resources are named the same under ArgoCD as under a direct `helm
-          # install <chart>` (a bare release name would prefix every resource with the app name and break in-cluster DNS /
-          # cross-component refs).
+          # The Helm release name is the chart basename. So resources get the same names under Argo CD as under a direct
+          # `helm install <chart>`. A bare release name puts the app name in front of every resource name. That breaks
+          # in-cluster DNS and cross-component references.
           releaseName: "{{ .path.basename }}"
           valueFiles:
-            # First, so anything below can still override it: the deletions of
-            # upstream defaults that a wrapper chart's own values.yaml cannot
-            # express (see the file's header).
+            # First, so every file below can still override it. It holds the deletions of
+            # upstream defaults that a wrapper chart's own `values.yaml` cannot express.
+            # See the file's header.
             - "../../../gitops/platform/shared-values.yaml"
-            # Generated: the repositories the platform's charts pull from, which
-            # Kyverno's allow-list policy reads (ADR-0104).
+            # Generated: the repositories that the platform's charts pull from. Kyverno's
+            # allow-list policy reads it, per ADR-0104.
             - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
@@ -79,7 +79,7 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
-            # The platform's signing public key (ADR-0104), see infra/auth/cosign.
+            # The platform's signing public key, per ADR-0104. See `infra/auth/cosign`.
             - name: policies.publicKey
               path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
@@ -99,8 +99,8 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: stores
   annotations:
-    # Wave 2: after base (operator up) and the secrets tier (wave 1, local) so
-    # Postgres finds its superuser Secret instead of CreateContainerConfigError.
+    # Wave 2: after base, with the operator up, and after the secrets tier at wave 1 locally. So Postgres
+    # finds its superuser Secret and does not fail with CreateContainerConfigError.
     argocd.argoproj.io/sync-wave: "2"
 spec:
   goTemplate: true
@@ -168,8 +168,8 @@ metadata:
     app.kubernetes.io/component: telemetry
   annotations:
     # Wave 3: BEFORE the collector, because otel-agent exports to tempo and loki by
-    # name (otel-agent/values.yaml). After the stores, because Loki and Tempo write to
-    # the buckets, and Prometheus mounts the rule ConfigMap wave 2 delivers.
+    # name, in `otel-agent/values.yaml`. After the stores, because Loki and Tempo write to
+    # the buckets, and Prometheus mounts the rule ConfigMap that wave 2 delivers.
     argocd.argoproj.io/sync-wave: "3"
 spec:
   goTemplate: true
@@ -237,8 +237,8 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: core
   annotations:
-    # Wave 4: everything a service resolves by name — its identity provider, its authorization store, its workflow
-    # engine, the collector it ships telemetry to, and the mail sink the courier submits to.
+    # Wave 4: everything that a service resolves by name. That is its identity provider, authorization store, and
+    # workflow engine, the collector it sends telemetry to, and the mail sink that the courier submits to.
     argocd.argoproj.io/sync-wave: "4"
 spec:
   goTemplate: true
@@ -256,27 +256,27 @@ spec:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               directories:
-                # The registry (ADR-0105). Wave 3 rather than beside the store: it
+                # The registry, per ADR-0105. It is in wave 3, and not next to the store. It
                 # reads the bucket, so it starts after the data tier is Healthy.
                 - { path: "infra/helm/platform/zot" }
-                  # The forge (ADR-0102).
+                  # The forge, per ADR-0102.
                 - { path: "infra/helm/platform/forgejo" }
-                  # The public ACME issuer and the edge's wildcard certificates (ADR-0205).
+                  # The public ACME issuer and the edge's wildcard certificates, per ADR-0205.
                 - { path: "infra/helm/platform/public-tls" }
-                  # The node-level collector, in a namespace of its own because it
-                  # is the one platform workload needing hostPath and hostPorts
-                  # (ADR-0200). Same tier as the backends it exports to.
+                  # The node-level collector. It has its own namespace, because it is the one
+                  # platform workload that needs hostPath and hostPorts, per ADR-0200. It is in
+                  # the same tier as the backends it exports to.
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
-                  # The edge's RFC 9457 error bodies (ADR-0305). Beside ory because Oathkeeper is what raises most of the responses
-                  # it rewrites, and every denial the edge issues makes a subrequest here.
+                  # The edge's RFC 9457 error bodies, per ADR-0305. It is next to ory, because Oathkeeper raises most of the
+                  # responses that it rewrites. Every denial from the edge makes a subrequest here.
                 - { path: "infra/helm/platform/edge-errors" }
-                  # The non-production mail sink Kratos's courier submits to
-                  # (ADR-0307). Beside ory because it is only useful to it, and
-                  # dropped by `mailpit.enabled: false` where a real relay exists.
+                  # The non-production mail sink that Kratos's courier submits to, per ADR-0307.
+                  # It is next to ory, because only ory uses it. `mailpit.enabled: false` drops
+                  # it where a real relay exists.
                 - { path: "infra/helm/platform/mailpit" }
-                # Production mail (ADR-0307). Renders nothing unless the
-                # environment enables it, which only production does.
+                # Production mail, per ADR-0307. It renders nothing unless the environment
+                # enables it. Only production enables it.
                 - { path: "infra/helm/platform/maddy" }
                 - { path: "infra/helm/platform/temporal" }
                 - { path: "infra/helm/platform/temporal-worker-controller" }
@@ -328,7 +328,7 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: consoles
   annotations:
-    # Wave 7: LAST, and the rule is the whole reason — nothing resolves a console.
+    # Wave 7: LAST, and this rule is the only reason: nothing resolves a console.
     argocd.argoproj.io/sync-wave: "7"
 spec:
   goTemplate: true

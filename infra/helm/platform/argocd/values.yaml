@@ -3,18 +3,18 @@ argo-cd:
     domain: argocd.example.com
   configs:
     params:
-      server.insecure: "true"          # TLS terminates upstream at Traefik
-      # Diff against the API SERVER's dry-run rather than against the manifest alone.
+      server.insecure: "true"          # TLS ends upstream, at Traefik
+      # Diff against the API SERVER's dry-run, not against the manifest alone.
       controller.diff.server.side: "true"
-      # A wave gated on an ApplicationSet is gated on the health check below, which reads .status.resources — written by
-      # the ApplicationSet controller on its own requeue, default 3 minutes.
+      # A wave that waits on an ApplicationSet waits on the health check below. It reads `.status.resources`. The
+      # ApplicationSet controller writes that field on its own requeue, which is 3 minutes by default.
       applicationsetcontroller.requeue.after: 20s
     cm:
       timeout.reconciliation: "60s"
-      # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator holding dashboard:argocd#view, ADR-0306).
+      # The ops edge is the authentication gate. Oathkeeper requires an AAL2 operator with `dashboard:argocd#view`, per ADR-0306.
       users.anonymous.enabled: "true"
-      # ArgoCD's built-in health for ApplicationSet only reflects successful templating ("all Applications generated"),
-      # not whether the Applications it spawned actually synced and became healthy.
+      # Argo CD's built-in health for an ApplicationSet shows only that templating succeeded: all Applications generated.
+      # It does not show whether the Applications it created synced and became healthy.
       resource.customizations.health.argoproj.io_ApplicationSet: |
         hs = {}
         if obj.status ~= nil and obj.status.resources ~= nil and #obj.status.resources > 0 then
@@ -51,15 +51,15 @@ argo-cd:
         hs.status = "Progressing"
         hs.message = "Waiting for CNPG cluster status"
         return hs
-      # Helm-rendered CRDs carry explicit empty maps (`labels: {}`, `annotations: {}`) that ArgoCD's normalizer strips
-      # from the DESIRED object but not from the LIVE one — so a chart shipping CRDs (kyverno) drifts `labels: {}`
-      # forever and sits OutOfSync.
+      # Helm-rendered CRDs carry explicit empty maps, `labels: {}` and `annotations: {}`. Argo CD's normalizer strips them
+      # from the DESIRED object but not from the LIVE one. So a chart that ships CRDs, such as kyverno, drifts on `labels: {}`
+      # forever and stays OutOfSync.
       resource.customizations.ignoreDifferences.apiextensions.k8s.io_CustomResourceDefinition: |
         {
           "jsonPointers": ["/metadata/labels", "/metadata/annotations"]
         }
-      # Kyverno's CRD schema defaults four fields the chart never sets (`spec.admission`, `spec.emitWarning`, and per
-      # rule `skipBackgroundRequests` and `validate.allowExistingViolations`).
+      # Kyverno's CRD schema gives defaults to four fields that the chart never sets: `spec.admission`, `spec.emitWarning`,
+      # and, per rule, `skipBackgroundRequests` and `validate.allowExistingViolations`.
       resource.customizations.ignoreDifferences.kyverno.io_ClusterPolicy: |
         {
           "jsonPointers": ["/spec/admission", "/spec/emitWarning"],
@@ -69,26 +69,26 @@ argo-cd:
           ]
         }
     rbac:
-      # Anonymous (edge-authenticated operator, see users.anonymous above) gets
-      # admin — mirroring Grafana's anonymous org_role:Admin. The edge already
-      # proved AAL2 + the dashboard:argocd grant; full UI access is the point.
+      # The anonymous user is the operator that the edge authenticated. See `users.anonymous` above. It gets
+      # admin, like Grafana's anonymous `org_role:Admin`. The edge already checked AAL2 and the
+      # `dashboard:argocd` grant. Full UI access is the goal.
       policy.default: role:admin
   server:
     service: { type: ClusterIP }
-  redis-ha: { enabled: false }         # 3-node embedded etcd; HA Redis is overkill (ADR-0200)
+  redis-ha: { enabled: false }         # 3-node embedded etcd, so HA Redis is more than needed, per ADR-0200
   redis:
-    # Chart defaults to the ecr-public.aws.com vanity host, which only publishes
-    # AAAA records; pin the canonical public.ecr.aws mirror (identical image,
-    # IPv4-reachable) so redis doesn't wedge on IPv6-less networks.
+    # The chart default is the ecr-public.aws.com vanity host, which publishes only
+    # AAAA records. Pin the canonical public.ecr.aws mirror. It has the same image and
+    # is reachable over IPv4, so redis does not hang on networks without IPv6.
     image:
       repository: public.ecr.aws/docker/library/redis
-  # ADR-0204.
+  # Per ADR-0204.
   controller:
     replicas: 1
     resources:
       requests: { memory: "512Mi" }
       limits: { memory: "2Gi" }
-  # The repo server renders every chart in the fleet, each render holding a
+  # The repo server renders every chart in the fleet. Each render holds a
   # dependency tree in memory.
   repoServer:
     resources:

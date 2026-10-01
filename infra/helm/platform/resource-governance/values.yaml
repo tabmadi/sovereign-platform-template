@@ -1,56 +1,57 @@
-# ADR-0204 guardrails. Every number here was set from a run of the ADR-0601 load
-# suite; `mise run perf:re-derive` reproduces one.
+# ADR-0204 guardrails. Every number here comes from a run of the ADR-0601 load
+# suite. `mise run perf:re-derive` reproduces one.
 
-#  PriorityClass tiers  Eviction order under real node
-# pressure: batch dies first, Core last.
+# PriorityClass tiers: the eviction order under real node
+# pressure. Batch is evicted first, and Core last.
 priorityClasses:
   platform-critical:
     value: 1000
-    # THE GLOBAL DEFAULT, and the choice deserves its reasoning. The obvious pick is `product`, but it is wrong here:
-    # the workloads that CANNOT declare a priority are exactly the ones that most need the high one.
+    # THE GLOBAL DEFAULT. The obvious choice is `product`, but it is wrong here. The workloads that CANNOT declare a
+    # priority are the ones that most need the high one.
     globalDefault: true
     description: >-
-      Core-tier platform components (docs/operational-surface.md): Postgres,
-      Temporal, OpenFGA, Kratos, Oathkeeper, the edge, and the observability
-      stack. Last to be evicted — a product service without these is useless.
+      Core-tier platform components, listed in docs/operational-surface.md:
+      Postgres, Temporal, OpenFGA, Kratos, Oathkeeper, the edge, and the
+      observability stack. They are evicted last. A product service cannot work
+      without them.
   product:
     value: 100
-    # Declared explicitly by the service chart, not defaulted — see the note on
-    # platform-critical above for why the default goes the other way.
+    # The service chart sets it explicitly, and it is not the default. The note on
+    # platform-critical above says why the default is the other one.
     description: >-
-      Application services under services/. Set explicitly by the shared service
-      chart so product workloads sit below the platform they depend on.
+      Application services under services/. The shared service chart sets this
+      explicitly, so product workloads sit below the platform they depend on.
   batch:
     value: 10
     description: >-
-      Bootstrap and one-shot Jobs. Evicted first by design: a failed Job re-runs,
-      a failed database does not.
+      Bootstrap and one-shot Jobs. They are evicted first, by design. A failed
+      Job runs again, and a failed database does not.
 
-#  LimitRange: default requests/limits per namespace  Applies ONLY to containers that
+# LimitRange: default requests and limits per namespace. They apply ONLY to containers that
 # declare nothing, at admission time.
 limitRanges:
   platform:
     enabled: true
-    # Headroom over the worst peak among the undeclared containers here.
+    # Headroom over the worst peak among the containers here that declare nothing.
     defaultMemoryLimit: 512Mi
     defaultMemoryRequest: 64Mi
     defaultCPURequest: 50m
   argocd:
     enabled: true
-    # repo-server is the one to watch — it spikes while rendering Helm charts.
+    # repo-server is the one to watch. It spikes while it renders Helm charts.
     defaultMemoryLimit: 512Mi
     defaultMemoryRequest: 64Mi
     defaultCPURequest: 50m
   kube-system:
     enabled: true
-    # Deliberately roomier than the others, because Cilium's memory scales
-    # with endpoint and policy count, and this repo's default-deny policy set grows with every service.
+    # Larger than the others, on purpose. Cilium's memory grows with the number of endpoints
+    # and policies, and this repo's default-deny policy set grows with every service.
     defaultMemoryLimit: 1Gi
     defaultMemoryRequest: 128Mi
     defaultCPURequest: 50m
 
-#  ResourceQuota: aggregate namespace cap  Sized for the LOCAL single-node
-# kind tier (24 cores / 31Gi allocatable).
+# ResourceQuota: the total cap per namespace. It is sized for the LOCAL single-node
+# kind tier, with 24 cores and 31Gi allocatable.
 resourceQuotas:
   platform:
     enabled: true
@@ -63,44 +64,45 @@ resourceQuotas:
     requestsCPU: "2"
     requestsMemory: 4Gi
     limitsMemory: 8Gi
-  # kube-system has NO quota, and this is a deliberate, documented gap rather than an oversight (ADR-0204
-  # §Consequences).
+  # kube-system has NO quota. This is a deliberate, documented gap, and not a mistake. See the Consequences section of
+  # ADR-0204.
   kube-system:
     enabled: false
 
-#  PodDisruptionBudgets  Only meaningful at replicas >= 2:
-# `minAvailable: 1` in front of a single-replica workload permits zero disruptions and makes `kubectl drain` hang
-# indefinitely.
+# PodDisruptionBudgets. They are useful only at 2 or more replicas. With a single replica,
+# `minAvailable: 1` allows zero disruptions, and `kubectl drain` hangs
+# with no end.
 podDisruptionBudgets:
   postgres-pgbouncer:
     enabled: true
     minAvailable: 1
     selector: { cnpg.io/poolerName: postgres-pgbouncer-rw }
     rationale: >-
-      The connection pooler fronts every service's database access (ADR-0300).
-      Runs 2 replicas locally, so a drain may take one at a time but never both.
+      The connection pooler fronts every service's database access, per
+      ADR-0300. It runs 2 replicas locally, so a drain can take one at a time,
+      but never both.
 
-  #  Declared, disabled: single-replica on the local tier
-  # Postgres itself is absent from this list entirely: CNPG creates and owns
+  # Declared and off, because the local tier has a single replica.
+  # Postgres itself is not in this list. CNPG creates and owns
   # `postgres-primary`, and a second PDB over the same pods would conflict.
   temporal-frontend:
     enabled: false
     minAvailable: 1
     selector: { app.kubernetes.io/name: temporal, app.kubernetes.io/component: frontend }
-    rationale: Every workflow start and query enters here; scale out before enabling.
+    rationale: Every workflow start and query enters here. Scale out before you turn this on.
   temporal-history:
     enabled: false
     minAvailable: 1
     selector: { app.kubernetes.io/name: temporal, app.kubernetes.io/component: history }
     rationale: >-
       Owns workflow state and shard ownership. Measured at 2.1 cores and 647Mi
-      under checkout load — the first Temporal component to need more than one
-      replica, and the first PDB to enable when it gets one.
+      under checkout load. It is the first Temporal component that needs more
+      than one replica, and the first PDB to turn on when it gets one.
   temporal-matching:
     enabled: false
     minAvailable: 1
     selector: { app.kubernetes.io/name: temporal, app.kubernetes.io/component: matching }
-    rationale: Task-queue dispatch; losing it stalls every worker.
+    rationale: Task-queue dispatch. If it is lost, every worker stalls.
   loki:
     enabled: false
     minAvailable: 1
@@ -108,21 +110,21 @@ podDisruptionBudgets:
       app.kubernetes.io/name: loki
       app.kubernetes.io/component: single-binary
       app.kubernetes.io/instance: observability
-    rationale: Log ingest; single-binary mode locally, microservices mode at scale.
+    rationale: Log ingest. Single-binary mode locally, and microservices mode at scale.
   tempo:
     enabled: false
     minAvailable: 1
     selector: { app.kubernetes.io/name: tempo, app.kubernetes.io/instance: observability }
-    rationale: Trace ingest. Measured at 1858Mi under load — the heaviest single pod.
+    rationale: Trace ingest. Measured at 1858Mi under load, the heaviest single pod.
   openfga:
     enabled: false
     minAvailable: 1
     selector: { app.kubernetes.io/name: openfga }
-    rationale: Every authz-relevant read blocks on it (ADR-0304).
+    rationale: Every authz-relevant read waits for it, per ADR-0304.
   ory-oathkeeper:
     enabled: false
     minAvailable: 1
     selector: { app.kubernetes.io/name: oathkeeper }
     rationale: >-
       The forward-auth hop on every /api request. Measured at 192m CPU under read
-      load — the busiest component on that path.
+      load, the busiest component on that path.

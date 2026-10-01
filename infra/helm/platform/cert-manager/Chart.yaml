@@ -1,6 +1,6 @@
 apiVersion: v2
 name: cert-manager
-description: TLS via cert-manager + Let's Encrypt DNS-01 (ADR-0305).
+description: TLS through cert-manager and Let's Encrypt DNS-01, per ADR-0305.
 type: application
 version: "2026.9.3"
 appVersion: "1.20.3"

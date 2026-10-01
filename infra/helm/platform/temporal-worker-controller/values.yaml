@@ -1,47 +1,47 @@
-# Temporal Worker Controller (ADR-0302) — the operator that makes Pinned versioning actually hold. WHY AN OPERATOR
-# AND NOT A TEMPLATE.
+# Temporal Worker Controller, per ADR-0302: the operator that makes Pinned versioning hold. It is an operator and not
+# a template, because a template cannot keep the pods of an old version alive after a rollout.
 
 temporal-worker-controller:
-  # One replica: this is a leader-elected reconciler, and the local tier is a
-  # single node (a second replica would sit unschedulable, like the Cilium
-  # operator's default). Deployed envs override in their per-env values.
+  # One replica. This is a leader-elected reconciler, and the local tier is a
+  # single node. A second replica could not be scheduled, like the default of the
+  # Cilium operator. Deployed environments override it in their own values.
   replicas: 1
 
-  # ADR-0204. The one CPU limit left in this platform, and it is inherited rather
-  # than chosen.
+  # Per ADR-0204. This is the one CPU limit left on this platform. It is inherited,
+  # and not chosen.
   resources:
     requests: { cpu: "10m", memory: "96Mi" }
     limits:   { memory: "256Mi" }
 
-  # `restricted` (ADR-0200).
+  # `restricted`, per ADR-0200.
   securityContext:
     seccompProfile:
       enabled: true
 
   certmanager:
-    # The platform already runs cert-manager (infra/helm/platform/cert-manager, wave 0), so the chart's bundled
-    # subchart stays off and only the Issuer + Certificate for the webhook are created.
+    # The platform already runs cert-manager in `infra/helm/platform/cert-manager`, at wave 0. So the chart's bundled
+    # subchart stays off. Only the Issuer and the Certificate for the webhook are created.
     install: false
     enabled: true
 
-  # The optional WorkerDeployment validating webhook. Off (chart default) — it rejects bad CRs earlier, but it also
-  # puts an admission webhook in the path of every worker deploy, and a broken webhook then blocks deploys entirely.
+  # The optional WorkerDeployment validating webhook. It is off, as in the chart default. It rejects bad CRs earlier,
+  # but it puts an admission webhook in the path of every worker deploy. A broken webhook then blocks all deploys.
   webhook:
     enabled: false
 
   metrics:
-    # No bearer-token auth proxy in front of /metrics. The platform's scrape path
-    # is the node-local OTel collector (ADR-0500), which does not present a
-    # token, and egress here is already constrained by NetworkPolicy.
+    # No bearer-token auth proxy in front of `/metrics`. The platform's scrape path
+    # is the node-local OTel collector, per ADR-0500, which sends no token.
+    # NetworkPolicy already limits egress here.
     disableAuth: true
 
   prometheus:
-    # Upstream marks this "not yet supported"; metrics reach Grafana through the
-    # OTel collector like every other platform component, not a ServiceMonitor.
+    # Upstream marks this as not supported yet. Metrics reach Grafana through the OTel
+    # collector, like every other platform component, and not through a ServiceMonitor.
     enabled: false
 
-# Temporal endpoint the generated workers dial, rendered as the `Connection` CR every service's WorkerDeployment
-# references by name.
+# The Temporal endpoint that the generated workers dial. It is rendered as the `Connection` CR that every service's
+# WorkerDeployment references by name.
 connection:
   name: platform-temporal
   hostPort: "temporal-frontend.platform.svc.cluster.local:7233"

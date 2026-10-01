@@ -1,4 +1,4 @@
-# Lightweight local dependencies for the inner dev loop (ADR-0200).
+# Lightweight local dependencies for the inner dev loop, per ADR-0200.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -25,9 +25,9 @@ spec:
   template:
     metadata: { labels: { app: postgres } }
     spec:
-      # `restricted` (ADR-0200), so the one namespace-wide warning the inner loop
-      # emits is not one of ours. uid 70 is `postgres` in the alpine image (it is
-      # 999 in the Debian variants — the number is the image's, not a convention).
+      # `restricted`, per ADR-0200, so the one namespace-wide warning of the inner loop
+      # is not one of ours. uid 70 is `postgres` in the alpine image. It is 999 in
+      # the Debian variants. The number comes from the image, not from a convention.
       securityContext:
         runAsNonRoot: true
         runAsUser: 70
@@ -41,16 +41,16 @@ spec:
             - { name: POSTGRES_USER,     value: dev }
             - { name: POSTGRES_PASSWORD, value: dev }
             - { name: POSTGRES_DB,       value: dev }
-            # A SUBDIRECTORY of the mount, which is what makes a non-root Postgres work on a volume at all: the entrypoint
-            # chmods PGDATA, and chmod needs ownership rather than the group write bit fsGroup grants.
+            # A SUBDIRECTORY of the mount. This makes a non-root Postgres work on a volume. The entrypoint runs chmod on
+            # PGDATA, and chmod needs ownership, not the group write bit that fsGroup grants.
             - { name: PGDATA,            value: /var/lib/postgresql/data/pgdata }
           ports: [{ containerPort: 5432 }]
           readinessProbe:
             exec: { command: ["pg_isready", "-U", "dev"] }
             initialDelaySeconds: 3
-          # readOnlyRootFilesystem is false: initdb writes its socket and the
-          # cluster under /var/lib/postgresql. Both are emptyDir mounts rather
-          # than the image's own layers, which is the shape ADR-0200 asks for.
+          # readOnlyRootFilesystem is false, because initdb writes its socket and the
+          # cluster under /var/lib/postgresql. Both are emptyDir mounts, and not the
+          # image's own layers. That is the shape that ADR-0200 asks for.
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: ["ALL"] }
@@ -75,7 +75,7 @@ spec:
   selector: { app: postgres }
   ports: [{ port: 5432, targetPort: 5432 }]
 ---
-#  Temporal dev server (in-memory, includes Web UI on 8233)
+# Temporal dev server: in memory, with the Web UI on 8233.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -88,7 +88,7 @@ spec:
   template:
     metadata: { labels: { app: temporal } }
     spec:
-      # `restricted` (ADR-0200). The dev server image runs as uid 1000.
+      # `restricted`, per ADR-0200. The dev server image runs as uid 1000.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -97,17 +97,17 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: temporal
-          # A concrete tag, not `latest`: this is the version an inner-loop run gets,
-          # and a moving one means two engineers debug different Temporals
-          # (ADR-0101). Renovate bumps it with the other local stand-ins.
+          # A concrete tag, not `latest`. This is the version that an inner-loop run gets.
+          # With a moving tag, two engineers debug different Temporals, per ADR-0101.
+          # Renovate bumps it with the other local stand-ins.
           image: temporalio/temporal:1.8.2
           args: ["server", "start-dev", "--ip", "0.0.0.0"]
           ports:
             - { name: grpc, containerPort: 7233 }
             - { name: ui,   containerPort: 8233 }
-          # readOnlyRootFilesystem holds because `start-dev` with no --db-filename
-          # keeps its SQLite in memory; the only thing it writes to disk is scratch
-          # under /tmp, which is the emptyDir below rather than the image layer.
+          # readOnlyRootFilesystem holds, because `start-dev` with no --db-filename keeps
+          # its SQLite in memory. It writes only scratch files to disk, under /tmp. That
+          # is the emptyDir below, and not the image layer.
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: ["ALL"] }
@@ -132,7 +132,7 @@ spec:
     - { name: grpc, port: 7233, targetPort: 7233 }
     - { name: ui,   port: 8233, targetPort: 8233 }
 ---
-#  OpenFGA (in-memory datastore, fixed dev preshared key)
+# OpenFGA: in-memory datastore, with a fixed dev preshared key.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -145,8 +145,8 @@ spec:
   template:
     metadata: { labels: { app: openfga } }
     spec:
-      # `restricted` (ADR-0200). The image is distroless and already non-root; this
-      # states it rather than inheriting it from whatever the tag ships next.
+      # `restricted`, per ADR-0200. The image is distroless and already non-root. This
+      # states it, and does not rely on what the next tag ships.
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -175,7 +175,7 @@ spec:
   selector: { app: openfga }
   ports: [{ port: 8080, targetPort: 8080 }]
 ---
-#  Per-service DATABASE_URL secrets (consumed via secrets.envFrom)
+# Per-service DATABASE_URL secrets, consumed through secrets.envFrom.
 apiVersion: v1
 kind: Secret
 metadata:

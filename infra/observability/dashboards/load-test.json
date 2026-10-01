@@ -3,7 +3,7 @@
   "uid": "load-test",
   "schemaVersion": 39,
   "tags": ["perf", "k6", "capacity"],
-  "description": "Correlates a k6 load run (ADR-0601) against what it cost the cluster. Deliberately OUTSIDE the L1-L3 triage funnel of ADR-0501: that funnel diagnoses an unplanned incident, this reads a planned experiment. Left column of every row is what the generator saw; right is what the platform paid. Empty unless a run is in progress or the time range covers one.",
+  "description": "Compares a k6 load run, per ADR-0601, with what it cost the cluster. It is OUTSIDE the L1-L3 triage funnel of ADR-0501, on purpose. That funnel diagnoses an unplanned incident. This dashboard reads a planned experiment. In every row, the left column is what the generator saw, and the right column is what the platform paid. It is empty unless a run is in progress or the time range covers one.",
   "links": [
     {
       "title": "◀ Applications",
@@ -39,7 +39,7 @@
         "includeAll": true,
         "allValue": ".*",
         "current": { "text": "All", "value": "$__all" },
-        "description": "Defaults to All, unlike the Applications dashboard's `platform`. The edge — Traefik and Cilium — lives in kube-system, and on the read path it outranks every business service on CPU. Scoping this to `platform` by default would hide the single most useful row in the cost table below."
+        "description": "Defaults to All, unlike the `platform` default of the Applications dashboard. The edge, Traefik and Cilium, lives in kube-system. On the read path, it uses more CPU than any business service. A default of `platform` would hide the most useful row in the cost table below."
       },
       {
         "name": "service",
@@ -59,13 +59,13 @@
   "panels": [
     {
       "type": "row",
-      "title": "The run — what the generator saw",
+      "title": "The run: what the generator saw",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
     },
     {
       "type": "stat",
       "title": "Throughput",
-      "description": "Requests per second the generator actually achieved. Compare against the VU count below: if VUs climb while this stays flat, the system under test is the bottleneck — that is the knee a stress run exists to find.",
+      "description": "Requests per second that the generator achieved. Compare it with the VU count below. If VUs climb while this stays flat, the system under test is the bottleneck. A stress run exists to find that knee.",
       "datasource": "Prometheus",
       "gridPos": { "h": 5, "w": 5, "x": 0, "y": 1 },
       "fieldConfig": {
@@ -90,7 +90,7 @@
     {
       "type": "stat",
       "title": "Error rate",
-      "description": "Share of requests k6 did not consider a success (expected_response=false). This is the generator's view, which includes connection failures the server never saw and therefore never counted in its own 5xx rate.",
+      "description": "Share of requests that k6 did not count as a success, with expected_response=false. This is the generator's view. It includes connection failures that the server never saw, so the server's own 5xx rate does not count them.",
       "datasource": "Prometheus",
       "gridPos": { "h": 5, "w": 5, "x": 5, "y": 1 },
       "fieldConfig": {
@@ -131,7 +131,7 @@
     {
       "type": "stat",
       "title": "p95 latency",
-      "description": "95th percentile round-trip time as measured from the generator, so it includes edge routing and the Oathkeeper forward-auth hop — not just the service's own handler time.",
+      "description": "95th percentile round-trip time, measured from the generator. So it includes edge routing and the Oathkeeper forward-auth hop, and not only the service's own handler time.",
       "datasource": "Prometheus",
       "gridPos": { "h": 5, "w": 5, "x": 10, "y": 1 },
       "fieldConfig": { "defaults": { "unit": "ms", "decimals": 0 } },
@@ -150,7 +150,7 @@
     {
       "type": "stat",
       "title": "Virtual users",
-      "description": "Concurrent VUs the profile is driving right now (test/perf/lib/config.js ramps these). The independent variable of the experiment.",
+      "description": "Concurrent VUs that the profile drives now. test/perf/lib/config.js ramps them. This is the independent variable of the experiment.",
       "datasource": "Prometheus",
       "gridPos": { "h": 5, "w": 4, "x": 15, "y": 1 },
       "fieldConfig": {
@@ -170,7 +170,7 @@
     {
       "type": "stat",
       "title": "Dropped iterations",
-      "description": "Iterations k6 could not start on time. NON-ZERO MEANS THE GENERATOR IS THE BOTTLENECK, not the platform — every number on this dashboard is then an understatement, and the run needs the k6-operator Scale swap (docs/operational-surface.md) before it can be believed.",
+      "description": "Iterations that k6 could not start on time. NON-ZERO MEANS THAT THE GENERATOR IS THE BOTTLENECK, and not the platform. Every number on this dashboard is then too low. The run needs the k6-operator Scale swap in docs/operational-surface.md before anyone can trust it.",
       "datasource": "Prometheus",
       "gridPos": { "h": 5, "w": 5, "x": 19, "y": 1 },
       "fieldConfig": {
@@ -212,7 +212,7 @@
     {
       "type": "timeseries",
       "title": "Throughput and concurrency",
-      "description": "Requests/s per endpoint against the VU ramp. The shape to look for: throughput tracking VUs linearly, then flattening. The flattening point is the capacity knee.",
+      "description": "Requests per second for each endpoint, against the VU ramp. Look for this shape: throughput follows VUs in a line, then goes flat. The point where it goes flat is the capacity knee.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
       "fieldConfig": {
@@ -267,7 +267,7 @@
     {
       "type": "timeseries",
       "title": "Latency percentiles by endpoint",
-      "description": "p50 / p95 / p99 per endpoint. Watch the SPREAD, not just p95: p99 pulling away from p50 while throughput is flat is queueing, and queueing is what saturation looks like before it looks like errors.",
+      "description": "p50, p95, and p99 for each endpoint. Watch the SPREAD, and not only p95. If p99 moves away from p50 while throughput is flat, requests are queueing. Queueing is what saturation looks like before it shows as errors.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
       "fieldConfig": {
@@ -296,8 +296,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Checkout saga — settle time and outcome",
-      "description": "The async half of the write path (ADR-0302). p95 settle is wall time from an accepted checkout to a terminal order, so it measures Temporal throughput, not API latency. The confirmed rate falling while the POST stays fast is the signature failure of an async system under load: the API happily accepts work the workers cannot keep up with. Empty for the browse scenario.",
+      "title": "Checkout saga: settle time and outcome",
+      "description": "The async half of the write path, per ADR-0302. p95 settle is the wall time from an accepted checkout to a terminal order. So it measures Temporal throughput, and not API latency. A falling confirmed rate while the POST stays fast is the typical failure of an async system under load. The API accepts work that the workers cannot finish in time. Empty for the browse scenario.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
       "fieldConfig": {
@@ -355,7 +355,7 @@
     {
       "type": "timeseries",
       "title": "Server-side latency, for comparison",
-      "description": "The same requests as the platform's own instrumentation saw them (ADR-0500 http_server_request_duration_seconds). The GAP between this and the generator's p95 opposite is time spent in the edge, in TLS, and in the network — if the gap widens under load, Traefik or Oathkeeper is the constraint, not the service.",
+      "description": "The same requests, as the platform's own instrumentation saw them, from the ADR-0500 metric http_server_request_duration_seconds. The GAP between this and the generator's p95 on the other side is time in the edge, in TLS, and in the network. If the gap grows under load, Traefik or Oathkeeper is the constraint, and not the service.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
       "fieldConfig": {
@@ -374,13 +374,13 @@
     },
     {
       "type": "row",
-      "title": "The bill — what the cluster paid for it",
+      "title": "The bill: what the cluster paid for it",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }
     },
     {
       "type": "table",
-      "title": "Cost per workload over this window — sorted by peak CPU",
-      "description": "Every workload in the cluster, ranked by what this run cost it. Rows are per DEPLOYMENT or StatefulSet, not per service: `service_name` folds all six Temporal components into one row (and orders-server + orders-worker into another), which hides the finding — under checkout load the expensive workload is temporal-history specifically, at nearly 2 cores. The `workload` label is derived in PromQL as deployment name, else statefulset name, else the folded service_name. Peak comes before mean because peak is what you size for: a container is OOM-killed at its peak, not at its mean. Deliberately NOT filtered to the services under test — the interesting answer is usually a workload nobody was testing (measured under read load, the top two rows are Oathkeeper and Traefik, not catalog: the ingress + forward-auth hop costs roughly 3x the business logic behind it). No RED columns here on purpose: http.server metrics are labelled per service and cannot join to per-deployment rows — for req/s and errors per service use Overview or Applications. This complements the Applications dashboard rather than repeating it: that one answers 'how big is each workload right now', this one answers 'what did THIS experiment cost', over the selected range. IMPORTANT: this is working_set / container limit, computed here rather than read from kubeletstats' k8s_pod_memory_limit_utilization_ratio. That metric divides memory.USAGE by the limit, and usage includes reclaimable page cache — measured 2-3x overstatement across every pod (otel-cluster reported 97.9% against a real 58.0%). The OOM killer acts on the working set, so the working set is what a limit must be sized against. Only containers that declare a memory limit appear; a blank row is itself an ADR-0204 finding.",
+      "title": "Cost per workload over this window, sorted by peak CPU",
+      "description": "Every workload in the cluster, ranked by what this run cost it. Rows are per DEPLOYMENT or StatefulSet, and not per service. `service_name` puts all six Temporal components into one row, and orders-server and orders-worker into another. That hides the finding: under checkout load, the expensive workload is temporal-history, at nearly 2 cores. PromQL derives the `workload` label as the deployment name, else the statefulset name, else the folded service_name. Peak comes before mean, because you size for the peak: a container is OOM-killed at its peak, not at its mean. It is NOT filtered to the services under test, on purpose. The interesting answer is usually a workload that nobody tested. Under read load, the top two rows were Oathkeeper and Traefik, and not catalog. The ingress and forward-auth hop costs about 3x the business logic behind it. There are no RED columns here, on purpose. http.server metrics have per-service labels and cannot join to per-deployment rows. For req/s and errors per service, use Overview or Applications. This adds to the Applications dashboard, and does not repeat it. That dashboard shows how big each workload is now. This one shows what THIS experiment cost, over the selected range. IMPORTANT: this is working_set divided by the container limit. It is computed here, and not read from kubeletstats' k8s_pod_memory_limit_utilization_ratio. That metric divides memory.USAGE by the limit, and usage includes page cache that can be reclaimed. Measured, it overstated 2 to 3x across every pod: otel-cluster reported 97.9% against a real 58.0%. The OOM killer acts on the working set, so size a limit against the working set. Only containers that declare a memory limit appear. A blank row is itself an ADR-0204 finding.",
       "datasource": "Prometheus",
       "gridPos": { "h": 11, "w": 24, "x": 0, "y": 24 },
       "options": {
@@ -545,7 +545,7 @@
     {
       "type": "timeseries",
       "title": "Pod CPU",
-      "description": "kubeletstats CPU per pod for the services under test. Read against the latency panels above: latency rising while CPU is flat means the constraint is not CPU (usually it is the connection pool or a lock).",
+      "description": "kubeletstats CPU per pod for the services under test. Read it with the latency panels above. If latency rises while CPU is flat, the constraint is not CPU. It is usually the connection pool or a lock.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 35 },
       "fieldConfig": {
@@ -565,8 +565,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Pod memory (working set)",
-      "description": "Memory that cannot be reclaimed under pressure — the number the OOM killer acts on. A line that climbs through a soak run and never comes back down is the leak signal.",
+      "title": "Pod memory, working set",
+      "description": "Memory that cannot be reclaimed under pressure. The OOM killer acts on this number. A line that climbs through a soak run and never comes back down is the leak signal.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 35 },
       "fieldConfig": {
@@ -586,7 +586,7 @@
     {
       "type": "timeseries",
       "title": "Memory headroom against limit",
-      "description": "Fraction of each container's memory limit actually in use (ADR-0204). Crossing 1.0 is an OOM kill, so this is the panel that turns a load run into a sizing decision. IMPORTANT: this is working_set / container limit, computed here rather than read from kubeletstats' k8s_pod_memory_limit_utilization_ratio. That metric divides memory.USAGE by the limit, and usage includes reclaimable page cache — measured 2-3x overstatement across every pod (otel-cluster reported 97.9% against a real 58.0%). The OOM killer acts on the working set, so the working set is what a limit must be sized against. Only containers that declare a memory limit appear; a blank row is itself an ADR-0204 finding.",
+      "description": "Fraction of each container's memory limit in use, per ADR-0204. Crossing 1.0 is an OOM kill, so this panel turns a load run into a sizing decision. IMPORTANT: this is working_set divided by the container limit. It is computed here, and not read from kubeletstats' k8s_pod_memory_limit_utilization_ratio. That metric divides memory.USAGE by the limit, and usage includes page cache that can be reclaimed. Measured, it overstated 2 to 3x across every pod: otel-cluster reported 97.9% against a real 58.0%. The OOM killer acts on the working set, so size a limit against the working set. Only containers that declare a memory limit appear. A blank row is itself an ADR-0204 finding.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 35 },
       "fieldConfig": {
@@ -624,7 +624,7 @@
     {
       "type": "timeseries",
       "title": "Node ceiling",
-      "description": "Whole-node CPU and memory. On the local tier the k6 generator ALSO runs on this host but outside the kind node container, so it is not counted here — which is precisely why local numbers are a regression signal and not a capacity figure (ADR-0601).",
+      "description": "Whole-node CPU and memory. On the local tier, the k6 generator ALSO runs on this host, but outside the kind node container. So it is not counted here. That is why local numbers are a regression signal and not a capacity figure, per ADR-0601.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
       "fieldConfig": {
@@ -661,7 +661,7 @@
     {
       "type": "timeseries",
       "title": "Data tier under load",
-      "description": "Postgres commit throughput and Temporal's schedule-to-start lag. Schedule-to-start climbing is the definitive Temporal saturation signal: tasks are queued and no worker has picked them up, which surfaces as slow checkouts long before any HTTP error.",
+      "description": "Postgres commit throughput and Temporal's schedule-to-start lag. A climbing schedule-to-start is the clearest Temporal saturation signal. Tasks are queued, and no worker has picked them up. It shows as slow checkouts long before any HTTP error.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
       "fieldConfig": {
@@ -690,7 +690,7 @@
         },
         {
           "refId": "B",
-          "legendFormat": "temporal schedule→start p95",
+          "legendFormat": "temporal schedule-to-start p95",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(task_schedule_to_start_latency_bucket{service_name=\"temporal\"}[$__rate_interval])))"
         }
       ]

@@ -1,7 +1,7 @@
 {{/*
-PodDisruptionBudgets (ADR-0204) for the multi-replica and stateful Core. A PDB constrains only voluntary
-disruption, so it is a drain-safety device rather than an availability guarantee.
-`minAvailable: 1` in front of a single replica permits zero disruptions, so each entry is explicitly enabled.
+PodDisruptionBudgets for the multi-replica and stateful Core, per ADR-0204. A PDB limits only voluntary
+disruption. So it keeps a drain safe, and it does not guarantee availability. With a single replica,
+`minAvailable: 1` allows zero disruptions, so each entry is turned on explicitly.
 */}}
 {{- range $name, $cfg := .Values.podDisruptionBudgets }}
 {{- if $cfg.enabled }}

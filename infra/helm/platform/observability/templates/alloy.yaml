@@ -1,4 +1,4 @@
-# Grafana Alloy (ADR-0501 POC) — the pprof-scraping agent that feeds Pyroscope.
+# Grafana Alloy, the ADR-0501 POC: the pprof-scraping agent that feeds Pyroscope.
 {{- $al := .Values.alloy }}
 apiVersion: v1
 kind: ServiceAccount
@@ -6,8 +6,8 @@ metadata:
   name: alloy
   labels: { app.kubernetes.io/name: alloy, app.kubernetes.io/part-of: observability }
 ---
-# Cluster-scoped: pod discovery watches across the API. Name is prefixed so it does
-# not collide with any other Alloy install in the cluster.
+# Cluster-scoped, because pod discovery watches across the API. The name has a prefix,
+# so it does not collide with any other Alloy install in the cluster.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -40,12 +40,12 @@ metadata:
 data:
   config.alloy: |
     {{- include "observability.alloy.config" . | nindent 4 }}
-{{/* Config in a define so the Deployment stamps checksum/config and rolls on config edits. Without it the
-     ConfigMap updates and the running process keeps the config it parsed at startup — live on disk and
-     inert in memory, which reads as a fix that did not work. */}}
+{{/* Config in a define, so the Deployment stamps checksum/config and rolls on config edits. Without it, the
+     ConfigMap updates, but the running process keeps the config that it parsed at startup. The new config is
+     on disk but not in use, and that looks like a fix that did not work. */}}
 {{- define "observability.alloy.config" }}
-// Discover every pod, then keep only platform-namespace pods that expose the
-// `admin` container port (9090) — i.e. the Go services' pprof endpoint.
+// Discover every pod. Then keep only the platform-namespace pods that expose the
+// `admin` container port 9090. That is the pprof endpoint of the Go services.
 discovery.kubernetes "pods" {
   role = "pod"
 }
@@ -58,18 +58,18 @@ discovery.relabel "pprof" {
     regex         = "platform"
     action        = "keep"
   }
-  // The pprof target is the port named `admin` AND numbered 9090 (service chart
-  // values.yaml `server.adminPort`). Both rules are required, because each name
-  // and each number is used by something that is not a pprof endpoint:
+  // The pprof target is the port named `admin` AND numbered 9090, from the service
+  // chart's `values.yaml` `server.adminPort`. Both rules are required, because
+  // other things that are not pprof endpoints use each name and each number:
   //
-  //   - SeaweedFS names its admin UI port `admin` at 23646. It serves no
-  //     /debug/pprof, and its policy admits the edge alone
-  //     (network-policies 15-object-storage.yaml).
-  //   - Prometheus (`http`) and the four Temporal roles (`metrics`) use 9090 for
-  //     something else, and their policies do not admit Alloy either.
+  //   - SeaweedFS names its admin UI port `admin`, at 23646. It serves no
+  //     /debug/pprof, and its policy admits only the edge. See
+  //     network-policies 15-object-storage.yaml.
+  //   - Prometheus, as `http`, and the four Temporal roles, as `metrics`, use 9090
+  //     for other purposes. Their policies do not admit Alloy either.
   //
-  // Keeping on one condition alone selects those, and every scrape of them is a
-  // permanent netpol drop that fills PolicyDropsDetected.
+  // One condition alone selects those. Every scrape of them is then a permanent
+  // netpol drop that fills PolicyDropsDetected.
   rule {
     source_labels = ["__meta_kubernetes_pod_container_port_name"]
     regex         = "admin"
@@ -80,8 +80,8 @@ discovery.relabel "pprof" {
     regex         = "9090"
     action        = "keep"
   }
-  // Label profiles so Grafana can filter by service and pod. service_name
-  // matches the RED/log/trace label the rest of the dashboards use.
+  // Label profiles so that Grafana can filter by service and pod. service_name
+  // matches the RED, log, and trace label that the other dashboards use.
   rule {
     source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
     target_label  = "service_name"
@@ -92,8 +92,8 @@ discovery.relabel "pprof" {
   }
 }
 
-// Scrape the standard Go pprof profiles (CPU, heap, goroutine on by default)
-// from /debug/pprof and forward them to Pyroscope.
+// Scrape the standard Go pprof profiles from /debug/pprof, and send them to
+// Pyroscope. CPU, heap, and goroutine are on by default.
 pyroscope.scrape "pprof" {
   targets    = discovery.relabel.pprof.output
   forward_to = [pyroscope.write.local.receiver]
@@ -118,14 +118,14 @@ spec:
   template:
     metadata:
       labels: { app.kubernetes.io/name: alloy }
-      # Roll the pod whenever the config changes — Alloy parses its config at
-      # startup and does not re-read the mounted file.
+      # Roll the pod when the config changes. Alloy parses its config at startup
+      # and does not read the mounted file again.
       annotations:
         checksum/config: {{ include "observability.alloy.config" . | sha256sum }}
     spec:
       serviceAccountName: alloy
-      # `restricted` (ADR-0200). The alloy image ships USER root, so runAsNonRoot alone would only turn admission into a
-      # kubelet refusal at start — the UID has to be named.
+      # `restricted`, per ADR-0200. The alloy image ships USER root. With runAsNonRoot alone, the kubelet would refuse to
+      # start the pod, after admission accepted it. So the UID must be named.
       securityContext:
         runAsNonRoot: true
         runAsUser: 473
@@ -140,9 +140,9 @@ spec:
             - run
             - --server.http.listen-addr=0.0.0.0:12345
             - --storage.path=/var/lib/alloy/data
-            # No phone-home (same stance as grafana.ini analytics): without this
-            # Alloy dials Grafana Labs' usage-stats endpoint on 443, which the
-            # default-deny egress correctly drops — pure PolicyDropsDetected noise.
+            # No phone-home, as in grafana.ini analytics. Without this, Alloy dials the
+            # usage-stats endpoint of Grafana Labs on 443. The default-deny egress drops it
+            # correctly, and that only adds noise to PolicyDropsDetected.
             - --disable-reporting
             - /etc/alloy/config.alloy
           ports:

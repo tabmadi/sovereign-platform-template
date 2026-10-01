@@ -1,10 +1,10 @@
-# Local full-tier values for the payment service (ADR-0205). See orders.yaml for the secret-naming note
-# (payment-db = local SopsSecret resource).
+# Local full-tier values for the payment service, per ADR-0205. See `orders.yaml` for the note on secret names.
+# `payment-db` is the local SopsSecret resource.
 name: payment
 image:
   repository: registry.localhost:5000/payment-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
-  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
+  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
+  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
 worker:
   enabled: true
   image:
@@ -12,16 +12,16 @@ worker:
     tag: local
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [charges] }
-# Keep every trace the service starts (ADR-0500: local overrides healthy traces to 100%).
+# Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
 otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
-# The Lowdefy admin console (apps/admin) calls payment server-side, east-west on
-# the server port, bypassing the /api edge (ADR-0401). `orders` covers the checkout
-# saga: the orders worker's ChargeActivity dials payment east-west (ADR-0302).
+# The Lowdefy admin console in `apps/admin` calls payment from its server, east-west on
+# the server port, not through the `/api` edge, per ADR-0401. `orders` covers the checkout
+# saga: the orders worker's ChargeActivity dials payment east-west, per ADR-0302.
 networkPolicy: { allowFrom: [lowdefy, orders] }
 secrets: { envFrom: [payment-db, openfga-creds] }
 env:
-  # Write authz (ADR-0304): the server gates the operator-only refund via the shared
-  # Checker. Blank preshared key falls back to openfga-creds.preshared_key (envFrom),
-  # as catalog and the authz service do.
+  # Write authz, per ADR-0304: the server gates the operator-only refund through the shared
+  # Checker. A blank preshared key falls back to `openfga-creds.preshared_key` from `envFrom`,
+  # as in catalog and the authz service.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   OPENFGA_PRESHARED_KEY: ""

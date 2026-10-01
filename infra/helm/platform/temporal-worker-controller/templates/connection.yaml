@@ -1,4 +1,4 @@
-## The one Temporal endpoint every service's WorkerDeployment points at.
+## The one Temporal endpoint that every service's WorkerDeployment points at.
 apiVersion: temporal.io/v1alpha1
 kind: Connection
 metadata:

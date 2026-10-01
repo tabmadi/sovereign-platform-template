@@ -1,5 +1,5 @@
 temporal:
-  # `restricted` (ADR-0200).
+  # `restricted`, per ADR-0200.
   shims:
     dockerize: false
     elasticsearchTool: false
@@ -11,50 +11,50 @@ temporal:
     additionalEnv:
       - name: TEMPORAL_VERSION_CHECK_DISABLED
         value: "true"
-    # ADR-0204, sized from measurement (2026-07-26, ADR-0601 checkout load @40 VUs). Baseline for every role; the
-    # per-role blocks below override where measurement says the roles differ, which they do by an order of magnitude.
+    # Per ADR-0204, sized from a measurement on 2026-07-26 with the ADR-0601 checkout load at 40 VUs. This is the
+    # baseline for every role. The per-role blocks below override it where the roles differ, by an order of magnitude.
     resources:
       requests: { cpu: "100m", memory: "192Mi" }
       limits:   { memory: "512Mi" }
     frontend:
-      # The container half of `restricted`, identical for all four server roles and for web/admintools/schema below — so
-      # it is written once as a YAML anchor and aliased.
+      # The container half of `restricted`. It is the same for all four server roles and for web, admintools, and schema
+      # below. So it is written once as a YAML anchor and then aliased.
       containerSecurityContext: &restrictedContainer
         allowPrivilegeEscalation: false
         capabilities:
           drop: ["ALL"]
-      # Every workflow start and query enters here, so the CPU is bursty and
-      # deliberately unlimited (ADR-0204).
+      # Every workflow start and query enters here. So the CPU use is bursty, and it
+      # has no limit, on purpose, per ADR-0204.
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
     history:
       containerSecurityContext: *restrictedContainer
-      # The heaviest CPU consumer in the cluster under load, against near-idle at rest.
+      # The heaviest CPU consumer in the cluster under load, and nearly idle at rest.
       resources:
         requests: { cpu: "500m", memory: "768Mi" }
         limits:   { memory: "1536Mi" }
     matching:
       containerSecurityContext: *restrictedContainer
-      # Task-queue dispatch — bursty like frontend.
+      # Task-queue dispatch. It is bursty, like frontend.
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
     worker:
       containerSecurityContext: *restrictedContainer
-      # Temporal's own internal worker (archival, scanners), not our services'.
+      # Temporal's own internal worker, for archival and scanners. It is not a worker of our services.
       resources:
         requests: { cpu: "50m", memory: "192Mi" }
         limits:   { memory: "512Mi" }
-    # Never overlap an old and a new pod of the same role.
+    # Never overlap an old pod and a new pod of the same role.
     deploymentStrategy:
       type: RollingUpdate
       rollingUpdate:
         maxSurge: 0
         maxUnavailable: 1
     config:
-      # Chart 1.x persistence schema (UPGRADING.md): stores live under persistence.datastores.<name> and are selected by
-      # defaultStore / visibilityStore.
+      # The persistence schema of chart 1.x, per `UPGRADING.md`. Stores live under `persistence.datastores.<name>`, and
+      # `defaultStore` and `visibilityStore` select them.
       persistence:
         defaultStore: default
         visibilityStore: visibility
@@ -69,9 +69,9 @@ temporal:
               connectProtocol: tcp
               user: dev
               existingSecret: temporal-db-creds
-              # CNPG (infra/helm/platform/postgres) already provisions the
-              # temporal / temporal_visibility databases via
-              # postInitApplicationSQL, so only the schema job runs here.
+              # CNPG in `infra/helm/platform/postgres` already provisions the
+              # `temporal` and `temporal_visibility` databases through
+              # postInitApplicationSQL. So only the schema job runs here.
               createDatabase: false
               manageSchema: true
           visibility:
@@ -85,21 +85,21 @@ temporal:
               existingSecret: temporal-db-creds
               createDatabase: false
               manageSchema: true
-      # Register the `default` namespace via the chart's setup job. The split production topology doesn't auto-create it
-      # the way `start-dev` does, so workers targeting TEMPORAL_NAMESPACE=default fail without this.
+      # Register the `default` namespace with the chart's setup job. The split production topology does not create it
+      # the way `start-dev` does. So workers that target TEMPORAL_NAMESPACE=default fail without this.
       namespaces:
         create: true
         namespace:
           - name: default
             retention: 3d
-  # Cassandra/Prometheus/Grafana/Elasticsearch sub-charts were removed in chart v1.0.0-rc.2 (no longer top-level
-  # keys).
+  # Chart v1.0.0-rc.2 removed the Cassandra, Prometheus, Grafana, and Elasticsearch sub-charts. They are no longer
+  # top-level keys.
   web:
     image:
       repository: temporalio/ui
       tag: "2.51.1"
-    # The UI image runs as `temporal` (1000) and, unlike `server`, the chart sets
-    # nothing at all for it — so the pod block is written out in full here.
+    # The UI image runs as `temporal`, 1000. Unlike for `server`, the chart sets
+    # nothing for it. So the pod block is written out in full here.
     securityContext:
       runAsNonRoot: true
       runAsUser: 1000
@@ -107,8 +107,8 @@ temporal:
       seccompProfile: { type: RuntimeDefault }
     containerSecurityContext: *restrictedContainer
 
-  # admin-tools is the CLI image, run as a long-lived Deployment for break-glass
-  # `temporal` commands (ADR-0401) and reused as the image for both Jobs below.
+  # admin-tools is the CLI image. It runs as a long-lived Deployment for break-glass
+  # `temporal` commands, per ADR-0401. Both Jobs below also use its image.
   admintools:
     securityContext:
       runAsNonRoot: true
@@ -117,7 +117,7 @@ temporal:
       seccompProfile: { type: RuntimeDefault }
     containerSecurityContext: *restrictedContainer
 
-  # `schema` names the two Jobs — the schema setup/update job and the create-default-namespace job — not a
+  # `schema` names the two Jobs, the schema setup and update job and the create-default-namespace job. It is not a
   # component.
   schema:
     securityContext:

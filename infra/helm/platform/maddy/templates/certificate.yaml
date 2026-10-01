@@ -1,6 +1,6 @@
 {{- if .Values.maddy.enabled }}
-{{- /* Senders' Go SMTP clients refuse to send a password without TLS (ADR-0307). Self-signed, as senders are in-cluster
-and skip verification; ten years, because maddy reads the file only at startup and would serve a renewal's expiry. */}}
+{{- /* The senders' Go SMTP clients refuse to send a password without TLS, per ADR-0307. Self-signed, because senders are
+in the cluster and skip verification. Ten years, because maddy reads the file only at startup and would miss a renewal. */}}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:

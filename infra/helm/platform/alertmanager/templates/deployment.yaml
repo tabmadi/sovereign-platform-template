@@ -6,7 +6,7 @@ metadata:
   namespace: platform
   labels: { app.kubernetes.io/name: alertmanager }
   annotations:
-    # The config is a ConfigMap mount, and a mounted ConfigMap changing does not restart the pod — Alertmanager would
+    # The config is a ConfigMap mount. A change to a mounted ConfigMap does not restart the pod. Alertmanager would
     # serve the old routing tree until something else evicted it.
     checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
 spec:
@@ -16,9 +16,9 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: alertmanager }
     spec:
-      # `restricted` (ADR-0200). The upstream image runs as nobody (65534) but
-      # declares it only in the manifest, so the UID is spelled out: the kubelet
-      # refuses to start a runAsNonRoot container it cannot certify.
+      # `restricted`, per ADR-0200. The upstream image runs as nobody, 65534, but
+      # declares it only in the manifest. So the UID is written here. The kubelet
+      # refuses to start a runAsNonRoot container that it cannot verify.
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
@@ -52,8 +52,8 @@ spec:
       volumes:
         - name: config
           configMap: { name: alertmanager-config }
-        # Notification state is a de-duplication cache (see values.yaml): losing
-        # it re-notifies rather than drops an alert, so it needs no PVC.
+        # Notification state is a de-duplication cache: see `values.yaml`. If it is lost,
+        # Alertmanager notifies again and drops no alert. So it needs no PVC.
         - name: data
           emptyDir: {}
 ---

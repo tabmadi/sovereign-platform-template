@@ -1,6 +1,6 @@
-# Local Services ApplicationSet (ADR-0201, ADR-0205). Identical to bootstrap/appset-services.yaml except the list
-# generator carries a single { env: local } element and the git-files generator reads the local service values
-# (infra/gitops/services/local/values/*.yaml).
+# Local Services ApplicationSet, per ADR-0201 and ADR-0205. It is the same as `bootstrap/appset-services.yaml`,
+# with two differences. The list generator has a single `{ env: local }` element. The git-files generator reads
+# the local service values in `infra/gitops/services/local/values/*.yaml`.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -30,9 +30,9 @@ spec:
                 - { path: "infra/gitops/services/{{ .env }}/values/*.yaml" }
   template:
     metadata:
-      # The file extension is trimmed off deliberately: the app name is the handle every local script forms from the
-      # service name (`local-service-orders`), and `filenameNormalized` alone leaves `orders.yaml` there — a name no
-      # caller guesses, so the pause-auto-sync step in service-deploy.sh silently missed and Argo reverted every
+      # The file extension is trimmed on purpose. Every local script forms the app name from the service name, such as
+      # `local-service-orders`. `filenameNormalized` alone leaves `orders.yaml` there, and no caller guesses that name.
+      # The pause-auto-sync step in `service-deploy.sh` then missed it without an error, and Argo CD reverted the deploy.
       name: "{{ .env }}-service-{{ trimSuffix \".yaml\" .path.filename }}"
       labels:
         env: "{{ .env }}"

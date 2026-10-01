@@ -1,27 +1,27 @@
-# Admission-control alerts (ADR-0104, ADR-0500). Native Prometheus rule-file format — mounted into Prometheus via
-# the `prometheus-alerts` ConfigMap (see service-availability.yaml for the delivery path).
+# Admission-control alerts, per ADR-0104 and ADR-0500. Native Prometheus rule-file format, mounted into Prometheus
+# through the `prometheus-alerts` ConfigMap. See `service-availability.yaml` for the delivery path.
 groups:
   - name: admission.availability
     rules:
-      # `absent()` rather than a threshold on a counter: a controller that is gone exports nothing, so every rate() over
-      # its series is empty and every comparison silently evaluates to no data.
+      # `absent()`, and not a threshold on a counter. A controller that is gone exports nothing. So every rate() over its
+      # series is empty, and every comparison gives no data with no warning.
       - alert: KyvernoAdmissionControllerAbsent
         expr: |
           absent(kyverno_controller_reconcile_total{service_name="kyverno"})
         for: 10m
         labels: { severity: page }
         annotations:
-          summary: "Kyverno is not reporting — image admission control is not running"
+          summary: "Kyverno is not reporting: image admission control is not running"
           description: >-
             No metrics from Kyverno for 10 minutes. Every image-provenance check
-            (ADR-0104) runs in its webhooks, so the cluster is either rejecting all
-            pod creations (the fail-closed policy) or admitting images with no
-            signature check at all. Check `kubectl -n kyverno get pods` and the
-            ValidatingWebhookConfigurations; a webhook whose service is gone is the
-            failure this alert exists for.
+            of ADR-0104 runs in its webhooks. So the cluster either rejects all
+            pod creations, by the fail-closed policy, or admits images with no
+            signature check. Check `kubectl -n kyverno get pods` and the
+            ValidatingWebhookConfigurations. This alert exists for a webhook
+            whose service is gone.
 
-      # The webhook has a 30s timeout and the API server gives up on it; a request that reaches the timeout is admitted
-      # or rejected by the failurePolicy rather than by the policy.
+      # The webhook has a 30s timeout, and then the API server gives up on it. For a request that reaches the timeout,
+      # the failurePolicy decides admission, and not the policy.
       - alert: KyvernoAdmissionSlow
         expr: |
           histogram_quantile(
@@ -33,16 +33,15 @@ groups:
         annotations:
           summary: "Kyverno admission reviews are approaching the webhook timeout"
           description: >-
-            p99 admission review latency is over 10s against a 30s webhook timeout.
-            Signature verification reaches the registry, so this is usually the
-            registry being slow or unreachable rather than Kyverno itself — and a
-            review that times out is decided by the failurePolicy, not by the
-            policy.
+            p99 admission review latency is over 10s, and the webhook timeout is 30s.
+            Signature verification calls the registry. So the cause is usually a
+            slow or unreachable registry, and not Kyverno itself. For a review that
+            times out, the failurePolicy decides, and not the policy.
 
   - name: admission.enforcement
     rules:
-      # A rejection is not an incident: it is the control working, and one arrives every time someone deploys something
-      # unsigned.
+      # A rejection is not an incident. It shows that the control works, and one arrives each time someone deploys
+      # something unsigned.
       - alert: KyvernoRejectionsSustained
         expr: |
           sum(rate(kyverno_policy_results_total{rule_result="fail"}[15m])) > 0.05
@@ -51,7 +50,8 @@ groups:
         annotations:
           summary: "Admission is rejecting workloads continuously"
           description: >-
-            Kyverno has been failing policy checks for 30 minutes. Either a
-            deployment is retrying against a policy it cannot satisfy — an unsigned
-            image, a floating tag, an unlisted registry — or a policy has become
-            wrong. `kubectl get clusterpolicyreport -A` names the resources.
+            Kyverno has failed policy checks for 30 minutes. A deployment retries
+            against a policy that it cannot satisfy, or a policy is now wrong.
+            Examples of the first case are an unsigned image, a floating tag, and
+            an unlisted registry. `kubectl get clusterpolicyreport -A` names the
+            resources.

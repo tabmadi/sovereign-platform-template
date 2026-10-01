@@ -1,6 +1,6 @@
 {{- if .Values.edgeErrors.enabled }}
-## The edge's error responder (ADR-0305, ADR-0305's problem+json contract). Traefik is the only client, and it
-## reaches this through a SUBREQUEST rather than by proxying — the original request never arrives here.
+## The edge's error responder, per ADR-0305 and its problem+json contract. Traefik is the only client. It reaches
+## this through a SUBREQUEST, and not by proxying. The original request never arrives here.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -13,6 +13,6 @@ spec:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:
-        # Enforced on the pod's real containerPort, which the Service fronts on 80.
+        # Enforced on the pod's real containerPort. The Service fronts it on 80.
         - ports: [{ port: "8080", protocol: TCP }]
 {{- end }}

@@ -1,20 +1,20 @@
-# Local full-tier values for the analytics service (ADR-0700, ADR-0205).
+# Local full-tier values for the analytics service, per ADR-0700 and ADR-0205.
 name: analytics
 image:
   repository: registry.localhost:5000/analytics-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
-  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
+  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
+  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
 worker: { enabled: false }
 server:  { replicas: 1 }
-# No /api edge route. Nothing in a browser calls this service: the browser emits
-# through Faro, and the collector's routing connector delivers here east-west
-# (ADR-0700). An edge route would be a public surface for an internal write path.
+# No `/api` edge route. Nothing in a browser calls this service. The browser emits
+# through Faro, and the collector's routing connector delivers here east-west, per
+# ADR-0700. An edge route would be a public surface for an internal write path.
 ingress: { enabled: false }
-# Keep every trace the service starts (ADR-0500: local overrides healthy traces to 100%).
+# Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
 otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 secrets: { envFrom: [analytics-db] }
 networkPolicy:
   allowFromGateway: false
-  # The node-level OTel collector is the only caller — it is what splits
+  # The node-level OTel collector is the only caller. It splits
   # `marketing.*` out of the logs pipeline and delivers the batch here.
   allowFrom: [otel-agent, frontend]

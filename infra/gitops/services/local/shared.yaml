@@ -1,6 +1,6 @@
-# Settings shared by every service on the local full tier (ADR-0205). Layered before each service's own values file.
-# A CPU request reserves scheduling room, and the tier is one node whose size is the machine's, down to a 4-core CI
-# runner: services ask for a quarter of the measured request, and a busy one borrows the idle CPU, as none is limited.
+# Settings shared by every service on the local full tier, per ADR-0205. This file comes before each service's own
+# values file. A CPU request reserves scheduling room. The tier is one node, as small as a 4-core CI runner. So services
+# ask for a quarter of the measured request. No service has a limit, so a busy one uses the idle CPU.
 server:
   resources:
     requests: { cpu: "25m", memory: "128Mi" }

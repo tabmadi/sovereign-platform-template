@@ -1,5 +1,5 @@
-# Local root App-of-Apps (ADR-0201, ADR-0205). Applied imperatively ONCE by `mise run cluster:up -- full`
-# (scripts/cluster.sh's replacement).
+# Local root App-of-Apps, per ADR-0201 and ADR-0205. `mise run cluster:up -- full` applies it ONCE by hand.
+# That task replaces `scripts/cluster.sh`.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -10,8 +10,8 @@ metadata:
     app.kubernetes.io/part-of: bootstrap
   finalizers: [resources-finalizer.argocd.argoproj.io]
 spec:
-  # The hand-applied bootstrap seed stays in `default`: it is what creates the
-  # per-env AppProject (appproject.yaml), so it cannot live in one of them.
+  # The hand-applied bootstrap seed stays in `default`. It creates the per-environment
+  # AppProject in `appproject.yaml`, so it cannot live in one of them.
   project: default
   source:
     repoURL: https://github.com/tabmadi/sovereign-platform-template.git

@@ -22,7 +22,7 @@
       "title": "What this is",
       "options": {
         "mode": "markdown",
-        "content": "Two questions, and they are answered by different signals on purpose (ADR-0503).\n\n**How much** is `errors_total{service, kind}` \u2014 a bounded metric, five `kind` values, and the only thing here that alerts. **Which fault** is `error.fingerprint`, which is log structured metadata and a span attribute and is *never* a metric or stream label \u2014 so it is queried out of the log store below rather than aggregated in Prometheus (ADR-0500's cardinality discipline).\n\nThere is no persistent fingerprint store on this floor, so \"is this fault new?\" is a comparison of two windows rather than a lookup. That catches a new fault within the window and misses one that appeared and stopped inside it \u2014 a narrower guarantee than a tracker's, not an equivalent one."
+        "content": "Two questions. Different signals answer them, on purpose, per ADR-0503.\n\n**How much** is `errors_total{service, kind}`. It is a bounded metric with five `kind` values, and it is the only thing here that alerts. **Which fault** is `error.fingerprint`. It is structured log metadata and a span attribute, and it is *never* a metric or stream label. So it is queried from the log store below, and not aggregated in Prometheus. This follows the cardinality rules of ADR-0500.\n\nThere is no persistent fingerprint store on this floor. So the check for a new fault compares two windows, and is not a lookup. It catches a new fault within the window. It misses a fault that appeared and stopped inside the window. That guarantee is narrower than a tracker's, and not the same."
       },
       "gridPos": {
         "h": 5,
@@ -46,7 +46,7 @@
       "type": "timeseries",
       "datasource": "Prometheus",
       "title": "Error rate by kind",
-      "description": "The bounded metric. A shift between kinds is often the story: dependency rising while internal is flat is something else failing, not this service.",
+      "description": "The bounded metric. A shift between kinds often explains the fault. If dependency rises while internal is flat, something else fails, and not this service.",
       "targets": [
         {
           "refId": "A",
@@ -65,7 +65,7 @@
       "type": "timeseries",
       "datasource": "Prometheus",
       "title": "Error rate by service",
-      "description": "Unfiltered by the variable above, deliberately: this is the panel that says whether one service is failing or the platform is.",
+      "description": "The variable above does not filter this panel, on purpose. This panel shows whether one service fails or the whole platform does.",
       "targets": [
         {
           "refId": "A",
@@ -95,7 +95,7 @@
       "type": "table",
       "datasource": "Loki",
       "title": "Faults in the last hour, by fingerprint",
-      "description": "Grouped by the computed fingerprint, so one row is one fault however many times it happened. The count is the occurrences; open a row to reach the trace.",
+      "description": "Grouped by the computed fingerprint, so one row is one fault, however many times it happened. The count is the number of occurrences. Open a row to reach the trace.",
       "targets": [
         {
           "refId": "A",
@@ -114,7 +114,7 @@
       "type": "table",
       "datasource": "Loki",
       "title": "Fingerprints seen this hour and not the hour before",
-      "description": "The new-fault check, as a query rather than as state (ADR-0503). A row here is a fault whose first occurrence is inside this window. It is a set difference over two windows, so a fault that appeared and stopped within the previous hour does not show up \u2014 that is the accepted gap, not a bug.",
+      "description": "The new-fault check, as a query and not as state, per ADR-0503. A row here is a fault whose first occurrence is inside this window. It is a set difference over two windows. So a fault that appeared and stopped within the previous hour does not show. That is the accepted gap, not a bug.",
       "targets": [
         {
           "refId": "A",
@@ -133,7 +133,7 @@
       "type": "logs",
       "datasource": "Loki",
       "title": "Recent error logs",
-      "description": "The raw stream behind the tables. `fingerprint` is structured metadata here, never a stream label \u2014 filtering by it is a line filter, which is why these queries parse rather than select.",
+      "description": "The raw stream behind the tables. `fingerprint` is structured metadata here, never a stream label. A filter on it is a line filter, so these queries parse and do not select.",
       "options": {
         "showTime": true,
         "wrapLogMessage": true

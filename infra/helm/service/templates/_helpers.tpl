@@ -17,16 +17,16 @@ app.kubernetes.io/name: {{ include "service.name" . }}
 {{- end -}}
 
 {{/*
-Image reference (ADR-0101, ADR-0103). Pin by digest when set (prod — the strongest
-immutable identity, `repo@sha256:…`), else by SHA tag (dev/staging). Moving tags
-are rejected by lint-floating-tags.
+Image reference, per ADR-0101 and ADR-0103. Pin by digest when it is set. Prod
+does this, because a digest `repo@sha256:<hex>` is the strongest immutable identity.
+Otherwise pin by SHA tag, in dev and staging. lint-floating-tags rejects moving tags.
 */}}
 {{- define "service.image" -}}
 {{- $r := required ".Values.image.repository is required" .Values.image.repository -}}
 {{- if .Values.image.digest -}}
 {{ $r }}@{{ .Values.image.digest }}
 {{- else -}}
-{{ $r }}:{{ required ".Values.image.tag or .Values.image.digest is required (concrete git SHA / digest — ADR-0101, ADR-0103)" .Values.image.tag }}
+{{ $r }}:{{ required ".Values.image.tag or .Values.image.digest is required: a concrete git SHA or digest, per ADR-0101 and ADR-0103" .Values.image.tag }}
 {{- end -}}
 {{- end -}}
 
@@ -40,10 +40,10 @@ are rejected by lint-floating-tags.
 {{- end -}}
 
 {{/*
-Traefik match rule (ADR-0306). Flat-API mode when ingress.resources is set: the
-edge matches /api/<resource> for each resource the service owns, hiding the
-service topology behind a flat namespace. Otherwise ingress.pathPrefix is a
-literal prefix (the frontend catch-all "/").
+Traefik match rule, per ADR-0306. Flat-API mode applies when ingress.resources is
+set. The edge matches /api/<resource> for each resource the service owns. This
+hides the service topology behind a flat namespace. Otherwise ingress.pathPrefix
+is a literal prefix, such as the frontend catch-all `/`.
 */}}
 {{- define "service.ingressMatch" -}}
 {{- $host := required ".Values.ingress.host is required when ingress.enabled" .Values.ingress.host -}}

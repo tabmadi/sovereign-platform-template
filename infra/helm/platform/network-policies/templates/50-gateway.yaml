@@ -1,6 +1,6 @@
-## Edge gateway (Traefik, in kube-system) → the remaining ops UIs it fronts.
-## Grafana, the SeaweedFS admin UI, Kratos and Oathkeeper get their gateway ingress in
-## their own templates; the demo app services get theirs from the service chart.
+## The edge gateway, Traefik in kube-system, to the other ops UIs that it fronts.
+## Grafana, the SeaweedFS admin UI, Kratos, and Oathkeeper get their gateway ingress in
+## their own templates. The demo app services get theirs from the service chart.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -28,12 +28,12 @@ spec:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:
-        # Cilium enforces L4 on the pod's real port (containerPort 3000), not the
-        # Service port 80 that fronts it — the edge connects to targetPort http=3000.
+        # Cilium enforces L4 on the pod's real port, containerPort 3000, and not on the
+        # Service port 80 in front of it. The edge connects to targetPort http=3000.
         - ports: [{ port: "3000", protocol: TCP }]
 ---
-## Headlamp — k8s debug UI (ADR-0501), reached only through the edge (4466).
-## A no-op selector when the chart is disabled (no headlamp pods exist).
+## Headlamp, the k8s debug UI, per ADR-0501. Reached only through the edge, on 4466.
+## A no-op selector when the chart is off, because no headlamp pods exist.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -49,8 +49,8 @@ spec:
         # Enforced on the pod's real containerPort 4466, not the Service port 80.
         - ports: [{ port: "4466", protocol: TCP }]
 ---
-## pgweb — DB inspector (ADR-0401), reached only through the edge (8081).
-## A no-op selector when the chart is disabled (no pgweb pods exist).
+## pgweb, the DB inspector, per ADR-0401. Reached only through the edge, on 8081.
+## A no-op selector when the chart is off, because no pgweb pods exist.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

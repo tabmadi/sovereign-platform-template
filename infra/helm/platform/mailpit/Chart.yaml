@@ -1,13 +1,13 @@
 apiVersion: v2
 name: mailpit
 description: |
-  Mailpit, the non-production mail sink (ADR-0307). Kratos's courier submits
-  verification and recovery mail here instead of to a recipient, which is what the
-  never-deliver-to-a-real-recipient Rule requires of every non-production
-  environment. Single stateless Go binary, messages held in memory.
+  Mailpit, the non-production mail sink, per ADR-0307. Kratos's courier submits
+  verification and recovery mail here, and not to a recipient. The Rule that mail
+  never goes to a real recipient requires this in every non-production
+  environment. It is a single stateless Go binary that holds messages in memory.
 
-  Not deployed in production: production submits through maddy. Set
-  mailpit.enabled=false in an env overlay to drop it, as prod does.
+  It is not deployed in production, because production submits through maddy. Set
+  mailpit.enabled=false in an environment overlay to drop it, as prod does.
 type: application
 version: "2026.9.3"
 appVersion: "1.30.7"

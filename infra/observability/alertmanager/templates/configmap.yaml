@@ -1,7 +1,7 @@
 {{/*
-The committed silences, as JSON. Converted at render time because the sync job runs in the Alertmanager
-image, which carries amtool and no YAML parser.
-`fromYamlArray` on an empty file yields an empty list, which means "no silences" rather than an error.
+The committed silences, as JSON. They are converted at render time, because the sync job runs in the
+Alertmanager image, which has amtool and no YAML parser.
+`fromYamlArray` on an empty file gives an empty list. That means no silences, and not an error.
 */}}
 apiVersion: v1
 kind: ConfigMap

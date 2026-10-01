@@ -1,16 +1,16 @@
-# Prometheus (ADR-0500): the Core-tier metrics store — a single prom/prometheus process with a local TSDB and
-# native OTLP ingest, no object-storage dependency. One Deployment, mirroring Loki (SingleBinary) and Tempo.
+# Prometheus, per ADR-0500: the Core-tier metrics store. It is a single prom/prometheus process with a local TSDB,
+# native OTLP ingest, and no object-storage dependency. One Deployment, like Loki in SingleBinary mode and Tempo.
 {{- $p := .Values.prometheus }}
-{{/* The config lives in a define so the Deployment can stamp its sha256 as a pod-template annotation.
-     Without that checksum a config edit updates the ConfigMap but never rolls the pod, and Prometheus keeps
-     running the old config indefinitely. */}}
+{{/* The config lives in a define, so the Deployment can stamp its sha256 as a pod-template annotation.
+     Without that checksum, a config edit updates the ConfigMap but never rolls the pod. Prometheus then keeps
+     the old config with no end. */}}
 {{- define "observability.prometheus.config" }}
     global:
       scrape_interval: 30s
-    # OTLP metrics arrive from the OTel collector (--web.enable-otlp-receiver).
+    # OTLP metrics arrive from the OTel collector, through `--web.enable-otlp-receiver`.
     otlp:
       translation_strategy: UnderscoreEscapingWithSuffixes
-      # Resource attributes are otherwise dropped from series.
+      # Without this, resource attributes are dropped from series.
       promote_resource_attributes:
         [
           "service.name",
@@ -22,19 +22,19 @@
           "k8s.volume.name",
           "k8s.volume.type",
         ]
-    # OTLP pushes can land slightly out of order across collector batches.
+    # OTLP pushes can arrive a little out of order across collector batches.
     storage:
       tsdb:
         out_of_order_time_window: 30m
-    # Services push via OTLP; nothing is scraped by default.
+    # Services push through OTLP. By default, nothing is scraped.
     scrape_configs: []
-    # Alerts-as-code (ADR-0500): rule files from infra/observability/alerts/, delivered as the `prometheus-alerts`
-    # ConfigMap by the prometheus-alerts ArgoCD Application (same pattern as the Grafana dashboards ConfigMap) and
+    # Alerts-as-code, per ADR-0500: rule files from `infra/observability/alerts/`. The prometheus-alerts Argo CD
+    # Application delivers them as the `prometheus-alerts` ConfigMap, like the Grafana dashboards ConfigMap. They are
     # mounted below.
     rule_files:
       - /etc/prometheus/rules/*.yaml
-    # Alertmanager routes every alert (ADR-0502). Evaluation stays here and routing happens there — one primitive per
-    # concern.
+    # Alertmanager routes every alert, per ADR-0502. Evaluation stays here, and routing happens there: one primitive for
+    # each concern.
     alerting:
       alertmanagers:
         - static_configs:
@@ -57,8 +57,8 @@ metadata:
   labels: { app.kubernetes.io/name: prometheus, app.kubernetes.io/part-of: observability }
 spec:
   # A StatefulSet, because the TSDB below is a ReadWriteOnce volume. A Deployment
-  # carrying one deadlocks its own rolling update: the replacement pod waits for a
-  # volume the outgoing pod still holds, and the rollout never completes.
+  # with one deadlocks its own rolling update. The new pod waits for a volume that
+  # the old pod still holds, and the rollout never completes.
   serviceName: prometheus
   replicas: {{ $p.replicas }}
   selector:
@@ -66,12 +66,12 @@ spec:
   template:
     metadata:
       labels: { app.kubernetes.io/name: prometheus }
-      # Roll the pod whenever the config changes — Prometheus only reads its config at startup (no reloader sidecar in
-      # the Core stack).
+      # Roll the pod when the config changes. Prometheus reads its config only at startup. The Core stack has no reloader
+      # sidecar.
       annotations:
         checksum/config: {{ include "observability.prometheus.config" . | sha256sum }}
     spec:
-      # `restricted` (ADR-0200).
+      # `restricted`, per ADR-0200.
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
@@ -100,8 +100,8 @@ spec:
       volumes:
         - name: config
           configMap: { name: prometheus }
-        # Alert rules from infra/observability/alerts/ (prometheus-alerts Argo app). Mounted read-only under the config
-        # dir; rule_files (above) globs it.
+        # Alert rules from `infra/observability/alerts/`, from the prometheus-alerts Argo CD app. They are mounted read-only
+        # under the config dir, and `rule_files` above globs it.
         - name: rules
           configMap: { name: prometheus-alerts }
   # The TSDB.

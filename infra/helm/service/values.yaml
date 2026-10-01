@@ -1,57 +1,57 @@
-# Default values for a backend service. Every per-env values file overrides on top.
+# Default values for a backend service. Every per-environment values file overrides them.
 
-# Required: the service slug (used for resource names and label values).
+# Required: the service slug. Resource names and label values use it.
 name: ""
 
-# Server image (cmd/server). Pin by a concrete git SHA tag (dev/staging) or, in
-# prod, by digest (ADR-0101, ADR-0103). Moving tags are lint-forbidden.
+# Server image from `cmd/server`. Pin it by a concrete git SHA tag in dev and staging, and by digest in
+# prod, per ADR-0101 and ADR-0103. The linter rejects moving tags.
 image:
-  repository: ""        # e.g. ghcr.io/tabmadi/sovereign-platform-template/catalog-server
-  tag: ""               # e.g. 4f9dbcb12 (git SHA); dev/staging
-  digest: ""            # e.g. sha256:… ; prod pins by digest (set by promote-on-release)
+  repository: ""        # for example ghcr.io/tabmadi/sovereign-platform-template/catalog-server
+  tag: ""               # for example 4f9dbcb12, a git SHA. Dev and staging
+  digest: ""            # for example sha256:<hex>. Prod pins by digest, set by promote-on-release
   pullPolicy: IfNotPresent
 
-# Worker image (cmd/worker). Disabled by default; enable for services that own workflows.
+# Worker image from `cmd/worker`. Off by default. Turn it on for services that own workflows.
 worker:
   enabled: false
   image:
-    repository: ""      # e.g. .../catalog-worker
-    tag: ""             # SAME sha as the server image (dev/staging)
-    digest: ""          # SAME digest as the server image (prod)
+    repository: ""      # for example <registry>/catalog-worker
+    tag: ""             # the SAME sha as the server image, in dev and staging
+    digest: ""          # the SAME digest as the server image, in prod
   replicas: 1
-  # ADR-0204, sized from measurement (2026-07-26, ADR-0601 load suite). There is no cpu limit: CPU contention
-  # is handled by the request below plus the `product` PriorityClass.
+  # Per ADR-0204, sized from a measurement on 2026-07-26 with the ADR-0601 load suite. There is no cpu limit. The
+  # request below and the `product` PriorityClass handle CPU contention.
   resources:
     requests: { cpu: "100m", memory: "128Mi" }
     limits:   { memory: "384Mi" }
 
-  # Graceful drain on rollout (ADR-0302). On SIGTERM the worker stops polling and waits up to stopTimeoutSeconds for
-  # its in-flight Activities to finish; the SDK default is 0s, i.e.
+  # Graceful drain on rollout, per ADR-0302. On SIGTERM, the worker stops polling. It waits up to `stopTimeoutSeconds`
+  # for its in-flight Activities to finish. The SDK default is 0s.
   stopTimeoutSeconds: 25
   terminationGraceBufferSeconds: 10
 
-  # Worker Deployment Versioning (ADR-0302). Pins each Workflow Execution to the Deployment Version that started it,
-  # so a deploy cannot break work already in flight and workflow.GetVersion patching is not needed.
+  # Worker Deployment Versioning, per ADR-0302. It pins each Workflow Execution to the Deployment Version that started
+  # it. So a deploy cannot break work in flight, and `workflow.GetVersion` patching is not needed.
   versioning:
     enabled: true
-    # Promote a new version as soon as its pods are ready. See the template for
-    # why this, and not a Progressive ramp, is the platform default.
+    # Promote a new version when its pods are ready. The template says why this,
+    # and not a Progressive ramp, is the platform default.
     rollout:
       strategy: AllAtOnce
     # Keep a drained version's pods for an hour, and the Deployment itself for a
-    # day, before reclaiming them.
+    # day, before they are removed.
     sunset:
       scaledownDelay: 1h
       deleteDelay: 24h
 
 server:
-  # Off for a deployable that owns processes rather than an API — the platform worker is the first (ADR-0302).
+  # Off for a deployable that owns processes and not an API. The platform worker is the first one, per ADR-0302.
   enabled: true
   replicas: 2
   port: 8080
-  adminPort: 9090       # pprof + livez/readyz + metrics (ADR-0500). Set to null for
-                        # a workload with no second port (the frontend). The Go service contract (ADR-0500): deep readiness on the admin
-                        # port, shallow liveness.
+  adminPort: 9090       # pprof, livez, readyz, and metrics, per ADR-0500. Set it to null for
+                        # a workload with no second port, such as the frontend. The Go service contract, per ADR-0500: deep readiness on
+                        # the admin port, and shallow liveness.
   probes:
     readiness: { httpGet: { path: /readyz, port: admin }, initialDelaySeconds: 2, timeoutSeconds: 4 }
     liveness:  { httpGet: { path: /livez,  port: admin }, periodSeconds: 30 }
@@ -59,8 +59,8 @@ server:
     requests: { cpu: "100m", memory: "128Mi" }
     limits:   { memory: "384Mi" }
 
-# Database migrations (ADR-0300) run as a dbmate initContainer on the server pod,
-# from the service image itself (it bakes the static dbmate binary + /db/migrations).
+# Database migrations, per ADR-0300, run as a dbmate initContainer on the server pod. They run from the service
+# image itself, which contains the static dbmate binary and `/db/migrations`.
 migrations:
   enabled: true
 
@@ -69,44 +69,44 @@ temporal:
   connectionRef: "platform-temporal"
   namespace: "default"
 
-# Standard observability env (ADR-0500). The shared library reads these.
+# Standard observability env, per ADR-0500. The shared library reads these.
 otel:
-  # The collector runs in its own namespace (ADR-0200), so this is fully qualified
-  # across it and the NetworkPolicy below grants the egress.
+  # The collector runs in its own namespace, per ADR-0200. So this name is fully qualified,
+  # and the NetworkPolicy below grants the egress.
   endpoint: "http://otel-collector.otel-agent.svc.cluster.local:4317"
   sampling: "parentbased_traceidratio=0.1"
-  # Deployment environment. Anything other than "" / "dev" / "local" makes the
-  # shared library ship logs to OTLP only (no stdout), avoiding double-collection.
-  # Per-env GitOps values may override (e.g. "staging"); local flips it to "local".
+  # Deployment environment. Any value other than an empty string, `dev`, or `local` makes the
+  # shared library send logs only to OTLP and not to stdout. This avoids collecting them twice.
+  # Per-environment GitOps values can override it, for example to `staging`. Local sets it to `local`.
   deployEnv: "prod"
 
-# Ingress through Traefik (ADR-0305, ADR-0306).
+# Ingress through Traefik, per ADR-0305 and ADR-0306.
 ingress:
   enabled: true
-  host: ""              # set per env, e.g. dev.example.com
-  resources: []         # e.g. [products] for catalog, [orders], [orgs], [charges]
-  pathPrefix: ""        # literal-prefix fallback for non-API surfaces (frontend "/")
+  host: ""              # set per environment, for example dev.example.com
+  resources: []         # for example [products] for catalog, [orders], [orgs], [charges]
+  pathPrefix: ""        # literal-prefix fallback for surfaces that are not the API, such as the frontend's `/`
 
-# References to SOPS-decrypted Kubernetes Secrets (ADR-0202).
-# The sops-operator materialises these from infra/gitops/<env>/secrets/<svc>.enc.yaml.
+# References to Kubernetes Secrets decrypted by SOPS, per ADR-0202.
+# The sops-operator creates them from `infra/gitops/<env>/secrets/<svc>.enc.yaml`.
 secrets:
-  envFrom: []           # list of Secret names mounted via envFrom
-  files: []             # list of {name, mountPath, items} mounted as volumes
+  envFrom: []           # list of Secret names mounted with envFrom
+  files: []             # list of name, mountPath, and items entries, mounted as volumes
 
-# Eviction order (ADR-0204). `product` sits below `platform-critical`, so under node
-# pressure a product service is shed before the Postgres/Temporal/edge it needs —
-# which is the only ordering that can actually recover. Batch Jobs go below this.
+# Eviction order, per ADR-0204. `product` is below `platform-critical`. So under node
+# pressure, a product service is evicted before the Postgres, Temporal, and edge that it needs.
+# Only that order can recover. Batch Jobs go below this.
 priorityClassName: product
 
-# Extra env vars, merged into both server and worker.
+# Extra env vars, merged into both the server and the worker.
 env: {}
 
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 65532      # distroless static "nonroot"
+  runAsUser: 65532      # the distroless static nonroot user
   fsGroup: 65532
-  # The sixth requirement of the `restricted` Pod Security Standard, and the one this chart was missing: without it
-  # every pod here fails admission the moment a namespace is labelled `enforce: restricted` (ADR-0200).
+  # The sixth requirement of the `restricted` Pod Security Standard. This chart was missing it. Without it, every pod
+  # here fails admission when a namespace gets the label `enforce: restricted`, per ADR-0200.
   seccompProfile:
     type: RuntimeDefault
 
@@ -116,21 +116,21 @@ containerSecurityContext:
   capabilities:
     drop: ["ALL"]
 
-# NetworkPolicy is default-deny by default (ADR-0206). Service-specific
+# NetworkPolicy denies all traffic by default, per ADR-0206. Service-specific
 # allowances go here.
 networkPolicy:
   enabled: true
   allowFromGateway: true
   egressDNS: true
-  # Other services (by slug) allowed to call this one on the server port.
-  # e.g. catalog/payment list `orders` here; orders accepts no inbound svc calls.
+  # Other services, by slug, that can call this one on the server port.
+  # For example, catalog and payment list `orders` here. orders accepts no inbound service calls.
   allowFrom: []
-  # The namespace the OTel collector runs in (ADR-0200). Telemetry export is the
-  # one dependency that is not in this service's own namespace, so it is the one
-  # egress rule that has to name a namespace rather than rely on the platform one.
+  # The namespace that the OTel collector runs in, per ADR-0200. Telemetry export is the
+  # one dependency outside this service's own namespace. So it is the one egress rule
+  # that must name a namespace, and cannot rely on the platform namespace.
   otelAgentNamespace: otel-agent
 
-# Pull credentials for the registry this service's image lives in (ADR-0105).
-# Empty for a registry that serves anonymously — the local tier's does. A deployed
-# environment names the Secret its SopsSecret carries.
+# Pull credentials for the registry that holds this service's image, per ADR-0105.
+# Empty for a registry that allows anonymous pulls, such as the local tier's registry. A deployed
+# environment names the Secret that its SopsSecret carries.
 imagePullSecrets: []

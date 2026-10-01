@@ -1,14 +1,14 @@
 {{- if .Values.seaweedfs.enabled }}
 {{- /*
-`weed mini` — master, volume, filer, S3 gateway and admin UI in one process
-(ADR-0207). A StatefulSet rather than a Deployment because the identity and the
-volume are the same thing here: the volume holds the only copy of every object,
-so a second pod attaching to a fresh PVC would be an empty store answering
-requests, not a replica.
+`weed mini`: master, volume, filer, S3 gateway, and admin UI in one process, per
+ADR-0207. It is a StatefulSet and not a Deployment, because the identity and the
+volume are the same thing here. The volume holds the only copy of every object.
+A second pod on a fresh PVC would be an empty store that answers requests, and
+not a replica.
 
-Replicas is not a value. One process IS the shape ADR-0207 chose for the
-in-cluster tiers; a second replica of `mini` is two independent stores sharing a
-Service, which fails as data that is sometimes there.
+Replicas is not a value. One process IS the shape that ADR-0207 chose for the
+in-cluster tiers. A second replica of `mini` is two separate stores that share a
+Service. The failure is data that is only there some of the time.
 */}}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -45,8 +45,8 @@ spec:
             - -master.telemetry={{ .Values.seaweedfs.telemetry }}
             - -bucket={{ join "," .Values.seaweedfs.buckets }}
             {{- if .Values.seaweedfs.adminAuth.enabled }}
-            # Kubernetes expands `$(VAR)` in args from the container's own env, so the password reaches the flag without
-            # appearing in the pod spec.
+            # Kubernetes expands `$(VAR)` in args from the container's own env. So the password reaches the flag, and it does
+            # not appear in the pod spec.
             - -admin.password=$(ADMIN_PASSWORD)
             {{- end }}
           env:
@@ -65,7 +65,7 @@ spec:
           ports:
             - { name: s3, containerPort: {{ .Values.seaweedfs.service.s3Port }} }
             - { name: admin, containerPort: {{ .Values.seaweedfs.service.adminPort }} }
-          # `restricted` (ADR-0200).
+          # `restricted`, per ADR-0200.
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
@@ -74,9 +74,9 @@ spec:
           volumeMounts:
             - { name: data, mountPath: /data }
             - { name: tmp, mountPath: /tmp }
-          # The S3 endpoint, not the master or the filer: a store whose S3 layer is
-          # not answering is down for every consumer this platform has, however
-          # healthy the components behind it are.
+          # The S3 endpoint, not the master or the filer. If the S3 layer does not answer,
+          # the store is down for every consumer on this platform. That is true even when
+          # the components behind it are healthy.
           readinessProbe:
             httpGet: { path: /status, port: s3 }
             initialDelaySeconds: 5

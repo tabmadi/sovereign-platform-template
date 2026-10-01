@@ -16,21 +16,21 @@ spec:
         component: server
     spec:
       {{- with .Values.imagePullSecrets }}
-      # The registry authenticates every pull (ADR-0105) and a kubelet holds no credential of its own.
+      # The registry authenticates every pull, per ADR-0105, and a kubelet holds no credential of its own.
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "service.fullname" . }}
-      # ADR-0204 eviction order. Declared explicitly (not inherited) because the
-      # PriorityClass globalDefault is platform-critical — product workloads must sit
-      # BELOW the platform they depend on, so this is the one place that opts down.
+      # ADR-0204 eviction order. It is set explicitly and not inherited, because the
+      # PriorityClass globalDefault is platform-critical. Product workloads must sit BELOW
+      # the platform they depend on, so this is the one place that opts down.
       priorityClassName: {{ .Values.priorityClassName }}
       securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- if .Values.migrations.enabled }}
       initContainers:
-        # dbmate runs from the service image itself — it carries the static dbmate
-        # binary and the baked /db/migrations (see the service Dockerfile). `migrate`
-        # (not `up`) skips DB creation: CNPG provisions the databases (ADR-0300).
+        # dbmate runs from the service image itself. The image carries the static dbmate
+        # binary and the baked `/db/migrations`: see the service Dockerfile. `migrate`,
+        # not `up`, skips DB creation, because CNPG provisions the databases, per ADR-0300.
         - name: migrations
           image: {{ include "service.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -64,8 +64,8 @@ spec:
             - secretRef: { name: {{ . }} }
             {{- end }}
           {{- end }}
-          # readiness = deep (deps pinged) → gates Service traffic without restarting; liveness = shallow (process alive) →
-          # never dep-aware (ADR-0500).
+          # Readiness is deep and pings the dependencies. It gates Service traffic without a restart. Liveness is shallow and
+          # checks only that the process is alive. It never depends on dependencies, per ADR-0500.
           readinessProbe: {{- toYaml .Values.server.probes.readiness | nindent 12 }}
           livenessProbe: {{- toYaml .Values.server.probes.liveness | nindent 12 }}
           resources: {{- toYaml .Values.server.resources | nindent 12 }}

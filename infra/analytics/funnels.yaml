@@ -1,8 +1,8 @@
-# Funnel definitions (ADR-0700).
+# Funnel definitions, per ADR-0700.
 funnels:
   - id: checkout
     name: Browse to purchase
-    # The platform's one first-party funnel, and the one the panel opens on.
+    # The platform's one first-party funnel. The panel opens on it.
     steps:
       - product_viewed
       - cart_item_added
@@ -11,9 +11,9 @@ funnels:
 
   - id: registration
     name: Visit to verified identity
-    # The identity flow, which ADR-0307 names as the signal that catches mail that
-    # is accepted and never delivered. The same drop shows up here as a step that
-    # stops converting, which is the panel's view of the alert.
+    # The identity flow. ADR-0307 names it as the signal for mail that is accepted
+    # and never delivered. The same drop shows here as a step that stops
+    # converting. This is the panel's view of the alert.
     steps:
       - signup_started
       - signup_submitted

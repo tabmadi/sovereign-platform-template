@@ -1,29 +1,29 @@
-# Local overrides for `cluster:up full`, consumed the same way the ArgoCD ApplicationSet consumes dev/staging/prod
-# values (ADR-0205): local diverges from prod only through this overlay, layered over each platform chart's own
-# values.
+# Local overrides for `cluster:up full`. They are consumed the same way the Argo CD ApplicationSet consumes the
+# dev, staging, and prod values, per ADR-0205. Local differs from prod only through this overlay, which sits on
+# top of each platform chart's own values.
 
-#  Cilium (CNI): kind declines kube-proxy at create time, so the chart default kubeProxyReplacement=true
+# Cilium, the CNI: kind declines kube-proxy at create time. So the chart default `kubeProxyReplacement=true`
 # applies with no override.
 cilium:
   operator:
     replicas: 1
 
-#  TLS (cert-manager): self-signed wildcard for *.dev.localtest.me + ops, in
-# the platform namespace where the edge IngressRoutes resolve the secrets. Same
-# cert-manager mechanism as deployed envs; only the issuer differs (ADR-0205).
+# TLS with cert-manager: a self-signed wildcard for `*.dev.localtest.me` and ops, in
+# the platform namespace, where the edge IngressRoutes resolve the secrets. It is the
+# same cert-manager mechanism as deployed environments. Only the issuer differs, per ADR-0205.
 envHost: dev.localtest.me
 selfSigned:
   enabled: true
 
-#  Data tier: instances=1 / small storage (laptop-sized)
-# Top-level `cluster:` — the postgres chart's own values schema has no
-# `postgres:` namespace wrapper (unlike the dependency subcharts below).
+# Data tier: `instances=1` and small storage, sized for a laptop.
+# Top-level `cluster:`. The postgres chart's own values schema has no
+# `postgres:` namespace wrapper, unlike the dependency subcharts below.
 cluster:
   instances: 1
   storage: { size: 2Gi }
-  # Backups are ON locally, to the in-cluster SeaweedFS the non-prod envs use
-  # (ADR-0205): the backup path is code, and a setting that is off locally is a path
-  # no laptop runs. The data is throwaway; that a backup completes is the assertion.
+  # Backups are ON locally, to the in-cluster SeaweedFS that the non-prod environments use,
+  # per ADR-0205. The backup path is code, and no laptop runs a path that is off locally.
+  # The data is throwaway. The assertion is that a backup completes.
   backup:
     enabled: true
     retentionPolicy: "7d"
@@ -31,7 +31,7 @@ cluster:
       destinationPath: "s3://platform-backups/postgres"
       endpointURL: "http://seaweedfs.platform.svc.cluster.local:8333"
 
-# Top-level `replicas:` — the openfga chart's own values schema has no
+# Top-level `replicas:`. The openfga chart's own values schema has no
 # `openfga:` namespace wrapper.
 replicas: 1
 
@@ -42,17 +42,17 @@ kratos:
       serve:
         public:
           base_url: "https://dev.localtest.me:8443/auth/"
-      # Prod values point these at dev.example.com; locally the edge is on :8443,
-      # so the unauthenticated browser redirect must come back to localtest.me.
+      # Prod values point these at `dev.example.com`. Locally, the edge is on :8443,
+      # so the unauthenticated browser redirect must come back to `localtest.me`.
       selfservice:
         default_browser_return_url: https://dev.localtest.me:8443/
-        # Allow post-login `return_to` back to any gated app route on the local
-        # edge (the chart baseline lists dev.example.com); without this, a
-        # session-less visit to /panel or /devportal 400s into the error flow.
+        # Allow a post-login `return_to` back to any gated app route on the local
+        # edge. The chart baseline lists `dev.example.com`. Without this, a visit to
+        # `/panel` or `/devportal` with no session gets a 400 in the error flow.
         allowed_return_urls:
           - https://dev.localtest.me:8443/
-          # The ops origins too, so a denied panel request returns to that panel
-          # after login (the redirect handler in infra/auth/oathkeeper carries it).
+          # The ops origins too, so a denied panel request returns to that panel after
+          # login. The redirect handler in `infra/auth/oathkeeper` carries it.
           - https://*.ops.dev.localtest.me:8443/
         flows:
           error:        { ui_url: https://dev.localtest.me:8443/auth/error }
@@ -61,8 +61,8 @@ kratos:
           recovery:     { ui_url: https://dev.localtest.me:8443/auth/recovery }
           verification: { ui_url: https://dev.localtest.me:8443/auth/verification }
           settings:     { ui_url: https://dev.localtest.me:8443/auth/settings }
-        # WebAuthn/TOTP are domain-bound: the relying-party id + origins must match
-        # the local edge host (the chart base uses dev.example.com).
+        # WebAuthn and TOTP are bound to a domain. The relying-party id and origins must
+        # match the local edge host. The chart base uses `dev.example.com`.
         methods:
           totp:
             config:
@@ -73,21 +73,21 @@ kratos:
                 id: dev.localtest.me
                 display_name: Platform (local)
                 origins: ["https://dev.localtest.me:8443"]
-      # Share the session cookie with subdomains (hubble.ops.dev.localtest.me is
-      # served at its own origin); overrides the chart's dev.example.com default.
+      # Share the session cookie with subdomains, because `hubble.ops.dev.localtest.me`
+      # has its own origin. This overrides the chart's `dev.example.com` default.
       session:
         cookie:
           domain: dev.localtest.me
-      # The sink (ADR-0307).
+      # The sink, per ADR-0307.
       courier:
         smtp:
           connection_uri: "smtp://mailpit.platform.svc.cluster.local:1025/?disable_starttls=true"
-    # Cookie/cipher/system secrets + dsn come from the SOPS-managed `kratos-secrets` Secret
-    # (infra/gitops/platform/local/secrets/platform.enc.yaml), referenced via secret.enabled=false + nameOverride in
-    # infra/auth/kratos/values.yaml — never inline here (ADR-0202, Phase 5).
+    # The cookie, cipher, and system secrets and the dsn come from the SOPS-managed `kratos-secrets` Secret in
+    # `infra/gitops/platform/local/secrets/platform.enc.yaml`. `infra/auth/kratos/values.yaml` references it with
+    # `secret.enabled=false` and `nameOverride`. They are never inline here, per ADR-0202, Phase 5.
 
-# Oathkeeper sends unauthenticated browser (text/html) requests to a login page.
-# Override the prod placeholder host so gated routes redirect to the local edge.
+# Oathkeeper sends unauthenticated browser `text/html` requests to a login page.
+# Override the prod placeholder host, so gated routes redirect to the local edge.
 oathkeeper:
   oathkeeper:
     config:
@@ -97,9 +97,9 @@ oathkeeper:
             config:
               to: https://dev.localtest.me:8443/auth/login
 
-#  Observability: point Loki/Tempo at in-cluster SeaweedFS, single replica  Only the endpoint + http
-# (insecure) differ from prod; the S3 credentials come from the observability-bucket Secret via extraEnvFrom
-# (wired in the chart values for every env), so no inline keys here — same mechanism as dev/staging/prod.
+# Observability: point Loki and Tempo at in-cluster SeaweedFS, with a single replica. Only the endpoint and
+# insecure http differ from prod. The S3 credentials come from the observability-bucket Secret through `extraEnvFrom`,
+# set in the chart values for every environment. So there are no inline keys here, as in dev, staging, and prod.
 loki:
   singleBinary:
     resources: { requests: { cpu: "25m" } }
@@ -132,9 +132,9 @@ opentelemetry-collector:
       probabilistic_sampler:
         sampling_percentage: 100
 
-# Grafana: a known local admin password (prod supplies one via Secret).
-# Served at the root of its ops origin (ADR-0306); root_url carries the local
-# edge's :8443 port so post-login redirects land back on the same origin.
+# Grafana: a known local admin password. Prod supplies one through a Secret.
+# It serves at the root of its ops origin, per ADR-0306. `root_url` carries the local
+# edge's :8443 port, so post-login redirects land on the same origin.
 grafana:
   resources: { requests: { cpu: "25m" } }
   adminPassword: "admin"
@@ -142,8 +142,8 @@ grafana:
     server:
       root_url: "https://grafana.ops.dev.localtest.me:8443/"
 
-#  Lowdefy admin console (ADR-0401)  Repo-built image: pulled from the
-# local registry (the CI stand-in) at the stable `local` tag; Always so a cluster:up full re-run picks up a
+# Lowdefy admin console, per ADR-0401. The image is built in this repo and pulled from the local registry, the CI
+# stand-in, at the stable `local` tag. `Always` makes a `cluster:up full` run pick up a
 # rebuild.
 lowdefy:
   replicas: 1
@@ -152,26 +152,26 @@ lowdefy:
     tag: local
     pullPolicy: Always
 
-#  Core ops tools: local wiring  Headlamp (ADR-0501) at headlamp.ops
-# and pgweb (ADR-0401) at pgweb.ops are Core, on in every env from their chart defaults.
+# Core ops tools, local wiring. Headlamp at `headlamp.ops`, per ADR-0501, and pgweb at `pgweb.ops`, per ADR-0401,
+# are Core. Their chart defaults turn them on in every environment.
 pgweb:
-  # The read-only role, not `dev` (ADR-0401).
+  # The read-only role, not `dev`, per ADR-0401.
   databaseUrl: "postgres://readonly:readonly@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"
 
-# Admission control (ADR-0104). The local tier publishes no images and holds no signing key, so both policies are
-# absent by construction: `imagePrefix` is empty, which renders neither.
+# Admission control, per ADR-0104. The local tier publishes no images and holds no signing key. So both policies
+# are always absent: `imagePrefix` is empty, and that renders neither.
 policies:
   imagePrefix: ""
-  # Audit, not Enforce, and this is load-bearing rather than lenient.
+  # Audit, not Enforce. This setting is required, and it is not leniency.
   validationFailureAction: Audit
 
-# OFF locally, and this is the one component whose local source differs from the deployed one (ADR-0600).
+# OFF locally. This is the one component whose local source differs from the deployed one, per ADR-0600.
 localPath:
   enabled: false
 
-# CPU requests on one node sized down to a 4-core CI runner (ADR-0204). Every request below is a reservation, not a
-# cap: the measured requests of the deployed tiers crowd the services out of scheduling here, and the LimitRange default
-# is paid by every container that declares nothing. A busy container still takes the idle CPU.
+# CPU requests on one node, sized down to a 4-core CI runner, per ADR-0204. Every request below is a reservation,
+# not a cap. The measured requests of the deployed tiers push the services out of scheduling here. Every container
+# that declares nothing pays the LimitRange default. A busy container still takes the idle CPU.
 pyroscope:
   resources: { requests: { cpu: "25m" } }
 alloy:

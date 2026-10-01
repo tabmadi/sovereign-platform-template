@@ -1,5 +1,5 @@
 {{- if .Values.mailpit.enabled }}
-## Mailpit — the non-production mail sink (ADR-0307).
+## Mailpit, the non-production mail sink, per ADR-0307.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -26,7 +26,7 @@ spec:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:
-        # Enforced on the pod's real containerPort 8025, which the Service fronts
-        # on the same number.
+        # Enforced on the pod's real containerPort 8025. The Service fronts it on the
+        # same number.
         - ports: [{ port: "8025", protocol: TCP }]
 {{- end }}

@@ -2,8 +2,8 @@
 {{- $lp := .Values.localPath }}
 {{- /*
 The provisioner reads its node-to-path mapping and its helper scripts from this
-ConfigMap, and re-reads them on change — so a path change is a ConfigMap edit
-rather than a restart.
+ConfigMap. It reads them again when they change. So a path change is a
+ConfigMap edit, and not a restart.
 */}}
 apiVersion: v1
 kind: ConfigMap
@@ -26,14 +26,14 @@ data:
       ]
     }
 
-  # The helper Pod's command. `-p` so a re-run after a partial failure succeeds rather than erroring on a directory
-  # that is already there.
+  # The helper Pod's command. `-p` makes a second run after a partial failure succeed. Without it, the run fails on a
+  # directory that already exists.
   setup: |
     #!/bin/sh
     set -eu
     mkdir -m 0777 -p "$VOL_DIR"
-  # `$VOL_DIR` is the volume's own directory, never the parent: a teardown that
-  # walked up one level would delete every other volume on the node.
+  # `$VOL_DIR` is the volume's own directory, never the parent. A teardown that
+  # went up one level would delete every other volume on the node.
   teardown: |
     #!/bin/sh
     set -eu

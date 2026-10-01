@@ -1,4 +1,4 @@
-# Local Alertmanager silences Application (ADR-0502, ADR-0205).
+# Local Alertmanager silences Application, per ADR-0502 and ADR-0205.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

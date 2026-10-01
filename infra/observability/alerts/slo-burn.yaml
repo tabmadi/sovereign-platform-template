@@ -1,7 +1,7 @@
-# Error-budget burn rules (ADR-0500 defines the SLIs, ADR-0502 routes them).
+# Error-budget burn rules. ADR-0500 defines the SLIs, and ADR-0502 routes them.
 groups:
   - name: slo.recording
-    # Ratios rather than raw counts, at the four windows the burn alerts pair.
+    # Ratios, not raw counts, at the four windows that the burn alerts pair.
     rules:
       - record: service:request_errors:ratio_rate5m
         expr: |
@@ -34,7 +34,7 @@ groups:
 
   - name: slo.burn
     rules:
-      # 14.4x burn spends a 30-day budget in about two days. Paired 1h/5m.
+      # A 14.4x burn spends a 30-day budget in about two days. Paired 1h and 5m.
       - alert: SLOErrorBudgetFastBurn
         expr: |
           (
@@ -51,11 +51,10 @@ groups:
         annotations:
           summary: "{{ $labels.service_name }} is burning its error budget 14.4x"
           description: >-
-            At this rate the 30-day budget is gone in about two days. This is the
-            rule that becomes a page the moment a paging receiver exists
-            (ADR-0502); until then it is a ticket because nothing reaches a human
-            within minutes.
-      # 6x burn spends the budget in about five days. Paired 6h/30m.
+            At this rate, the 30-day budget is gone in about two days. This rule
+            becomes a page when a paging receiver exists, per ADR-0502. Until
+            then it is a ticket, because nothing reaches a human within minutes.
+      # A 6x burn spends the budget in about five days. Paired 6h and 30m.
       - alert: SLOErrorBudgetSlowBurn
         expr: |
           (
@@ -72,12 +71,12 @@ groups:
         annotations:
           summary: "{{ $labels.service_name }} is burning its error budget 6x"
           description: >-
-            Slower than the fast-burn rule and still ahead of budget: at this
-            rate the 30-day window ends spent. Read it as a trend rather than an
-            incident.
+            Slower than the fast-burn rule, and still ahead of budget. At this
+            rate, the budget is spent before the 30-day window ends. Read it as a
+            trend, and not as an incident.
 
   - name: slo.burn.latency
-    # The latency half of the SLI pair ADR-0500 declares.
+    # The latency half of the SLI pair that ADR-0500 declares.
     rules:
       - alert: SLOLatencyBudgetFastBurn
         expr: |
@@ -95,10 +94,10 @@ groups:
         annotations:
           summary: "{{ $labels.service_name }} is burning its latency budget 14.4x"
           description: >-
-            Requests are exceeding the service's latency threshold fast enough to
-            spend the 30-day budget in about two days. `ticket` for the same
+            Requests go over the service's latency threshold fast enough to spend
+            the 30-day budget in about two days. It is a `ticket` for the same
             reason as every other burn rule here: no receiver reaches a human
-            within minutes (ADR-0502).
+            within minutes, per ADR-0502.
       - alert: SLOLatencyBudgetSlowBurn
         expr: |
           (
@@ -115,5 +114,5 @@ groups:
         annotations:
           summary: "{{ $labels.service_name }} is burning its latency budget 6x"
           description: >-
-            Slower than the fast-burn rule and still ahead of budget. Read it as a
-            trend rather than an incident.
+            Slower than the fast-burn rule, and still ahead of budget. Read it as
+            a trend, and not as an incident.

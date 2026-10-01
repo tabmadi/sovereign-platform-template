@@ -1,8 +1,8 @@
-# OAuth2 client registrations (ADR-0304). Applied via `hydra create client`
-# in a Helm post-sync hook. One client per internal service (s2s) + one per
-# third-party developer as they arrive.
+# OAuth2 client registrations, per ADR-0304. A Helm post-sync hook applies them
+# with `hydra create client`. Each internal service gets one s2s client. Each
+# third-party developer gets one client when they arrive.
 clients:
-  # Service-to-service (client_credentials).
+  # Service-to-service clients use `client_credentials`.
   - client_id:     orgs
     client_name:   "orgs (s2s)"
     grant_types:   [client_credentials]

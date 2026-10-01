@@ -1,9 +1,9 @@
-# Error-rate alerts (ADR-0503 owns the signal, ADR-0502 routes it).
+# Error-rate alerts. ADR-0503 owns the signal, and ADR-0502 routes it.
 groups:
   - name: errors
     rules:
       # A sustained rate, relative to the service's own traffic. An absolute threshold cannot work across services whose
-      # request rates differ by orders of magnitude: it is either noise for the busiest or silence for the quietest.
+      # request rates differ by orders of magnitude. It is noise for the busiest or silence for the quietest.
       - alert: ServiceErrorRateHigh
         expr: |
           sum by (service_name) (rate(errors_total[5m]))
@@ -14,12 +14,12 @@ groups:
         annotations:
           summary: "{{ $labels.service_name }} is failing more than 5% of requests"
           description: >-
-            Sustained over ten minutes, so this is not a spike that has already
-            stopped. The Errors dashboard groups the same window by fingerprint,
-            which is where the specific fault is.
-      # A burst, in absolute terms and over a short window. This is the shape a
-      # deploy-induced fault has: a service that was quiet is suddenly not, and the
-      # ratio rule above has not had ten minutes to notice.
+            It lasts over ten minutes, so it is not a spike that has already
+            stopped. The Errors dashboard groups the same window by fingerprint.
+            The specific fault is there.
+      # A burst, in absolute terms, over a short window. A fault from a deploy has this
+      # shape: a service that was quiet suddenly is not. The ratio rule above has not
+      # had ten minutes to see it.
       - alert: ServiceErrorBurst
         expr: |
           sum by (service_name, kind) (increase(errors_total[2m])) > 20
@@ -29,11 +29,11 @@ groups:
           summary: "{{ $labels.service_name }} produced a burst of {{ $labels.kind }} errors"
           description: >-
             More than twenty errors of one kind in two minutes. `kind` is on the
-            alert because it changes the first question: `dependency` points away
-            from this service, `internal` points at it.
-      # Dependency errors specifically, because they are the class that is somebody
-      # else's fault and still this service's outage. Split out so it is not
-      # averaged away by a healthy internal rate.
+            alert, because it changes the first question. `dependency` points away
+            from this service, and `internal` points at it.
+      # Dependency errors only. They are the class that is someone else's fault but
+      # still this service's outage. They are separate, so a healthy internal rate
+      # does not hide them in an average.
       - alert: ServiceDependencyErrorsSustained
         expr: |
           sum by (service_name) (rate(errors_total{kind="dependency"}[15m])) > 0.1
@@ -43,5 +43,5 @@ groups:
           summary: "{{ $labels.service_name }} keeps failing to reach a dependency"
           description: >-
             Fifteen minutes of dependency failures. Check what this service calls
-            before checking the service itself — the fault is usually at the other
+            before you check the service itself. The fault is usually at the other
             end, or in the policy between them.

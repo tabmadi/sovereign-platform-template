@@ -1,4 +1,4 @@
-# Dev values for the platform worker (ADR-0302, ADR-0301).
+# Dev values for the platform worker, per ADR-0302 and ADR-0301.
 name: platform
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/platform-worker
@@ -13,7 +13,7 @@ worker:
     tag: "0000000000000000000000000000000000000000"
     digest: ""
 env:
-  # The analytics service, east-west (ADR-0303).
+  # The analytics service, east-west, per ADR-0303.
   ANALYTICS_API_URL: "http://analytics.platform.svc.cluster.local:8080"
 ingress:    { enabled: false }
 migrations: { enabled: false }   # owns no schema

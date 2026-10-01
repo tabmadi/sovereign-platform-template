@@ -1,5 +1,5 @@
-# Local inner-loop cluster (ADR-0600). kind runs upstream Kubernetes on a kubeadm node, which is the closest local
-# shape to the distribution the full tier runs.
+# Local inner-loop cluster, per ADR-0600. kind runs upstream Kubernetes on a kubeadm node. That is the closest local
+# shape to the distribution that the full tier runs.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
@@ -22,8 +22,8 @@ nodes:
 networking:
   disableDefaultCNI: true
   kubeProxyMode: none
-# The local registry (ADR-0205 parity): a zot container on the kind docker network (created by
-# scripts/cluster.sh).
+# The local registry, for ADR-0205 parity: a zot container on the kind docker network that
+# `scripts/cluster.sh` creates.
 containerdConfigPatches:
   - |-
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.localhost:5000"]

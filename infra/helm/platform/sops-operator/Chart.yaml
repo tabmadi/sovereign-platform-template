@@ -1,9 +1,9 @@
 apiVersion: v2
 name: sops-operator
 description: |
-  In-cluster controller that decrypts SOPS files referenced by CRDs and
-  produces native Kubernetes Secrets (ADR-0202). Uses isindir/sops-secrets-operator
-  as the upstream implementation.
+  In-cluster controller that decrypts the SOPS files that CRDs reference, and
+  creates native Kubernetes Secrets, per ADR-0202. It uses
+  isindir/sops-secrets-operator as the upstream implementation.
 type: application
 version: "2026.9.3"
 appVersion: "0.21.0"

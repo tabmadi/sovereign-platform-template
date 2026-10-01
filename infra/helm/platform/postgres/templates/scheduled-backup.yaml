@@ -1,5 +1,5 @@
 {{- if and .Values.cluster.create .Values.cluster.backup.enabled }}
-# The base backup PITR replays WAL onto (ADR-0207). Archived WAL alone restores nothing.
+# The base backup that PITR replays WAL onto, per ADR-0207. Archived WAL alone restores nothing.
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:

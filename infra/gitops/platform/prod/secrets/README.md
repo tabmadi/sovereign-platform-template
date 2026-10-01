@@ -1,15 +1,18 @@
 # prod platform secrets
 
-This directory is synced by the `prod-secrets` Application (the `secrets` ApplicationSet, [ADR-0201](../../../../../docs/adr/0201-gitops.md), sync-wave 1). The base-tier sops-operator reconciles the `SopsSecret` CR here into native Kubernetes Secrets that the data + core platform tiers consume ([ADR-0202](../../../../../docs/adr/0202-secrets.md)).
+The `prod-secrets` Application syncs this directory at sync-wave 1. The Application comes from the `secrets` ApplicationSet, per [ADR-0201](../../../../../docs/adr/0201-gitops.md). The base-tier sops-operator reconciles the `SopsSecret` CR here into native Kubernetes Secrets. The data and core platform tiers consume them, per [ADR-0202](../../../../../docs/adr/0202-secrets.md).
 
-**The template ships this README, not the secret.** A template repo cannot carry real cluster secrets, and the `prod` cluster key in `.sops.yaml` is a placeholder. Until you add `platform.enc.yaml` below, the Application syncs to zero resources (Healthy, empty) and the platform charts that reference these Secrets stay in `CreateContainerConfigError`.
+**The template ships this README, not the secret.** A template repo cannot carry real cluster secrets, and the `prod` cluster key in `.sops.yaml` is a placeholder. Until you add `platform.enc.yaml`, the Application syncs to zero resources: it is Healthy and empty. The platform charts that reference these Secrets stay in `CreateContainerConfigError`.
 
 ## Adopt
 
-1. Generate the `prod` cluster age key and replace the `cluster_prod` placeholder in `.sops.yaml` with its public half; plant the private half in-cluster (see `docs/guide/secrets-runbook.md` and `infra/talos/README.md` — on Talos it rides in the SOPS-encrypted machine config as an inline manifest, because there is no host filesystem to place it on).
-2. **Replace the other two recipients of that path as well.** `.sops.yaml` gives it `eng_placeholder` and `ops_recovery` beside the cluster key, and sops encrypts to every recipient of a rule or to none — one remaining placeholder fails the encrypt with `malformed recipient`, naming the placeholder rather than the rule that pulled it in.
-3. Copy the skeleton below to `platform.enc.yaml`, fill in real values, and encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/prod/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only `data`/`stringData` values (the CR structure stays readable) to `cluster_prod` + engineers + ops-recovery.
-4. Commit. Argo delivers it and the operator materialises the Secrets.
+1. Generate the `prod` cluster age key.
+2. Replace the `cluster_prod` placeholder in `.sops.yaml` with the public half of the key.
+3. Put the private half in the cluster. See `docs/guide/secrets-runbook.md` and `infra/talos/README.md`. On Talos, the key goes in the SOPS-encrypted machine config as an inline manifest. Talos has no host filesystem to put it on.
+4. **Replace the other two recipients of that path too.** `.sops.yaml` gives the path `eng_placeholder` and `ops_recovery` next to the cluster key. sops encrypts to every recipient of a rule, or to none. One remaining placeholder fails the encrypt with `malformed recipient`. The error names the placeholder, not the rule that added it.
+5. Copy the skeleton below to `platform.enc.yaml`, and fill in real values.
+6. Encrypt it in place: `sops --encrypt --in-place infra/gitops/platform/prod/secrets/platform.enc.yaml`. The `.sops.yaml` rule for this path encrypts only the `data` and `stringData` values, so the CR structure stays readable. It encrypts them to `cluster_prod`, the engineers, and ops-recovery.
+7. Commit. Argo CD delivers the file, and the operator creates the Secrets.
 
 ## `platform.enc.yaml` skeleton
 
@@ -21,32 +24,32 @@ metadata:
   namespace: platform
 spec:
   secretTemplates:
-    # The S3 root credential SeaweedFS is configured with (ADR-0207). Every other
-    # consumer below authenticates AS this identity: the store knows one root, so
-    # a second key pair is a key the store has never heard of.
+    # The S3 root credential that SeaweedFS uses, per ADR-0207. Every other
+    # consumer below authenticates AS this identity. The store knows one root,
+    # so it does not know a second key pair.
     - name: object-storage-root
       stringData:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
         ADMIN_PASSWORD: ""
-    # The registry's own logins (ADR-0105): `htpasswd` carries one BCRYPT line per
-    # identity — a push identity and a pull identity — and `consoleAuthorization`
-    # is the `Basic` header the console proxy presents for the browser.
+    # The registry's own logins, per ADR-0105. `htpasswd` has one BCRYPT line per
+    # identity: a push identity and a pull identity. `consoleAuthorization` is the
+    # `Basic` header that the console proxy sends for the browser.
     - name: zot-credentials
       stringData:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
         htpasswd: ""
         consoleAuthorization: ""
-    # The registry pull credential (ADR-0105), as a docker config. Every chart
-    # running a first-party image names this Secret in `imagePullSecrets`; a
-    # kubelet has no credential of its own and the node cannot hold one.
+    # The registry pull credential as a docker config, per ADR-0105. Every chart
+    # that runs a first-party image names this Secret in `imagePullSecrets`. A
+    # kubelet has no credential of its own, and the node cannot hold one.
     - name: registry-pull
       type: kubernetes.io/dockerconfigjson
       stringData:
         .dockerconfigjson: ""
-    # The DNS-01 solver's credential (ADR-0205). Without it the public issuer
-    # never becomes Ready and no wildcard certificate is ever issued.
+    # The DNS-01 solver's credential, per ADR-0205. Without it, the public issuer
+    # never becomes Ready, and no wildcard certificate is issued.
     - name: cloudflare-api-token
       stringData:
         token: ""
@@ -54,22 +57,22 @@ spec:
       stringData:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
-    # CNPG's base backups and WAL archive (ADR-0207). Without it archiving fails, and the WAL it cannot ship
-    # accumulates on the primary's disk until the node fills.
+    # CNPG's base backups and WAL archive, per ADR-0207. Without it, archiving fails. The WAL that CNPG cannot
+    # ship grows on the primary's disk until the node is full.
     - name: postgres-backup-creds
       stringData:
         ACCESS_KEY_ID: ""
         SECRET_ACCESS_KEY: ""
-    # `username` has to be the role `cluster.initdb.owner` names in the postgres
-    # chart, and the same string every DSN below uses. Three places, one role.
+    # `username` must be the role that `cluster.initdb.owner` names in the postgres
+    # chart. Every DSN below uses the same string. Three places use one role.
     - name: postgres-superuser
       type: kubernetes.io/basic-auth
       stringData:
         username: ""
         password: ""
-    # The read-only inspector role (ADR-0401). CNPG reconciles this password onto
-    # the `readonly` role the cluster creates at bootstrap; pgweb connects as it,
-    # so the inspector cannot write even if its own flag is lost.
+    # The read-only inspector role, per ADR-0401. CNPG reconciles this password onto
+    # the `readonly` role that the cluster creates at bootstrap. pgweb connects as
+    # this role, so the inspector cannot write even if its own flag is lost.
     - name: postgres-readonly
       type: kubernetes.io/basic-auth
       stringData:
@@ -98,36 +101,35 @@ spec:
         secretsCookie: ""
         secretsCipher: ""
         dsn: ""
-        # Production submits through maddy (ADR-0307), so this is a real
-        # submission endpoint. Mailpit is not deployed here.
-        # STARTTLS with maddy's self-signed certificate, which only in-cluster senders
-        # meet, so verification is skipped:
+        # Production submits through maddy, per ADR-0307, so this is a real
+        # submission endpoint. Mailpit is not deployed here. It uses STARTTLS
+        # with maddy's self-signed certificate. Only in-cluster senders use it,
+        # so verification is skipped:
         #   smtp://platform:<password>@maddy.platform.svc.cluster.local:587/?skip_ssl_verify=true
         smtpConnectionURI: ""
-    # Only when `hydra_thirdparty` is on (ADR-0305). The Ory release deploys
-    # Hydra beside Kratos and reads all three keys from this Secret, because
-    # `hydra.secret.enabled` is false in infra/helm/platform/ory/values.yaml.
-    # `dsn` names the same owner role every other DSN here does, against the
-    # `hydra` database; the chart's plaintext default carries no password and is
-    # never read.
-    # `secretsSystem` encrypts every issued token and consent record, so rotate
-    # it by prepending a new value and dropping the old one once the tokens
-    # signed under it have expired — replacing it outright invalidates them all.
+    # Only when `hydra_thirdparty` is on, per ADR-0305. The Ory release deploys
+    # Hydra next to Kratos. It reads all three keys from this Secret, because
+    # `hydra.secret.enabled` is false in `infra/helm/platform/ory/values.yaml`.
+    # `dsn` names the same owner role as every other DSN here, on the `hydra`
+    # database. The chart's plaintext default has no password and is never read.
+    # `secretsSystem` encrypts every issued token and consent record. To rotate
+    # it, add a new value at the front. Remove the old value after the tokens
+    # signed with it expire. A direct replacement invalidates all of them.
     - name: hydra-secrets
       stringData:
         secretsSystem: ""
         secretsCookie: ""
         dsn: ""
-    # The registry's push and pull credentials, and the store credential it reads
-    # and writes S3 with (ADR-0105). `htpasswd` holds one BCRYPT line per identity
-    # — an apr1 file loads without complaint and then refuses every password.
+    # The registry's push and pull credentials, and the store credential that it
+    # uses to read and write S3, per ADR-0105. `htpasswd` holds one BCRYPT line per
+    # identity. An apr1 file loads with no error and then refuses every password.
     #
     #   htpasswd -nbB ci <push-password>
     #   htpasswd -nbB cluster <pull-password>
     #
-    # `consoleAuthorization` is the pre-encoded header the console proxy sends so an
-    # operator is not asked for the pull credential a second time (ADR-0306). It
-    # MUST match the `cluster` password above:
+    # `consoleAuthorization` is the pre-encoded header that the console proxy sends,
+    # so an operator does not type the pull credential a second time, per ADR-0306.
+    # It MUST match the `cluster` password above:
     #
     #   printf 'cluster:<pull-password>' | base64   # -> Basic <that>
     #
@@ -138,15 +140,16 @@ spec:
         AWS_SECRET_ACCESS_KEY: ""
         htpasswd: ""
         consoleAuthorization: ""
-    # maddy's DKIM private key (ADR-0307). Its public half goes in the TXT record
-    # at `<selector>._domainkey.mail.example.com`, and the two must be generated
-    # together: maddy MINTS a key when this is absent, which yields an agent that
-    # signs every message with a key no DNS record matches.
+    # maddy's DKIM private key, per ADR-0307. Its public half goes in the TXT record
+    # at `<selector>._domainkey.mail.example.com`. Generate the two together. maddy
+    # CREATES a key when this is absent. The agent then signs every message with a
+    # key that no DNS record matches.
     - name: maddy-dkim
       stringData:
         private.key: ""
-    # The submission credential Kratos, the services and Alertmanager authenticate
-    # with. The hash, not the password — this value reaches maddy's config file.
+    # The submission credential that Kratos, the services, and Alertmanager use to
+    # authenticate. Store the hash, not the password, because this value goes into
+    # maddy's config file.
     #
     #   maddy hash --password <submission-password>
     - name: maddy-submission
@@ -156,7 +159,7 @@ spec:
 
 ## `kyverno.enc.yaml` skeleton
 
-Kyverno reads an image's signature from the registry the image lives in, with a credential from its own namespace ([ADR-0104](../../../../../docs/adr/0104-supply-chain-security.md)). The value is the `registry-pull` docker config above; a SopsSecret materialises in its own namespace, so this one is a second CR rather than a second template in the first.
+Kyverno reads an image's signature from the registry that holds the image. It uses a credential from its own namespace, per [ADR-0104](../../../../../docs/adr/0104-supply-chain-security.md). The value is the `registry-pull` docker config above. A SopsSecret creates Secrets only in its own namespace. So this one is a second CR, not a second template in the first CR.
 
 ```yaml
 apiVersion: isindir.github.com/v1alpha3

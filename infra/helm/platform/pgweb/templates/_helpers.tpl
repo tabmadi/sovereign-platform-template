@@ -1,16 +1,16 @@
 {{/*
 The DSN, and where its password comes from.
 
-An environment that keeps the read-only role's password in a Secret (every
-deployed one — ADR-0202) cannot put the DSN in a values file, because the DSN
-CONTAINS the password. So the URL is assembled from parts here and the password
-arrives as an env var, which both containers below expand.
+Every deployed environment keeps the read-only role's password in a Secret, per
+ADR-0202. Such an environment cannot put the DSN in a values file, because the
+DSN CONTAINS the password. So the URL is built from parts here. The password
+arrives as an env var, and both containers below expand it.
 
-`databaseUrl` remains for the local tier, whose read-only password is a throwaway
-committed beside it. An empty one is not a default: pg_isready reads an empty
-`-d` as "connect over the local socket", so the init container waits forever on
-`/var/run/postgresql:5432` and nothing in the message mentions Postgres being
-somewhere else.
+`databaseUrl` stays for the local tier. Its read-only password is a throwaway
+value, committed next to it. An empty one is not a default. pg_isready reads an
+empty `-d` as a connection over the local socket. The init container then waits
+forever on `/var/run/postgresql:5432`. The message does not say that Postgres is
+at a different place.
 */}}
 {{- define "pgweb.dsnEnv" -}}
 {{- $pg := .Values.pgweb -}}

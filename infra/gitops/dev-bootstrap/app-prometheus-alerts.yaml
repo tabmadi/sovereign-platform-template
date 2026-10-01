@@ -1,4 +1,4 @@
-# Prometheus alerts Application (ADR-0500).
+# Prometheus alerts Application, per ADR-0500.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -7,9 +7,9 @@ metadata:
   labels:
     app.kubernetes.io/part-of: platform
   annotations:
-    # Wave 2: one before the telemetry tier that MOUNTS this ConfigMap. A volume
-    # its pod cannot find leaves that pod unstartable, so the config is delivered
-    # a wave early rather than beside the workload it configures.
+    # Wave 2: one wave before the telemetry tier that MOUNTS this ConfigMap. A pod
+    # cannot start when a volume is missing. So the config arrives one wave early,
+    # and not together with the workload it configures.
     argocd.argoproj.io/sync-wave: "2"
 spec:
   project: default

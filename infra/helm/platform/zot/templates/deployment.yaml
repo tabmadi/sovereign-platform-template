@@ -1,14 +1,13 @@
 {{- if .Values.zot.enabled }}
 {{- /*
-A Deployment, not a StatefulSet: every byte that matters is in the object store,
-and `/var/lib/zot` holds only the metadata cache zot rebuilds by reading the
-bucket. ADR-0105 states the consequence — registry durability is object-storage
-durability, and a registry rebuild is a redeploy rather than a restore.
+A Deployment, not a StatefulSet. Every byte that matters is in the object store.
+`/var/lib/zot` holds only the metadata cache, which zot rebuilds from the bucket.
+ADR-0105 states the result: registry durability is object-storage durability, and
+a registry rebuild is a redeploy, not a restore.
 
-That cache is why the pod needs a writable directory at all. zot refuses to start
-without one even when every image lives on S3 (`mkdir /var/lib/zot: read-only
-file system`), so a read-only root filesystem needs the emptyDir below, not
-instead of it.
+That cache is the reason the pod needs a writable directory. zot refuses to start
+without one, even when every image is on S3, with `mkdir /var/lib/zot: read-only
+file system`. So a read-only root filesystem needs the emptyDir below as well.
 */}}
 apiVersion: apps/v1
 kind: Deployment
@@ -27,9 +26,9 @@ spec:
     metadata:
       labels: *labels
       annotations:
-        # Roll the pod when the configuration changes. Without this a config edit
-        # is a ConfigMap update that the running registry never reads, and the
-        # cluster reports Synced while serving the old rules.
+        # Roll the pod when the configuration changes. Without this, a config edit
+        # is a ConfigMap update that the running registry never reads. The
+        # cluster then reports Synced while it serves the old rules.
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if and .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
         checksum/console-proxy: {{ include (print $.Template.BasePath "/console-proxy-config.yaml") . | sha256sum }}
@@ -46,8 +45,8 @@ spec:
           image: "{{ .Values.zot.image.repository }}:{{ .Values.zot.image.tag }}"
           imagePullPolicy: {{ .Values.zot.image.pullPolicy }}
           env:
-            # The store credential. zot reads it the way every AWS SDK does, so
-            # there is nothing registry-specific about this pair.
+            # The store credential. zot reads it the same way as every AWS SDK, so
+            # nothing about this pair is specific to the registry.
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef: { name: {{ .Values.zot.credentialsSecret }}, key: AWS_ACCESS_KEY_ID }
@@ -63,12 +62,12 @@ spec:
               drop: ["ALL"]
           volumeMounts:
             - { name: config, mountPath: /etc/zot }
-            # Its own directory rather than a second file in /etc/zot: two
-            # sources mounted over one path need subPath, and a subPath mount
-            # never sees an update to the object behind it.
+            # Its own directory, and not a second file in /etc/zot. Two sources mounted
+            # over one path need subPath, and a subPath mount never sees an update to the
+            # object behind it.
             - { name: auth, mountPath: /etc/zot-auth }
             - { name: cache, mountPath: /var/lib/zot }
-          # A TCP probe, and deliberately not an HTTP one.
+          # A TCP probe, and not an HTTP one, on purpose.
           readinessProbe:
             tcpSocket: { port: http }
             initialDelaySeconds: 5
@@ -79,14 +78,14 @@ spec:
             periodSeconds: 30
           resources: {{ toYaml .Values.zot.resources | nindent 12 }}
         {{- if and .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
-        # The console proxy (ADR-0306).
+        # The console proxy, per ADR-0306.
         - name: console-proxy
           image: "{{ .Values.zot.consoleAuth.image.repository }}:{{ .Values.zot.consoleAuth.image.tag }}"
           imagePullPolicy: {{ .Values.zot.consoleAuth.image.pullPolicy }}
           env:
-            # The pre-encoded `Authorization` header, read into nginx's config by
-            # its entrypoint's envsubst step. It is the pull user's credential, so
-            # it never appears in a manifest — only in the Secret.
+            # The pre-encoded `Authorization` header. The envsubst step of nginx's entrypoint
+            # reads it into the config. It is the pull user's credential, so it never
+            # appears in a manifest, only in the Secret.
             - name: CONSOLE_AUTHORIZATION
               valueFrom:
                 secretKeyRef: { name: {{ .Values.zot.credentialsSecret }}, key: consoleAuthorization }
@@ -102,9 +101,9 @@ spec:
             capabilities:
               drop: ["ALL"]
           volumeMounts:
-            # The template the entrypoint renders, and the writable directories a
-            # read-only root filesystem forces out of the image layer: the render
-            # target, nginx's temp paths, and its pid.
+            # The template that the entrypoint renders, and the writable directories that a
+            # read-only root filesystem forces out of the image layer: the render target,
+            # nginx's temp paths, and its pid.
             - { name: console-proxy-template, mountPath: /etc/nginx/templates }
             - { name: console-proxy-conf, mountPath: /etc/nginx/conf.d }
             - { name: console-proxy-cache, mountPath: /var/cache/nginx }

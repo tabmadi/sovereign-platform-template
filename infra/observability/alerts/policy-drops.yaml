@@ -1,5 +1,5 @@
-# Policy-drop alert (ADR-0500, ADR-0501). Native Prometheus rule-file format — mounted into Prometheus via the
-# `prometheus-alerts` ConfigMap (see service-availability.yaml header for the delivery path).
+# Policy-drop alert, per ADR-0500 and ADR-0501. Native Prometheus rule-file format, mounted into Prometheus through
+# the `prometheus-alerts` ConfigMap. See the header of `service-availability.yaml` for the delivery path.
 groups:
   - name: network.policy-drops
     rules:
@@ -9,5 +9,5 @@ groups:
         for: 10m
         labels: { severity: page }
         annotations:
-          summary: "NetworkPolicy is dropping {{ $labels.source }} → {{ $labels.destination }} for 10m"
+          summary: "NetworkPolicy drops traffic from {{ $labels.source }} to {{ $labels.destination }} for 10m"
           description: "Cilium reports sustained POLICY_DENIED drops. Investigate the live flows in Hubble UI and the history on the hubble-drops dashboard."

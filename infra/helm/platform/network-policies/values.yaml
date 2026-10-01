@@ -1,42 +1,42 @@
-# When true, allow the log/trace backends (loki/tempo) egress to external HTTPS — needed in prod, where object
-# storage is a real off-cluster S3 bucket (ADR-0206). Local runs against the in-cluster store (covered by
-# intra-namespace egress), so it stays false and no pod reaches the internet at all.
+# When true, allow the log and trace backends, loki and tempo, egress to external HTTPS. Prod needs this, because
+# its object storage is a real off-cluster S3 bucket, per ADR-0206. Local uses the in-cluster store, which
+# intra-namespace egress covers. So it stays false there, and no pod reaches the internet.
 externalObjectStorage: false
 
-# The namespace the node-level OTel collector runs in (ADR-0200 — it needs hostPath and hostPorts, and PSA's
-# exception unit is the namespace).
+# The namespace of the node-level OTel collector, per ADR-0200. It needs hostPath and hostPorts, and PSA's
+# exception unit is the namespace.
 otelAgentNamespace: otel-agent
 
-# The cluster's pod CIDR (kind's kubeadm default, 10.244.0.0/16 — ADR-0206).
+# The cluster's pod CIDR: kind's kubeadm default, 10.244.0.0/16, per ADR-0206.
 podCIDR: "10.244.0.0/16"
 
-# Mirrors the gate in the mailpit chart (infra/helm/platform/mailpit).
+# The same gate as in the mailpit chart, `infra/helm/platform/mailpit`.
 mailpit:
   enabled: true
 
-# Alertmanager's policy (45-alertmanager.yaml) renders only where it runs.
+# Alertmanager's policy in `45-alertmanager.yaml` renders only where Alertmanager runs.
 alertmanager:
   enabled: true
 
-# maddy is production-only (ADR-0307), and its policy follows the chart. A rule
-# selecting a workload that does not exist is inert, and inert rules are how a
-# policy file stops being read.
+# maddy is production-only, per ADR-0307, and its policy follows the chart. A rule
+# that selects a workload that does not exist does nothing. Rules that do nothing
+# make people stop reading a policy file.
 maddyEnabled: false
 
-# Mirrors the gate in the edge-errors chart (infra/helm/platform/edge-errors).
+# The same gate as in the edge-errors chart, `infra/helm/platform/edge-errors`.
 edgeErrors:
   enabled: true
 
-# Mirrors the gate in the forgejo chart (infra/helm/platform/forgejo). Off by
-# default like the chart: a policy selecting an endpoint that does not exist is a
-# claim about the platform that is not true.
+# The same gate as in the forgejo chart, `infra/helm/platform/forgejo`. It is off by
+# default, like the chart. A policy that selects an endpoint that does not exist
+# makes a false claim about the platform.
 forgejo:
   enabled: false
 
-# Whether zot mirrors the upstream registries (ADR-0105), which decides whether it is allowed to reach them.
+# Whether zot mirrors the upstream registries, per ADR-0105. This decides whether it can reach them.
 registryMirror: true
 
-# Whether this environment issues PUBLIC certificates (ADR-0205), which decides whether cert-manager may reach the
+# Whether this environment issues PUBLIC certificates, per ADR-0205. This decides whether cert-manager can reach the
 # CA and the DNS provider.
 publicTls:
   enabled: false

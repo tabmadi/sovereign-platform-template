@@ -1,7 +1,7 @@
-# Dashboards-as-code (ADR-0500). This directory is a chart so that the dashboard JSON beside this file becomes the
-# `grafana-dashboards` ConfigMap the Grafana chart mounts (observability values: dashboardsConfigMaps.default).
+# Dashboards-as-code, per ADR-0500. This directory is a chart, so the dashboard JSON next to this file becomes the
+# `grafana-dashboards` ConfigMap. The Grafana chart mounts it through `dashboardsConfigMaps.default` in the observability values.
 apiVersion: v2
 name: grafana-dashboards
-description: Committed Grafana dashboards, delivered as the ConfigMap the Grafana chart mounts (ADR-0500).
+description: Committed Grafana dashboards, delivered as the ConfigMap that the Grafana chart mounts, per ADR-0500.
 type: application
 version: 0.1.0

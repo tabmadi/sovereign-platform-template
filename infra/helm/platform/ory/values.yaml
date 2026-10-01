@@ -1,10 +1,10 @@
-# Ory umbrella chart values (ADR-0305, ADR-0304).
+# Ory umbrella chart values, per ADR-0305 and ADR-0304.
 
 oathkeeper:
   enabled: true
   deployment:
-    # ADR-0204. The busiest component on the /api path, ahead of the services
-    # themselves, because every request pays a forward-auth hop here (ADR-0305).
+    # Per ADR-0204. It is the busiest component on the `/api` path, more than the services
+    # themselves, because every request makes a forward-auth hop here, per ADR-0305.
     resources:
       requests: { cpu: "100m", memory: "128Mi" }
       limits:   { memory: "384Mi" }
@@ -12,18 +12,18 @@ oathkeeper:
       - name: SQA_OPT_OUT
         value: "true"
 
-# No phone-home: Ory's SQA telemetry dials sqa.ory.sh on 443, which the default-deny egress correctly drops — pure
-# PolicyDropsDetected noise.
+# No phone-home. Ory's SQA telemetry dials sqa.ory.sh on 443. The default-deny egress drops it correctly, and that
+# only adds noise to PolicyDropsDetected.
 kratos:
-  # Migrations run as an init container before the service container, in every environment
-  # (docs/guide/database-migrations.md).
+  # Migrations run as an init container before the service container, in every environment.
+  # See `docs/guide/database-migrations.md`.
   kratos:
     automigration:
       enabled: true
       type: initContainer
   deployment:
-    # ADR-0204. Explicit because it needs well above the namespace LimitRange's
-    # default request.
+    # Per ADR-0204. Set explicitly, because it needs much more than the default request
+    # of the namespace LimitRange.
     resources:
       requests: { cpu: "100m", memory: "192Mi" }
       limits:   { memory: "512Mi" }
@@ -31,20 +31,20 @@ kratos:
       - name: SQA_OPT_OUT
         value: "true"
 
-# Hydra is a public-API add-on (ADR-0305). Off by default — internal-only
-# projects run Kratos + Oathkeeper + OpenFGA. The `hydra_thirdparty` flag flips
-# `hydra.enabled` on in the per-env GitOps values.
+# Hydra is a public-API add-on, per ADR-0305. It is off by default. Internal-only
+# projects run Kratos, Oathkeeper, and OpenFGA. The `hydra_thirdparty` flag turns
+# `hydra.enabled` on in the per-environment GitOps values.
 hydra:
   enabled: false
   hydra:
-    # Migrations run as an init container before the service container, in every environment
-    # (docs/guide/database-migrations.md) — the same shape Kratos runs above.
+    # Migrations run as an init container before the service container, in every environment,
+    # as in `docs/guide/database-migrations.md`. This is the same shape as Kratos above.
     automigration:
       enabled: true
       type: initContainer
     config:
-      # A placeholder, not the connection Hydra uses: `secret.nameOverride` below sends every pod to the `hydra-secrets`
-      # key of the same name.
+      # A placeholder, not the connection that Hydra uses. `secret.nameOverride` below sends every pod to the key of the
+      # same name in `hydra-secrets`.
       dsn: "postgres://hydra@postgres-rw.platform.svc.cluster.local:5432/hydra?sslmode=disable"
       urls:
         self:
@@ -52,8 +52,8 @@ hydra:
         login:   https://dev.example.com/auth/login
         consent: https://dev.example.com/auth/consent
         logout:  https://dev.example.com/auth/logout
-  # System/cookie secrets + dsn come from a SOPS-managed Secret, never inline values (ADR-0202) — the same wiring
-  # Kratos uses.
+  # The system and cookie secrets and the dsn come from a SOPS-managed Secret, never inline values, per ADR-0202.
+  # Kratos uses the same wiring.
   secret:
     enabled: false
     nameOverride: hydra-secrets

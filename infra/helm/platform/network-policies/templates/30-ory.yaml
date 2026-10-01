@@ -1,4 +1,4 @@
-## Kratos identity APIs: public 4433 is reached by Oathkeeper for session checks, admin 4434 only by authz.
+## Kratos identity APIs: Oathkeeper reaches public 4433 for session checks, and only authz reaches admin 4434.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -10,7 +10,7 @@ spec:
   ingress:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: oathkeeper }
-        # The frontend, for `/sessions/whoami` on a PAGE render (ADR-0400).
+        # The frontend, for `/sessions/whoami` on a PAGE render, per ADR-0400.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: frontend }
       toPorts:
         - ports: [{ port: "4433", protocol: TCP }]
@@ -22,7 +22,7 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: authz }
       toPorts:
         - ports: [{ port: "4434", protocol: TCP }]
-    # The orgs WORKER only — the server never calls Kratos.
+    # The orgs WORKER only. The server never calls Kratos.
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: platform
@@ -30,11 +30,11 @@ spec:
             component: worker
       toPorts:
         - ports: [{ port: "4434", protocol: TCP }]
-  # No egress rules: the baseline (00-baseline.yaml) already grants Kratos DNS, intra-namespace reach (Postgres, the
-  # orgs registration webhook) and the API server, which is everything it needs.
+  # No egress rules. The baseline in `00-baseline.yaml` already grants Kratos everything it needs: DNS, reach inside
+  # the namespace to Postgres and the orgs registration webhook, and the API server.
 ---
-## Oathkeeper — the edge auth gate. Traefik forwards through the proxy (4455) and
-## queries the decision API (4456).
+## Oathkeeper, the edge auth gate. Traefik forwards through the proxy on 4455, and
+## queries the decision API on 4456.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

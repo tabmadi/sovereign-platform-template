@@ -1,5 +1,5 @@
-# The Temporal subchart names its frontend service `<release>-frontend`, but the service contract is
-# TEMPORAL_HOST_PORT=temporal:7233 (ADR-0205 — the same name the inner-loop `deps.yaml` stand-in uses).
+# The Temporal subchart names its frontend service `<release>-frontend`. But the service contract is
+# TEMPORAL_HOST_PORT=temporal:7233, per ADR-0205. The inner-loop `deps.yaml` stand-in uses the same name.
 apiVersion: v1
 kind: Service
 metadata:

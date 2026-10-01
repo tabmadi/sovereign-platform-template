@@ -3,7 +3,7 @@
   "uid": "overview",
   "schemaVersion": 39,
   "tags": ["overview", "landing", "slo"],
-  "description": "L1 landing page (ADR-0501): answers 'is anything wrong right now, and where?' and nothing else. Every panel either turns red or links down a level — firing alerts, cluster-wide golden signals, per-service SLO status (linking to Service detail), and one-line health for the platform dependencies (linking to Platform components / Network: policy denials). Deep-dive timeseries live one click down; if a panel here cannot demand action, it does not belong here. The Applications dashboard remains the full workload directory (every pod, incl. idle ones).",
+  "description": "L1 landing page, per ADR-0501. It shows whether anything is wrong now, and where, and nothing else. Every panel turns red or links down a level: firing alerts, cluster-wide golden signals, per-service SLO status with links to Service detail, and one-line health for the platform dependencies, with links to Platform components and Network: policy denials. Detailed time series are one click down. A panel that cannot demand action does not belong here. The Applications dashboard stays the full workload directory, with every pod, also idle ones.",
   "time": {
     "from": "now-1h",
     "to": "now"
@@ -11,7 +11,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Is anything wrong?",
+      "title": "Is anything wrong",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -23,7 +23,7 @@
     {
       "type": "stat",
       "title": "Firing alerts",
-      "description": "Count of Prometheus alerts currently firing (alerts-as-code, infra/observability/alerts). Anything non-zero: see the table below. Excludes the Watchdog, which always fires by construction (ADR-0502) — counting it would make zero unreachable and the tile unreadable as an all-clear. Its own tile beside the table reports the alerting pipeline.",
+      "description": "Count of Prometheus alerts that fire now, from the alerts-as-code in infra/observability/alerts. For any value above zero, see the table below. It excludes the Watchdog, which always fires by design, per ADR-0502. If it counted the Watchdog, zero could never appear, and the tile could not show an all-clear. The Watchdog has its own tile next to the table, which reports the alerting pipeline.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -105,7 +105,7 @@
     },
     {
       "type": "stat",
-      "title": "Error rate (5xx)",
+      "title": "Error rate, 5xx",
       "description": "Cluster-wide share of HTTP responses that are 5xx.",
       "datasource": "Prometheus",
       "gridPos": {
@@ -204,7 +204,7 @@
     {
       "type": "stat",
       "title": "Pods not ready",
-      "description": "Pods that are not Running and not Succeeded (Pending / Failed / Unknown), cluster-wide.",
+      "description": "Pods that are not Running and not Succeeded, cluster-wide: Pending, Failed, or Unknown.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -251,7 +251,7 @@
     {
       "type": "stat",
       "title": "Policy drops/s",
-      "description": "NetworkPolicy denials (hubble_drop_total, reason=POLICY_DENIED). Non-zero means a policy is blocking a flow someone expected to work — click through for history by reason and flow. Scoped to POLICY_DENIED on purpose: unfiltered, this tile also counts UNSUPPORTED_L3_PROTOCOL, which on an IPv4-only dataplane is constant benign background (see the reason breakdown on the linked dashboard) and pinned the tile red permanently.",
+      "description": "NetworkPolicy denials, from hubble_drop_total with reason=POLICY_DENIED. A value above zero means that a policy blocks a flow that someone expected to work. Click through for history by reason and flow. It is limited to POLICY_DENIED on purpose. Without the filter, this tile also counts UNSUPPORTED_L3_PROTOCOL. On an IPv4-only dataplane, that is constant, harmless background, and it kept the tile red all the time. See the reason breakdown on the linked dashboard.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -301,8 +301,8 @@
     },
     {
       "type": "table",
-      "title": "Firing alerts — what and where",
-      "description": "One row per firing Prometheus alert. severity=page means act now; severity=ticket means file and fix in hours. Rules live in infra/observability/alerts/. Excludes the Watchdog — see the tile beside this table.",
+      "title": "Firing alerts: what and where",
+      "description": "One row for each firing Prometheus alert. severity=page means act now. severity=ticket means file it and fix it within hours. The rules are in infra/observability/alerts/. It excludes the Watchdog. See the tile next to this table.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 6,
@@ -393,7 +393,7 @@
     {
       "type": "stat",
       "title": "Alerting pipeline",
-      "description": "The Watchdog (infra/observability/alerts/watchdog.yaml) — a dead man's switch that always fires, so only its ABSENCE carries information (ADR-0502). DEAD means alerts are not being evaluated, and no other panel on this dashboard can tell you that: every tile here would read all-clear whether the platform is healthy or the rule files stopped loading. Separated from the count beside it because a heartbeat is not a condition anyone acts on.",
+      "description": "The Watchdog in infra/observability/alerts/watchdog.yaml. It is a dead man's switch that always fires, so only its ABSENCE carries information, per ADR-0502. DEAD means that Prometheus does not evaluate alerts, and no other panel on this dashboard can show that. Every tile here would show all-clear, whether the platform is healthy or the rule files stopped loading. It is separate from the count next to it, because nobody acts on a heartbeat.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 6,
@@ -454,7 +454,7 @@
     },
     {
       "type": "row",
-      "title": "Services — SLO status",
+      "title": "Services: SLO status",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -465,8 +465,8 @@
     },
     {
       "type": "table",
-      "title": "HTTP services — click a name to open its detail page",
-      "description": "SLO status per HTTP-serving service over the selected time range, same expressions as the Service detail SLO tiles (99.9% availability target). Only services with recent HTTP traffic appear here — the full workload directory (incl. idle and non-HTTP pods) is the Applications dashboard.",
+      "title": "HTTP services: click a name to open its detail page",
+      "description": "SLO status for each HTTP-serving service over the selected time range, with the same expressions as the SLO tiles of Service detail. The availability target is 99.9%. Only services with recent HTTP traffic appear here. The Applications dashboard is the full workload directory, also with idle pods and pods that do not serve HTTP.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 9,
@@ -476,7 +476,7 @@
       },
       "links": [
         {
-          "title": "Applications — all workloads",
+          "title": "Applications: all workloads",
           "url": "/d/applications/applications"
         }
       ],
@@ -735,7 +735,7 @@
     {
       "type": "stat",
       "title": "Postgres txn/s",
-      "description": "Commits + rollbacks across all databases (CNPG exporter). Click through for per-database breakdowns.",
+      "description": "Commits and rollbacks across all databases, from the CNPG exporter. Click through for the numbers of each database.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -821,7 +821,7 @@
     {
       "type": "stat",
       "title": "Temporal frontend p95",
-      "description": "gRPC latency p95 at the Temporal frontend, excluding long-poll operations (which block ~60s by design). Click through for role/persistence breakdowns.",
+      "description": "gRPC latency p95 at the Temporal frontend, without long-poll operations, which block for about 60s by design. Click through for the numbers by role and persistence.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -876,8 +876,8 @@
     },
     {
       "type": "stat",
-      "title": "Temporal schedule→start p95",
-      "description": "Task schedule-to-start p95 — the queue-backlog signal. Rising means workers cannot keep up.",
+      "title": "Temporal schedule-to-start p95",
+      "description": "Task schedule-to-start p95: the queue-backlog signal. A rise means that workers cannot keep up.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -932,7 +932,7 @@
     },
     {
       "type": "row",
-      "title": "Capacity — is the cluster running out?",
+      "title": "Capacity: is the cluster running out",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -943,7 +943,7 @@
     {
       "type": "stat",
       "title": "Node CPU used",
-      "description": "Real CPU saturation across nodes. Read together with 'CPU requests committed': this can sit near zero while the scheduler is already full.",
+      "description": "Real CPU saturation across nodes. Read it with CPU requests committed: this can be near zero while the scheduler is already full.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -994,7 +994,7 @@
     {
       "type": "stat",
       "title": "Node memory used",
-      "description": "Real memory saturation. Above ~90% the next allocation spike OOM-kills a container that is over its request.",
+      "description": "Real memory saturation. Above about 90%, the next allocation spike OOM-kills a container that is over its request.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -1045,7 +1045,7 @@
     {
       "type": "stat",
       "title": "Node disk free",
-      "description": "Free space on the node filesystem — the disk kubelet evicts on. This cluster pins eviction-hard at 2% so kubelet gives almost no warning of its own; treat anything under 15% as the warning. Reclaim with docker/crictl image + build-cache pruning and a registry garbage-collect.",
+      "description": "Free space on the node filesystem, the disk that kubelet evicts on. This cluster sets eviction-hard to 2%, so kubelet gives almost no warning of its own. Treat anything under 15% as the warning. Free space with docker and crictl image and build-cache pruning, and a registry garbage-collect.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -1096,7 +1096,7 @@
     {
       "type": "stat",
       "title": "CPU requests committed",
-      "description": "sum(container CPU requests) / node allocatable. This — not usage — is what the scheduler admits pods against, so it is usually what fills first and the number to size the next node from.",
+      "description": "The sum of container CPU requests divided by node allocatable. The scheduler admits pods against this number, and not against usage. So it usually fills first, and you size the next node from it.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -1147,7 +1147,7 @@
     {
       "type": "stat",
       "title": "Memory requests committed",
-      "description": "As CPU requests committed, for memory. Compare with 'Node memory used' — a wide gap means requests are set far above real need and the cluster is reserving hardware it never uses.",
+      "description": "Like CPU requests committed, for memory. Compare it with Node memory used. A wide gap means that requests are much higher than the real need, and the cluster reserves hardware that it never uses.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,
@@ -1198,7 +1198,7 @@
     {
       "type": "stat",
       "title": "Pod slots used",
-      "description": "Running pods against the nodes' pod capacity (110 per node, the kubelet default). The quietest of the three ceilings and the easiest to hit on a single-node cluster.",
+      "description": "Running pods against the pod capacity of the nodes: 110 per node, the kubelet default. It is the quietest of the three ceilings, and the easiest to reach on a single-node cluster.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 4,

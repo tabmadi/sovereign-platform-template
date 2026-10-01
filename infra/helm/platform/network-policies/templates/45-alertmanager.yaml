@@ -1,5 +1,5 @@
 {{- if .Values.alertmanager.enabled }}
-## Alertmanager — the routing tier (ADR-0502).
+## Alertmanager, the routing tier, per ADR-0502.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -23,7 +23,7 @@ spec:
         - ports: [{ port: "1025", protocol: TCP }]
 {{- else }}
     # Production submits through maddy, which is not deployed. Until it is, the ticket receiver has no reachable relay
-    # here and an emailed alert is queued rather than delivered.
+    # here, and an emailed alert waits in the queue and is not delivered.
     []
 {{- end }}
 {{- end }}

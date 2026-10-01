@@ -1,6 +1,5 @@
-## Postgres (CNPG) is reachable on 5432 only by the platform stores and the services that own a schema, which is
-## the set whose values set `migrations.enabled: true`.
-# and the demo services that own a schema.
+## Only the platform stores and the services that own a schema reach Postgres, CNPG, on 5432. That set is the
+## services whose values set `migrations.enabled: true`, and the demo services that own a schema.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -14,9 +13,9 @@ spec:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: kratos }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: ory-kratos-courier }
-        # Hydra (ADR-0305) — flag-gated on `hydra_thirdparty`, so this selects
-        # nothing until that env deploys it. Listed anyway: the caller list is
-        # what the flag would otherwise have to remember to change.
+        # Hydra, per ADR-0305. The `hydra_thirdparty` flag gates it, so this selects
+        # nothing until that environment deploys it. It is listed anyway, so the flag does
+        # not need anyone to remember to change the caller list.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: hydra }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: openfga }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: temporal }
@@ -25,11 +24,11 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: orders }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: orgs }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: payment }
-        # pgweb (ADR-0401) — read-only DB inspector panel; connects to postgres-rw.
+        # pgweb, the read-only DB inspector panel, per ADR-0401. It connects to postgres-rw.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: pgweb }
       toPorts:
         - ports: [{ port: "5432", protocol: TCP }]
-    # The cluster talking to ITSELF: replication, and the instance managers' status port that failover reads.
+    # The cluster talks to ITSELF: replication, and the status port of the instance managers that failover reads.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, cnpg.io/cluster: postgres }
       toPorts:
@@ -38,16 +37,16 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: cloudnative-pg }
       toPorts:
         - ports: [{ port: "8000", protocol: TCP }]
-    # otel-cluster scrapes the CNPG instance manager's built-in exporter
-    # (metrics port 9187) and re-exports over OTLP (ADR-0500: Prometheus itself
-    # scrapes nothing) — the postgres component metrics on the dashboards.
+    # otel-cluster scrapes the built-in exporter of the CNPG instance manager on
+    # metrics port 9187, and exports again over OTLP. Per ADR-0500, Prometheus itself
+    # scrapes nothing. These are the postgres component metrics on the dashboards.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: otel-cluster }
       toPorts:
         - ports: [{ port: "9187", protocol: TCP }]
 ---
-## The CNPG poolers (`postgres-pgbouncer-rw`, ADR-0300 transaction mode) — the same database behind a connection
-## pooler, and so the same caller list as the Cluster above.
+## The CNPG poolers, `postgres-pgbouncer-rw`, in ADR-0300 transaction mode. They are the same database behind a
+## connection pooler, so they have the same caller list as the Cluster above.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -58,9 +57,9 @@ spec:
       app.kubernetes.io/name: postgresql
       app.kubernetes.io/component: pooler
   ingress:
-    # Same schema-owning callers as the Cluster: the pooler is a front door to the
-    # same database, so a caller allowed on one and denied on the other would only
-    # be a bug waiting for the first service to switch its DSN to the pooler.
+    # The same schema-owning callers as the Cluster. The pooler is a front door to the
+    # same database. A caller allowed on one and denied on the other would be a bug.
+    # It would appear when the first service changes its DSN to the pooler.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: kratos }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: ory-kratos-courier }
@@ -74,15 +73,15 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: pgweb }
       toPorts:
         - ports: [{ port: "5432", protocol: TCP }]
-    # otel-cluster scrapes pgbouncer's exporter on 9127 — the pooler connection and
+    # otel-cluster scrapes pgbouncer's exporter on 9127: the pooler connection and
     # transaction metrics on the platform-components dashboard.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: otel-cluster }
       toPorts:
         - ports: [{ port: "9127", protocol: TCP }]
 ---
-## OpenFGA — authorization store (HTTP API, port 8080). authz-server checks permissions; the openfga-seed job
-## creates the store + writes the model and bootstrap grants at bring-up.
+## OpenFGA, the authorization store, with its HTTP API on port 8080. authz-server checks permissions. At bring-up,
+## the openfga-seed job creates the store and writes the model and bootstrap grants.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

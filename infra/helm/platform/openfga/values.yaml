@@ -1,6 +1,6 @@
-# Direct OpenFGA deployment (ADR-0304): a plain Deployment + Service, with an `openfga migrate` initContainer that
-# runs before serve. No operator/CRD — the rare phased datastore migration is handled manually per OpenFGA release
-# notes.
+# Direct OpenFGA deployment, per ADR-0304: a plain Deployment and Service, with an `openfga migrate` initContainer
+# that runs before serve. There is no operator and no CRD. The rare phased datastore migration is done by hand,
+# per the OpenFGA release notes.
 image:
   repository: openfga/openfga
   tag: "v1.14.2"
@@ -8,27 +8,27 @@ image:
 replicas: 2
 logLevel: info
 
-# Secret holding the API preshared key + Postgres connection URI (SOPS-managed in
-# prod). Expected keys: preshared_key, datastore_uri
+# The Secret that holds the API preshared key and the Postgres connection URI. SOPS manages
+# it in prod. Expected keys: preshared_key, datastore_uri
 existingSecret: openfga-creds
 
 migrate:
   enabled: true              # run `openfga migrate` as an initContainer
 
-# Model + ops-policy seed (ADR-0300, ADR-0306).
+# Model and ops-policy seed, per ADR-0300 and ADR-0306.
 seed:
   enabled: true
-  # curl + jq for the HTTP-API seed (no fga CLI at runtime — its image is
-  # distroless and can't script a find-or-create flow).
+  # curl and jq for the HTTP-API seed. There is no fga CLI at runtime, because its image
+  # is distroless and cannot script a find-or-create flow.
   image: alpine/k8s:1.31.1
-  # Each ops dashboard (ADR-0306) granted to group:operator members.
+  # Each ops dashboard, per ADR-0306, granted to the members of `group:operator`.
   dashboards: [lowdefy, hubble, grafana, argocd, temporal, seaweedfs, headlamp, pgweb, mailpit, zot]
-  # Service-account identities granted group:operator#member. The Lowdefy admin
-  # console (ADR-0401) calls services east-west asserting X-User-Id: admin-console;
-  # this grant lets that identity pass the services' operator write-gate.
+  # Service-account identities granted `group:operator#member`. The Lowdefy admin
+  # console, per ADR-0401, calls services east-west with `X-User-Id: admin-console`.
+  # This grant lets that identity pass the operator write-gate of the services.
   serviceOperators: [admin-console]
-  # Canonical authorization model, injected by the platform ApplicationSet fileParameter `seed.model` from
-  # infra/auth/openfga/model.json (generated from the model.fga DSL — the one source of truth).
+  # The canonical authorization model. The platform ApplicationSet fileParameter `seed.model` injects it from
+  # `infra/auth/openfga/model.json`, which is generated from the `model.fga` DSL, the one source of truth.
   model: ""
 
 resources:

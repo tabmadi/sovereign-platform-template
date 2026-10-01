@@ -1,4 +1,4 @@
-# Cardinality and metrics-store health (ADR-0500).
+# Cardinality and metrics-store health, per ADR-0500.
 groups:
   - name: metrics.cardinality
     rules:
@@ -8,30 +8,30 @@ groups:
         for: 30m
         labels: { severity: ticket }
         annotations:
-          summary: "Prometheus holds {{ $value | printf \"%.0f\" }} active series — past 70% of the ceiling"
+          summary: "Prometheus holds {{ $value | printf \"%.0f\" }} active series, over 70% of the ceiling"
           description: >-
-            Series growth is usually a label that became unbounded rather than a
-            service that grew. Find the offender before adding memory: the top
-            metrics by series count name it, and ADR-0500's allow-listed label
-            helpers are what should have prevented it.
+            Series growth usually comes from a label that became unbounded, and
+            not from a service that grew. Find the cause before you add memory.
+            The top metrics by series count name it. ADR-0500's allow-listed
+            label helpers exist to prevent it.
       - alert: ActiveSeriesNearCeiling
         expr: |
           prometheus_tsdb_head_series > 0.9 * 250000
         for: 15m
         labels: { severity: page }
         annotations:
-          summary: "Prometheus holds {{ $value | printf \"%.0f\" }} active series — past 90% of the ceiling"
+          summary: "Prometheus holds {{ $value | printf \"%.0f\" }} active series, over 90% of the ceiling"
           description: >-
-            The metrics store is close to the memory it was sized for, and an
-            OOM here takes every signal with it, including the ones needed to
-            diagnose the incident that follows. This is the documented trigger
-            for the Mimir swap (docs/reference/deferral-register.md).
+            The metrics store is close to the memory it was sized for. An OOM
+            here loses every signal, also the signals needed to diagnose the
+            incident that follows. This is the documented trigger for the Mimir
+            swap, in docs/reference/deferral-register.md.
 
   - name: metrics.store-health
     rules:
-      # A rule that fails to evaluate is not a rule. This is the failure that
-      # makes every alert file in this directory a fiction while reporting
-      # nothing, because the alerts that would report it are the ones failing.
+      # A rule that fails to evaluate does not work. This failure makes every alert
+      # file in this directory useless and reports nothing, because the alerts that
+      # would report it are the ones that fail.
       - alert: PrometheusRuleEvaluationFailing
         expr: |
           increase(prometheus_rule_evaluation_failures_total[15m]) > 0
@@ -40,12 +40,12 @@ groups:
         annotations:
           summary: "Prometheus rule evaluations are failing"
           description: >-
-            One or more rule groups are erroring, so the alerts they carry are
-            not being evaluated and will never fire. Check the rule files most
-            recently changed against /api/v1/rules, which reports per-rule health.
-      # The handoff from evaluation to routing. Distinct from the Watchdog: this
-      # fires while Alertmanager is reachable and rejecting, where the Watchdog's
-      # absence covers the case where nothing arrives at all.
+            One or more rule groups have errors. So Prometheus does not evaluate
+            their alerts, and they never fire. Check the most recently changed
+            rule files against /api/v1/rules, which reports the health of each rule.
+      # The handoff from evaluation to routing. It is different from the Watchdog: this
+      # fires while Alertmanager is reachable and rejects alerts. The Watchdog's
+      # absence covers the case where nothing arrives.
       - alert: PrometheusAlertmanagerNotificationsFailing
         expr: |
           increase(prometheus_notifications_errors_total[15m]) > 0
@@ -54,6 +54,6 @@ groups:
         annotations:
           summary: "Prometheus cannot deliver alerts to Alertmanager"
           description: >-
-            Alerts are evaluating and not reaching the routing tier, so nothing
-            is notified regardless of severity. Check the Alertmanager
+            Alerts evaluate but do not reach the routing tier. So no
+            notification goes out, at any severity. Check the Alertmanager
             Deployment and the network policy that admits Prometheus to it.

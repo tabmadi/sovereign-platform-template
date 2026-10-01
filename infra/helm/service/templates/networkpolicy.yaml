@@ -1,6 +1,6 @@
 {{- if .Values.networkPolicy.enabled }}
-# Default-deny NetworkPolicy (ADR-0206, ADR-0304). Selecting the service's pods with both policyTypes makes
-# everything not explicitly allowed below denied.
+# Default-deny NetworkPolicy, per ADR-0206 and ADR-0304. It selects the service's pods with both policyTypes. So it
+# denies everything that the rules below do not allow.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -12,15 +12,15 @@ spec:
   policyTypes: [Ingress, Egress]
   ingress:
     {{- if .Values.networkPolicy.allowFromGateway }}
-    # Edge traffic: Traefik (installed in kube-system) → server port.
+    # Edge traffic: Traefik, installed in kube-system, to the server port.
     - from:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
       ports:
         - { port: {{ .Values.server.port }}, protocol: TCP }
     {{- end }}
     {{- with .Values.networkPolicy.allowFrom }}
-    # Service-to-service callers this service accepts (ADR-0302 internal calls
-    # bypass the edge and forward identity headers; reachability is gated here).
+    # Service-to-service callers that this service accepts. Internal calls under ADR-0302 skip
+    # the edge and forward identity headers, so this rule gates reachability.
     - from:
         {{- range . }}
         - podSelector: { matchLabels: { app.kubernetes.io/name: {{ . }} } }
@@ -29,18 +29,18 @@ spec:
       ports:
         - { port: {{ $.Values.server.port }}, protocol: TCP }
     {{- end }}
-    # Metrics scrape from the OTel collector (platform namespace) → admin port.
+    # Metrics scrape from the OTel collector in the platform namespace to the admin port.
     - from:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
       ports:
         - { port: {{ .Values.server.adminPort }}, protocol: TCP }
   egress:
-    # Platform deps: Postgres, Temporal, OpenFGA, Kratos/Oathkeeper, and
-    # in-namespace service-to-service calls.
+    # Platform dependencies: Postgres, Temporal, OpenFGA, Kratos, Oathkeeper, and
+    # service-to-service calls in the namespace.
     - to:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }
-    # Telemetry export. The collector is not in `platform` — it needs hostPath and hostPorts, and PSA's exception unit
-    # is the namespace (ADR-0200) — so the rule above does not cover it.
+    # Telemetry export. The collector is not in `platform`, because it needs hostPath and hostPorts, and PSA's exception
+    # unit is the namespace, per ADR-0200. So the rule above does not cover it.
     - to:
         - namespaceSelector:
             matchLabels: { kubernetes.io/metadata.name: {{ .Values.networkPolicy.otelAgentNamespace }} }

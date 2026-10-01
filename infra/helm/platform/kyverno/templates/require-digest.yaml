@@ -1,12 +1,12 @@
 {{- if .Values.policies.imagePrefix }}
-# Every first-party image reference is a digest (ADR-0101, ADR-0104).
+# Every first-party image reference is a digest, per ADR-0101 and ADR-0104.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: require-image-digest
   annotations:
-    # After the CRDs, which are TEMPLATES of the subchart rather than files in a crds/ directory — so a single Helm
-    # pass renders this CR against an API server that has never heard of `kyverno.io/v1`.
+    # After the CRDs. They are TEMPLATES of the subchart, not files in a `crds/` directory. So a single Helm
+    # pass renders this CR against an API server that does not know `kyverno.io/v1`.
     argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: First-party images are pinned by digest
     policies.kyverno.io/category: Supply chain
@@ -18,9 +18,9 @@ metadata:
       (ADR-0101).
 spec:
   validationFailureAction: {{ .Values.policies.validationFailureAction }}
-  # Background scanning ON, unlike the signature policy: this check needs no registry round trip, so it is cheap to
-  # re-evaluate against everything already running — which is how a workload that was admitted before the policy
-  # existed shows up in a report instead of staying invisible until its next reschedule.
+  # Background scanning is ON, unlike the signature policy. This check needs no registry round trip, so it is cheap to
+  # run again against everything that already runs. So a workload admitted before the policy existed shows in a
+  # report. It does not stay invisible until its next reschedule.
   background: true
   rules:
     - name: digest-not-tag
@@ -35,19 +35,19 @@ spec:
             value: DELETE
       validate:
         message: >-
-          A first-party image must be referenced by digest, not by tag (ADR-0101).
-          Promotion writes the digest into the values file; a tag there is the
-          defect lint:floating-tags exists to catch before it reaches a cluster.
+          A first-party image must use a digest, not a tag, per ADR-0101.
+          Promotion writes the digest into the values file. A tag there is the
+          defect that lint:floating-tags catches before it reaches a cluster.
         foreach:
-          # Every container type, flattened. `|| []` on each: a pod with no
-          # initContainers yields null, and a null inside the multiselect makes the
-          # whole expression null rather than the shorter list you meant.
+          # Every container type, as one flat list. Each has `|| []`: a pod with no
+          # initContainers gives null. A null inside the multiselect makes the whole
+          # expression null, and not the shorter list that you want.
           - list: "request.object.spec.[containers || `[]`, initContainers || `[]`, ephemeralContainers || `[]`][]"
             deny:
               conditions:
                 all:
-                  # BOTH conditions in one `all`, rather than the registry check as a foreach precondition: a precondition that does
-                  # not match skips the element silently, and a rule that silently skips everything looks exactly like a rule that
+                  # BOTH conditions are in one `all`. The registry check is not a foreach precondition. A precondition that does not
+                  # match skips the element with no sign. A rule that skips everything with no sign looks the same as a rule that
                   # passes.
                   - key: "{{ `{{ element.image }}` }}"
                     operator: Equals

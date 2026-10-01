@@ -1,5 +1,5 @@
 {{- if .Values.forgejo.enabled }}
-## The forge (ADR-0102). Gated on the same flag the chart is. Ingress is the edge and the Actions runners.
+## The forge, per ADR-0102. The same flag gates it as the chart. Ingress comes from the edge and the Actions runners.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -14,7 +14,7 @@ spec:
       toPorts:
         - ports: [{ port: "3000", protocol: TCP }]
   egress:
-    # Its database, on the shared CNPG cluster through the pooler (ADR-0300).
+    # Its database, on the shared CNPG cluster, through the pooler, per ADR-0300.
     - toEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, cnpg.io/poolerName: postgres-pooler }
       toPorts:

@@ -1,9 +1,9 @@
-# Values namespaced under `headlamp:` so this chart shares the platform
-# ApplicationSet's single per-env values overlay without key collisions.
+# Values are under `headlamp:`, so this chart shares the single per-environment
+# values overlay of the platform ApplicationSet with no key collisions.
 headlamp:
-  # Core (ADR-0501): deployed in every environment. The gate stays here so a
-  # project can drop Headlamp by setting `enabled: false` in an env overlay,
-  # like any Core component removed per its ADR.
+  # Core, per ADR-0501: deployed in every environment. The gate stays here, so a
+  # project can drop Headlamp with `enabled: false` in an environment overlay,
+  # like any Core component removed under its ADR.
   enabled: true
 
   image:
@@ -15,7 +15,7 @@ headlamp:
   service:
     port: 80
 
-  # Bound to the built-in `view` ClusterRole: list/get/watch across the cluster,
-  # no writes. Read-only is the documented intent (ADR-0501); swap this for a
-  # narrower custom role if a project needs to tighten it further.
+  # Bound to the built-in `view` ClusterRole: list, get, and watch across the cluster,
+  # with no writes. Read-only is the documented intent, per ADR-0501. Use a
+  # narrower custom role if a project needs tighter access.
   clusterRole: view

@@ -1,54 +1,54 @@
-# Observability backend (ADR-0500): Grafana + Loki/Tempo (monolithic single-binary mode) + Prometheus (Core
-# metrics, local TSDB) + the cluster-state collector. Log/trace durability is the off-cluster bucket (ADR-0207);
-# access keys come from the SOPS-decrypted `observability-bucket` Secret (ADR-0202).
+# Observability backend, per ADR-0500: Grafana, Loki and Tempo in monolithic single-binary mode, Prometheus for Core
+# metrics with a local TSDB, and the cluster-state collector. The off-cluster bucket makes logs and traces durable,
+# per ADR-0207. The access keys come from the SOPS-decrypted `observability-bucket` Secret, per ADR-0202.
 
 grafana:
   fullnameOverride: grafana
-  adminPassword: ""                # supplied via SOPS-decrypted Secret in prod
-  # Dashboard rendering is bursty per page load, hence no CPU limit (ADR-0204).
+  adminPassword: ""                # supplied through a SOPS-decrypted Secret in prod
+  # Dashboard rendering comes in bursts on each page load, so there is no CPU limit, per ADR-0204.
   resources:
     requests: { cpu: "100m", memory: "192Mi" }
     limits:   { memory: "512Mi" }
-  # Served at the ROOT of its own ops origin grafana.ops.<host> (ADR-0306), not
-  # under a /grafana path — so serve_from_sub_path is off. Each env overrides
-  # root_url with its external origin (the local overlay sets the :8443 edge).
+  # Served at the ROOT of its own ops origin `grafana.ops.<host>`, per ADR-0306, and not
+  # under a `/grafana` path. So `serve_from_sub_path` is off. Each environment overrides
+  # `root_url` with its external origin. The local overlay sets the :8443 edge.
   grafana.ini:
     server:
       serve_from_sub_path: false
       root_url: "%(protocol)s://%(domain)s/"
-    # The ops edge is the authentication gate (Oathkeeper: an AAL2 operator holding dashboard:grafana#view, ADR-0306).
+    # The ops edge is the authentication gate. Oathkeeper requires an AAL2 operator with `dashboard:grafana#view`, per ADR-0306.
     auth:
       disable_login_form: true
     "auth.anonymous":
       enabled: true
       org_role: Admin
-    # Land operators on a dashboard rather than the Grafana home page.
+    # Operators land on a dashboard, and not on the Grafana home page.
     dashboards:
       default_home_dashboard_path: /var/lib/grafana/dashboards/default/overview.json
-    # No phone-home: version/plugin update checks and usage analytics are the only
-    # reason Grafana reaches the internet (seen in Hubble as grafana -> <gcp-ip>:443).
+    # No phone-home. Version and plugin update checks and usage analytics are the only
+    # reasons Grafana reaches the internet. Hubble shows this as grafana to <gcp-ip>:443.
     analytics:
       reporting_enabled: false
       check_for_updates: false
       check_for_plugin_updates: false
-    # Grafana 11.4+ ships the drilldown apps (Explore Logs/Traces/Metrics, Pyroscope) as *preinstalled* plugins and
-    # fetches them from grafana.com on startup — which fails on an air-gapped/proxied cluster ("Failed to install
-    # plugin … context deadline exceeded").
+    # Grafana 11.4+ ships the drilldown apps, Explore Logs, Traces, Metrics, and Pyroscope, as *preinstalled* plugins. It
+    # fetches them from grafana.com at startup. That fails on an air-gapped or proxied cluster with `Failed to install
+    # plugin` and `context deadline exceeded`.
     plugins:
       preinstall_disabled: true
       public_key_retrieval_disabled: true
   datasources:
     datasources.yaml:
       apiVersion: 1
-      # Fixed uids: a provisioned datasource without an explicit uid gets a random one, and dashboard data-links
-      # reference datasources by uid — so pin them all.
+      # Fixed uids. A provisioned datasource without an explicit uid gets a random one. Dashboard data-links reference
+      # datasources by uid, so pin them all.
       datasources:
         - { name: Prometheus, uid: prometheus, type: prometheus, url: http://prometheus.platform.svc.cluster.local:9090 }
         - { name: Loki,       uid: loki,       type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
         - { name: Tempo,      uid: tempo,      type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
-        # Pyroscope (ADR-0501 POC — continuous profiling). Backs the flame-graph
-        # panel on the service-detail dashboard; profiles are pushed here by the
-        # Alloy agent (templates/alloy.yaml).
+        # Pyroscope, the ADR-0501 POC for continuous profiling. It backs the flame-graph
+        # panel on the service-detail dashboard. The Alloy agent in `templates/alloy.yaml`
+        # pushes profiles here.
         - { name: Pyroscope, uid: pyroscope, type: grafana-pyroscope-datasource, url: http://pyroscope.platform.svc.cluster.local:4040 }
   dashboardProviders:
     dashboardproviders.yaml:
@@ -59,29 +59,29 @@ grafana:
           folder: ""
           type: file
           disableDeletion: false
-          editable: false      # dashboards are git artifacts (ADR-0500): PRs, not UI edits
+          editable: false      # dashboards are git artifacts, per ADR-0500: change them with PRs, not in the UI
           options:
             path: /var/lib/grafana/dashboards/default
   dashboardsConfigMaps:
-    default: grafana-dashboards     # populated from infra/observability/dashboards/
+    default: grafana-dashboards     # filled from infra/observability/dashboards/
 
-# Loki — single-binary monolithic (-target=all), bucket-backed (ADR-0500).
+# Loki: single-binary monolithic mode with `-target=all`, backed by the bucket, per ADR-0500.
 loki:
-  # Pin the service name to `loki` (not the release-prefixed `observability-loki`)
-  # so the OTel exporter and Grafana datasource below — and prod — reach it at
-  # loki.<ns>.svc:3100. Mirrors tempo/prometheus, which also fix their names.
+  # Pin the service name to `loki`, not the release-prefixed `observability-loki`.
+  # So the OTel exporter, the Grafana datasource below, and prod reach it at
+  # `loki.<ns>.svc:3100`. Tempo and Prometheus also fix their names in the same way.
   fullnameOverride: loki
   deploymentMode: SingleBinary
   loki:
-    # The one field of `restricted` the loki chart leaves unset (ADR-0200).
+    # The one field of `restricted` that the loki chart leaves unset, per ADR-0200.
     podSecurityContext:
       seccompProfile: { type: RuntimeDefault }
-    # Single-tenant (ADR-0500): no X-Scope-OrgID required. Without this the chart
-    # defaults to multi-tenant and every header-less query (incl. Grafana's
-    # datasource health check) 401s with "no org id".
+    # Single-tenant, per ADR-0500: no X-Scope-OrgID is required. Without this, the chart
+    # defaults to multi-tenant. Every query without the header then gets a 401 with
+    # `no org id`, and so does Grafana's datasource health check.
     auth_enabled: false
-    # Don't phone home usage stats to stats.grafana.org — the only reason loki
-    # makes an external egress connection (seen in Hubble as loki -> <gcp-ip>:443).
+    # Do not send usage stats to stats.grafana.org. That is the only reason loki
+    # makes an external egress connection. Hubble shows this as loki to <gcp-ip>:443.
     analytics: { reporting_enabled: false }
     commonConfig: { replication_factor: 1 }
     schemaConfig:
@@ -98,14 +98,14 @@ loki:
         endpoint: s3.eu-central-1.amazonaws.com
         region: eu-central-1
         s3ForcePathStyle: true
-        # access_key_id / secret_access_key are left empty so Loki's S3 client uses
-        # the AWS SDK env credentials injected below from the observability-bucket Secret.
+        # `access_key_id` and `secret_access_key` are empty, so Loki's S3 client uses the AWS SDK
+        # env credentials. They come below from the observability-bucket Secret.
   singleBinary:
     replicas: 1
     extraEnvFrom:
       - secretRef: { name: observability-bucket }
-    # Explicit rather than the namespace LimitRange default, which log ingest sits
-    # close enough to that a busier day would OOM it (ADR-0204).
+    # Set explicitly, and not left to the namespace LimitRange default. Log ingest is so
+    # close to that default that a busier day would OOM it, per ADR-0204.
     resources:
       requests: { cpu: "100m", memory: "512Mi" }
       limits:   { memory: "1Gi" }
@@ -114,24 +114,24 @@ loki:
   backend: { replicas: 0 }
   chunksCache: { enabled: false }
   resultsCache: { enabled: false }
-  # The nginx gateway fronts the distributed read/write/backend split; in SingleBinary mode the OTel collector
-  # pushes and Grafana queries the loki service directly, so it is dead weight.
+  # The nginx gateway fronts the distributed read, write, and backend split. In SingleBinary mode, the OTel collector
+  # pushes to the loki service and Grafana queries it directly. So the gateway does nothing useful.
   gateway: { enabled: false }
-  # loki-canary is a synthetic log-probe DaemonSet (+ its helm test) used to
-  # measure ingest latency; not something this template needs to run. These two
-  # toggles are the loki chart's own templates, so a values override works.
+  # loki-canary is a synthetic log-probe DaemonSet, with its helm test. It measures
+  # ingest latency, and this template does not need it. These two toggles are the
+  # loki chart's own templates, so a values override works.
   lokiCanary: { enabled: false }
   test: { enabled: false }
-  # NOTE: the loki chart also bundles minio, rollout-operator and grafana-agent-operator as *grandchild* subcharts,
-  # which Helm renders even when their conditions are set false (nested-condition limitation).
+  # NOTE: the loki chart also bundles minio, rollout-operator, and grafana-agent-operator as *grandchild* subcharts.
+  # Helm renders them even when their conditions are false, because of a limit on nested conditions.
 
-# Tempo — single-binary monolithic chart, bucket-backed.
+# Tempo: the single-binary monolithic chart, backed by the bucket.
 tempo:
-  # Pin the service name to `tempo` so the OTel exporter (tempo:4318) and Grafana
-  # datasource (tempo:3200) resolve it, instead of the release-prefixed default.
+  # Pin the service name to `tempo`, so the OTel exporter at tempo:4318 and the Grafana
+  # datasource at tempo:3200 resolve it, and not the release-prefixed default.
   fullnameOverride: tempo
   replicas: 1
-  # `restricted` (ADR-0200).
+  # `restricted`, per ADR-0200.
   securityContext:
     seccompProfile: { type: RuntimeDefault }
   tempo:
@@ -139,12 +139,12 @@ tempo:
       allowPrivilegeEscalation: false
       capabilities:
         drop: ["ALL"]
-    # THE HEAVIEST POD IN THE CLUSTER, and the reason this chart cannot rely on the namespace LimitRange default.
+    # THE HEAVIEST POD IN THE CLUSTER. So this chart cannot rely on the namespace LimitRange default.
     resources:
       requests: { cpu: "100m", memory: "1Gi" }
       limits:   { memory: "3Gi" }
     reportingEnabled: false
-    # Metrics-generator stays OFF (chart default).
+    # The metrics-generator stays OFF, as in the chart default.
     extraEnvFrom:
       - secretRef: { name: observability-bucket }
     storage:
@@ -154,60 +154,60 @@ tempo:
           bucket: tempo-traces
           endpoint: s3.eu-central-1.amazonaws.com
           region: eu-central-1
-          # access_key / secret_key come from the observability-bucket Secret.
+          # `access_key` and `secret_key` come from the observability-bucket Secret.
 
-# Prometheus — the Core-tier metrics store: one Deployment, local TSDB, native OTLP ingest, no object storage.
-# Rendered by templates/prometheus.yaml (ConfigMap + Deployment + Service), not a subchart.
+# Prometheus, the Core-tier metrics store: one Deployment, a local TSDB, native OTLP ingest, and no object storage.
+# `templates/prometheus.yaml` renders it as a ConfigMap, a Deployment, and a Service. It is not a subchart.
 prometheus:
   image: prom/prometheus:v3.1.0
   replicas: 1
   httpPort: 9090
   # Local-TSDB retention.
   retention: 31d
-  # Where evaluated alerts are sent for routing (ADR-0502). Named here rather
-  # than read from the alertmanager chart's values: a chart renders from its own
-  # values alone, so a cross-chart address is a value this chart owns.
+  # Where evaluated alerts go for routing, per ADR-0502. It is set here, and not read
+  # from the values of the alertmanager chart. A chart renders from its own values
+  # only, so a cross-chart address is a value that this chart owns.
   alertmanagerTarget: alertmanager.platform.svc.cluster.local:9093
   # The TSDB volume.
   storage:
     size: 20Gi
     # Unset means the cluster's default StorageClass.
     storageClassName: ""
-  # No CPU limit (ADR-0204): a TSDB compaction is the bursty, latency-sensitive
-  # work CFS throttling ruins.
+  # No CPU limit, per ADR-0204. A TSDB compaction is bursty, latency-sensitive
+  # work, and CFS throttling ruins it.
   resources:
     requests: { cpu: "100m", memory: "384Mi" }
     limits:   { memory: "1Gi" }
 
-# Pyroscope (ADR-0501 POC — continuous profiling, the fourth signal). Rendered by templates/pyroscope.yaml as a
-# single-binary monolith (-target=all) with filesystem storage on an emptyDir — the POC minimum.
+# Pyroscope, the ADR-0501 POC for continuous profiling, the fourth signal. `templates/pyroscope.yaml` renders it as a
+# single-binary monolith with `-target=all` and filesystem storage on an emptyDir. That is the POC minimum.
 pyroscope:
   image: grafana/pyroscope:1.14.0
-  # The request tracks the working set because memory is not compressible; the
+  # The request follows the working set, because memory cannot be compressed. The
   # limit leaves room for ingest spikes.
   resources:
     requests: { cpu: "100m", memory: "384Mi" }
     limits:   { memory: "1Gi" }
 
-# Grafana Alloy (ADR-0501 POC) — the pprof-scraping agent the withdrawn profiling flag always implied. Rendered by
-# templates/alloy.yaml.
+# Grafana Alloy, the ADR-0501 POC. It is the pprof-scraping agent that the withdrawn profiling flag always implied.
+# `templates/alloy.yaml` renders it.
 alloy:
   image: grafana/alloy:v1.11.0
-  # The request matches the real working set: under-requesting here lets the
-  # scheduler overcommit a node and then evict the agent (ADR-0204).
+  # The request matches the real working set. If it asks for less, the scheduler
+  # overcommits a node and then evicts the agent, per ADR-0204.
   resources:
     requests: { cpu: "100m", memory: "320Mi" }
     limits:   { memory: "768Mi" }
 
-# Cluster-state metrics singleton (templates/otel-cluster.yaml): k8s_cluster receiver → desired/available
-# replicas, restart counts, resource limits as series.
+# The cluster-state metrics singleton in `templates/otel-cluster.yaml`. Its k8s_cluster receiver gives desired and
+# available replicas, restart counts, and resource limits as series.
 otelCluster:
   image: otel/opentelemetry-collector-contrib:0.154.0
   resources:
     requests: { cpu: "50m", memory: "192Mi" }
     limits:   { memory: "512Mi" }
 
-# Mirrors the gate in the maddy chart (infra/helm/platform/maddy). Both read the same per-env overlay, so the
-# scrape job appears exactly where the agent does.
+# The same gate as in the maddy chart, `infra/helm/platform/maddy`. Both read the same per-environment overlay. So
+# the scrape job appears only where the agent does.
 maddy:
   enabled: false

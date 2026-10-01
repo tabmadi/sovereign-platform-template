@@ -1,5 +1,5 @@
-## Temporal service mesh: the four roles gossip on 6933-6939 and RPC on 7233-7239 among themselves.
-# only name=temporal may reach those ports.
+## Temporal service mesh: the four roles gossip on 6933-6939 and use RPC on 7233-7239 among themselves.
+## Only name=temporal can reach those ports.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -21,23 +21,23 @@ spec:
             - { port: "7234", protocol: TCP }
             - { port: "7235", protocol: TCP }
             - { port: "7239", protocol: TCP }
-    # otel-cluster scrapes each server role's Prometheus endpoint (metrics port
-    # 9090) and re-exports over OTLP (ADR-0500: Prometheus itself scrapes
-    # nothing) — the temporal component metrics on the dashboards.
+    # otel-cluster scrapes the Prometheus endpoint of each server role on metrics
+    # port 9090, and exports again over OTLP. Per ADR-0500, Prometheus itself scrapes
+    # nothing. These are the temporal component metrics on the dashboards.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: otel-cluster }
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
   egress:
-    # Stale ring members — dead peer IPs that no longer belong to any pod.
+    # Stale ring members: dead peer IPs that no longer belong to any pod.
     - toCIDR: [{{ .Values.podCIDR | quote }}]
       toPorts:
         - ports:
             - { port: "6933", endPort: 6939, protocol: TCP }
             - { port: "7233", endPort: 7239, protocol: TCP }
 ---
-## The other half of the stale-peer problem: a dead peer IP now recycled onto a live pod. The egress rule
-## above legalises temporal's side of a doomed gossip dial.
+## The other half of the stale-peer problem: a dead peer IP that is now reused by a live pod. The egress rule
+## above allows temporal's side of a gossip dial that cannot succeed.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -50,8 +50,8 @@ spec:
       toPorts:
         - ports: [{ port: "6933", endPort: 6939, protocol: TCP }]
 ---
-## Frontend RPC (7233) is the client entrypoint: app workers, temporal-web and
-## admintools call it. Any platform pod may reach the frontend on 7233 only.
+## Frontend RPC on 7233 is the client entry point. App workers, temporal-web, and
+## admintools call it. Any platform pod can reach the frontend, only on 7233.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

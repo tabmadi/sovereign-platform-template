@@ -1,8 +1,8 @@
-# Shared Traefik IngressRoutes (ADR-0305, ADR-0306). Per-service /api/<svc> routes are emitted by the service Helm
-# chart (infra/helm/service/templates/ingressroute.yaml) on the product apex.
+# Shared Traefik IngressRoutes, per ADR-0305 and ADR-0306. The service Helm chart emits the per-service
+# `/api/<svc>` routes on the product apex, in `infra/helm/service/templates/ingressroute.yaml`.
 ---
-# Hubble UI (ADR-0206, ADR-0501) — Cilium network-flow visibility / service map (service in kube-system,
-# cross-namespace ref like Argo).
+# Hubble UI, per ADR-0206 and ADR-0501: Cilium network-flow visibility and the service map. The service is in
+# `kube-system`, so this is a cross-namespace reference, like the Argo CD route.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -14,9 +14,9 @@ spec:
     - kind: Rule
       match: HostRegexp(`^hubble\.ops\..+`)
       middlewares:
-        # First in the chain: middlewares wrap the ones after them, so a denial
-        # raised by forward-auth below is only visible to something listed above
-        # it (ADR-0305).
+        # First in the chain. A middleware wraps the ones after it. So only a middleware
+        # listed above forward-auth can see a denial that forward-auth raises, per
+        # ADR-0305.
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
@@ -28,7 +28,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Grafana (ADR-0500) — served at root (serve_from_sub_path dropped, see chart).
+# Grafana, per ADR-0500. It serves at the root. The chart drops `serve_from_sub_path`.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -50,8 +50,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Lowdefy internal-admin console (ADR-0401). Oathkeeper injects X-User-Email,
-# which Lowdefy keys off (see access-rules ops-lowdefy rule).
+# Lowdefy internal-admin console, per ADR-0401. Oathkeeper injects `X-User-Email`,
+# and Lowdefy keys on it. See the `ops-lowdefy` access rule.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -73,7 +73,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Argo CD (ADR-0201). server.insecure is on, so TLS terminates at Traefik and argocd-server serves http on :80.
+# Argo CD, per ADR-0201. `server.insecure` is on, so TLS ends at Traefik, and `argocd-server` serves http on :80.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -96,7 +96,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Temporal Web UI (ADR-0302) — temporalio/ui at root on :8080.
+# Temporal Web UI, per ADR-0302: `temporalio/ui` at the root on :8080.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -118,8 +118,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# SeaweedFS admin (ADR-0306, ADR-0207) — non-prod only, admin UI at root on :23646, and the sole exposed surface
-# of the store.
+# SeaweedFS admin, per ADR-0306 and ADR-0207. It is non-prod only, with the admin UI at the root on :23646. It is
+# the only exposed surface of the store.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -141,9 +141,9 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Headlamp — k8s debug UI (ADR-0501, ADR-0306). Core: the backend Service exists
-# in every env; if a project sets headlamp.enabled=false the route resolves to no
-# endpoints.
+# Headlamp, the k8s debug UI, per ADR-0501 and ADR-0306. Core: the backend Service
+# exists in every environment. If a project sets `headlamp.enabled=false`, the
+# route resolves to no endpoints.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -165,8 +165,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# pgweb — read-only DB inspector (ADR-0401, ADR-0306). Core: the backend Service
-# exists in every env; setting pgweb.enabled=false leaves the route with no endpoints.
+# pgweb, the read-only DB inspector, per ADR-0401 and ADR-0306. Core: the backend Service
+# exists in every environment. `pgweb.enabled=false` leaves the route with no endpoints.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -188,9 +188,9 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Mailpit viewer (ADR-0307, ADR-0306) — non-prod only, the sink's UI at root on
-# :8025. Production sets mailpit.enabled=false, so the Service is absent there and
-# the route resolves to no endpoints, as the SeaweedFS admin route does in prod.
+# Mailpit viewer, per ADR-0307 and ADR-0306. Non-prod only: the sink's UI at the root
+# on :8025. Production sets `mailpit.enabled=false`, so the Service is absent there.
+# The route then resolves to no endpoints, like the SeaweedFS admin route in prod.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -212,8 +212,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# zot's console (ADR-0105, ADR-0306). The SAME pod as the `registry` route below, on a second origin with a
-# different gate — which is the whole point of separating them.
+# zot's console, per ADR-0105 and ADR-0306. It is the SAME pod as the `registry` route below, on a second origin
+# with a different gate. That different gate is the reason to separate them.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -235,8 +235,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# The registry (ADR-0105), and the one origin at the edge that is NOT gated on an operator session. Everything
-# else here is a browser tool, so forward-auth to Oathkeeper is the right gate.
+# The registry, per ADR-0105. It is the one origin at the edge that is NOT gated on an operator session. Every
+# other route here is a browser tool, so forward-auth to Oathkeeper is the right gate.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -255,8 +255,8 @@ spec:
   tls:
     secretName: wildcard-tls
 ---
-# The identity API (ADR-0304, ADR-0305). Kratos's self-service endpoints, on the PRODUCT origin under `/auth`,
-# because the session cookie is the product origin's.
+# The identity API, per ADR-0304 and ADR-0305: Kratos's self-service endpoints. They are on the PRODUCT origin
+# under `/auth`, because the session cookie belongs to the product origin.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
@@ -268,7 +268,7 @@ spec:
     - kind: Rule
       match: PathPrefix(`/auth/self-service`) || PathPrefix(`/auth/.well-known`) || PathPrefix(`/auth/sessions`)
       middlewares:
-        # Rate-limited: this is the surface a credential-stuffing attempt aims at.
+        # Rate-limited, because a credential-stuffing attempt aims at this surface.
         - name: strip-auth
         - name: auth-ratelimit
         - name: security-headers

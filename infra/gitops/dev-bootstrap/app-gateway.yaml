@@ -1,6 +1,6 @@
-# Gateway Application (ADR-0305). Applies the Traefik edge config (middlewares +
-# cross-cutting IngressRoutes) from infra/gateway. Picked up by the root
-# app-of-apps, which recurses infra/gitops/dev-bootstrap.
+# Gateway Application, per ADR-0305. It applies the Traefik edge config from `infra/gateway`: the middlewares
+# and the cross-cutting IngressRoutes. The root app-of-apps picks it up, because it recurses
+# `infra/gitops/dev-bootstrap`.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,13 +9,13 @@ metadata:
   labels:
     app.kubernetes.io/part-of: gateway
   annotations:
-    # CRDs (middlewares) before the per-service IngressRoutes that reference them.
-    # Wave 4: after the whole platform tier (base 0 · data 2 · core 3), before
-    # services (5). See infra/gitops/dev-bootstrap/appset-platform.yaml for the ladder.
+    # The middleware CRDs come before the per-service IngressRoutes that reference them.
+    # Wave 5: after the platform tiers at waves 0 to 4, and before services at 6.
+    # `infra/gitops/dev-bootstrap/appset-platform.yaml` holds the wave order.
     argocd.argoproj.io/sync-wave: "5"
 spec:
-  # Shared edge config: a single Application across the fanned envs, so it has no
-  # single env AppProject to belong to — it stays in `default`.
+  # Shared edge config: one Application across all environments. It has no single
+  # environment AppProject to belong to, so it stays in `default`.
   project: default
   source:
     repoURL: https://github.com/tabmadi/sovereign-platform-template.git
@@ -27,9 +27,9 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true, ServerSideApply=true]
-    # Retry on failure — automated+selfHeal won't re-run a sync that errored on
-    # the same commit, so a transient blip would otherwise leave the edge
-    # unrouted until a manual sync. Backoff caps at 2m (ADR-0201).
+    # Retry on failure. Automated sync with selfHeal does not run a sync again after it failed on the same
+    # commit. Without a retry, a short outage leaves the edge unrouted until a manual sync. Backoff stops
+    # growing at 2m, per ADR-0201.
     retry:
       limit: 20
       backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

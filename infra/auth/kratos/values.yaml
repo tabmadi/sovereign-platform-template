@@ -1,5 +1,5 @@
-# Canonical Kratos config (ADR-0304), the single source of truth — injected into the Ory umbrella chart as a Helm
-# values overlay (`-f` locally via scripts/cluster.sh; ArgoCD `valueFiles` per env).
+# The canonical Kratos config, per ADR-0304. It is the single source of truth. It goes into the Ory umbrella chart
+# as a Helm values overlay: `-f` in `scripts/cluster.sh` locally, and Argo CD `valueFiles` per environment.
 kratos:
   kratos:
     config:
@@ -8,23 +8,23 @@ kratos:
         default_schema_id: user_v1
         schemas:
           - id: user_v1
-            # Chart mounts identitySchemas keys directly under /etc/config.
+            # The chart mounts the `identitySchemas` keys directly under `/etc/config`.
             url: file:///etc/config/user.v1.json
       selfservice:
         default_browser_return_url: https://dev.example.com/
-        # Kratos forbids any post-flow `return_to` not prefixed by an entry here.
+        # Kratos rejects any post-flow `return_to` that does not start with an entry here.
         allowed_return_urls:
           - https://dev.example.com/
         flows:
-          # No local error UI ⇒ Kratos falls back to its hosted error page; keep
-          # the whole self-service flow set pointed at our own routes.
+          # There is no local error UI, so Kratos falls back to its hosted error page.
+          # Keep the whole self-service flow set pointed at our own routes.
           error:        { ui_url: https://dev.example.com/auth/error }
           login:        { ui_url: https://dev.example.com/auth/login }
           registration:
             ui_url: https://dev.example.com/auth/register
             after:
-              # After a successful registration, create the identity's personal org (ADR-0304). East-west call to the orgs
-              # service (in-cluster, off the edge — ADR-0306); the handler starts a Temporal dual-write workflow.
+              # After a registration succeeds, create the identity's personal org, per ADR-0304. This is an east-west call to the
+              # `orgs` service inside the cluster, off the edge, per ADR-0306. The handler starts a Temporal dual-write workflow.
               hooks:
                 - hook: web_hook
                   config:
@@ -36,7 +36,7 @@ kratos:
                       parse: false
           recovery:
             enabled: true
-            use: code              # enumeration-resistant; no account-existence leak
+            use: code              # resists enumeration: it does not show whether an account exists
             ui_url: https://dev.example.com/auth/recovery
           verification:
             enabled: true
@@ -44,11 +44,11 @@ kratos:
             ui_url: https://dev.example.com/auth/verification
           settings:
             ui_url: https://dev.example.com/auth/settings
-            # Step-up (ADR-0304): mutating credentials/MFA requires a recent login.
+            # Step-up, per ADR-0304: a change to credentials or MFA requires a recent login.
             privileged_session_max_age: 15m
             required_aal: highest_available
-        # Authentication methods (ADR-0304). password is the first factor; TOTP and WebAuthn/passkeys are the operator
-        # second factor (AAL2 is enforced on the ops tier by services/authz, not forced on B2C product users here).
+        # Authentication methods, per ADR-0304. Password is the first factor. TOTP and WebAuthn passkeys are the operator
+        # second factor. `services/authz` enforces AAL2 on the ops tier. It is not forced on B2C product users here.
         methods:
           password:
             enabled: true
@@ -63,34 +63,33 @@ kratos:
           webauthn:
             enabled: true
             config:
-              passwordless: false       # second factor, not passwordless login
+              passwordless: false       # second factor, not a passwordless login
               rp:
                 id: dev.example.com
                 display_name: Platform
                 origins: ["https://dev.example.com"]
       session:
-        # 7-day absolute lifespan; whoami returns the highest AAL the identity has
-        # configured, so an operator who enrolled MFA must use it (and the ops edge
-        # requires aal2). B2C users with no second factor stay aal1.
+        # The absolute lifespan is 7 days. `whoami` returns the highest AAL the identity has configured. So an operator
+        # who enrolled MFA must use it, and the ops edge requires `aal2`. B2C users with no second factor stay `aal1`.
         lifespan: 168h
         whoami:
           required_aal: highest_available
-        # Scope the session cookie to the parent host so it is shared with subdomains (e.g. hubble.ops.<host>, served at
-        # its own origin).
+        # Scope the session cookie to the parent host, so subdomains share it. An example is `hubble.ops.<host>`, which
+        # has its own origin.
         cookie:
           domain: dev.example.com
           same_site: Lax
-      # Transactional mail (recovery/verification).
+      # Transactional mail for recovery and verification.
       courier:
         smtp:
           connection_uri: "smtps://smtp.example.com:465?skip_ssl_verify=false"
-          # The platform's sender identity, and it is a decision rather than a default (ADR-0307). Kratos configures none,
-          # so it sends as its own upstream default — `no-reply@ory.kratos.sh`, confirmed on a live message in the sink.
+          # The platform's sender identity. It is a decision, not a default, per ADR-0307. Kratos configures none, so it
+          # sends as its upstream default, `no-reply@ory.kratos.sh`. A live message in the sink confirmed this.
           from_address: no-reply@mail.example.com
           from_name: Platform
-  # Cookie/cipher/system secrets + dsn come from a SOPS-managed Secret, never inline values (ADR-0202, Phase 5).
-  # `secret` is a top-level kratos-subchart key (sibling of the `kratos:` config block above), so it sits one level
-  # up.
+  # The cookie, cipher, and system secrets and the dsn come from a SOPS-managed Secret, never inline values, per
+  # ADR-0202. `secret` is a top-level key of the kratos subchart, next to the `kratos:` config block above. So it
+  # sits one level up.
   secret:
     enabled: false
     nameOverride: kratos-secrets

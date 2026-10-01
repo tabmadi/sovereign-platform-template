@@ -1,4 +1,4 @@
-# Settings shared by every service in the prod environment (ADR-0201). Layered before each service's own values
-# file, so anything here is a default a service may override rather than a rule it cannot.
+# Settings shared by every service in the prod environment, per ADR-0201. This file comes before each service's
+# own values file. So each setting here is a default that a service can override, not a fixed rule.
 imagePullSecrets:
   - name: registry-pull

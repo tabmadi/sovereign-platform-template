@@ -1,7 +1,7 @@
-# Values namespaced under `maddy:` so this chart shares the platform ApplicationSet's single per-env values
-# overlay without key collisions.
+# Values are under `maddy:`, so this chart shares the single per-environment values overlay of the platform
+# ApplicationSet with no key collisions.
 maddy:
-  # maddy — the outbound mail submission endpoint (ADR-0307).
+  # maddy, the outbound mail submission endpoint, per ADR-0307.
   enabled: false
 
   image:
@@ -9,39 +9,39 @@ maddy:
     tag: "0.9.5"
     pullPolicy: IfNotPresent
 
-  # The identity platform mail authenticates as.
+  # The identity that platform mail authenticates as.
   hostname: mail.example.com
 
   dkim:
     # The selector published at `<selector>._domainkey.<hostname>`.
     selector: default
-    # The Secret holding the DKIM private key (ADR-0202). Its `private.key` entry is mounted read-only at the path
-    # maddy signs with.
+    # The Secret that holds the DKIM private key, per ADR-0202. Its `private.key` entry is mounted read-only at the
+    # path that maddy signs with.
     secretName: maddy-dkim
 
-  # The OpenMetrics listener. Cluster-internal only: the network policy admits the
-  # node-local collector and nothing else, and the Service does not publish it
-  # outside the pod network.
+  # The OpenMetrics listener. It is internal to the cluster. The network policy
+  # admits the node-local collector and nothing else. The Service does not publish
+  # it outside the pod network.
   metrics:
     port: 9749
 
   submission:
     port: 587
-    # The credential Kratos and the services authenticate with. One account, because
-    # every sender is first-party and the sender identity that matters is the
-    # envelope's, not the SMTP user's.
+    # The credential that Kratos and the services authenticate with. There is one
+    # account, because every sender is first-party. The sender identity that matters
+    # is the envelope's, not the SMTP user's.
     secretName: maddy-submission
     username: platform
 
   persistence:
     # Undelivered mail lives here, and so does the MTA-STS policy cache. A queue on
-    # an emptyDir is a queue that loses the messages a receiver asked us to retry.
+    # an emptyDir loses the messages that a receiver asked us to retry.
     size: 2Gi
     storageClassName: ""
 
-  # ADR-0204. Not measured: no environment runs this yet, so these are sized from
-  # maddy's own documented footprint for a small deployment rather than derived, and
-  # they are the first numbers to re-derive once one does.
+  # Per ADR-0204. Not measured, because no environment runs this yet. These numbers
+  # come from maddy's own documented footprint for a small deployment. They are the
+  # first numbers to derive again when an environment runs it.
   resources:
     requests: { cpu: "25m", memory: "64Mi" }
     limits: { memory: "256Mi" }

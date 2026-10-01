@@ -1,10 +1,10 @@
-# Mail delivery, watched from both ends (ADR-0307, routed by ADR-0502).
+# Mail delivery, watched from both ends, per ADR-0307. ADR-0502 routes it.
 groups:
   - name: mail.submission
     rules:
-      # maddy refusing or failing submissions. The senders are Kratos, the services
-      # and Alertmanager; a submission failure means the message never entered the
-      # queue, so no retry is pending and nothing will deliver it later.
+      # maddy refuses or fails submissions. The senders are Kratos, the services, and
+      # Alertmanager. A submission failure means the message never entered the queue.
+      # So no retry is pending, and nothing will deliver it later.
       - alert: MailSubmissionFailing
         expr: |
           sum(rate(errors_total{kind="dependency", service_name="kratos"}[10m])) > 0
@@ -13,11 +13,11 @@ groups:
         annotations:
           summary: "Mail submission is failing"
           description: >-
-            The courier cannot hand messages to the submission endpoint. Verification
-            and recovery mail is not being sent at all — this is upstream of
-            deliverability, so DNS and DKIM are not the place to look first.
+            The courier cannot give messages to the submission endpoint. No
+            verification or recovery mail goes out. This happens before
+            deliverability, so do not look at DNS and DKIM first.
       # Transactions that start and do not finish. maddy exposes no queue-depth
-      # series, so this counts the gap between accepted and delivered instead.
+      # series, so this counts the gap between accepted and delivered.
       - alert: MailTransactionsAborting
         expr: |
           sum(rate(maddy_smtp_aborted_transactions[30m]))
@@ -28,25 +28,25 @@ groups:
         annotations:
           summary: "Outbound mail transactions are aborting"
           description: >-
-            More than a tenth of submission transactions are not completing. A
-            receiver is deferring or refusing: check the DMARC aggregate reports and
-            whether the egress IP is listed anywhere before changing configuration.
-      # Permanent rejections, which are the ones no retry will fix.
+            More than a tenth of submission transactions do not complete. A
+            receiver defers or refuses them. Before you change configuration, check
+            the DMARC aggregate reports, and check whether the egress IP is on a list.
+      # Permanent rejections. No retry fixes them.
       - alert: MailPermanentlyRejected
         expr: |
           sum(rate(maddy_smtp_failed_commands{smtp_code=~"5.."}[30m])) > 0
         for: 30m
         labels: { severity: ticket }
         annotations:
-          summary: "Outbound mail is being permanently rejected"
+          summary: "Receivers permanently reject outbound mail"
           description: >-
-            A receiver is refusing messages outright rather than deferring them.
-            Check the `smtp_enchcode` label: `5.7.x` is a policy rejection, which
-            points at DKIM, SPF or the egress IP's reputation.
+            A receiver refuses messages completely, and does not defer them.
+            Check the `smtp_enchcode` label. `5.7.x` is a policy rejection, which
+            points at DKIM, SPF, or the egress IP's reputation.
 
   - name: mail.identity-flow
     rules:
-      # ADR-0307's named signal, and the one that survives a correctly configured agent.
+      # ADR-0307's named signal. It still works when the agent is configured correctly.
       - alert: IdentityVerificationCompletionDropped
         expr: |
           (
@@ -58,8 +58,8 @@ groups:
         annotations:
           summary: "Fewer than half of new identities are completing verification"
           description: >-
-            The signal ADR-0307 names for a dropped verification mail. The mail path
-            can be entirely healthy from this side — accepted, signed, queued, sent —
-            and still land nowhere, so check the receiver's authentication results
-            and the DMARC reports rather than the agent's logs. The denominator guard
-            keeps a quiet period from firing this.
+            The signal that ADR-0307 names for a lost verification mail. The mail
+            path can be healthy from this side: accepted, signed, queued, and sent.
+            The mail can still arrive nowhere. So check the receiver's
+            authentication results and the DMARC reports, and not the agent's logs.
+            The denominator guard stops a quiet period from firing this.

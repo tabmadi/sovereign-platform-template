@@ -1,4 +1,4 @@
-# Watchdog — the dead man's switch for the alerting pipeline itself (ADR-0502).
+# Watchdog: the dead man's switch for the alerting pipeline itself, per ADR-0502.
 groups:
   - name: alerting.watchdog
     rules:
@@ -8,6 +8,7 @@ groups:
         annotations:
           summary: "Alerting pipeline is alive"
           description: >-
-            This alert always fires. Its absence means alerts are not being
-            evaluated or not being routed, and nothing else in this cluster can
-            tell you that. Silencing it disables the only check on the check.
+            This alert always fires. Its absence means that Prometheus does not
+            evaluate alerts, or Alertmanager does not route them. Nothing else in
+            this cluster can tell you that. A silence on it turns off the only
+            check on the check.

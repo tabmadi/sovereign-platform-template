@@ -1,22 +1,22 @@
-# Values keys a deployed environment may carry that the local overlay does not, each
-# with the divergence ADR-0205 sanctions. A deployed key absent from the local overlay
-# and not listed here fails lint:parity: the local tier covers the code path before a
-# deployed environment adds configuration for it. Every entry carries a reason, and
-# the reason is what a reviewer judges.
+# Values keys that a deployed environment can carry and the local overlay does not.
+# Each key has a divergence that ADR-0205 permits. lint:parity fails a deployed key
+# that is absent from the local overlay and not listed here. The local tier covers
+# the code path before a deployed environment adds configuration for it. Every
+# entry has a reason, and a reviewer judges the reason.
 
-localPath.enabled                # Talos ships no provisioner; kind brings its own StorageClass
-externalObjectStorage            # prod's off-cluster bucket, absent below prod
+localPath.enabled                # Talos ships no provisioner, and kind brings its own StorageClass
+externalObjectStorage            # prod's off-cluster bucket, which is absent below prod
 policies.registrySecret           # the local registry is unauthenticated
-lowdefy.image.digest             # promoted images are digest-pinned; local runs from a tag
-lowdefy.imagePullSecrets         # registry auth, deployed only
-publicTls                        # ACME and the deployed apex; local uses a self-signed wildcard
-maddy                            # the mail agent, deployed only
-maddyEnabled                     # the mail agent's toggle, deployed only
-alertmanager.email               # alert routing, deployed only (ADR-0502)
+lowdefy.image.digest             # promoted images are pinned by digest, and local runs from a tag
+lowdefy.imagePullSecrets         # registry auth, only on deployed environments
+publicTls                        # ACME and the deployed apex. Local uses a self-signed wildcard
+maddy                            # the mail agent, only on deployed environments
+maddyEnabled                     # the mail agent's toggle, only on deployed environments
+alertmanager.email               # alert routing, only on deployed environments, per ADR-0502
 grafana.replicas                 # scale
 loki.singleBinary.replicas       # scale
 tempo.replicas                   # scale
-podDisruptionBudgets             # HA is a property of replicas > 1
+podDisruptionBudgets             # HA exists only with more than 1 replica
 resourceQuotas                   # quotas sized for the full platform
-cluster.backup.serverName        # the archive a restore writes to, per environment (docs/guide/disaster-recovery.md)
-cluster.recovery                 # a restore's bootstrap, set only while one runs
+cluster.backup.serverName        # the archive that a restore writes to, per environment. See docs/guide/disaster-recovery.md
+cluster.recovery                 # the bootstrap of a restore, set only while a restore runs

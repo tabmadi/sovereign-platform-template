@@ -1,5 +1,5 @@
-# Canonical Oathkeeper config (ADR-0305), the single source of truth — injected into the Ory umbrella chart as a
-# Helm values overlay (`-f` locally via scripts/cluster.sh; ArgoCD `valueFiles` per env).
+# The canonical Oathkeeper config, per ADR-0305. It is the single source of truth. It goes into the Ory umbrella
+# chart as a Helm values overlay: `-f` in `scripts/cluster.sh` locally, and Argo CD `valueFiles` per environment.
 oathkeeper:
   oathkeeper:
     config:
@@ -18,7 +18,7 @@ oathkeeper:
             preserve_path: true
             preserve_query: true
             only: [ory_kratos_session]
-            # Kratos whoami has no top-level `subject`/`extra`; map them explicitly so `.Subject` is the identity id and
+            # Kratos `whoami` has no top-level `subject` or `extra`. Map them explicitly: `.Subject` is the identity id, and
             # `.Extra` is the whole session body.
             subject_from: identity.id
             extra_from: "@this"
@@ -31,14 +31,14 @@ oathkeeper:
           enabled: true
           config: { subject: guest }
       authorizers:
-        # `allow` is for the product /api edge (services authorize in-process via
-        # libs/go/authz). Ops dashboards use remote_json → the authz service, which
-        # checks group:operator + dashboard:<tool>#view + AAL2 (ADR-0306).
+        # `allow` is for the product `/api` edge. Services authorize in-process with
+        # `libs/go/authz`. Ops dashboards use `remote_json` to call the authz service. It checks
+        # `group:operator`, `dashboard:<tool>#view`, and AAL2, per ADR-0306.
         allow: { enabled: true }
         remote_json:
           enabled: true
-          # The global config requires both `remote` and `payload` (Oathkeeper
-          # schema); each access rule overrides `payload` with its own tool slug.
+          # The Oathkeeper schema requires both `remote` and `payload` in the global config.
+          # Each access rule overrides `payload` with its own tool slug.
           config:
             remote: http://authz-server.platform.svc.cluster.local/authorize
             payload: '{"subject":"{{ print .Subject }}","aal":"{{ print .Extra.authenticator_assurance_level }}"}'
@@ -48,8 +48,8 @@ oathkeeper:
           config:
             headers:
               X-User-Id: "{{ print .Subject }}"
-              # Guard every hop: the anonymous authenticator (guest) has no .Extra.identity, and an authenticated identity may
-              # have a null .metadata_public (e.g.
+              # Guard every hop. The anonymous `guest` authenticator has no `.Extra.identity`. An authenticated identity can
+              # have a null `.metadata_public`.
               X-Org-Id: "{{ with .Extra.identity }}{{ with .metadata_public }}{{ print .org_id }}{{ end }}{{ end }}"
               X-Roles: "{{ with .Extra.identity }}{{ with .metadata_public }}{{ print .roles }}{{ end }}{{ end }}"
         noop: { enabled: true }
@@ -61,7 +61,7 @@ oathkeeper:
             enabled: true
             config:
               to: https://dev.example.com/auth/login
-              # Carry where the operator was going.
+              # Keep the page the operator wanted to reach.
               return_to_query_param: return_to
               when:
                 - error: [unauthorized, forbidden]

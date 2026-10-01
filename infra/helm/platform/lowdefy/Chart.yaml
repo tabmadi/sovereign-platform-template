@@ -1,9 +1,9 @@
 apiVersion: v2
 name: lowdefy
 description: |
-  Lowdefy internal admin tool (ADR-0401). Stateless — no MongoDB.
-  Configuration is built from apps/admin/ into an OCI image at CI time and
-  pulled here like any other service image.
+  Lowdefy internal admin tool, per ADR-0401. It is stateless and has no MongoDB.
+  CI builds the configuration from apps/admin/ into an OCI image. This chart
+  pulls it like any other service image.
 type: application
 version: "2026.9.3"
 appVersion: "5.4.0"

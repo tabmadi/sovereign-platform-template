@@ -1,6 +1,6 @@
 apiVersion: v2
 name: postgres
-description: CloudNativePG operator + a shared cluster CR (ADR-0300).
+description: The CloudNativePG operator and a shared cluster CR, per ADR-0300.
 type: application
 version: "2026.9.3"
 appVersion: "1.29.1"

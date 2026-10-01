@@ -1,22 +1,24 @@
 apiVersion: v2
 name: observability
 description: |
-  Grafana + Loki/Tempo (monolithic single-binary mode) + Prometheus (Core metrics,
-  local TSDB, OTLP ingest) + the cluster-state collector (ADR-0500). Self-hosted via
-  official charts; log/trace long-term storage is the external S3 bucket from
-  ADR-0207. Mimir (metrics Scale swap), Pyroscope (profile storage), and the OTel
-  Collector gateway tier are per-project add-ons (`profiling` / tail-sampling flags /
-  Scale seam), not in the default release.
+  Grafana, Loki and Tempo in monolithic single-binary mode, Prometheus, and the
+  cluster-state collector, per ADR-0500. Prometheus gives the Core metrics, with a
+  local TSDB and OTLP ingest. It is self-hosted with the official charts. Logs and
+  traces use the external S3 bucket from ADR-0207 for long-term storage. These are
+  per-project add-ons, not in the default release:
+  - Mimir, the Scale swap for metrics.
+  - Pyroscope, the profile storage, behind the `profiling` flag.
+  - The OTel Collector gateway tier, behind the tail-sampling flags and the Scale seam.
 
-  The single-tier collector DaemonSet everything pushes to is the `otel-agent`
-  chart. It is separate because it needs hostPath and hostPorts, and Pod Security
-  Admission's unit is the namespace (ADR-0200): keeping it here would set this
-  namespace's floor at `privileged` for every backend beside it.
+  Everything pushes to a single-tier collector DaemonSet in the `otel-agent`
+  chart. It is separate because it needs hostPath and hostPorts, and the unit of
+  Pod Security Admission is the namespace, per ADR-0200. If it were here, this
+  namespace's floor would be `privileged` for every backend next to it.
 type: application
 version: "2026.9.3"
 appVersion: "1.0.0"
 
-# Subcharts are vendored under charts/ and rendered directly — there is no `dependencies:` block on purpose.
+# The subcharts are vendored under `charts/` and rendered directly. There is no `dependencies:` block, on purpose.
 
-# Prometheus runs as a hand-written Deployment (templates/prometheus.yaml), not a subchart: the Core metrics floor
-# is one prom/prometheus process with a local TSDB and native OTLP ingest — no Helm dependency, no object storage.
+# Prometheus runs as a hand-written Deployment in `templates/prometheus.yaml`, not as a subchart. The Core metrics
+# floor is one prom/prometheus process with a local TSDB and native OTLP ingest. It needs no Helm dependency and no object storage.

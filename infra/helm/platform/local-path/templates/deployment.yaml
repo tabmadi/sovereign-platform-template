@@ -1,9 +1,9 @@
 {{- if .Values.localPath.enabled }}
 {{- $lp := .Values.localPath }}
 {{- /*
-One replica. The provisioner is a controller, not a data path: it creates the
-directory and gets out of the way, and the volume stays mounted whether or not this
-pod is running. A second replica would race the first for the same PVC.
+One replica. The provisioner is a controller, not a data path. It creates the
+directory and then does nothing more. The volume stays mounted whether this pod
+runs or not. A second replica would race the first for the same PVC.
 */}}
 apiVersion: apps/v1
 kind: Deployment
@@ -26,13 +26,13 @@ spec:
         app.kubernetes.io/name: local-path-provisioner
         app.kubernetes.io/part-of: platform
       annotations:
-        # Roll the pod when the config changes. The provisioner re-reads the
-        # ConfigMap, but the helper-pod template is read at startup.
+        # Roll the pod when the config changes. The provisioner reads the ConfigMap
+        # again, but it reads the helper-pod template only at startup.
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
       serviceAccountName: local-path-provisioner
-      # The provisioner has to write into the node's own directory tree, which is what the hostPath below is, and only
-      # the node it is scheduled on.
+      # The provisioner must write into the node's own directory tree, which is the hostPath below. It writes only on
+      # the node where it is scheduled.
       securityContext:
         runAsNonRoot: false
         runAsUser: 0
@@ -50,8 +50,8 @@ spec:
             - --helper-pod-file=/etc/config/helperPod.yaml
             - --configmap-name=local-path-config
           env:
-            # The namespace the helper Pod is created in, which the RoleBinding
-            # scopes the pod-create grant to.
+            # The namespace for the helper Pod. The RoleBinding limits the
+            # pod-create grant to this namespace.
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -79,8 +79,8 @@ spec:
         - name: data
           hostPath:
             path: {{ $lp.path }}
-            # `DirectoryOrCreate`, not `Directory`: on a freshly provisioned node
-            # nothing has created this path yet, and `Directory` makes the pod fail
-            # to start on exactly the node that most needs a provisioner.
+            # `DirectoryOrCreate`, not `Directory`. On a new node, nothing has created
+            # this path yet. With `Directory`, the pod fails to start on the node that
+            # needs a provisioner most.
             type: DirectoryOrCreate
 {{- end }}

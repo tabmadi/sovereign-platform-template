@@ -11,7 +11,7 @@
         "datasource": "Prometheus",
         "query": "label_values(hubble_drop_total, reason)",
         "includeAll": true,
-        "description": "Defaults to POLICY_DENIED — the verdict this dashboard and PolicyDropsDetected are about. Switch to All to see every reason, but expect a constant floor of UNSUPPORTED_L3_PROTOCOL: the kernel gives every pod an IPv6 link-local and solicits a router forever (router_solicitations=-1), Cilium runs IPv4-only, so it drops them. Nothing is broken — that drop IS the IPv4-only enforcement.",
+        "description": "Defaults to POLICY_DENIED, the verdict that this dashboard and PolicyDropsDetected are about. Switch to All to see every reason. Expect a constant floor of UNSUPPORTED_L3_PROTOCOL. The kernel gives every pod an IPv6 link-local address and solicits a router forever, with router_solicitations=-1. Cilium runs IPv4-only, so it drops them. Nothing is broken: that drop IS the IPv4-only enforcement.",
         "current": { "text": "POLICY_DENIED", "value": "POLICY_DENIED" }
       }
     ]
@@ -20,7 +20,7 @@
     {
       "type": "timeseries",
       "title": "Dropped flows by reason",
-      "description": "Cilium policy verdicts, kept for history and alerting (Hubble UI shows live drops interactively but keeps no history). POLICY_DENIED here means a NetworkPolicy is blocking a flow someone expected to work.",
+      "description": "Cilium policy verdicts, kept for history and alerting. Hubble UI shows live drops, but it keeps no history. POLICY_DENIED here means that a NetworkPolicy blocks a flow that someone expected to work.",
       "datasource": "Prometheus",
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
       "fieldConfig": { "defaults": { "unit": "pps" } },
@@ -33,14 +33,14 @@
     },
     {
       "type": "timeseries",
-      "title": "Dropped flows by source → destination",
-      "description": "sourceContext/destinationContext=workload render as a combined '<namespace>/<workload>' label, so temporal-frontend and temporal-history stay distinct instead of collapsing into one 'temporal' series.",
+      "title": "Dropped flows by source and destination",
+      "description": "With sourceContext and destinationContext set to workload, the label is `<namespace>/<workload>`. So temporal-frontend and temporal-history stay separate, and do not collapse into one `temporal` series.",
       "datasource": "Prometheus",
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 10 },
       "fieldConfig": { "defaults": { "unit": "pps" } },
       "targets": [
         {
-          "legendFormat": "{{source}} → {{destination}}",
+          "legendFormat": "{{source}} to {{destination}}",
           "expr": "sum by (source, destination) (rate(hubble_drop_total{reason=~\"$reason\"}[5m]))"
         }
       ]
@@ -48,7 +48,7 @@
     {
       "type": "timeseries",
       "title": "Total drops by protocol",
-      "description": "A sudden ICMP or TCP drop spike after a policy change is the signature of the default-deny regressions this repo has hit before.",
+      "description": "A sudden spike of ICMP or TCP drops after a policy change is the sign of a default-deny regression. This repo has had them before.",
       "datasource": "Prometheus",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
       "fieldConfig": { "defaults": { "unit": "pps" } },

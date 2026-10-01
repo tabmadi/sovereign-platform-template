@@ -2,7 +2,7 @@ name: catalog
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/catalog-server
   tag: "0000000000000000000000000000000000000000"
-  digest: ""   # promote-on-release pins prod by digest (ADR-0103)
+  digest: ""   # promote-on-release pins prod by digest, per ADR-0103
 worker:
   enabled: false
 server:
@@ -11,13 +11,13 @@ ingress:
   enabled: true
   host: prod.example.com
   resources: [products]
-# The Lowdefy admin console (apps/admin) calls catalog server-side, east-west on the server port, bypassing the
-# /api edge (ADR-0401).
+# The Lowdefy admin console in `apps/admin` calls catalog from its server, east-west on the server port. It does
+# not go through the `/api` edge, per ADR-0401.
 networkPolicy: { allowFrom: [lowdefy, orders] }
 secrets:
   envFrom: [catalog-db, openfga-creds]
 env:
-  # Write authz (ADR-0304): dial OpenFGA via the shared Checker. Blank preshared key
-  # falls back to openfga-creds.preshared_key (envFrom), as the authz service does.
+  # Write authz, per ADR-0304: dial OpenFGA through the shared Checker. A blank preshared key
+  # falls back to `openfga-creds.preshared_key` from `envFrom`, as in the authz service.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   OPENFGA_PRESHARED_KEY: ""

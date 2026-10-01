@@ -1,6 +1,6 @@
 sops-secrets-operator:
-  # `restricted` (ADR-0200). The chart ships a complete, correct security context and leaves it switched OFF; both
-  # halves are turned on here rather than hand-written.
+  # `restricted`, per ADR-0200. The chart ships a complete, correct security context and leaves it OFF. Both
+  # halves are turned on here, and not written by hand.
   securityContext:
     enabled: true
     container:
@@ -12,6 +12,6 @@ sops-secrets-operator:
   secretsAsFiles:
     - name: sops-age-key
       mountPath: /etc/sops/age
-      secretName: sops-age-key       # contains keys.txt provisioned by Ansible at cluster bootstrap
+      secretName: sops-age-key       # holds keys.txt, provisioned by Ansible at cluster bootstrap
   extraEnv:
     - { name: SOPS_AGE_KEY_FILE, value: /etc/sops/age/keys.txt }

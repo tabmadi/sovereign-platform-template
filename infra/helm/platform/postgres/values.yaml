@@ -1,17 +1,17 @@
-# CNPG operator defaults. The Cluster CR for the shared instance is rendered from templates/cluster.yaml;
-# per-database tenancy is configured per-service.
+# CNPG operator defaults. `templates/cluster.yaml` renders the Cluster CR for the shared instance.
+# Per-database tenancy is set per service.
 cloudnative-pg:
   fullnameOverride: cnpg-operator
   monitoring:
-    # No Prometheus Operator on this platform — metrics flow through the OTel Collector into Prometheus (ADR-0500),
-    # and the PodMonitor CRD (monitoring.coreos.com/v1) the operator would install is absent, so a PodMonitor here
+    # This platform has no Prometheus Operator. Metrics go through the OTel Collector into Prometheus, per ADR-0500.
+    # The PodMonitor CRD `monitoring.coreos.com/v1` that the operator would install is absent. So a PodMonitor here
     # would reference a CRD that does not exist.
     podMonitorEnabled: false
 
 cluster:
   name: postgres
-  # Render the Cluster and Pooler CRs. The helm-direct local bring-up sets this false on a first pass, so the
-  # CRs do not race CRD registration; the GitOps path leaves it true and orders via sync-waves.
+  # Render the Cluster and Pooler CRs. The helm-direct local bring-up sets this to false on a first pass, so the
+  # CRs do not race CRD registration. The GitOps path leaves it true and orders the CRs with sync-waves.
   create: true
   instances: 3
   imageName: ghcr.io/cloudnative-pg/postgresql:17.2
@@ -21,40 +21,40 @@ cluster:
   priorityClassName: platform-critical
   storage:
     size: 20Gi
-    storageClass: ""    # defaults to the cluster's default StorageClass (ADR-0207)
-  # CNPG provisions one app database (`database`/`owner`) per Cluster; the platform needs one per service plus
-  # kratos/temporal/openfga, so the rest are created via postInitApplicationSQL, owned by the same app role.
+    storageClass: ""    # the cluster's default StorageClass, per ADR-0207
+  # CNPG provisions one app database, `database` and `owner`, per Cluster. The platform needs one per service, plus
+  # kratos, temporal, and openfga. So postInitApplicationSQL creates the rest, owned by the same app role.
   initdb:
     database: orders
-    # ONE role owns every database, and its name appears in three places that have to agree: here, the `username` of
-    # the `postgres-superuser` Secret, and the user in every DSN the same SopsSecret carries.
+    # ONE role owns every database. Its name is in three places that must agree: here, the `username` of the
+    # `postgres-superuser` Secret, and the user in every DSN that the same SopsSecret carries.
     owner: dev
     secretName: postgres-superuser
-    # Cluster-global, so it belongs at bootstrap rather than in any one service's migrations: the read-only inspector
-    # role ADR-0401 requires, created without a login.
+    # Cluster-global, so it belongs at bootstrap and not in the migrations of one service. It is the read-only
+    # inspector role that ADR-0401 requires, created without a login.
     postInitSQL:
       - "CREATE ROLE readonly NOLOGIN"
-    # One line per database. The chart renders each into a CREATE DATABASE owned
-    # by `owner` above, so the role is named in one place — see the template for
-    # what naming it twice costs.
+    # One line per database. The chart renders each one into a CREATE DATABASE owned
+    # by `owner` above, so the role is named in one place. The template says what
+    # naming it twice costs.
     databases:
       - catalog
       - orgs
       - payment
       - kratos
-      # Hydra's, created here even though `hydra_thirdparty` is off by default:
-      # this list runs once at bootstrap, so a database left out now is a manual
-      # CREATE DATABASE against a live cluster the day the flag is turned on.
+      # Hydra's database. It is created here even though `hydra_thirdparty` is off by default.
+      # This list runs once, at bootstrap. A database left out now needs a manual
+      # CREATE DATABASE against a live cluster on the day the flag is turned on.
       - hydra
       - temporal
       - temporal_visibility
       - analytics
       - openfga
-    # Anything that is not a plain database creation. Runs after them.
+    # Anything that is not a plain database creation. It runs after them.
     postInitApplicationSQL: []
-  # The read-only role's login half (ADR-0401, ADR-0202). CNPG reconciles the
-  # password from the Secret rather than from a values field, so rotating it is
-  # re-encrypting one SopsSecret entry.
+  # The login half of the read-only role, per ADR-0401 and ADR-0202. CNPG reconciles the
+  # password from the Secret, and not from a values field. So to rotate it, you
+  # encrypt one SopsSecret entry again.
   managedRoles:
     - name: readonly
       ensure: present
@@ -62,20 +62,20 @@ cluster:
       passwordSecretName: postgres-readonly
   pooler:
     instances: 2
-    poolMode: transaction      # ADR-0300: transaction mode is the default
+    poolMode: transaction      # per ADR-0300, transaction mode is the default
     maxClientConn: 1000
     defaultPoolSize: 25
-    # pgbouncer is single-threaded and cheap; its cost is connections, not compute.
+    # pgbouncer is single-threaded and cheap. Its cost is connections, not compute.
     resources:
       requests: { cpu: "50m", memory: "96Mi" }
       limits:   { memory: "256Mi" }
   backup:
     enabled: true
     schedule: "0 0 3 * * *"
-    serverName: ""             # the archive's name in the bucket; empty is the cluster's name
+    serverName: ""             # the archive's name in the bucket. Empty means the cluster's name
     s3:
       destinationPath: "s3://platform-backups/postgres"
-      endpointURL: ""          # set per env
-      retentionPolicy: "30d"   # 7d in non-prod, see per-env values
+      endpointURL: ""          # set per environment
+      retentionPolicy: "30d"   # 7d in non-prod. See the per-environment values
   recovery:
-    fromServer: ""             # an archive's serverName to bootstrap from; empty creates an empty cluster
+    fromServer: ""             # the serverName of an archive to bootstrap from. Empty creates an empty cluster

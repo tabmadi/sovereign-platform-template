@@ -1,7 +1,7 @@
 {{- if .Values.headlamp.enabled }}
-# Read-only ClusterRole binding (ADR-0501): the Headlamp pod's ServiceAccount is
-# bound to the built-in `view` role, so the UI can list/get/watch and tail logs
-# but never mutate reconciled state — desired state changes go through Git/ArgoCD.
+# Read-only ClusterRole binding, per ADR-0501. The Headlamp pod's ServiceAccount is
+# bound to the built-in `view` role. So the UI can list, get, watch, and tail logs,
+# but never change reconciled state. Changes to desired state go through Git and Argo CD.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -36,7 +36,7 @@ spec:
     metadata: { labels: { app.kubernetes.io/name: headlamp } }
     spec:
       serviceAccountName: headlamp
-      # `restricted` (ADR-0200).
+      # `restricted`, per ADR-0200.
       securityContext:
         runAsNonRoot: true
         runAsUser: 100
@@ -51,13 +51,13 @@ spec:
               drop: ["ALL"]
           image: "{{ .Values.headlamp.image.repository }}:{{ .Values.headlamp.image.tag }}"
           imagePullPolicy: {{ .Values.headlamp.image.pullPolicy }}
-          # -in-cluster uses the pod ServiceAccount; served at the origin root, so no base-url prefix (its router can't run
-          # under a path — like Hubble UI).
+          # `-in-cluster` uses the pod ServiceAccount. It serves at the origin root, so there is no base-url prefix. Its router
+          # cannot run under a path, like Hubble UI.
           args: ["-in-cluster", "-unsafe-use-service-account-token"]
           ports: [{ name: http, containerPort: 4466 }]
           readinessProbe: { httpGet: { path: /, port: http } }
-          # The two directories headlamp insists on creating at startup, and the reason its root filesystem can be read-only
-          # anyway.
+          # The two directories that headlamp creates at startup. With them, its root filesystem can still be
+          # read-only.
           volumeMounts:
             - { name: config, mountPath: /home/headlamp/.config }
             - { name: tmp,    mountPath: /tmp }

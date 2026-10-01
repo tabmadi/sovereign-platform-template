@@ -1,7 +1,7 @@
 {{/*
-LimitRange per namespace (ADR-0204): the safety net that makes "every container declares resources" true
-without forking every third-party chart. `default` and `defaultRequest` apply only to containers that omit
-them, at admission, so existing pods pick them up on their next rollout. `max` is deliberately not set.
+LimitRange per namespace, per ADR-0204. It is the safety net that makes every container declare resources,
+without a fork of every third-party chart. `default` and `defaultRequest` apply only to containers that omit
+them, at admission. So existing pods get them on their next rollout. `max` is not set, on purpose.
 */}}
 {{- range $ns, $cfg := .Values.limitRanges }}
 {{- if $cfg.enabled }}
@@ -15,20 +15,20 @@ metadata:
     app.kubernetes.io/name: resource-governance
     app.kubernetes.io/part-of: platform
   annotations:
-    # Wave -4: after the PriorityClasses, before the ResourceQuota. A quota that
-    # lands first rejects any pod the LimitRange would have defaulted.
+    # Wave -4: after the PriorityClasses, and before the ResourceQuota. A quota that
+    # lands first rejects any pod that the LimitRange would have given defaults.
     argocd.argoproj.io/sync-wave: "-4"
 spec:
   limits:
     - type: Container
-      # Memory limit only, no cpu limit — ADR-0204's decision, applied to the
-      # default too so an undeclared container behaves like a declared one.
+      # A memory limit only, and no cpu limit. This is ADR-0204's decision. It applies to the
+      # default too, so a container that declares nothing behaves like one that declares.
       default:
         memory: {{ $cfg.defaultMemoryLimit }}
       defaultRequest:
         cpu: {{ $cfg.defaultCPURequest }}
         memory: {{ $cfg.defaultMemoryRequest }}
-      # NO `min`, and this was learned the expensive way rather than reasoned from first principles. An earlier revision
-      # set min.memory: 16Mi as a cheap guard against typos.
+      # NO `min`. Do not set `min.memory`, such as 16Mi, as a guard against
+      # typos.
 {{- end }}
 {{- end }}

@@ -1,27 +1,27 @@
-# Local full-tier values for the authz edge authorizer (ADR-0306). authz is INTERNAL: Oathkeeper's remote_json
-# authorizer calls it by service DNS, so it gets no /api edge route (ingress off).
+# Local full-tier values for the authz edge authorizer, per ADR-0306. authz is INTERNAL. Oathkeeper's `remote_json`
+# authorizer calls it by service DNS, so it gets no `/api` edge route, and ingress is off.
 name: authz
 image:
   repository: registry.localhost:5000/authz-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
-  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
+  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
+  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
 worker:
-  enabled: true          # SetOperator dual write (ADR-0302, ADR-0304)
+  enabled: true          # SetOperator dual write, per ADR-0302 and ADR-0304
   image:
     repository: registry.localhost:5000/authz-worker
     tag: local
 server:     { replicas: 1 }
-ingress:    { enabled: false }   # internal authorizer — no edge route
+ingress:    { enabled: false }   # internal authorizer, so no edge route
 migrations: { enabled: false }   # no database
-# Keep every trace the service starts (ADR-0500: local overrides healthy traces to 100%).
+# Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
 otel:       { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 secrets:    { envFrom: [openfga-creds] }
-# Not edge-exposed (chart default networkPolicy.allowFromGateway is for Traefik→server-port), so it must be turned
-# off here.
+# Not exposed at the edge. The chart default `networkPolicy.allowFromGateway` lets Traefik reach the server port,
+# so it must be off here.
 networkPolicy:
   allowFromGateway: false
   allowFrom: [oathkeeper, lowdefy, frontend]
 env:
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
-  # Blank so libs/go/authz falls back to openfga-creds.preshared_key (envFrom).
+  # Blank, so `libs/go/authz` falls back to `openfga-creds.preshared_key` from `envFrom`.
   OPENFGA_PRESHARED_KEY: ""

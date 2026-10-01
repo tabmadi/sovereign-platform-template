@@ -19,13 +19,13 @@
       "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
       "options": {
         "mode": "markdown",
-        "content": "Two streams, two questions. **Builds** (`job=\"supply-chain-build\"`) is filed by `ci:sign` the moment an image is signed and both attestations are attached — it says what was *built*. **Inventory** (`job=\"supply-chain-inventory\"`) is a nightly walk of the digests pinned in committed values, verifying each SBOM off the registry — it says what an environment is *pointed at*, which is the question a CVE asks.\n\nThis is a research surface, not the incident path (ADR-0501). Nothing here alerts, and nothing here links into the Overview funnel: come when you have a question, not when a pager goes off."
+        "content": "Two streams, two questions. `ci:sign` files **Builds**, `job=\"supply-chain-build\"`, when an image is signed and both attestations are attached. It shows what was *built*. **Inventory**, `job=\"supply-chain-inventory\"`, is a nightly walk of the digests pinned in committed values. It verifies each SBOM from the registry. It shows what an environment *points at*, and a CVE asks that question.\n\nThis is a research surface, and not the incident path, per ADR-0501. Nothing here alerts, and nothing here links into the Overview funnel. Come here when you have a question, and not when a pager goes off."
       }
     },
     {
       "type": "stat",
-      "title": "Images signed (24h)",
-      "description": "One per signed image, across every service. A day with merges and none of these is a publish pipeline that stopped signing.",
+      "title": "Images signed, 24h",
+      "description": "One for each signed image, across every service. A day with merges and none of these means that the publish pipeline stopped signing.",
       "datasource": "Loki",
       "gridPos": { "h": 6, "w": 6, "x": 0, "y": 5 },
       "fieldConfig": { "defaults": { "unit": "short", "noValue": "0" } },
@@ -45,7 +45,7 @@
     {
       "type": "stat",
       "title": "Pinned images with a verifiable SBOM",
-      "description": "From the most recent nightly walk. Anything below the total is an image an environment is pinned to whose bill of materials cannot be read — which is exactly the image you cannot answer a CVE about.",
+      "description": "From the most recent nightly walk. A value below the total is an image that an environment pins, with a bill of materials that cannot be read. You cannot answer a CVE question about that image.",
       "datasource": "Loki",
       "gridPos": { "h": 6, "w": 6, "x": 6, "y": 5 },
       "fieldConfig": {
@@ -103,7 +103,7 @@
     {
       "type": "stat",
       "title": "Packages in the largest pinned image",
-      "description": "Read off the verified SBOMs. Not a health number — a sense of how much surface a single image carries, and how much a base-image change moves it.",
+      "description": "Read from the verified SBOMs. It is not a health number. It shows how much surface one image carries, and how much a base-image change moves it.",
       "datasource": "Loki",
       "gridPos": { "h": 6, "w": 6, "x": 18, "y": 5 },
       "fieldConfig": { "defaults": { "unit": "short", "noValue": "no walk yet" } },
@@ -123,7 +123,7 @@
     {
       "type": "timeseries",
       "title": "Signed builds by service",
-      "description": "Publish rate per service. A service that stops appearing here while its code keeps changing is a service whose images stopped being signed — which admission will notice later, at deploy time.",
+      "description": "Publish rate for each service. A service that stops appearing here while its code keeps changing is a service whose images are no longer signed. Admission notices it later, at deploy time.",
       "datasource": "Loki",
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 11 },
       "targets": [
@@ -137,7 +137,7 @@
     {
       "type": "timeseries",
       "title": "SBOM size by service",
-      "description": "Package count per pinned image over time. A step change is a base-image or dependency-tree change; it is the cheapest early signal that an image gained a lot of surface without anyone deciding to.",
+      "description": "Package count for each pinned image over time. A step change is a change of base image or dependency tree. It is the cheapest early signal that an image gained a lot of surface without a decision.",
       "datasource": "Loki",
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 11 },
       "targets": [
@@ -151,7 +151,7 @@
     {
       "type": "logs",
       "title": "Build records",
-      "description": "One line per signed image: digest, commit, ref and the run that produced it. This is the audit trail — 'when was this digest built, and from what' — and the reason digest and commit are in the line rather than in labels.",
+      "description": "One line for each signed image: digest, commit, ref, and the run that produced it. This is the audit trail. It shows when a digest was built and from what. That is why digest and commit are in the line, and not in labels.",
       "gridPos": { "h": 11, "w": 24, "x": 0, "y": 20 },
       "datasource": "Loki",
       "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
@@ -165,7 +165,7 @@
     {
       "type": "logs",
       "title": "Inventory: images that could not be verified",
-      "description": "Each line carries the reason cosign gave, so 'no attestation was ever attached' reads differently from 'signed with a key we no longer hold'. Empty is the expected state.",
+      "description": "Each line carries the reason that cosign gave. So a missing attestation reads differently from a signature with a key that we no longer hold. Empty is the expected state.",
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 31 },
       "datasource": "Loki",
       "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },

@@ -1,14 +1,14 @@
 {{- /*
-The agent namespace's whole policy (ADR-0206).
+The whole policy of the agent namespace, per ADR-0206.
 
-It lives here rather than in the network-policies chart because that chart declares
-one namespace-wide default-deny and every allow inside `platform`; this is the other
-namespace, and a namespace with no policy at all is a namespace with no default-deny.
-Splitting the workload out therefore means splitting its policy out with it, or the
-split quietly removes the isolation it was supposed to tighten.
+It lives here, and not in the network-policies chart. That chart declares one
+namespace-wide default-deny and every allow inside `platform`. This is the other
+namespace, and a namespace with no policy has no default-deny. So a workload that
+moves out must take its policy with it. If not, the move removes the isolation
+that it was meant to make stronger.
 
-Everything this agent reaches is now cross-namespace, which is the cost of the move
-and the reason each rule below names a port.
+Everything that this agent reaches is in another namespace. That is the cost of
+the move, and the reason why each rule below names a port.
 */}}
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -22,22 +22,22 @@ spec:
     egress: true
   ingress:
     # OTLP from every workload in the backend namespace: the services' SDK export
-    # (libs/go/observability) and anything else pushing telemetry.
+    # in `libs/go/observability`, and anything else that pushes telemetry.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: {{ .Values.backendNamespace }} }
       toPorts:
         - ports:
             - { port: "4317", protocol: TCP }
             - { port: "4318", protocol: TCP }
-    # Browser RUM: the edge forwards /api/rum to the faro receiver
-    # (infra/gateway/frontend-observability.yaml). Without this the frontend's
-    # telemetry is POLICY_DENIED at the collector and the RUM dashboards are empty.
+    # Browser RUM. The edge forwards `/api/rum` to the faro receiver, in
+    # `infra/gateway/frontend-observability.yaml`. Without this, the frontend's telemetry
+    # is POLICY_DENIED at the collector, and the RUM dashboards are empty.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
       toPorts:
         - ports: [{ port: "8027", protocol: TCP }]
   egress:
-    # CoreDNS — the exporter endpoints below are service names.
+    # CoreDNS, because the exporter endpoints below are service names.
     - toEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: kube-system
@@ -46,9 +46,9 @@ spec:
         - ports:
             - { port: "53", protocol: UDP }
             - { port: "53", protocol: TCP }
-    # The three backends, each on the port its exporter uses. Before the split this
-    # was the baseline's blanket intra-namespace allow; naming the ports is what a
-    # cross-namespace rule costs, and it is also what it buys.
+    # The three backends, each on the port that its exporter uses. A cross-namespace
+    # rule must name the ports, and that is also what makes it tighter than the
+    # baseline's blanket allow inside the namespace.
     - toEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: {{ .Values.backendNamespace }}
@@ -67,12 +67,12 @@ spec:
             app.kubernetes.io/name: prometheus
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
-    # The API server, for the k8sattributes processor's pod watch and the kubeletstats receiver's PVC/PV resolution.
+    # The API server, for the pod watch of the k8sattributes processor and the PVC and PV resolution of the kubeletstats receiver.
     - toEntities:
         - kube-apiserver
         - host
         - remote-node
-    # The node itself: the kubelet Summary API (10250) and the cilium-agent's Hubble metrics (9965).
+    # The node itself: the kubelet Summary API on 10250, and the cilium-agent's Hubble metrics on 9965.
     - toEntities: [host, remote-node]
       toPorts:
         - ports:

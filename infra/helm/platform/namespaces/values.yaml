@@ -1,36 +1,36 @@
-# Pod Security Admission, per namespace (ADR-0200).
+# Pod Security Admission, per namespace, per ADR-0200.
 enforceVersion: v1.35
 
-# Each entry becomes one Namespace carrying the four PSA labels. enforce the profile the API server REJECTS
+# Each entry becomes one Namespace with the four PSA labels. `enforce` is the profile that the API server REJECTS
 # against.
 namespaces:
   - name: platform
-    # Every workload the platform runs, first-party and third-party, shares this namespace, and every one of them now
-    # satisfies `restricted` — so this needs no `reason`, which is the whole point of the field being required below
-    # it.
+    # Every workload that the platform runs, first-party and third-party, shares this namespace. Every one of them
+    # satisfies `restricted`. So this entry needs no `reason`. That is why the field is required only for the entries
+    # below it.
     enforce: restricted
   - name: otel-agent
-    # The node-level OTel collector, alone (ADR-0200, ADR-0500).
+    # The node-level OTel collector, alone, per ADR-0200 and ADR-0500.
     enforce: privileged
     reason: >-
       the node-level OTel collector tails /var/log/pods through a hostPath and binds
       the node's OTLP ports, neither of which `baseline` permits. It runs alone so
       the exception covers one workload.
   - name: local-path
-    # The local-path provisioner, alone (ADR-0200).
+    # The local-path provisioner, alone, per ADR-0200.
     enforce: privileged
     reason: >-
       the local-path provisioner creates each volume's directory on the node
       through a hostPath and runs as root, neither of which `baseline` permits.
       It runs alone so the exception covers one workload.
   - name: kyverno
-    # Admission control lives apart from what it admits (ADR-0104, ADR-0200): Kyverno excludes its own namespace from
-    # every policy, because a webhook that gates its own controllers cannot restart them — so sharing `platform` would
-    # exempt the platform.
+    # Admission control lives apart from what it admits, per ADR-0104 and ADR-0200. Kyverno excludes its own namespace
+    # from every policy, because a webhook that gates its own controllers cannot restart them. So if it shared
+    # `platform`, the platform would be exempt.
     enforce: restricted
   - name: argocd
-    # Argo installs itself before this chart can exist (it cannot sync itself into being), so this manifest adopts the
-    # namespace `helm --create-namespace` made rather than creating it.
+    # Argo CD installs itself before this chart can exist, because it cannot sync itself into being. So this manifest
+    # adopts the namespace that `helm --create-namespace` made, and does not create it.
     enforce: baseline
     reason: >-
       the upstream ArgoCD chart's components do not set the securityContext

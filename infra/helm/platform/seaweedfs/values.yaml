@@ -1,31 +1,31 @@
-# Values namespaced under `seaweedfs:` so this chart shares the platform ApplicationSet's single per-env values
-# overlay without key collisions.
+# Values are under `seaweedfs:`, so this chart shares the single per-environment values overlay of the platform
+# ApplicationSet with no key collisions.
 seaweedfs:
-  # SeaweedFS, the platform's object store (ADR-0207). `enabled` is the umbrella gate, read by this chart's own
-  # templates rather than a Chart.yaml condition: the chart has no subchart to condition on.
+  # SeaweedFS, the platform's object store, per ADR-0207. `enabled` is the umbrella gate. This chart's own templates
+  # read it, and not a Chart.yaml condition, because the chart has no subchart to put a condition on.
   enabled: true
 
   image:
     repository: chrislusf/seaweedfs
-    # One minor behind the head release. A store is the conservative slot under
-    # ADR-0000 principle 4, and the newest tag has had days rather than weeks of
-    # field exposure.
+    # One minor version behind the head release. A store is the conservative slot under
+    # ADR-0000 principle 4. The newest tag has had days of use in the field, and not
+    # weeks.
     tag: "4.41"
     pullPolicy: IfNotPresent
 
-  # Buckets are created by the server at startup from `-bucket`, so there is no provisioning Job to schedule, to
-  # secure, or to notice the failure of.
+  # The server creates the buckets at startup from `-bucket`. So there is no provisioning Job to schedule, to
+  # secure, or to watch for failure.
   buckets:
     - platform-backups
     - loki-chunks
     - loki-ruler
     - loki-admin
     - tempo-traces
-    # The registry's own store (ADR-0105): images and the signatures, SBOMs and
+    # The registry's own store, per ADR-0105: images, and the signatures, SBOMs, and
     # provenance attached to them as OCI referrers.
     - zot-images
 
-  # The S3 root credential, as `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` in a Secret this chart only names.
+  # The S3 root credential, as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in a Secret that this chart only names.
   credentialsSecret: object-storage-root
 
   # NO second login in front of the admin UI.
@@ -34,21 +34,21 @@ seaweedfs:
 
   persistence:
     size: 5Gi
-    # Unset means the cluster's default StorageClass, which is what every tier
-    # running this chart has (ADR-0207: volumes are node-local).
+    # Unset means the cluster's default StorageClass. Every tier that runs this chart
+    # has one. Per ADR-0207, volumes are node-local.
     storageClassName: ""
 
-  # ADR-0204.
+  # Per ADR-0204.
   resources:
     requests: { cpu: "50m", memory: "256Mi" }
     limits: { memory: "2Gi" }
 
-  # No phone-home: the master reports anonymous cluster statistics to telemetry.seaweedfs.com by default, which
-  # default-deny egress would drop anyway.
+  # No phone-home. By default, the master reports anonymous cluster statistics to telemetry.seaweedfs.com. The
+  # default-deny egress would drop that anyway.
   telemetry: false
 
   service:
     s3Port: 8333
-    # The admin UI, and the only surface ADR-0306 routes. The ops gate in front of this origin is the whole gate on it
-    # (`adminAuth` above).
+    # The admin UI, and the only surface that ADR-0306 routes. The ops gate in front of this origin is its only gate.
+    # See `adminAuth` above.
     adminPort: 23646

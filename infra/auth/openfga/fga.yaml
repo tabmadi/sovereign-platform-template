@@ -1,18 +1,18 @@
-# OpenFGA store test (ADR-0304). Run with `fga model test --tests fga.yaml` (via `mise run lint:authz`): sample
-# tuples + check assertions that pin the model's behaviour.
+# The OpenFGA store test, per ADR-0304. `mise run lint:authz` runs it with `fga model test --tests fga.yaml`. It
+# holds sample tuples and check assertions that pin the model's behaviour.
 name: platform-authz
 model_file: ./model.fga
 
 tuples:
-  # Business sample: acme org, two orders.
+  # Business sample: the acme org and two orders.
   - { user: user:alice, relation: member, object: org:acme }
   - { user: org:acme,   relation: org,    object: order:o1 }
   - { user: user:alice, relation: owner,  object: order:o1 }
   - { user: org:acme,   relation: org,    object: order:o2 }
   - { user: user:bob,   relation: owner,  object: order:o2 }
   - { user: order:o1,   relation: order,  object: charge:c1 }
-  # Ops tier (ADR-0306): alice is an operator; the admin console is a direct
-  # grant, every other dashboard is granted to the operator group.
+  # Ops tier, per ADR-0306: alice is an operator. The admin console is a direct
+  # grant. Every other dashboard is granted to the operator group.
   - { user: user:alice,            relation: member, object: group:operator }
   - { user: user:alice,            relation: viewer, object: dashboard:lowdefy }
   - { user: group:operator#member, relation: viewer, object: dashboard:hubble }
@@ -23,17 +23,17 @@ tuples:
   - { user: group:operator#member, relation: viewer, object: dashboard:headlamp }
   - { user: group:operator#member, relation: viewer, object: dashboard:pgweb }
   - { user: group:operator#member, relation: viewer, object: dashboard:mailpit }
-  # The analytics panel is granted to the MARKETING group, not to operators (ADR-0700).
+  # The analytics panel is granted to the MARKETING group, not to operators, per ADR-0700.
   - { user: group:marketing#member, relation: viewer, object: analytics_panel:funnels }
 
 tests:
   - name: business-and-ops-authz
     check:
-      # alice: org membership + derived read; not admin/write.
+      # alice: org membership and the derived read. Not admin and not write.
       - user: user:alice
         object: org:acme
         assertions: { member: true, read: true, admin: false, write: false }
-      # alice owns o1 (read); o2 is bob's (no write for alice).
+      # alice owns o1, so she can read it. o2 is bob's, so alice cannot write it.
       - user: user:alice
         object: order:o1
         assertions: { read: true }
@@ -47,7 +47,7 @@ tests:
       - user: user:bob
         object: charge:c1
         assertions: { read: false }
-      # alice is an operator → views admin + every group-granted dashboard.
+      # alice is an operator, so she views the admin console and every group-granted dashboard.
       - user: user:alice
         object: group:operator
         assertions: { member: true }
@@ -78,7 +78,7 @@ tests:
       - user: user:alice
         object: dashboard:mailpit
         assertions: { view: true }
-      # bob is not an operator → reaches no ops dashboard.
+      # bob is not an operator, so he reaches no ops dashboard.
       - user: user:bob
         object: group:operator
         assertions: { member: false }

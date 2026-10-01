@@ -1,5 +1,6 @@
-# Local Gateway Application (ADR-0305). Same env-agnostic edge config (Traefik middlewares + cross-cutting
-# IngressRoutes from infra/gateway) the prod app-gateway.yaml applies, synced locally by the local root-app.
+# Local Gateway Application, per ADR-0305. It applies the same environment-agnostic edge config as the prod
+# `app-gateway.yaml`: the Traefik middlewares and the cross-cutting IngressRoutes from `infra/gateway`. The local
+# root app syncs it.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,7 +10,7 @@ metadata:
     env: local
     app.kubernetes.io/part-of: gateway
   annotations:
-    # services (5). See infra/gitops/local-bootstrap/appset-platform.yaml.
+    # Wave 5. See `infra/gitops/local-bootstrap/appset-platform.yaml` for the wave order.
     argocd.argoproj.io/sync-wave: "5"
 spec:
   project: local

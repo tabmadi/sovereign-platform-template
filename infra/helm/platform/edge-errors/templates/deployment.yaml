@@ -31,9 +31,9 @@ spec:
         - name: httpd
           image: {{ $ee.image.repository }}:{{ $ee.image.tag }}@{{ $ee.image.digest }}
           imagePullPolicy: {{ $ee.image.pullPolicy }}
-          # `-f` keeps it in the foreground, which is what makes the container's
-          # lifecycle the server's. A port above 1024 so no capability is needed to
-          # bind it — the pod holds none.
+          # `-f` keeps it in the foreground, so the container's lifecycle is the server's.
+          # The port is above 1024, so binding it needs no capability. The pod holds
+          # none.
           command:
             - httpd
             - -f
@@ -46,9 +46,9 @@ spec:
           ports:
             - name: http
               containerPort: {{ $ee.port | int }}
-          # A TCP probe rather than an HTTP one. Every path this serves is an ERROR
-          # document, so an HTTP probe would have to treat some 4xx as healthy —
-          # which means it can no longer tell a served error from a broken server.
+          # A TCP probe, not an HTTP one. Every path here serves an ERROR document. So an
+          # HTTP probe would have to treat some 4xx as healthy. It could then not tell a
+          # served error from a broken server.
           readinessProbe:
             tcpSocket: { port: http }
             initialDelaySeconds: 2

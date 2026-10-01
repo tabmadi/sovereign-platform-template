@@ -3,14 +3,14 @@
   "uid": "applications",
   "schemaVersion": 39,
   "tags": ["service", "applications", "overview", "poc"],
-  "description": "POC (ADR-0501): Applications — the full workload directory, one click below the Overview landing page (ADR-0501). One row per workload in the selected namespace, driven by kubeletstats so EVERY pod is listed — not just the traced ones. CPU, memory and network come from the kubelet; Req/s, Errors/s and p95 latency come from the stable OTel http.server.request.duration histogram and fill in for any service currently serving HTTP traffic (idle HTTP servers show blank RED — the counters have no recent samples, not a missing-instrumentation gap). Up/Desired replicas, memory limits and the %-of-limit gauges come from the otel-cluster singleton (k8s_cluster receiver) + kubeletstats limit_utilization; blank means no Deployment / no limit set, not zero. Live pod status and events live in Headlamp — this page answers 'is something wrong?', Headlamp answers 'what exactly'. Click a workload to open its detail page.",
+  "description": "POC, per ADR-0501. Applications is the full workload directory, one click below the Overview landing page. It has one row per workload in the selected namespace. kubeletstats drives it, so EVERY pod is listed, and not only the traced ones. CPU, memory, and network come from the kubelet. Req/s, Errors/s, and p95 latency come from the stable OTel http.server.request.duration histogram. They fill in for any service that serves HTTP traffic now. Idle HTTP servers show blank RED, because the counters have no recent samples. That is not missing instrumentation. Up and desired replicas, memory limits, and the percent-of-limit gauges come from the otel-cluster singleton, with its k8s_cluster receiver, and kubeletstats limit_utilization. Blank means no Deployment or no limit set, and not zero. Live pod status and events are in Headlamp. This page shows whether something is wrong. Headlamp shows what exactly. Click a workload to open its detail page.",
   "links": [
     {
       "title": "Load test ▶",
       "type": "link",
       "url": "/d/load-test/load-test?${__url_time_range}",
       "icon": "external link",
-      "tooltip": "Results of a deliberate k6 load run (ADR-0601): throughput and latency against what each workload cost. Empty unless the time range covers a run. Not linked from Overview by design — ADR-0501 reserves the landing page for incident triage, and this is a planned experiment."
+      "tooltip": "Results of a planned k6 load run, per ADR-0601: throughput and latency against what each workload cost. Empty unless the time range covers a run. Overview does not link it, by design. ADR-0501 keeps the landing page for incident triage, and this is a planned experiment."
     }
   ],
   "templating": {
@@ -30,7 +30,7 @@
   "panels": [
     {
       "type": "table",
-      "title": "Workloads — click a name to open its detail page",
+      "title": "Workloads: click a name to open its detail page",
       "datasource": "Prometheus",
       "gridPos": { "h": 24, "w": 24, "x": 0, "y": 0 },
       "targets": [

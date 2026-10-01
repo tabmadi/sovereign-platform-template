@@ -1,8 +1,8 @@
-# Traefik middlewares (ADR-0305). These replace the deleted Tyk SecurityPolicies (infra/gateway/policies/): the
-# edge validates identity via Oathkeeper ForwardAuth, throttles auth-sensitive routes, and stamps static
-# browser-security headers on every response.
+# Traefik middlewares, per ADR-0305. They replace the deleted Tyk SecurityPolicies in `infra/gateway/policies/`.
+# The edge validates identity with Oathkeeper ForwardAuth, and throttles auth-sensitive routes. It also adds static
+# browser-security headers to every response.
 ---
-# ForwardAuth → Oathkeeper decisions API.
+# ForwardAuth to the Oathkeeper decisions API.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -17,7 +17,7 @@ spec:
       - X-Roles
       - X-User-Email
 ---
-# Anti-spoofing (ADR-0305, ADR-0306).
+# Anti-spoofing, per ADR-0305 and ADR-0306.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -31,7 +31,7 @@ spec:
       X-Roles: ""
       X-User-Email: ""
 ---
-# Rate limit for auth-sensitive routes (login, signup, recovery). Per source IP.
+# Rate limit per source IP for auth-sensitive routes: login, signup, and recovery.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -46,9 +46,9 @@ spec:
       ipStrategy:
         depth: 1
 ---
-# Static browser-security headers applied to all responses (ADR-0305, ADR-0400).
-# The per-request CSP nonce (script-src) is set by the frontend; here we set
-# only the directives that never vary per request.
+# Static browser-security headers on all responses, per ADR-0305 and ADR-0400.
+# The frontend sets the per-request CSP nonce for `script-src`. Here we set
+# only the directives that never change per request.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -64,8 +64,8 @@ spec:
     customResponseHeaders:
       Content-Security-Policy: "frame-ancestors 'none'"
 ---
-# RFC 9457 problem details for the edge's own errors (ADR-0305). A generated client has ONE error branch, and that
-# only holds if a denial from the edge looks like a denial from a service.
+# RFC 9457 problem details for the edge's own errors, per ADR-0305. A generated client has ONE error branch. That
+# holds only if a denial from the edge looks like a denial from a service.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -83,11 +83,11 @@ spec:
     service:
       name: edge-errors
       port: 80
-    # `{status}` is substituted by Traefik with the intercepted status code, so one
-    # rule serves every document without a middleware per status.
+    # Traefik replaces `{status}` with the intercepted status code. So one rule
+    # serves every document, with no middleware per status.
     query: "/{status}.json"
 ---
-# Strips `/auth` before the request reaches Kratos, whose own paths start at the root (`/self-service/...`).
+# Strips `/auth` before the request reaches Kratos. Kratos paths start at the root: `/self-service/...`.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

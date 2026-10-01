@@ -1,5 +1,5 @@
-# Services ApplicationSet (ADR-0201). Git-directory generator over per-env values files; one Application per
-# service per environment, auto-onboarded when its values file lands in master.
+# Services ApplicationSet, per ADR-0201. A git-directory generator reads the per-environment values files. There is
+# one Application per service per environment. A service onboards itself when its values file lands in master.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -12,7 +12,7 @@ metadata:
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
-  # A manual pause of auto-sync has to survive this ApplicationSet's own reconcile.
+  # A manual pause of auto-sync must survive this ApplicationSet's own reconcile.
   ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/syncPolicy
@@ -21,8 +21,8 @@ spec:
         generators:
           - list:
               elements:
-                # Sync windows (e.g. staging's 05:00 UTC gate) live on the
-                # per-env AppProject, not here — see bootstrap/appproject.yaml.
+                # Sync windows, such as staging's 05:00 UTC gate, live on the
+                # per-environment AppProject, not here. See `bootstrap/appproject.yaml`.
                 - { env: dev,     server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
@@ -31,8 +31,8 @@ spec:
                 - { path: "infra/gitops/services/{{ .env }}/values/*.yaml" }
   template:
     metadata:
-      # `filenameNormalized` keeps the extension, so it produces `dev-service-orders.yaml` — a resource whose name says
-      # which FILE generated it rather than which service it deploys, against the `<env>-<tier>- <component>` naming
+      # `filenameNormalized` keeps the extension, so it produces `dev-service-orders.yaml`. That name says which FILE
+      # generated the resource, not which service it deploys. It breaks the `<env>-<tier>-<component>` naming that
       # ADR-0201 fixes.
       name: '{{ .env }}-service-{{ trimSuffix ".yaml" .path.filename }}'
       labels:
@@ -47,17 +47,17 @@ spec:
         path: infra/helm/service
         helm:
           valueFiles:
-            # Env-wide first, then the service's own, which therefore wins. What belongs in the shared file is anything true
-            # of every service in the environment — the registry's pull credential, for one.
+            # The environment-wide file comes first, then the service's own file, so the service file wins. The shared file
+            # holds anything true of every service in the environment. One example is the registry's pull credential.
             - "../../gitops/services/{{ .env }}/shared.yaml"
             - "../../gitops/services/{{ .env }}/values/{{ .path.filename }}"
       destination: { server: "{{ .server }}", namespace: platform }
       syncPolicy:
         automated: { prune: true, selfHeal: true }
         syncOptions: [CreateNamespace=true, ServerSideApply=true]
-        # Retry on failure — automated+selfHeal won't re-run a sync that errored
-        # on the same commit; without this a transient repo-server/network blip
-        # parks the generated app until a manual sync. Caps at 2m (ADR-0201).
+        # Retry on failure. Automated sync with selfHeal does not run a sync again after it failed
+        # on the same commit. Without this, a short repo-server or network outage parks the
+        # generated app until a manual sync. Backoff stops growing at 2m, per ADR-0201.
         retry:
           limit: 20
           backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

@@ -1,7 +1,7 @@
 {{/*
-PriorityClass tiers (ADR-0204): platform-critical > product > batch. These are what make "CPU requests, no CPU
-limits" safe — requests govern shares, and these priorities decide who dies when the node is out of memory.
-Sync-wave -5: a pod naming a PriorityClass that does not exist yet is rejected outright.
+PriorityClass tiers, per ADR-0204: platform-critical, then product, then batch. They make the rule of CPU
+requests with no CPU limits safe. Requests govern shares, and these priorities decide which pod is evicted when
+the node is out of memory. Sync-wave -5: a pod that names a PriorityClass that does not exist yet is rejected.
 */}}
 {{- range $name, $tier := .Values.priorityClasses }}
 ---

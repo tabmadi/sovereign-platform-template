@@ -1,4 +1,4 @@
-# Local Platform ApplicationSets (ADR-0201, ADR-0205).
+# Local Platform ApplicationSets, per ADR-0201 and ADR-0205.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -27,14 +27,14 @@ spec:
               revision: master
               directories:
                 - { path: "infra/helm/platform/namespaces" }
-                  # Admission control (ADR-0104). In the BASE tier because a policy that arrives after the workloads it gates has
-                  # already missed them: admission is evaluated once, at creation.
                 - { path: "infra/helm/platform/local-path" }
+                  # Admission control, per ADR-0104. It is in the BASE tier, because admission runs once, at creation. A policy
+                  # that arrives after the workloads it gates has already missed them.
                 - { path: "infra/helm/platform/kyverno" }
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
-                  # ADR-0204 guardrails (PriorityClass, LimitRange, ResourceQuota, PDB).
+                  # The ADR-0204 guardrails: PriorityClass, LimitRange, ResourceQuota, and PDB.
                 - { path: "infra/helm/platform/resource-governance" }
                 - { path: "infra/helm/platform/temporal-worker-controller-crds" }
   template:
@@ -85,8 +85,8 @@ metadata:
     app.kubernetes.io/part-of: platform
     app.kubernetes.io/component: stores
   annotations:
-    # Wave 2: after base (sops-operator up) and local-secrets (wave 1) so Postgres
-    # finds its superuser Secret instead of CreateContainerConfigError.
+    # Wave 2: after base, with sops-operator up, and after local-secrets at wave 1. So Postgres
+    # finds its superuser Secret and does not fail with CreateContainerConfigError.
     argocd.argoproj.io/sync-wave: "2"
 spec:
   goTemplate: true
@@ -242,7 +242,7 @@ spec:
                 - { path: "infra/helm/platform/zot" }
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
-                  # The edge's error responder (ADR-0305).
+                  # The edge's error responder, per ADR-0305.
                 - { path: "infra/helm/platform/edge-errors" }
                 - { path: "infra/helm/platform/mailpit" }
                 - { path: "infra/helm/platform/maddy" }

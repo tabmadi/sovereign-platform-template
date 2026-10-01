@@ -16,18 +16,18 @@ spec:
       labels:
         app.kubernetes.io/name: openfga
     spec:
-      enableServiceLinks: false   # avoid k8s injecting OPENFGA_* Service-link env vars
-      # `restricted` (ADR-0200). The openfga image is distroless and already ships
-      # a nonroot USER, so no UID is pinned here. Pod level, so the migrate init
-      # container below is covered by the same two lines rather than a copy.
+      enableServiceLinks: false   # stop k8s from injecting OPENFGA_* Service-link env vars
+      # `restricted`, per ADR-0200. The openfga image is distroless and already ships
+      # a nonroot USER, so no UID is pinned here. It is at pod level, so the same two
+      # lines cover the migrate init container below, and no copy is needed.
       securityContext:
         runAsNonRoot: true
         seccompProfile: { type: RuntimeDefault }
       {{- if .Values.migrate.enabled }}
       initContainers:
         # Bring the Postgres datastore to head before serving. `migrate` is
-        # idempotent and safe on every replica/restart, and self-orders against
-        # Postgres by failing + retrying until reachable.
+        # idempotent and safe on every replica and restart. It orders itself against
+        # Postgres: it fails and retries until Postgres is reachable.
         - name: migrate
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           securityContext:

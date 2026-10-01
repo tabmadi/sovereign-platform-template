@@ -1,35 +1,35 @@
-# Branch protection and required checks, as configuration (ADR-0102).
+# Branch protection and required checks, as configuration, per ADR-0102.
 
 branch: master
 
-# Nothing reaches master except through a reviewed pull request, and the promotion commit CI makes after the images
-# exist (ADR-0201). The forge's job token cannot be allowlisted, so CI pushes it as the `ci` machine user.
+# Only two things reach master: a reviewed pull request, and the promotion commit that CI makes after the images
+# exist, per ADR-0201. The forge's job token cannot be allowlisted, so CI pushes as the `ci` machine user.
 protection:
   enable_push: true
   enable_push_whitelist: true
-  push_whitelist_usernames: [ci] # no one else, including an admin
+  push_whitelist_usernames: [ci] # no one else, and no admin
   required_approvals: 1
-  # A dismissed-on-push approval is the difference between reviewing a change and
-  # reviewing the change that was there when the reviewer looked.
+  # An approval dismissed on push means the reviewer approved this change, and
+  # not the change that was there when they looked.
   dismiss_stale_approvals: true
   block_on_rejected_reviews: true
-  # A merge whose base has moved is a merge of two green runs that were never
-  # green together.
+  # A merge whose base has moved joins two green runs that were never green
+  # together.
   block_on_outdated_branch: true
   require_signed_commits: false # ADR-0104 signs images, not commits
   enable_status_check: true
-  # The gates, by job name. Each is a thin caller of `mise run ci:*` (ADR-0102),
-  # so this list is the CI contract and not a duplicate of it.
+  # The gates, by job name. Each one is a thin caller of `mise run ci:*`, per
+  # ADR-0102. So this list is the CI contract and not a copy of it.
   status_check_contexts:
     - lint
     - test
     - build
     - drift
 
-# Workflow runs proposed from OUTSIDE the organisation. A fork's pull request carries code the runner would
-# execute against the runner's own host and secrets.
+# Workflow runs proposed from OUTSIDE the organisation. A fork's pull request carries code that the runner would
+# run against its own host and secrets.
 actions:
   approval_for_outside_collaborators: true
-  # A secret is never handed to a fork's run, approved or not. Approval bounds
-  # who runs code on the runner; it does not make the code trusted.
+  # A fork's run never gets a secret, approved or not. Approval limits who runs
+  # code on the runner. It does not make the code trusted.
   secrets_for_fork_pull_requests: false

@@ -1,43 +1,42 @@
-# Values namespaced under `localPath:` so this chart shares the platform ApplicationSet's single per-env values
-# overlay without key collisions. A top-level key here would be read by every OTHER chart's render of the same
-# file, and this chart would ignore the per-environment override that names it.
+# Values are under `localPath:`, so this chart shares the single per-environment values overlay of the platform
+# ApplicationSet with no key collisions. Every OTHER chart would read a top-level key here from the same file. This
+# chart would then ignore the per-environment override that names it.
 localPath:
-  # Off by default; every tier that needs it turns it on in its own overlay.
+  # Off by default. Every tier that needs it turns it on in its own overlay.
   enabled: false
 
   image:
     repository: rancher/local-path-provisioner
     tag: "v0.0.37"
-    # Pinned by digest (ADR-0104). The tag above is what a human reads; this is
-    # what is pulled, and the two are checked against each other by
-    # `lint:floating-tags`.
+    # Pinned by digest, per ADR-0104. A human reads the tag above. The digest is
+    # what is pulled. `lint:floating-tags` checks the two against each other.
     digest: sha256:e757967a5ec338f6a9b371c5a9688bedaa8c3578ea3dd4db329ea0084be0a86f
     pullPolicy: IfNotPresent
 
-  # The helper image the provisioner runs as a short-lived Pod to create and remove each volume's directory. It
-  # needs `mkdir`, `rm` and nothing else.
+  # The helper image that the provisioner runs as a short-lived Pod. It creates and removes each volume's directory.
+  # It needs `mkdir`, `rm`, and nothing else.
   helperImage:
     repository: docker.io/library/busybox
     tag: "1.37.0"
     digest: sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
 
-  # Where volumes live on the node. `/var` is the ONLY writable path on a Talos node — everything else is a
-  # read-only image — and this directory is bind-mounted into the kubelet by infra/talos/patches/common.yaml.
+  # Where volumes live on the node. `/var` is the ONLY writable path on a Talos node. Everything else is a read-only
+  # image. `infra/talos/patches/common.yaml` bind-mounts this directory into the kubelet.
   path: /var/mnt/local-path
 
-  # This becomes the cluster's DEFAULT StorageClass, which is what makes an
-  # unannotated PVC resolve at all. Nothing else claims the role in a provisioned
+  # This becomes the cluster's DEFAULT StorageClass. Without it, an unannotated
+  # PVC does not resolve. Nothing else takes this role in a provisioned
   # environment.
   storageClass:
     name: local-path
     default: true
     # `WaitForFirstConsumer`, never `Immediate`.
     volumeBindingMode: WaitForFirstConsumer
-    # Deleting a PVC deletes the directory. `Retain` would leave node disks filling
-    # with orphans that nothing is tracking.
+    # Deleting a PVC deletes the directory. With `Retain`, node disks would fill
+    # with orphans that nothing tracks.
     reclaimPolicy: Delete
-    # A directory cannot grow on request. Saying so here makes the failure a clear
-    # API rejection rather than a resize that reports success and changes nothing.
+    # A directory cannot grow on request. This setting makes the failure a clear
+    # API rejection, and not a resize that reports success and changes nothing.
     allowVolumeExpansion: false
 
   resources:

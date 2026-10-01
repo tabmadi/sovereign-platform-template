@@ -1,7 +1,7 @@
 {{/*
 The Prometheus rule files in the chart root, as one ConfigMap. `AsConfig` renders each as a
-`<basename>: <content>` entry, and Helm keeps Chart.yaml out of `.Files` so the glob sees rule files only.
-The name is fixed, not release-derived: a moving name would leave Prometheus starting with no rules and no error.
+`<basename>: <content>` entry. Helm keeps Chart.yaml out of `.Files`, so the glob sees only rule files.
+The name is fixed, and not derived from the release. With a changing name, Prometheus would start with no rules and no error.
 */}}
 apiVersion: v1
 kind: ConfigMap

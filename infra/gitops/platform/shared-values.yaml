@@ -1,8 +1,8 @@
-# Overrides that must be supplied as a values FILE, for every platform chart and every environment. Why this file
-# exists at all.
+# Overrides that must be a values FILE, for every platform chart and every environment. The comment on each
+# entry says why it must be a file.
 kyverno:
-  # ADR-0204: a CPU limit is throttling, and these are an init container and two hook Jobs — throttling a migration
-  # or a startup task turns a slow one into a failed one.
+  # Per ADR-0204, a CPU limit means throttling. These are an init container and two hook Jobs. Throttling a
+  # migration or a startup task turns a slow task into a failed one.
   admissionController:
     initContainer:
       resources:
@@ -12,11 +12,11 @@ kyverno:
     resources:
       limits:
         cpu: null
-  # NOT the CRD-migration hook (`crds.migration.podResources`). A `null` there is applied but not deleted — it
-  # renders as an explicit `cpu: null`, which the API server reads as a limit of zero and rejects the Job outright.
+  # NOT the CRD-migration hook, `crds.migration.podResources`. A `null` there is applied but not deleted. It
+  # renders as an explicit `cpu: null`. The API server reads that as a limit of zero and rejects the Job.
 
 opentelemetry-collector:
-  # The node agent's OTLP receivers, with their hostPorts DELETED (ADR-0200, ADR-0500).
+  # The node agent's OTLP receivers, with their hostPorts DELETED, per ADR-0200 and ADR-0500.
   ports:
     otlp:
       hostPort: null
@@ -24,9 +24,9 @@ opentelemetry-collector:
       hostPort: null
 
 temporal-worker-controller:
-  # The same deletion, and the reason this file exists in the first place: the allow-list in
-  # tools/lint-resource-governance carried this container with the note "inherited, unremovable — a parent
-  # values.yaml cannot delete a subchart key".
+  # The same deletion. It is the first reason this file exists. The allow-list in
+  # `tools/lint-resource-governance` carried this container with a note: inherited and cannot be removed,
+  # because a parent `values.yaml` cannot delete a subchart key.
   resources:
     limits:
       cpu: null

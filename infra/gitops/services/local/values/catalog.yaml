@@ -1,21 +1,21 @@
-# Local full-tier values for the catalog service (ADR-0205). See orders.yaml for the secret-naming note
-# (catalog-db = local SopsSecret resource).
+# Local full-tier values for the catalog service, per ADR-0205. See `orders.yaml` for the note on secret names.
+# `catalog-db` is the local SopsSecret resource.
 name: catalog
 image:
   repository: registry.localhost:5000/catalog-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
-  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
+  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
+  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
 worker:  { enabled: false }
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [products] }
-# The Lowdefy admin console (apps/admin) calls catalog server-side, east-west on the server port, bypassing the
-# /api edge (ADR-0401).
+# The Lowdefy admin console in `apps/admin` calls catalog from its server, east-west on the server port. It does
+# not go through the `/api` edge, per ADR-0401.
 networkPolicy: { allowFrom: [lowdefy, orders] }
-# Keep every trace the service starts (ADR-0500: local overrides healthy traces to 100%).
+# Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
 otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 secrets: { envFrom: [catalog-db, openfga-creds] }
 env:
-  # Write authz (ADR-0304): dial OpenFGA via the shared Checker. Blank preshared key
-  # falls back to openfga-creds.preshared_key (envFrom), as the authz service does.
+  # Write authz, per ADR-0304: dial OpenFGA through the shared Checker. A blank preshared key
+  # falls back to `openfga-creds.preshared_key` from `envFrom`, as in the authz service.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   OPENFGA_PRESHARED_KEY: ""

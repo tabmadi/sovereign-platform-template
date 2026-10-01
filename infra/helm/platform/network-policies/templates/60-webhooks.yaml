@@ -1,4 +1,4 @@
-## Admission and conversion webhooks are called by the Kubernetes API server, so a namespace-wide default-deny
+## The Kubernetes API server calls admission and conversion webhooks. So a namespace-wide default-deny
 ## blocks them without these allows.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -27,8 +27,8 @@ spec:
       toPorts:
         - ports: [{ port: "9443", protocol: TCP }]
 ---
-## Temporal Worker Controller (ADR-0302). Its WorkerResourceTemplate validating webhook is always on — not optional
-## like the WorkerDeployment one — so the apiserver must reach 9443 or every WorkerResourceTemplate write hangs.
+## Temporal Worker Controller, per ADR-0302. Its WorkerResourceTemplate validating webhook is always on. It is not
+## optional like the WorkerDeployment one. So the apiserver must reach 9443, or every WorkerResourceTemplate write hangs.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

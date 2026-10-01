@@ -1,19 +1,19 @@
-# Values namespaced under `edgeErrors:` so this chart shares the platform ApplicationSet's single per-env values
-# overlay without key collisions.
+# Values are under `edgeErrors:`, so this chart shares the single per-environment values overlay of the platform
+# ApplicationSet with no key collisions.
 edgeErrors:
   enabled: true
 
-  # busybox httpd, which serves static files and maps an extension to a MIME type. That is the whole requirement: no
-  # templating, no request handling, no state.
+  # busybox httpd, which serves static files and maps an extension to a MIME type. That is all that is needed. There
+  # is no templating, no request handling, and no state.
   image:
     repository: docker.io/library/busybox
     tag: "1.37.0"
     digest: sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
     pullPolicy: IfNotPresent
 
-  # Two replicas. Every intercepted response makes a subrequest here, so this is in
-  # the path of every denial the edge issues — a single replica makes an ordinary
-  # rollout a window where denials fall back to Oathkeeper's dialect.
+  # Two replicas. Every intercepted response makes a subrequest here. So this is in
+  # the path of every denial from the edge. With a single replica, a normal rollout
+  # is a window where denials fall back to Oathkeeper's format.
   replicas: 2
 
   port: 8080
@@ -22,8 +22,8 @@ edgeErrors:
     requests: { cpu: 5m, memory: 16Mi }
     limits: { memory: 32Mi }
 
-  # The statuses Traefik intercepts, and the title each one carries. `title` is stable and does not vary with the
-  # instance, which is what RFC 9457 asks of it.
+  # The statuses that Traefik intercepts, and the title of each one. `title` is stable and does not change with the
+  # instance, as RFC 9457 requires.
   problems:
     - status: 401
       title: Unauthorized

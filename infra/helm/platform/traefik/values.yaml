@@ -1,15 +1,15 @@
-# Wrapper around the upstream traefik chart (ADR-0305) — the edge controller every environment runs. kind ships no
-# ingress controller, so both local tiers install this chart.
+# A wrapper around the upstream traefik chart, per ADR-0305: the edge controller that every environment runs. kind
+# ships no ingress controller, so both local tiers install this chart.
 traefik:
-  # Platform routes span namespaces (middlewares live in `platform`, the Hubble UI
-  # is in `kube-system`, ArgoCD in `argocd` — infra/gateway). Upstream's default
-  # denies cross-namespace IngressRoute references.
+  # Platform routes span namespaces. Middlewares live in `platform`, the Hubble UI
+  # is in `kube-system`, and Argo CD is in `argocd`. See `infra/gateway`. The upstream
+  # default denies cross-namespace IngressRoute references.
   providers:
     kubernetesCRD:
       allowCrossNamespace: true
 
-  # Local tier: the host reaches the edge at :8443 → the node's 30443 (the extraPortMappings in
-  # infra/local/kind.yaml) → this NodePort.
+  # Local tier: the host reaches the edge at :8443, then the node's 30443 through the extraPortMappings in
+  # `infra/local/kind.yaml`, then this NodePort.
   service:
     spec:
       type: NodePort
@@ -18,8 +18,8 @@ traefik:
       nodePort: 30080
     websecure:
       nodePort: 30443
-      # An image push is the longest request that crosses this edge: one streamed layer, on one connection, for as long
-      # as the client's link needs (ADR-0105).
+      # An image push is the longest request through this edge: one streamed layer, on one connection, for as long as
+      # the client's link needs, per ADR-0105.
       transport:
         respondingTimeouts:
           readTimeout: 10m

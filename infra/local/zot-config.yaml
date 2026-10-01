@@ -1,11 +1,11 @@
-# The LOCAL registry (ADR-0105, ADR-0600). The same implementation every deployed environment runs, as a host
-# container beside the kind clusters — so the image path is not a place the environments differ.
+# The LOCAL registry, per ADR-0105 and ADR-0600. It is the same implementation that every deployed environment runs,
+# as a host container next to the kind clusters. So the image path is not a place where environments differ.
 distSpecVersion: "1.1.1"
 
 storage:
   rootDirectory: /var/lib/zot
-  # Off: it rewrites blobs as hard links, which buys nothing on a cache that is
-  # rebuilt by re-pulling.
+  # Off. It rewrites blobs as hard links, and that gives nothing on a cache that
+  # is rebuilt by pulling again.
   dedupe: false
   gc: true
   gcDelay: 1h
@@ -14,36 +14,36 @@ storage:
 http:
   address: 0.0.0.0
   port: "5000"
-  # An image push is a LONG request: a layer arrives as one streamed PATCH, so the
-  # request lasts as long as the slowest of the client link and the disk. These are
-  # Go durations — a bare number would be nanoseconds.
+  # An image push is a LONG request. A layer arrives as one streamed PATCH, so the
+  # request lasts as long as the slower of the client link and the disk. These are
+  # Go durations. A bare number would be nanoseconds.
   readTimeout: 10m
   writeTimeout: 10m
-  # Accepts Docker's manifest media types. Without it a push uploads every blob and the registry then rejects the
-  # manifest with `manifest invalid` — at the last step of a long upload, which reads as a registry defect.
+  # Accepts Docker's manifest media types. Without it, a push uploads every blob, and then the registry rejects the
+  # manifest with `manifest invalid`. That happens at the last step of a long upload, and looks like a registry defect.
   compat: [docker2s2]
 
 log:
   level: info
 
 extensions:
-  # The console, at http://registry.localhost:5000 — "is this image cached yet" as a
-  # page rather than a curl. `search` is not decoration: the UI is a client of it and
+  # The console, at http://registry.localhost:5000. It shows whether an image is cached as a
+  # page, and not with curl. `search` is required: the UI is a client of it, and it
   # renders an empty catalogue without it.
   ui:
     enable: true
   search:
     enable: true
-  # PULL-THROUGH MIRRORING (ADR-0105).
+  # PULL-THROUGH MIRRORING, per ADR-0105.
   sync:
     enable: true
     downloadDir: /var/lib/zot/sync
-    # Docker Hub rate-limits ANONYMOUS pulls per source IP, and CI runners share theirs with every other project on
-    # the forge — so a warm that pulls 50 images can exhaust a limit it never spent itself.
+    # Docker Hub rate-limits ANONYMOUS pulls per source IP. CI runners share their IP with every other project on the
+    # forge. So a warm that pulls 50 images can use up a limit that it did not spend itself.
     credentialsFile: /etc/zot/sync-creds.json
     registries:
-      # Hub first, then mirror.gcr.io, Google's unthrottled cache of it: zot tries the next URL when Hub answers 429, and
-      # from some networks mirror.gcr.io stalls for minutes before failing, so it cannot come first.
+      # Hub first, then mirror.gcr.io, Google's unthrottled cache of Hub. zot tries the next URL when Hub answers 429. From
+      # some networks, mirror.gcr.io stalls for minutes before it fails, so it cannot come first.
       - urls: ["https://registry-1.docker.io", "https://mirror.gcr.io"]
         onDemand: true
         tlsVerify: true
@@ -56,8 +56,8 @@ extensions:
       - urls: ["https://registry.k8s.io"]
         onDemand: true
         tlsVerify: true
-      # The charts pull from six hosts, not four. An unmirrored host falls through to a direct pull — and the node's
-      # inherited proxy points at 127.0.0.1, which inside a node is the node.
+      # The charts pull from six hosts, not four. A host with no mirror falls through to a direct pull. The node's
+      # inherited proxy points at 127.0.0.1, which inside a node is the node itself.
       - urls: ["https://public.ecr.aws"]
         onDemand: true
         tlsVerify: true

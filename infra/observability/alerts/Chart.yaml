@@ -1,8 +1,8 @@
-# Alerts-as-code (ADR-0500). This directory is a chart so that the Prometheus rule files beside this file become
-# the `prometheus-alerts` ConfigMap the observability chart mounts at /etc/prometheus/rules (rule_files globs that
-# directory).
+# Alerts-as-code, per ADR-0500. This directory is a chart, so the Prometheus rule files next to this file become
+# the `prometheus-alerts` ConfigMap. The observability chart mounts it at `/etc/prometheus/rules`, and `rule_files`
+# globs that directory.
 apiVersion: v2
 name: prometheus-alerts
-description: Committed Prometheus rule files, delivered as the ConfigMap Prometheus mounts (ADR-0500).
+description: Committed Prometheus rule files, delivered as the ConfigMap that Prometheus mounts, per ADR-0500.
 type: application
 version: 0.1.0

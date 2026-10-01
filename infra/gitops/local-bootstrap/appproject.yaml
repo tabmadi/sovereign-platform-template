@@ -1,5 +1,5 @@
-# Local AppProject (ADR-0201). ArgoCD's real tenancy/grouping primitive — the thing every local Application is
-# grouped *by* (spec.project: local), so grouping no longer relies on parsing the `local-` name prefix.
+# Local AppProject, per ADR-0201. The AppProject is Argo CD's real tenancy and grouping primitive. Every local
+# Application is grouped by it with `spec.project: local`, so grouping does not parse the `local-` name prefix.
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -10,7 +10,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-10"
 spec:
-  description: Local (kind) environment — platform, services, gateway, secrets.
+  description: Local kind environment, with platform, services, gateway, and secrets.
   sourceRepos:
     - https://github.com/tabmadi/sovereign-platform-template.git
     - docker.io/temporalio

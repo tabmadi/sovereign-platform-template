@@ -1,9 +1,9 @@
-# Local-only edge wiring for the Kratos login flow (ADR-0305/0010/0014). Unlike prod, the frontend is NOT deployed
-# in-cluster locally — it runs on the host via `next dev`.
+# Local-only edge wiring for the Kratos login flow, per ADR-0305. Unlike in prod, the frontend is NOT deployed
+# in the cluster locally. It runs on the host with `next dev`.
 ---
-# Selector-less Service for the host `next dev`. There is no host-alias record for
-# the host, so scripts/cluster.sh attaches an EndpointSlice pointing at the docker
-# bridge gateway (the host) on :3000 — the only host IP routable from pods.
+# A Service with no selector, for the host `next dev`. There is no host-alias record for
+# the host. So `scripts/cluster.sh` attaches an EndpointSlice that points at the docker
+# bridge gateway, the host, on :3000. It is the only host IP that pods can route to.
 apiVersion: v1
 kind: Service
 metadata:
@@ -15,8 +15,8 @@ spec:
       port: 3000
       targetPort: 3000
 ---
-# Catch-all → host `next dev`. This is the LAST RESORT: an explicit low priority, not Traefik's default
-# rule-length ordering, is what guarantees it.
+# Catch-all to the host `next dev`. This is the LAST RESORT. An explicit low priority guarantees that, and not
+# Traefik's default order by rule length.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

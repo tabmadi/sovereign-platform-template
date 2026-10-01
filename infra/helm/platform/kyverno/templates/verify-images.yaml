@@ -1,13 +1,13 @@
 {{- if and .Values.policies.imagePrefix .Values.policies.publicKey }}
-# Every first-party image carries a signature this platform made (ADR-0104). `verifyImages` is a MUTATING rule as
-# well as a validating one: on success Kyverno rewrites the image reference to the digest it verified.
+# Every first-party image carries a signature that this platform made, per ADR-0104. `verifyImages` is a MUTATING
+# rule and also a validating one. On success, Kyverno rewrites the image reference to the digest it verified.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: verify-first-party-signatures
   annotations:
-    # After the CRDs, which are TEMPLATES of the subchart rather than files in a crds/ directory — so a single Helm
-    # pass renders this CR against an API server that has never heard of `kyverno.io/v1`.
+    # After the CRDs. They are TEMPLATES of the subchart, not files in a `crds/` directory. So a single Helm
+    # pass renders this CR against an API server that does not know `kyverno.io/v1`.
     argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: First-party images are signed
     policies.kyverno.io/category: Supply chain
@@ -22,8 +22,8 @@ spec:
   validationFailureAction: {{ .Values.policies.validationFailureAction }}
   background: false
   webhookTimeoutSeconds: 30
-  # A signature check reaches the registry, so it cannot fail open: a policy that
-  # admits on timeout is one an attacker only has to make slow.
+  # A signature check calls the registry, so it cannot fail open. If a policy
+  # admits on timeout, an attacker only has to make the registry slow.
   failurePolicy: Fail
   rules:
     - name: signed-by-the-platform-key
@@ -32,17 +32,17 @@ spec:
           - resources:
               kinds: [Pod]
       verifyImages:
-        # `type` is left at its default, Cosign — the classic simple-signing layout, which is what scripts/ci-sign.sh
+        # `type` keeps its default, Cosign. That is the classic simple-signing layout, which `scripts/ci-sign.sh`
         # produces with `--new-bundle-format=false`.
         - imageReferences:
             - {{ .Values.policies.imagePrefix | quote }}
-          # The digest Kyverno verified is written back into the pod spec.
+          # Kyverno writes the digest that it verified back into the pod spec.
           mutateDigest: true
-          # …and a reference that already carries a digest is left alone rather
-          # than re-resolved.
+          # A reference that already carries a digest is left as it is, and not
+          # resolved again.
           required: true
           {{- with .Values.policies.registrySecret }}
-          # The signature is a referrer in the same private registry the image is pulled from, read with the same credential.
+          # The signature is a referrer in the same private registry that the image comes from. Kyverno reads it with the same credential.
           imageRegistryCredentials:
             secrets: [{{ . | quote }}]
           {{- end }}
@@ -52,12 +52,12 @@ spec:
                 - keys:
                     publicKeys: |-
 {{ .Values.policies.publicKey | trim | indent 22 }}
-                    # The signature algorithm is pinned: cosign's default is
-                    # ECDSA-P256-SHA256 and the key above is one, but a policy that
-                    # accepts whatever the signature claims accepts a downgrade.
+                    # The signature algorithm is pinned. cosign's default is ECDSA-P256-SHA256,
+                    # and the key above is one. But a policy that accepts any algorithm that
+                    # the signature claims accepts a downgrade.
                     signatureAlgorithm: sha256
-                    # No transparency log, on purpose and in both directions. ADR-0104 chose a key pair over keyless precisely because
-                    # the only verifier here is our own admission controller, and keyless outsources the trust root.
+                    # No transparency log, on purpose, in both directions. ADR-0104 chose a key pair over keyless, because the only
+                    # verifier here is our own admission controller. Keyless gives the trust root to an outside party.
                     rekor:
                       ignoreTlog: true
                     ctlog:

@@ -1,6 +1,6 @@
 {{- if .Values.alertmanager.enabled }}
-## The page/ticket hygiene report (ADR-0502). ADR-0502 names alert fatigue as the failure mode that makes the
-## routing tree decoration: "a receiver that fires forty times a night is muted by its recipient within a week".
+## The page and ticket hygiene report, per ADR-0502. ADR-0502 names alert fatigue as the failure that turns the routing
+## tree into decoration. A receiver that fires forty times a night is muted by its recipient within a week.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -26,9 +26,9 @@ spec:
             runAsGroup: 65534
             seccompProfile: { type: RuntimeDefault }
           containers:
-            # The Prometheus image for promtool, whose `query instant` prints a
-            # line-oriented result. The alternative is parsing the HTTP API's
-            # JSON in a shell that has no JSON parser.
+            # The Prometheus image, for promtool. Its `query instant` prints a
+            # line-oriented result. The alternative is to parse the HTTP API's JSON
+            # in a shell that has no JSON parser.
             - name: report
               image: "{{ .Values.prometheusImage }}"
               imagePullPolicy: IfNotPresent
@@ -43,9 +43,9 @@ spec:
                   PROM="{{ .Values.alertmanager.hygieneReport.prometheusURL }}"
                   LIMIT={{ .Values.alertmanager.hygieneReport.firingMinutesThreshold }}
                   echo "→ page-severity alert hygiene over the last 30 days"
-                  # ALERTS carries one sample per evaluation while firing, and the
-                  # evaluation interval is Prometheus's 1m default, so the sample
-                  # count is minutes spent firing.
+                  # ALERTS has one sample per evaluation while it fires. The evaluation
+                  # interval is the Prometheus default of 1m. So the sample count is the
+                  # minutes spent firing.
                   out="$(promtool query instant "$PROM" \
                     'sum by (alertname) (count_over_time(ALERTS{alertstate="firing", severity="page"}[30d]))' \
                     2>/dev/null || true)"
@@ -59,11 +59,11 @@ spec:
                     mins="$(echo "$line" | sed -n 's/.*=> \([0-9.]*\) @.*/\1/p' | cut -d. -f1)"
                     [ -n "$name" ] && [ -n "$mins" ] || continue
                     if [ "$mins" -gt "$LIMIT" ]; then
-                      echo "⚠ $name fired for ${mins}m of the last 30d (limit ${LIMIT}m)"
+                      echo "⚠ $name fired for ${mins}m of the last 30d, over the limit of ${LIMIT}m"
                       echo "  propose: demote to ticket, or fix the condition it reports"
                       flagged=1
                     else
-                      echo "  $name: ${mins}m — within budget"
+                      echo "  $name: ${mins}m, within budget"
                     fi
                   done
                   [ "$flagged" -eq 0 ] && echo "✓ every page-severity alert is within its firing budget"

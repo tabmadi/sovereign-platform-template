@@ -1,5 +1,5 @@
 cilium:
-  # kube-proxy is not installed (ADR-0206), so the agent addresses the API server directly rather than through a
+  # kube-proxy is not installed, per ADR-0206. So the agent addresses the API server directly, and not through a
   # Service.
   kubeProxyReplacement: true
   k8sServiceHost: localhost
@@ -30,26 +30,26 @@ cilium:
   ipam:
     mode: kubernetes
 
-  # WireGuard transparent encryption for all east-west pod traffic (ADR-0206).
-  # A config flag, not a sidecar: multi-tenant PII and audit posture do not ship
-  # plaintext east-west. Node-to-node only; host-level traffic is out of scope.
+  # WireGuard transparent encryption for all east-west pod traffic, per ADR-0206.
+  # It is a config flag, not a sidecar. With multi-tenant PII and audit needs, no plaintext
+  # goes east-west. It covers node-to-node traffic only. Host-level traffic is out of scope.
   encryption:
     enabled: true
     type: wireguard
 
-  # Hubble gives per-flow network visibility without a sidecar (ADR-0206). It is the audit surface for internal
-  # header-trust (ADR-0305) and the source for the network-flow metrics scraped into Grafana.
+  # Hubble gives per-flow network visibility without a sidecar, per ADR-0206. It is the audit surface for internal
+  # header trust, per ADR-0305. It is also the source of the network-flow metrics in Grafana.
   hubble:
     enabled: true
     relay:
       enabled: true
     ui:
       enabled: true
-      # Served at the ROOT of the `hubble.ops.<host>` subdomain (gateway IngressRoute matches HostRegexp
-      # `^hubble\.ops\.`), not under a path prefix.
+      # Served at the ROOT of the `hubble.ops.<host>` subdomain, not under a path prefix. The gateway IngressRoute
+      # matches HostRegexp `^hubble\.ops\.`.
       baseUrl: /
-    # Flow metrics on the agent at :9965, scraped by the node-local OTel collector and surfaced in Grafana (ADR-0500,
-    # ADR-0501).
+    # Flow metrics on the agent at :9965. The node-local OTel collector scrapes them, and Grafana shows them, per
+    # ADR-0500 and ADR-0501.
     metrics:
       enabled:
         - "drop:sourceContext=workload;destinationContext=workload"

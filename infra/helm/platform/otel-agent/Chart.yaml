@@ -1,29 +1,29 @@
 apiVersion: v2
 name: otel-agent
 description: |
-  The node-level OTel Collector: one DaemonSet, in a namespace of its own
-  (ADR-0500, ADR-0200).
+  The node-level OTel Collector: one DaemonSet in its own namespace, per ADR-0500
+  and ADR-0200.
 
-  Why it is not part of `observability`: it is the one platform workload that needs
-  privilege. It tails `/var/log/pods` through a hostPath and receives OTLP on the
-  node's ports, both of which the `baseline` Pod Security Standard forbids. Pod
-  Security Admission's unit is the NAMESPACE, so a single such workload sets the
-  floor for every workload beside it — measured: with `enforce: baseline` on the
-  shared namespace, every pod of this DaemonSet is rejected at creation and the
-  cluster loses node-level log collection with no symptom beyond an Application
-  that never reports Healthy.
+  It is not part of `observability`, because it is the one platform workload that
+  needs privilege. It tails `/var/log/pods` through a hostPath, and it receives
+  OTLP on the node's ports. The `baseline` Pod Security Standard forbids both. The
+  unit of Pod Security Admission is the NAMESPACE. So one such workload sets the
+  floor for every workload next to it. This was measured: with `enforce: baseline`
+  on the shared namespace, every pod of this DaemonSet is rejected at creation.
+  The cluster then loses node-level log collection. The only symptom is an
+  Application that never reports Healthy.
 
-  ADR-0200's answer is that a component needing privilege runs alone, so the
-  privilege it needs is scoped to it. That is this chart: `namespaceOverride` puts
-  every resource in `otel-agent`, whose PSA profile is declared in the namespaces
-  chart, and the backends it exports to keep a namespace that enforces more.
+  ADR-0200's answer is that a component that needs privilege runs alone, so the
+  privilege applies only to it. This chart does that. `namespaceOverride` puts
+  every resource in `otel-agent`, whose PSA profile the namespaces chart declares.
+  The backends that it exports to keep a namespace that enforces more.
 
-  The cluster-state collector (`otel-cluster`) is a plain Deployment that needs
-  none of this and stays with the backends it feeds.
+  The cluster-state collector, `otel-cluster`, is a plain Deployment. It needs
+  none of this, and it stays with the backends it feeds.
 type: application
 version: "2026.9.3"
 appVersion: "1.0.0"
 
-# Subcharts are vendored under charts/ and rendered directly — there is no `dependencies:` block, for the reason
-# observability/Chart.yaml records: ArgoCD's repo-server runs `helm dependency build` whenever dependencies are
-# declared, and that fetches the repo index over the network, which wedges behind the local privoxy edge.
+# The subcharts are vendored under `charts/` and rendered directly. There is no `dependencies:` block, for the
+# reason that `observability/Chart.yaml` records. Argo CD's repo-server runs `helm dependency build` when a chart
+# declares dependencies. That fetches the repo index over the network, which hangs behind the local privoxy edge.

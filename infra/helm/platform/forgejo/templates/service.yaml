@@ -1,9 +1,9 @@
 {{- if .Values.forgejo.enabled }}
 {{- $f := .Values.forgejo }}
 {{- /*
-A stable `forgejo` name regardless of the release name: under ArgoCD the release is
-`<env>-platform-forgejo`, and the edge route and every clone URL address the forge
-by this name.
+A stable `forgejo` name for any release name. Under Argo CD, the release is
+`<env>-platform-forgejo`. The edge route and every clone URL address the forge by
+this name.
 */}}
 apiVersion: v1
 kind: Service
@@ -17,8 +17,8 @@ spec:
     app.kubernetes.io/name: forgejo
   ports:
     - { name: http, port: 3000, targetPort: http }
-    # Reachable in-cluster only. Git over SSH from outside needs an address the
-    # edge cannot give it — the edge routes HTTP (ADR-0305) — so exposing this is a
-    # per-environment decision about a LoadBalancer or a node port.
+    # Reachable only inside the cluster. Git over SSH from outside needs an address that
+    # the edge cannot give, because the edge routes HTTP, per ADR-0305. So exposing this
+    # is a per-environment decision about a LoadBalancer or a node port.
     - { name: ssh, port: {{ $f.config.sshPort | int }}, targetPort: ssh }
 {{- end }}

@@ -1,4 +1,4 @@
-# The worker role's machine config (ADR-0200), applied on top of common.yaml.
+# The machine config of the worker role, per ADR-0200, applied on top of `common.yaml`.
 machine:
   nodeLabels:
     node-role.kubernetes.io/worker: ""

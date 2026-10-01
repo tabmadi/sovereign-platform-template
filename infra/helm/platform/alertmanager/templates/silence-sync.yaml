@@ -1,5 +1,5 @@
 {{- if .Values.alertmanager.enabled }}
-## Reconcile Alertmanager's silences to the committed file (ADR-0502).
+## Reconcile Alertmanager's silences to the committed file, per ADR-0502.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -42,10 +42,10 @@ spec:
                   if [ -n "$active" ]; then
                     # shellcheck disable=SC2086
                     amtool --alertmanager.url="$AM" silence expire $active
-                    echo "  expired $(echo "$active" | wc -l | tr -d ' ') existing silence(s)"
+                    echo "  expired $(echo "$active" | wc -l | tr -d ' ') existing silences"
                   fi
                   if [ "$(tr -d ' \n' < /etc/silences/silences.json)" = "[]" ]; then
-                    echo "✓ no committed silences — nothing is suppressed"
+                    echo "✓ no committed silences, so nothing is suppressed"
                   else
                     amtool --alertmanager.url="$AM" silence import /etc/silences/silences.json
                     echo "✓ imported the committed silences"

@@ -1,25 +1,24 @@
 {{- if .Values.zot.enabled }}
 {{- /*
-The registry's configuration, which ADR-0105 makes a committed file rather than
-API state. It is rendered from values so the per-environment deltas (bucket,
-endpoint) stay in the environment's values file, and everything that is NOT a
-per-environment delta is written literally here where it can be read.
+The registry's configuration. ADR-0105 makes it a committed file, and not API
+state. It is rendered from values, so the per-environment deltas, bucket and
+endpoint, stay in the environment's values file. Everything that is NOT a
+per-environment delta is written literally here, where people can read it.
 
-Three settings in the JSON below are not obvious, and each was measured against
-2.1.20 rather than taken from the documentation:
+Three settings in the JSON below are not obvious. Each one was measured against
+2.1.20, and not taken from the documentation:
 
-  - `compat: ["docker2s2"]` accepts Docker's manifest media types. Without it a
-    push uploads every blob successfully and the registry then rejects the
-    manifest with `manifest invalid` — a failure that arrives at the last step of
-    a long upload and reads as a registry defect. `docker buildx` emits those
-    media types unless told otherwise, so this is the default path, not a legacy
-    one.
-  - `defaultPolicy` and `anonymousPolicy` are both empty. An empty list is not
-    "unset": it is the absence of any permission, which is what makes an
-    unauthenticated request fail at authentication rather than at a repository
-    rule. Deleting either line opens the registry.
-  - `dedupe` is off. It rewrites blobs as hard links, which an object store does
-    not have; on S3 it costs a full scan of the bucket at startup and buys
+  - `compat: ["docker2s2"]` accepts Docker's manifest media types. Without it, a
+    push uploads every blob, and then the registry rejects the manifest with
+    `manifest invalid`. The failure comes at the last step of a long upload, and
+    it looks like a registry defect. `docker buildx` emits those media types by
+    default, so this is the default path, not a legacy one.
+  - `defaultPolicy` and `anonymousPolicy` are both empty. An empty list does not
+    mean unset. It means no permission at all. So an unauthenticated request fails
+    at authentication, and not at a repository rule. Deleting either line opens
+    the registry.
+  - `dedupe` is off. It rewrites blobs as hard links, and an object store has no
+    hard links. On S3, it costs a full scan of the bucket at startup and gives
     nothing.
 */}}
 apiVersion: v1
@@ -45,13 +44,13 @@ data:
           "region": "{{ .Values.zot.storage.region }}",
           "bucket": "{{ .Values.zot.storage.bucket }}",
           {{- /*
-          A URL, with the scheme. zot's storage driver is docker/distribution's,
-          whose `regionendpoint` the AWS SDK parses as an endpoint URL — a bare
-          `host:port` reads as a scheme-less URI and the driver gives up during
-          `parseStorage`, with an exit code and NO message after
+          A URL, with the scheme. zot's storage driver is the one from
+          docker/distribution. The AWS SDK parses its `regionendpoint` as an endpoint
+          URL. A bare `host:port` reads as a URI with no scheme. The driver then stops
+          during `parseStorage`, with an exit code and NO message after
           `parsing storage and initializing`. Loki and Tempo take the same address
-          as `host:port` because their clients accept that form; the value here is
-          the same host and a different contract.
+          as `host:port`, because their clients accept that form. The value here is
+          the same host with a different contract.
           */}}
           "regionendpoint": "{{ if .Values.zot.storage.secure }}https{{ else }}http{{ end }}://{{ .Values.zot.storage.endpoint }}",
           "secure": {{ .Values.zot.storage.secure }},
@@ -60,18 +59,18 @@ data:
       },
       "http": {
         {{- /*
-        An image push is a LONG request. A layer arrives as one streamed PATCH and
-        zot writes it through to object storage as it goes, so the request lasts as
-        long as the slowest of the client link and the store — and upstream's
-        60-second default cuts a large layer mid-stream. What the client sees is
-        `unexpected EOF` and an endless retry loop; what the registry logs is an
-        i/o timeout reading from its own peer, which reads as a network fault
-        rather than as its own deadline.
+        An image push is a LONG request. A layer arrives as one streamed PATCH, and
+        zot writes it to object storage as it arrives. So the request lasts as long
+        as the slower of the client link and the store. Upstream's 60-second default
+        cuts a large layer in the middle. The client sees `unexpected EOF` and a
+        retry loop that never ends. The registry logs an i/o timeout while it reads
+        from its own peer. That looks like a network fault, and not like its own
+        deadline.
 
         A DURATION STRING, never a bare number. These are Go durations, so a JSON
-        number is nanoseconds: `600` is 600ns, every request past the first byte
-        dies instantly, and the edge in front reports 502 while the registry's own
-        log shows it answering. Larger is not safer here — it is six hundred
+        number is nanoseconds. `600` is 600ns: every request past the first byte
+        fails at once. The edge in front reports 502, while the registry's own log
+        shows it answering. A larger number is not safer here. `600` is six hundred
         millionths of a second.
         */}}
         "readTimeout": "{{ .Values.zot.http.readTimeout }}",
@@ -98,45 +97,45 @@ data:
       "extensions": {
         {{- if .Values.zot.console.enabled }}
         {{- /*
-        The console (ADR-0306), and the search extension it is a client of. Both,
-        or neither: `ui` alone renders a page whose every query 404s, which reads
-        as an empty registry rather than as a missing extension.
+        The console, per ADR-0306, and the search extension that it is a client of.
+        Both or neither. `ui` alone renders a page where every query gets a 404. That
+        looks like an empty registry, and not like a missing extension.
 
-        The accessControl above is unchanged by this, which is the point — the UI
-        is served by the same authenticated endpoint as the API, so a browser that
-        cleared the edge still presents the registry's own pull credential. No
-        anonymousPolicy is added to make the console convenient; that would open
-        every pull on `registry.<host>` at the same time.
+        This does not change the accessControl above, and that is the goal. The same
+        authenticated endpoint as the API serves the UI. So a browser that passed the
+        edge still presents the registry's own pull credential. No anonymousPolicy is
+        added to make the console easier. That would open every pull on
+        `registry.<host>` at the same time.
         */}}
         "ui": { "enable": true },
         "search": { "enable": true }{{ if .Values.zot.sync.enabled }},{{ end }}
         {{- end }}
         {{- if .Values.zot.sync.enabled }}
         {{- /*
-        The sync extension, making zot a pull-through cache for the upstreams
-        (ADR-0105). Anonymous pulls of a MIRRORED image still pass through the
-        accessControl above, so the pull identity is the same one the cluster already
-        uses — mirroring does not open a second, unauthenticated door into the
+        The sync extension, which makes zot a pull-through cache for the upstreams,
+        per ADR-0105. Anonymous pulls of a MIRRORED image still pass through the
+        accessControl above. So the pull identity is the same one that the cluster
+        already uses. Mirroring does not open a second, unauthenticated door into the
         registry.
         */}}
         "sync": {
           "enable": true,
           {{- /*
-          No `credentialsFile`. Every upstream here is PUBLIC, and naming a file
-          that does not exist is how zot fails to start — a registry that will not
-          come up is worse than one that pulls anonymously. A private upstream
-          would add the file and this key together, never one without the other.
-          Docker Hub's anonymous rate limit applies and is the accepted cost; it is
-          also why that upstream must stay onDemand rather than polled.
+          No `credentialsFile`. Every upstream here is PUBLIC. If this names a file
+          that does not exist, zot fails to start. A registry that does not start is
+          worse than one that pulls anonymously. A private upstream would add the
+          file and this key together, never one without the other. Docker Hub's
+          anonymous rate limit applies, and it is the accepted cost. It is also why
+          that upstream must stay onDemand, and not polled.
           */}}
           {{- /*
           Where a synced image lands before it is committed to the store. zot
-          REFUSES TO START without it whenever sync and a remote storage driver
-          are both configured — `using both sync and remote storage features
-          needs config.Extensions.Sync.DownloadDir to be specified` — so on S3
-          this key is not a tuning option, it is the difference between a
-          registry and a CrashLoopBackOff. It shares the emptyDir that holds the
-          metadata cache: the contents are a staging area, rebuilt on demand.
+          REFUSES TO START without it when both sync and a remote storage driver
+          are configured, with the error `using both sync and remote storage features
+          needs config.Extensions.Sync.DownloadDir to be specified`. So on S3 this
+          key is not a tuning option. It decides between a registry and a
+          CrashLoopBackOff. It shares the emptyDir that holds the metadata cache.
+          The contents are a staging area that is rebuilt on demand.
           */}}
           "downloadDir": "{{ .Values.zot.sync.downloadDir }}",
           "registries": {{ toJson .Values.zot.sync.registries }}

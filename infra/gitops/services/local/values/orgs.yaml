@@ -1,26 +1,26 @@
-# Local full-tier values for the orgs service (ADR-0205). See orders.yaml for the secret-naming note (orgs-db =
-# local SopsSecret resource).
+# Local full-tier values for the orgs service, per ADR-0205. See `orders.yaml` for the note on secret names.
+# `orgs-db` is the local SopsSecret resource.
 name: orgs
 image:
   repository: registry.localhost:5000/orgs-server
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
-  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
+  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
+  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
 worker:
-  enabled: true            # RegisterUser dual-write (ADR-0302/0010)
+  enabled: true            # RegisterUser dual-write, per ADR-0302
   image:
     repository: registry.localhost:5000/orgs-worker
     tag: local
 server:  { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [orgs] }
-# Keep every trace the service starts (ADR-0500: local overrides healthy traces to 100%).
+# Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
 otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
-# Kratos calls /identity-created east-west on the server port (ADR-0304); the
-# edge (allowFromGateway) only covers Traefik → /api/orgs, so allow Kratos too.
-# The Lowdefy admin console (apps/admin) also calls orgs server-side (ADR-0401).
+# Kratos calls `/identity-created` east-west on the server port, per ADR-0304. The
+# edge rule `allowFromGateway` covers only Traefik to `/api/orgs`, so allow Kratos too.
+# The Lowdefy admin console in `apps/admin` also calls orgs from its server, per ADR-0401.
 networkPolicy: { allowFrom: [kratos, lowdefy] }
 secrets: { envFrom: [orgs-db, openfga-creds] }
 env:
-  # Write authz (ADR-0304): the worker grants org admin via the shared OpenFGA
-  # Granter. Blank preshared key falls back to openfga-creds.preshared_key (envFrom).
+  # Write authz, per ADR-0304: the worker grants org admin through the shared OpenFGA
+  # Granter. A blank preshared key falls back to `openfga-creds.preshared_key` from `envFrom`.
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   OPENFGA_PRESHARED_KEY: ""

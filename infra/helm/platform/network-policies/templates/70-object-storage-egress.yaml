@@ -1,6 +1,6 @@
 {{- if .Values.externalObjectStorage }}
-## `externalObjectStorage` gates every allow in this file: it means "the buckets this platform writes to live
-## OUTSIDE the cluster".
+## `externalObjectStorage` gates every allow in this file. It means that the buckets this platform writes to are
+## OUTSIDE the cluster.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -16,8 +16,8 @@ spec:
       toPorts:
         - ports: [{ port: "443", protocol: TCP }]
 ---
-## Postgres (CNPG) continuous backup — the same off-cluster-bucket condition as the LGTM rule above, for the one
-## workload where a silent failure is unrecoverable.
+## Postgres continuous backup with CNPG. It has the same off-cluster-bucket condition as the LGTM rule above. It is
+## the one workload where a silent failure cannot be recovered.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -37,7 +37,7 @@ spec:
 {{- end }}
 {{- if .Values.publicTls.enabled }}
 ---
-## cert-manager, when the environment issues PUBLIC certificates (ADR-0205).
+## cert-manager, when the environment issues PUBLIC certificates, per ADR-0205.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

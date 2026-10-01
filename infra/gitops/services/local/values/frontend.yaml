@@ -1,17 +1,17 @@
-# Local values for the frontend (ADR-0205, ADR-0600).
+# Local values for the frontend, per ADR-0205 and ADR-0600.
 name: frontend
 image:
-  # The local registry, like every other service (ADR-0205): this file is what the services ApplicationSet generates
-  # the frontend's Application from, so a bare node-resident `frontend:local` means the full tier pulls from Docker
-  # Hub, gets `insufficient_scope`, and sits in ImagePullBackOff until someone runs `cluster:add -- frontend` by
+  # The local registry, like every other service, per ADR-0205. The services ApplicationSet generates the frontend's
+  # Application from this file. With a bare `frontend:local` on the node, the full tier pulls from Docker Hub and gets
+  # `insufficient_scope`. It stays in ImagePullBackOff until someone runs `cluster:add -- frontend` by hand.
   repository: registry.localhost:5000/frontend
-  tag: local            # local registry (CI stand-in); prod uses a git SHA (ADR-0101)
-  pullPolicy: Always    # re-pull the rebuilt :local on a cluster:up full re-run
+  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
+  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
 worker: { enabled: false }
 server:
   port: 3000
-  # No admin port: a Next standalone server serves one port. The chart defaults
-  # probe /readyz and /livez on `admin`, so both are overridden below.
+  # No admin port. A Next standalone server serves one port. The chart defaults
+  # probe `/readyz` and `/livez` on `admin`, so the file overrides both below.
   adminPort: null
   replicas: 1
   probes:
@@ -20,35 +20,35 @@ server:
   resources:
     requests: { cpu: "100m", memory: "256Mi" }
     limits:   { memory: "768Mi" }
-# Catch-all `/`. The glue route in infra/local/edge-auth.yaml holds priority 1 so
-# this one wins whenever it exists, and the host `next dev` takes over again as
-# soon as it is removed.
+# Catch-all `/`. The glue route in `infra/local/edge-auth.yaml` has priority 1, so
+# this route wins while it exists. When it is removed, the host `next dev` takes
+# over again.
 ingress: { enabled: true, host: dev.localtest.me, pathPrefix: "/" }
 migrations: { enabled: false }
-# Keep every trace the service starts (ADR-0500: local overrides healthy traces to 100%).
+# Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
 otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 env:
-  # East-west targets for the cluster-audience services the analytics panel reads
-  # (ADR-0700). These have no /api route, so the edge origin above cannot reach
-  # them and the panel dials the Services directly.
+  # East-west targets for the cluster-audience services that the analytics panel reads,
+  # per ADR-0700. They have no `/api` route, so the edge origin above cannot reach
+  # them. The panel dials the Services directly.
   ANALYTICS_URL: http://analytics-server.platform.svc.cluster.local
   AUTHZ_URL: http://authz-server.platform.svc.cluster.local
-  # Kratos public, for resolving the session cookie to an identity on a page
-  # render. A page carries no injected identity header — see the note in the
-  # shared chart's ingressroute template for why.
+  # Kratos public, to resolve the session cookie to an identity on a page
+  # render. A page carries no injected identity header. The note in the
+  # shared chart's ingressroute template gives the reason.
   KRATOS_PUBLIC_URL: http://ory-kratos-public.platform.svc.cluster.local
-  # The browser's origin — the local edge maps host 8443 to Traefik's 443. next.config.mjs
-  # derives the server-action CSRF allowlist from this, so it must carry the port.
+  # The browser's origin. The local edge maps host port 8443 to Traefik's 443. `next.config.mjs`
+  # derives the server-action CSRF allowlist from this value, so it must include the port.
   EDGE_PUBLIC_ORIGIN: https://dev.localtest.me:8443
-  # What this pod dials. Same host — the /api IngressRoutes match on it and the
-  # wildcard cert is issued for it — resolved to Traefik by the CoreDNS rewrite.
+  # What this pod dials. It is the same host, because the `/api` IngressRoutes match on it
+  # and the wildcard cert is for it. The CoreDNS rewrite resolves it to Traefik.
   EDGE_INTERNAL_ORIGIN: https://dev.localtest.me
-  # Trust the local CA rather than disabling verification. The secret is mounted
-  # below; `ca.crt` is the anchor cert-manager writes there.
+  # Trust the local CA, and do not turn off verification. The secret is mounted
+  # below. `ca.crt` is the anchor that cert-manager writes there.
   NODE_EXTRA_CA_CERTS: /etc/ssl/local-ca/ca.crt
 secrets:
-  # The chart names the volume after the Secret (secretName: .name), so `name` here
-  # IS the Secret cert-manager writes the CA into.
+  # The chart names the volume after the Secret with `secretName: .name`. So `name` here
+  # IS the Secret that cert-manager writes the CA into.
   files:
     - name: local-ca-tls
       mountPath: /etc/ssl/local-ca

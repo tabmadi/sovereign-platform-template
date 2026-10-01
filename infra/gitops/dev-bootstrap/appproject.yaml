@@ -1,6 +1,6 @@
-# Per-environment AppProjects (ADR-0201). ArgoCD's real tenancy/grouping primitive — the platform/service
-# Applications the appsets fan out are grouped *by* these (spec.project: <env>), not by parsing the `<env>-` name
-# prefix.
+# Per-environment AppProjects, per ADR-0201. The AppProject is Argo CD's real tenancy and grouping primitive.
+# The appsets group the platform and service Applications by these with `spec.project: <env>`. They do not
+# parse the `<env>-` name prefix.
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -11,11 +11,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-10"
 spec:
-  description: Dev environment — platform + services.
+  description: Dev environment, with platform and services.
   sourceRepos:
     - https://github.com/tabmadi/sovereign-platform-template.git
-      # Argo resolves a chart's `dependencies:` under the project's own permissions, so a repo a chart pulls from is a
-      # source of this project even though no Application names it.
+      # Argo CD resolves a chart's `dependencies:` under the project's own permissions. So a repo that a chart pulls
+      # from is a source of this project, even when no Application names it.
     - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }

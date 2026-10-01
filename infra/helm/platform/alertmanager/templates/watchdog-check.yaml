@@ -1,6 +1,6 @@
 {{- if .Values.alertmanager.enabled }}
-## Assert the Watchdog is still arriving (ADR-0502, docs/reference/detection-latency.md). The Watchdog alert always
-## fires, so its ABSENCE is the only signal it carries, and nothing consumes an absence on its own.
+## Check that the Watchdog still arrives, per ADR-0502 and `docs/reference/detection-latency.md`. The Watchdog alert
+## always fires. So its ABSENCE is the only signal that it carries, and nothing acts on an absence alone.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -14,8 +14,8 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      # No retries. A retry would paper over exactly the transient-then-recovered
-      # case that a heartbeat check exists to record.
+      # No retries. A retry would hide the exact case that a heartbeat check exists
+      # to record: a short failure that then recovered.
       backoffLimit: 0
       template:
         metadata:
@@ -41,25 +41,25 @@ spec:
                   set -eu
                   AM="http://alertmanager.platform.svc.cluster.local:{{ .Values.alertmanager.httpPort }}"
                   echo "→ checking that Alertmanager holds a firing Watchdog"
-                  # Keep amtool's own exit status. "I could not reach Alertmanager" and "Alertmanager holds no Watchdog" are
-                  # different faults with different first suspects, and only the second one means alerting is broken.
+                  # Keep amtool's own exit status. Two faults are different, with different first suspects: amtool cannot reach
+                  # Alertmanager, or Alertmanager holds no Watchdog. Only the second one means that alerting is broken.
                   if ! found=$(amtool --alertmanager.url="$AM" \
                                  alert query alertname=Watchdog 2>&1); then
-                    echo "✗ cannot reach Alertmanager at $AM — this check reached no" >&2
-                    echo "  verdict, so it says nothing about whether alerts are" >&2
-                    echo "  routing. Alertmanager is down, starting, or unreachable" >&2
-                    echo "  from this namespace; check the Deployment and the" >&2
-                    echo "  NetworkPolicy before reading anything else into it." >&2
+                    echo "✗ cannot reach Alertmanager at $AM. This check has no" >&2
+                    echo "  verdict, so it tells nothing about alert routing." >&2
+                    echo "  Alertmanager is down, starting, or unreachable from" >&2
+                    echo "  this namespace. Check the Deployment and the" >&2
+                    echo "  NetworkPolicy before you draw any other conclusion." >&2
                     echo "  amtool said: $found" >&2
                     exit 2
                   fi
                   if printf '%s' "$found" | grep -q Watchdog; then
-                    echo "✓ Watchdog present — alerts are evaluating and routing"
+                    echo "✓ Watchdog present: alerts are evaluating and routing"
                   else
-                    echo "✗ no Watchdog in Alertmanager: alerts are not being evaluated" >&2
-                    echo "  or not being routed, and every other alert is silently" >&2
-                    echo "  unreliable. Check Prometheus rule loading and the" >&2
-                    echo "  Alertmanager Deployment before trusting any alert." >&2
+                    echo "✗ no Watchdog in Alertmanager: Prometheus does not evaluate" >&2
+                    echo "  alerts, or Alertmanager does not route them. No other" >&2
+                    echo "  alert is reliable. Check Prometheus rule loading and the" >&2
+                    echo "  Alertmanager Deployment before you trust any alert." >&2
                     exit 1
                   fi
               resources:

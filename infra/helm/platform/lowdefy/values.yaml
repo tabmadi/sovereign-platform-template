@@ -1,18 +1,18 @@
-# Values namespaced under `lowdefy:` (not top-level) so this chart can share the platform ApplicationSet's single
-# per-env values overlay without its `image` key colliding with the openfga chart, which also reads a top-level
-# `.Values.image`.
+# Values are under `lowdefy:` and not top-level. So this chart can share the single per-environment values overlay
+# of the platform ApplicationSet, and its `image` key does not collide with the openfga chart. That chart also
+# reads a top-level `.Values.image`.
 lowdefy:
-  # ADR-0204.
+  # Per ADR-0204.
   resources:
     requests: { cpu: "100m", memory: "320Mi" }
     limits:   { memory: "768Mi" }
   image:
-    repository: ""        # per-env overlay: local → local registry, prod → ghcr
-    tag: ""               # local → "local"; prod → git SHA
+    repository: ""        # per-environment overlay: the local registry for local, ghcr for prod
+    tag: ""               # `local` for local, a git SHA for prod
     pullPolicy: IfNotPresent
 
-  # Empty where the registry needs no credential (the local tier's registry is
-  # anonymous). A deployed environment names the Secret its SopsSecret carries.
+  # Empty where the registry needs no credential. The local tier's registry is
+  # anonymous. A deployed environment names the Secret that its SopsSecret carries.
   imagePullSecrets: []
 
   replicas: 2
@@ -21,5 +21,5 @@ lowdefy:
 
   env:
     LOWDEFY_BUILD_OUT_DIR: /app/build
-    # The gateway forwards an authenticated identity header (ADR-0401).
+    # The gateway forwards an authenticated identity header, per ADR-0401.
     LOWDEFY_REQ_HEADER_USER: x-user-email

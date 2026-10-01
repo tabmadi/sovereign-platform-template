@@ -1,8 +1,7 @@
-# OpenFGA authorization model for the platform (ADR-0304).
-# Kept minimal — extend per service as authz needs grow. This DSL is the ONE
-# source of truth; model.json is generated from it (`mise run gen:authz-model`)
-# and CI (`lint:authz`) asserts they stay in sync. `fga model test` runs the
-# assertions in fga.yaml against this model.
+# OpenFGA authorization model for the platform, per ADR-0304.
+# This DSL is the ONE source of truth. `mise run gen:authz-model` generates
+# `model.json` from it, and CI `lint:authz` checks that they match.
+# `fga model test` runs the assertions in `fga.yaml` against this model.
 
 model
   schema 1.1
@@ -30,23 +29,23 @@ type order
     define read: owner or write from org
     define write: owner or write from org
 
-# A charge is payment's record of an order being paid, and it is readable by
-# exactly whoever may read that order — the buyer and the owning org's admins.
-# Modelled as a relation to the order rather than a second copy of the order's
-# own relations, so a change to who may read an order cannot leave the charge
-# behind. The charges table already carries order_id, which is the tuple.
+# A charge is payment's record that an order is paid. The people who can read
+# that order can read the charge: the buyer and the owning org's admins. It is a
+# relation to the order, not a copy of the order's relations. So a change to who
+# can read an order always applies to the charge. The `charges` table already
+# carries `order_id`, which is the tuple.
 type charge
   relations
     define order: [order]
     define read: read from order
 
-# Ops-tier authorization (ADR-0306). A `group` models coarse cohorts; the
-# `operator` group (group:operator) gates the whole ops tier. Each operator
-# dashboard (Hubble UI, Grafana, Argo, Temporal, console, SeaweedFS, OpenFGA) is a
-# `dashboard` resource; the ops-tier Oathkeeper checks `dashboard:<tool>#view`
-# via the remote_json authorizer. Coarse-then-fine: the authz endpoint requires
-# group:operator membership AND the per-tool view grant, so a non-operator gets
-# nothing and per-dashboard grants refine within the tier.
+# Ops-tier authorization, per ADR-0306. A `group` models broad cohorts. The
+# `operator` group gates the whole ops tier. Each operator dashboard is a
+# `dashboard` resource: Hubble UI, Grafana, Argo, Temporal, console, SeaweedFS,
+# and OpenFGA. The ops-tier Oathkeeper checks `dashboard:<tool>#view` with the
+# `remote_json` authorizer. The authz endpoint requires `group:operator`
+# membership AND the per-tool view grant. A non-operator gets nothing, and
+# per-dashboard grants narrow access inside the tier.
 type group
   relations
     define member: [user]
@@ -56,14 +55,14 @@ type dashboard
     define viewer: [user, group#member]
     define view: viewer
 
-# The analytics panel (ADR-0700). One type mirroring `dashboard` above, rather than
-# a second pattern: the panel is a route group on the product origin, and it is
-# page-gated by the same Checker the ops tier uses.
+# The analytics panel, per ADR-0700. It is one type like `dashboard` above, not
+# a second pattern. The panel is a route group on the product origin. The same
+# Checker as the ops tier gates its pages.
 #
-# It is a separate type from `dashboard` because it is granted through a marketing
-# group, and that separation is what resolves the placement problem — marketing
-# never receives an ops-tier account, never needs operator MFA, and never touches
-# Grafana, while the ops tier's least-authority rule stays intact.
+# It is a separate type from `dashboard` because a marketing group grants it.
+# This separation solves the placement problem. Marketing never gets an ops-tier
+# account, never needs operator MFA, and never touches Grafana. The ops tier's
+# least-authority rule stays intact.
 type analytics_panel
   relations
     define viewer: [user, group#member]

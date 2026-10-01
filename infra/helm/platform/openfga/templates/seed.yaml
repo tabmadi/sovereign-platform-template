@@ -1,7 +1,7 @@
 {{- if and .Values.seed.enabled .Values.seed.model }}
-# Canonical authorization model (JSON), mounted into the seed Job. Generated from
-# the one model source (infra/auth/openfga/model.fga) and injected via the
-# ApplicationSet fileParameter seed.model.
+# The canonical authorization model as JSON, mounted into the seed Job. It is
+# generated from the one model source, `infra/auth/openfga/model.fga`, and the
+# ApplicationSet fileParameter `seed.model` injects it.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,15 +9,15 @@ metadata:
   namespace: platform
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    # Drift anchor for the grants (the seed Job below is a `hook: Sync`, which Argo excludes from OutOfSync detection
-    # — so a dashboards-only change would never trigger a sync and the hook would never re-run).
+    # Drift anchor for the grants. The seed Job below is a `hook: Sync`, and Argo CD excludes hooks from OutOfSync
+    # detection. Without this, a change to dashboards alone would never trigger a sync, and the hook would never run again.
     seed.openfga/dashboards-checksum: {{ .Values.seed.dashboards | toJson | sha256sum }}
     seed.openfga/service-operators-checksum: {{ .Values.seed.serviceOperators | toJson | sha256sum }}
 data:
   model.json: |
 {{ .Values.seed.model | indent 4 }}
 ---
-# Seed Job (ADR-0300, ADR-0306). Runs after OpenFGA is Ready (sync-wave 2, after the Deployment's default wave 0).
+# Seed Job, per ADR-0300 and ADR-0306. It runs after OpenFGA is Ready: sync-wave 2, after the Deployment's default wave 0.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -38,9 +38,9 @@ spec:
       containers:
         - name: seed
           image: "{{ .Values.seed.image }}"
-          # Restricted Pod Security Admission (ADR-0200) rejects a container with
-          # no securityContext — the Job otherwise loops FailedCreate forever and
-          # the `platform` store is never seeded. curl/jq/sh need no privileges.
+          # Restricted Pod Security Admission, per ADR-0200, rejects a container with
+          # no securityContext. The Job would then loop on FailedCreate forever, and the
+          # `platform` store would never be seeded. curl, jq, and sh need no privileges.
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: ["ALL"] }
@@ -63,10 +63,10 @@ spec:
               API=http://openfga.platform.svc.cluster.local:8080
               AUTH="Authorization: Bearer $OPENFGA_KEY"
 
-              echo "waiting for openfga to serve..."
+              echo "waiting for openfga to serve"
               until curl -sf "$API/healthz" >/dev/null 2>&1; do sleep 2; done
 
-              # Ensure exactly one store named `platform` (idempotent across re-syncs).
+              # Make sure there is exactly one store named `platform`. This is idempotent across syncs.
               SID=$(curl -sS "$API/stores" -H "$AUTH" | jq -r '.stores[] | select(.name=="platform") | .id' | head -n1)
               if [ -z "$SID" ]; then
                 SID=$(curl -sS -X POST "$API/stores" -H "$AUTH" -H 'content-type: application/json' \
@@ -76,13 +76,13 @@ spec:
                 echo "reusing store $SID"
               fi
 
-              # Write the model (a new immutable version each run; latest is used).
+              # Write the model. Each run makes a new immutable version, and the latest one is used.
               MID=$(curl -sS -X POST "$API/stores/$SID/authorization-models" -H "$AUTH" \
                     -H 'content-type: application/json' -d @/model/model.json | jq -r '.authorization_model_id')
               echo "wrote model $MID"
 
-              # write_tuple tolerates ONLY the duplicate-write error; any other
-              # failure aborts the Job (no blanket error swallowing).
+              # write_tuple accepts ONLY the duplicate-write error. Any other failure
+              # stops the Job. It does not hide all errors.
               write_tuple() {
                 body="{\"writes\":{\"tuple_keys\":[{\"user\":\"$3\",\"relation\":\"$2\",\"object\":\"$1\"}]}}"
                 out=$(curl -sS -o /tmp/resp -w '%{http_code}' -X POST "$API/stores/$SID/write" \
@@ -92,7 +92,7 @@ spec:
                 echo "ERROR $3 $2 $1: HTTP $out $(cat /tmp/resp)" >&2; return 1
               }
 
-              # Ops dashboards → operator group; service accounts → operator members.
+              # Ops dashboards go to the operator group. Service accounts become operator members.
               for d in $DASHBOARDS; do write_tuple "dashboard:$d" viewer "group:operator#member"; done
               for u in $SERVICE_OPERATORS; do write_tuple "group:operator" member "user:$u"; done
               echo "seed complete"

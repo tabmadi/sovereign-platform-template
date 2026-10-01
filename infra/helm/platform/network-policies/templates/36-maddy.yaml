@@ -1,16 +1,16 @@
 {{- if .Values.maddyEnabled }}
 {{- /*
-maddy — outbound mail submission (ADR-0307). Gated on the same flag the chart is,
-because a policy for a workload that does not exist is a policy nobody reads.
+maddy, outbound mail submission, per ADR-0307. The same flag as the chart gates
+it, because nobody reads a policy for a workload that does not exist.
 
-The egress half is what makes this different from every other component here. Mail
-delivery is a connection to a stranger's server on port 25, chosen by an MX lookup
-at send time — so this is the one workload whose egress cannot be an allow-list of
-known peers, and `toEntities: [world]` on 25 is the honest expression of that.
+The egress half makes this different from every other component here. Mail
+delivery is a connection to an unknown server on port 25, chosen by an MX lookup
+at send time. So this is the one workload whose egress cannot be an allow-list of
+known peers. `toEntities: [world]` on 25 states that correctly.
 
-Port 25 outbound and NOT 587: 587 is submission, which is what senders use to reach
-maddy; delivery between mail servers is 25. A policy that opened 587 outbound would
-admit no mail and look correct.
+Port 25 outbound, and NOT 587. Senders use 587, submission, to reach maddy.
+Delivery between mail servers uses 25. A policy that opened 587 outbound would
+admit no mail and still look correct.
 */}}
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
@@ -21,20 +21,20 @@ spec:
     matchLabels:
       app: maddy
   ingress:
-    # Kratos sends verification and recovery mail; the services send whatever they
-    # send. Both speak SMTP submission — no sender embeds a provider SDK, which is
-    # what keeps the relay target a configuration value.
+    # Kratos sends verification and recovery mail, and the services send their own
+    # mail. Both use SMTP submission. No sender embeds a provider SDK, so the relay
+    # target stays a configuration value.
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: kratos }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: ory-kratos-courier }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/part-of: service }
-        # Alertmanager's `ticket` receiver relays through here (ADR-0502).
+        # Alertmanager's `ticket` receiver relays through here, per ADR-0502.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: alertmanager }
       toPorts:
         - ports: [{ port: "587", protocol: TCP }]
-    # The cluster collector scraping maddy's delivery counters (ADR-0500). Without
-    # this the scrape fails every interval and the mail alerts evaluate against no
-    # data — which reads as "no failures" rather than as "no signal".
+    # The cluster collector scrapes maddy's delivery counters, per ADR-0500. Without
+    # this, every scrape fails, and the mail alerts evaluate against no data. That
+    # looks like no failures, and not like no signal.
     - fromEndpoints:
         - matchLabels:
             k8s:io.kubernetes.pod.namespace: platform
@@ -45,12 +45,12 @@ spec:
     - toEntities: [world]
       toPorts:
         - ports: [{ port: "25", protocol: TCP }]
-    # MX, DANE `TLSA`, and MTA-STS records are all DNS lookups, and delivery cannot start without them.
+    # MX, DANE `TLSA`, and MTA-STS records are all DNS lookups. Delivery cannot start without them.
     - toEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system, k8s-app: kube-dns }
       toPorts:
         - ports: [{ port: "53", protocol: UDP }, { port: "53", protocol: TCP }]
-    # MTA-STS policies are fetched over HTTPS from the receiver's `mta-sts` subdomain (RFC 8461).
+    # MTA-STS policies come over HTTPS from the receiver's `mta-sts` subdomain, per RFC 8461.
     - toEntities: [world]
       toPorts:
         - ports: [{ port: "443", protocol: TCP }]

@@ -1,5 +1,5 @@
-# Root App-of-Apps (ADR-0201). One manual `kubectl apply` of this file at cluster bootstrap; everything else is
-# reconciled from git.
+# Root App-of-Apps, per ADR-0201. One manual `kubectl apply` of this file happens at cluster bootstrap. Argo CD
+# reconciles everything else from git.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,8 +9,8 @@ metadata:
     app.kubernetes.io/part-of: bootstrap
   finalizers: [resources-finalizer.argocd.argoproj.io]
 spec:
-  # The hand-applied bootstrap seed stays in `default`: it creates the per-env
-  # AppProjects (appproject.yaml), so it cannot live in one of them.
+  # The hand-applied bootstrap seed stays in `default`. It creates the per-environment
+  # AppProjects in `appproject.yaml`, so it cannot live in one of them.
   project: default
   source:
     repoURL: https://github.com/tabmadi/sovereign-platform-template.git
@@ -25,9 +25,9 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true]
-    # Retry the sync operation on failure: automated+selfHeal does NOT re-run a sync that errored on the same commit,
-    # so a transient repo-server/network blip during bootstrap would otherwise park this keystone app until a manual
-    # `argocd app sync`.
+    # Retry the sync operation on failure. Automated sync with selfHeal does NOT run a sync again after it failed on the
+    # same commit. Without a retry, a short repo-server or network outage during bootstrap parks this keystone app
+    # until a manual `argocd app sync`.
     retry:
       limit: 20
       backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

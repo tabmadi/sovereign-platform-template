@@ -1,15 +1,14 @@
 {{- if .Values.maddy.enabled }}
 {{- /*
-A StatefulSet, because the queue is the point. An outbound agent holds messages a
-receiver asked it to retry, sometimes for days, and a queue on an emptyDir is a
-queue that loses exactly the messages that were hardest to deliver. The MTA-STS
-policy cache lives on the same volume, where losing it costs a re-fetch rather
-than a message.
+A StatefulSet, because the queue is the purpose. An outbound agent holds messages
+that a receiver asked it to retry, sometimes for days. A queue on an emptyDir
+loses the messages that were hardest to deliver. The MTA-STS policy cache is on
+the same volume. If the cache is lost, it costs a new fetch, and not a message.
 
-One replica, and not a value. Two maddy instances sharing one submission Service
-would deliver from one egress IP with two queues and two DKIM signers reading one
-key — the reputation argument in ADR-0307 assumes one sender, and scale-out is a
-different decision than this chart's.
+One replica, and not a value. Two maddy instances that share one submission
+Service would deliver from one egress IP. They would have two queues and two DKIM
+signers that read one key. The reputation argument in ADR-0307 assumes one
+sender. Scale-out is a different decision from this chart's.
 */}}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -43,8 +42,8 @@ spec:
           imagePullPolicy: {{ .Values.maddy.image.pullPolicy }}
           args: ["-config", "/etc/maddy/maddy.conf", "run"]
           env:
-            # The submission password, as the hash maddy's pass_table compares
-            # against. A hash rather than the password: this value reaches the
+            # The submission password, as the hash that maddy's pass_table compares
+            # against. A hash and not the password, because this value reaches the
             # config file, and a config file is not a secret store.
             - name: MADDY_SUBMISSION_HASH
               valueFrom:
@@ -63,15 +62,15 @@ spec:
             - { name: dkim, mountPath: /run/secrets/dkim, readOnly: true }
             - { name: tls, mountPath: /run/secrets/tls, readOnly: true }
             - { name: state, mountPath: /data }
-            # maddy probes /tmp for writability at startup and exits when it is not.
+            # maddy checks at startup that /tmp is writable, and exits when it is not.
             - { name: tmp, mountPath: /tmp }
           livenessProbe:
             tcpSocket: { port: submission }
             initialDelaySeconds: 10
             periodSeconds: 30
-          # The submission port answering IS readiness here: there is no health
-          # endpoint on an SMTP agent, and a socket that accepts is one a sender
-          # can hand a message to.
+          # A response on the submission port IS readiness here. An SMTP agent has no
+          # health endpoint. A socket that accepts is one that a sender can give a
+          # message to.
           readinessProbe:
             tcpSocket: { port: submission }
             initialDelaySeconds: 5
