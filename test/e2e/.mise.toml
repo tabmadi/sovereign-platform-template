@@ -28,8 +28,9 @@ run = "npm run test:smoke"
 [tasks."test:visual"]
 # The screenshot baselines alone, to update one after a UI change that you intend.
 # Add `-- --update-snapshots`, and commit the result with the change that caused it.
+# The trailing `--` hands the added arguments to Playwright. Without it, npm takes them.
 env = { NO_PROXY = "localhost,127.0.0.1,.localtest.me", no_proxy = "localhost,127.0.0.1,.localtest.me" }
-run = "npm run test:visual"
+run = "npm run test:visual --"
 
 [tasks.lighthouse]
 # Web vitals and bundle budgets against the running edge, per ADR-0400.
