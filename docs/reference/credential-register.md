@@ -46,7 +46,7 @@ The local tier is the one exemption in [ADR-0202](../adr/0202-secrets.md). Its p
 | --- | --- | --- |
 | An engineer's age private key | that engineer's laptop, plus an offline backup | committed, shared, or held in any shared service |
 | The ops-recovery age key | offline, split across two or three seniors | online, or whole on one machine |
-| A cluster's age key | inside that cluster alone. To replace a lost key, create a new key and run `mise run secrets:updatekeys` | backed up, committed, or on a laptop |
+| A cluster's age key | inside that cluster. On Talos, also in the SOPS-encrypted machine config. To replace a lost key, create a new key and run `mise run secrets:updatekeys` | backed up on its own, committed in the clear, or on a laptop |
 
 **An age key is one line of text, and its loss costs every secret that it opens.** Back it up in the same way as the break-glass credentials. Treat the two as one habit, not two.
 

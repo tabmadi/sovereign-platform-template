@@ -61,9 +61,9 @@ Every encrypted file has exactly three recipient classes, declared in `.sops.yam
 
 | Class | Naming | Where the private key lives | Purpose |
 | --- | --- | --- | --- |
-| **Per-engineer** | the engineer's `{handle}`, per [ADR-0003](0003-naming-and-identifiers.md). For example, `eng_alice`. Every key traces to a person | `~/.config/sops/age/keys.txt` on that laptop. It never leaves the laptop | Daily access. Scoped by project and handle, not by environment |
-| **Per-cluster** | `{project}-{env}` | Only in that cluster, as a Secret in the `sops` namespace, created at bootstrap. The local tier's key is the exception: it is committed | Decryption in the cluster |
-| **Ops-recovery** | one key | offline, on the hardware tokens of more than one senior engineer | Recovery of a lost cluster key without re-encryption of every secret. Disaster recovery only |
+| **Per-engineer** | the engineer's `{handle}`, per [ADR-0003](0003-naming-and-identifiers.md). For example, `eng_alice`. Every key traces to a person | `~/.config/sops/age/keys.txt` on that laptop, and one offline backup that the engineer keeps | Daily access. Scoped by project and handle, not by environment |
+| **Per-cluster** | `{project}-{env}` | In that cluster, as the `sops-age-key` Secret in the `platform` namespace, created at bootstrap. Two exceptions: the local tier's key is committed, and on Talos the key is also in the SOPS-encrypted machine config | Decryption in the cluster |
+| **Ops-recovery** | one key | offline, on the hardware tokens of more than one senior engineer | Decryption of every secret when no engineer key is available. Disaster recovery only |
 
 `.sops.yaml` declares creation rules per path:
 
@@ -119,8 +119,8 @@ The encrypted files live in git, so they have git's distribution. The private ke
 
 | Key | Backup |
 | --- | --- |
-| Engineer | none. The key is personal. After a loss, the engineer runs the onboarding flow again with a new key |
-| Cluster | backed up, encrypted to ops-recovery, in the same off-cluster bucket that [ADR-0207](0207-cluster-storage.md) uses |
+| Engineer | one offline copy that the engineer keeps. With the laptop and the copy both lost, the engineer runs the onboarding flow again with a new key |
+| Cluster | none. A lost key is replaced: a new key, its public half in `.sops.yaml`, and `mise run secrets:updatekeys`. On Talos, the SOPS-encrypted machine config carries the key, and an apply of that config plants it again |
 | Ops-recovery | offline copies on the hardware tokens of more than one senior engineer, so a single departure does not lose recovery |
 
 ## Consequences
@@ -145,11 +145,11 @@ The encrypted files live in git, so they have git's distribution. The private ke
 - Plaintext secret values do not appear in any committed file. The one exemption is the local tier's age private key at `infra/gitops/platform/local/age.key`. It decrypts throwaway local values only, per [ADR-0205](0205-environment-parity.md). `(CI: lint:secrets)`
 - All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`.
 - Every encrypted file outside the local tier has exactly three recipient classes: per-engineer keys, the cluster key of the matching environment, and the ops-recovery key. Local files are encrypted to the committed local key alone.
-- Age private keys are not stored in shared services. Engineer keys live on laptops. Cluster keys live only in the cluster they belong to, except for the local tier's exemption.
+- Age private keys are not stored in shared services. Engineer keys live on laptops. Cluster keys live only in the cluster they belong to, with two exceptions: the local tier's committed key, and the SOPS-encrypted Talos machine config that plants the key.
 - A credential that no machine consumes is registered in [`docs/reference/credential-register.md`](../reference/credential-register.md) with its home, never its value.
 - A credential that reaches or repairs the infrastructure that serves this repository is also held offline. A recovery credential stored only inside what it recovers is unreachable at the moment it is needed.
 - Every engineer and ops-recovery age private key has an offline backup. The key is one line of text, and it opens every secret encrypted to it. Without a backup, the loss of its laptop is a total loss.
-- A cluster key is replaced, never restored. The replacement is a new key, its public half in `.sops.yaml`, and `mise run secrets:updatekeys`. Every file it opens is also encrypted to the engineers. So a lost cluster key costs one commit, and a backup of it is one more copy to guard.
+- A cluster key has no backup of its own. A lost key is replaced, not restored from a copy. The replacement is a new key, its public half in `.sops.yaml`, and `mise run secrets:updatekeys`. Every file it opens is also encrypted to the engineers. So a lost cluster key costs one commit, and a backup of it is one more copy to guard.
 - Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime.
 - Onboarding adds a public key by PR plus `mise run secrets:updatekeys`. Offboarding removes it by PR plus `mise run secrets:updatekeys`, plus rotation of every secret that the engineer could read.
 - Rotation at offboarding is mandatory, whatever the reason for the departure.

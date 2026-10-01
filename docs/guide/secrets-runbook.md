@@ -14,7 +14,7 @@ This guide shows how to manage secrets. [ADR-0202](../adr/0202-secrets.md) holds
 mise run secrets:age            # generates the local age key material
 ```
 
-Locally, the key is disposable, and the bootstrap plants it, per [ADR-0205](../adr/0205-environment-parity.md). In a deployed environment, the age private key reaches the cluster out-of-band. It is the root of trust for decryption. Treat its loss as an event that rotates every secret.
+Locally, the key is disposable, and the bootstrap plants it, per [ADR-0205](../adr/0205-environment-parity.md). In a deployed environment, the age private key reaches the cluster out-of-band. It is the root of trust for decryption. A lost key is replaced: generate a new key, put its public half in `.sops.yaml`, and run `mise run secrets:updatekeys`. A leaked key also rotates every secret that it opens.
 
 ## Edit a secret
 

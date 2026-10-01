@@ -76,7 +76,7 @@ cluster:
           name: sops-age-key
           namespace: platform
         stringData:
-          key.txt: AGE-SECRET-KEY-<key>
+          keys.txt: AGE-SECRET-KEY-<key>
 ```
 
 This is not committed in the clear. The machine config that carries it is SOPS-encrypted like every other secret. That is the same protection that the key would have in any other place. It also means that the same apply recovers the cluster identity and the secret root of trust. No one has to remember a manual step during an incident.
