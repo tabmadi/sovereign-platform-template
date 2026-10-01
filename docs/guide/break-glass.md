@@ -1,23 +1,23 @@
-# Break-glass & ops recovery
+# Break-glass and ops recovery
 
-How an operator reaches the debugging surfaces (Grafana, Hubble UI, Argo CD, the admin console) when the auth plane that normally gates them is itself down. Companion to [ADR-0306](../adr/0306-trust-tiers-and-urls.md) and [ADR-0304](../adr/0304-identity-and-authorization.md).
+This guide shows how an operator reaches the debugging surfaces when the auth plane that gates them is down. The surfaces are Grafana, Hubble UI, Argo CD, and the admin console. It goes with [ADR-0306](../adr/0306-trust-tiers-and-urls.md) and [ADR-0304](../adr/0304-identity-and-authorization.md).
 
 ## Principle: no shared fate in the recovery path
 
-The tools and credentials used to recover a system must not depend on that system. A recovery path that shares fate with the failed plane is a circular dependency: it passes every drill and fails the one real outage. Every mechanism below gives the ops tier an **independent trust root**.
+The tools and credentials that recover a system must not depend on that system. A recovery path that shares fate with the failed plane is a circular dependency. It passes every drill and fails in the one real outage. Every mechanism below gives the ops tier an **independent trust root**.
 
-Two moves, both taken here:
+This guide uses two methods:
 
-- **Logical decoupling** — same stack, fragile link removed. The ops tier's coarse gate is an `operator` **claim + AAL2**, not an OpenFGA `Checker` call ([ADR-0304](../adr/0304-identity-and-authorization.md)), so an OpenFGA outage does not lock operators out. Cheap, but Kratos/Oathkeeper are still in the path.
-- **Physical decoupling (break-glass)** — a separate path with its own credentials that bypasses the plane entirely. This is what saves you when auth is fully down.
+- **Logical decoupling.** The stack stays the same, and the fragile link is removed. The ops tier's coarse gate is an `operator` **claim plus AAL2**, not an OpenFGA `Checker` call, per [ADR-0304](../adr/0304-identity-and-authorization.md). So an OpenFGA outage does not lock operators out. This method is cheap, but Kratos and Oathkeeper are still in the path.
+- **Physical decoupling, or break-glass.** This is a separate path with its own credentials. It bypasses the plane completely. It is the path that helps you when auth is fully down.
 
 ## The ladder for this stack
 
-Right-sized for a small platform team — no separate operator IdP or PKI, which would re-introduce the two-auth-systems cost [ADR-0304](../adr/0304-identity-and-authorization.md) avoids.
+The ladder fits a small platform team. It has no separate operator IdP or PKI. Those bring back the cost of two auth systems that [ADR-0304](../adr/0304-identity-and-authorization.md) avoids.
 
-1. **Everyday:** the SSO ops gate — Oathkeeper `operator` claim + AAL2 at `*.ops.<host>` ([ADR-0306](../adr/0306-trust-tiers-and-urls.md)).
-2. **Reduce the need for break-glass:** the coarse-gate-on-claim decoupling above. Only a full Kratos or Oathkeeper outage locks operators out; an OpenFGA outage does not.
-3. **True break-glass (auth fully down): `kubectl port-forward` with an independently-obtained kubeconfig.** The kubeconfig authenticates to the API server via client cert/token — a trust root independent of Kratos and OpenFGA. It reaches any tool directly, bypassing Traefik, Oathkeeper, and OpenFGA:
+1. **Everyday:** use the SSO ops gate. This is the Oathkeeper `operator` claim plus AAL2 at `*.ops.<host>`, per [ADR-0306](../adr/0306-trust-tiers-and-urls.md).
+2. **Reduce the need for break-glass:** use the claim-based coarse gate above. Only a full Kratos or Oathkeeper outage then locks operators out. An OpenFGA outage does not.
+3. **True break-glass, when auth is fully down:** use `kubectl port-forward` with a kubeconfig that you got through a separate channel. The kubeconfig authenticates to the API server with a client cert or token. That trust root is independent of Kratos and OpenFGA. It reaches any tool directly and bypasses Traefik, Oathkeeper, and OpenFGA:
 
    ```sh
    kubectl -n platform port-forward svc/grafana 3000:80       # then http://localhost:3000
@@ -25,26 +25,29 @@ Right-sized for a small platform team — no separate operator IdP or PKI, which
    kubectl -n argocd   port-forward svc/argocd-server 8081:80
    ```
 
-   This procedure is already printed by the `scripts/cluster.sh` banner as the diagnose path; it is the sanctioned break-glass.
+   The `scripts/cluster.sh` banner prints this procedure as the diagnose path. It is the approved break-glass path.
 
 ## The first operator
 
-The admin console promotes operators, and reaching it needs one. A new environment's first operator registers on
-the storefront like any user, enrols TOTP, and is promoted from a workstation holding the cluster's kubeconfig:
+The admin console promotes operators, and only an operator can reach it. So a new environment's first operator follows these steps:
 
-```sh
-mise run ops:grant -- first.operator@example.com
-```
+1. Register on the storefront like any user.
+2. Enrol TOTP.
+3. Get promoted from a workstation that holds the cluster's kubeconfig:
 
-Every later promotion and demotion happens in the console ([ADR-0304](../adr/0304-identity-and-authorization.md)).
+   ```sh
+   mise run ops:grant -- first.operator@example.com
+   ```
+
+Every later promotion and demotion happens in the console, per [ADR-0304](../adr/0304-identity-and-authorization.md).
 
 ## Requirements on the break-glass path
 
-- **Pre-provisioned.** The kubeconfig must be obtainable *before* an outage and **must not be gated behind the product SSO** — otherwise it shares fate with the plane it recovers.
-- **Fail secure, not fail open.** The ops gate never falls open when auth is unreachable. Recovery is a separate strong path, never a relaxed gate.
-- **Loud and audited.** Break-glass use is logged and reviewed after the fact.
-- **Tested.** Rehearse it (game-day / DiRT) alongside the DR drill ([ADR-0200](../adr/0200-cluster-topology.md)); an untested break-glass does not work when it is needed.
+- **Provisioned in advance.** An operator must be able to get the kubeconfig *before* an outage. It **must not sit behind the product SSO**. Otherwise it shares fate with the plane it recovers.
+- **Fail secure, not fail open.** The ops gate never opens when auth is unreachable. Recovery is a separate strong path, never a weaker gate.
+- **Visible and audited.** Every use of break-glass is logged and reviewed afterwards.
+- **Tested.** Rehearse it in a game day or DiRT exercise, together with the DR drill, per [ADR-0200](../adr/0200-cluster-topology.md). An untested break-glass path fails when you need it.
 
 ## Optional hardening
 
-Seal Grafana/Argo **local-admin** credentials (independent of SSO) in a SOPS secret ([ADR-0202](../adr/0202-secrets.md)) as a secondary break-glass, disabled in normal operation. Not required while the kubeconfig path above is the sanctioned route.
+As a second break-glass path, seal the Grafana and Argo **local-admin** credentials in a SOPS secret, per [ADR-0202](../adr/0202-secrets.md). These credentials do not depend on SSO. Keep them disabled in normal operation. They are not required while the kubeconfig path above is the approved route.

@@ -1,13 +1,13 @@
 # Database migrations
 
-How-to for writing and applying schema migrations. The decision (dbmate, sqlc, CNPG, per-service databases) is [ADR-0300](../adr/0300-data.md); this is the operational procedure.
+This guide shows how to write and apply schema migrations. [ADR-0300](../adr/0300-data.md) holds the decision: dbmate, sqlc, CNPG, and one database per service. This guide is the operational procedure.
 
 ## Write a migration
 
-1. Create the file under `services/<service>/migrations/`, timestamped, in dbmate format with `-- migrate:up` and `-- migrate:down` sections.
-2. **Write the `down` section for yourself, not for production.** It is what lets you re-run the migration locally. A production rollback is a forward fix — a new migration that reverses the change ([ADR-0300](../adr/0300-data.md)) — so never plan on running it there.
-3. Regenerate the typed data layer after any schema or query change: `mise run gen:sqlc`. Commit what it writes; CI drift-checks it against your SQL.
-4. Run `mise run lint:sql` before you push. It rejects a `timestamp` where `timestamptz` belongs, and an untagged column holding personal data ([ADR-0301](../adr/0301-data-lifecycle-privacy.md)).
+1. Create the file under `services/<service>/migrations/`. Give it a timestamp and use the dbmate format with `-- migrate:up` and `-- migrate:down` sections.
+2. **Write the `down` section for yourself, not for production.** It lets you run the migration again locally. Never plan to run it in production. A production rollback is a forward fix: a new migration that reverses the change, per [ADR-0300](../adr/0300-data.md).
+3. Regenerate the typed data layer after any schema or query change: `mise run gen:sqlc`. Commit its output. CI checks it for drift against your SQL.
+4. Run `mise run lint:sql` before you push. It rejects a `timestamp` where `timestamptz` belongs. It also rejects a column that holds personal data without a tag, per [ADR-0301](../adr/0301-data-lifecycle-privacy.md).
 
 ## Apply migrations locally
 
@@ -15,18 +15,18 @@ How-to for writing and applying schema migrations. The decision (dbmate, sqlc, C
 mise run db:migrate            # applies each service's migrations to the local Postgres
 ```
 
-The inner loop runs against the throwaway local Postgres; the full tier and deployed environments run CNPG ([ADR-0205](../adr/0205-environment-parity.md)).
+The inner loop runs against the disposable local Postgres. The full tier and deployed environments run CNPG, per [ADR-0205](../adr/0205-environment-parity.md).
 
 ## Apply migrations in a deployed environment
 
-Migrations run as an **init container** before the service container, never by hand. An advisory lock prevents concurrent runs across replicas. A schema change ships with the service image that depends on it, so the ordering is deploy-time rather than a separate run.
+Migrations run as an **init container** before the service container. Nobody runs them by hand. An advisory lock stops two replicas from running them at the same time. A schema change ships with the service image that depends on it. So the deploy sets the order, and no separate run is needed.
 
-A change that could break running code follows expand → migrate → contract, with at least one deploy boundary between expand and the code switch ([ADR-0300](../adr/0300-data.md)).
+A change that can break running code follows three phases: expand, migrate, contract. At least one deploy separates the expand phase from the code switch, per [ADR-0300](../adr/0300-data.md).
 
 ## Authz-relevant migrations
 
-A migration that adds or changes an authz-relevant table must land together with the OpenFGA schema and the dual-write path ([ADR-0304](../adr/0304-identity-and-authorization.md)). Never mutate authz-relevant rows outside the workflow dual-write.
+A migration can add or change an authz-relevant table. It then lands with the OpenFGA schema and the dual-write path, per [ADR-0304](../adr/0304-identity-and-authorization.md). Never change authz-relevant rows outside the workflow dual-write.
 
-## Backups & recovery
+## Backups and recovery
 
-CNPG `ScheduledBackup` + WAL archiving to the off-cluster bucket is the recovery path; restore is rehearsed quarterly ([ADR-0207](../adr/0207-cluster-storage.md), [disaster-recovery](disaster-recovery.md)).
+The recovery path is a CNPG `ScheduledBackup` plus WAL archiving to the off-cluster bucket, per [ADR-0207](../adr/0207-cluster-storage.md). The restore is rehearsed every quarter. The procedure is in [disaster-recovery](disaster-recovery.md).

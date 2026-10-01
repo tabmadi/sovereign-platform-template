@@ -1,26 +1,30 @@
 # Product research
 
-Dated observations of the outside world: what else exists, what the words mean, who this is for. **Evidence, not law** ([ADR-0701](../adr/0701-product-design-and-discovery.md)).
+This directory holds dated observations of the outside world: what else exists, what the words mean, and who the product is for. **It is evidence, not law**, per [ADR-0701](../adr/0701-product-design-and-discovery.md).
 
-Three rules, and they are the whole convention:
+The whole convention is three rules:
 
-1. **Every file carries an `as-of` date and its sources.** Start from [`_template.md`](_template.md). A claim about another product is true on a date and not after it.
-2. **Nothing here binds anything.** A research file cannot be the stated reason for a change. A finding becomes binding by an ADR citing it, and then the ADR is the law.
-3. **Add only what this product needs.** No file here is required, and an empty directory is a normal state.
+1. **Every file has an `as-of` date and its sources.** Start from [`_template.md`](_template.md). A claim about another product is true on one date, and not after it.
+2. **Nothing here binds anything.** A research file cannot be the stated reason for a change. A finding binds only when an ADR cites it. Then the ADR is the law.
+3. **Add only what this product needs.** No file here is required. An empty directory is a normal state.
 
 ## Files a product may add
 
-Named so that a second author reaches for the same filename, not because any is expected:
+These names exist so that a second author picks the same filename. No file is expected.
 
 | File | Answers |
 | --- | --- |
-| `landscape.md` | what else exists, and what each of them optimises for |
+| `landscape.md` | what else exists, and what each product optimises for |
 | `terminology.md` | the words this domain uses, and which of them we adopt |
-| `personas.md` | who this is for, what their job is, what they use today |
+| `personas.md` | who the product is for, what their job is, and what they use today |
 | `positioning.md` | the wedge, the claims, and what we refuse to do |
-| `flows.md` | the journeys, in words, before they are screens |
-| `surfaces.md` | the screens, who each is for, and what each must prove |
+| `flows.md` | the journeys, in words, before they become screens |
+| `surfaces.md` | the screens, who each screen is for, and what each must prove |
 
 ## Competitor evidence
 
-Screenshots and copy from another product go in `evidence/`, with a line naming where and when each came from. They are that company's marks, kept for internal research: **nothing here is reachable from a public surface** — not the marketing site, not a deck that leaves the building, not a published artifact.
+Screenshots and copy from another product go in `evidence/`. Each item has a line that says where and when it came from. They are the marks of that company, and we keep them for internal research. **Nothing here is reachable from a public surface.** This covers:
+
+- the marketing site
+- a deck that leaves the company
+- a published artifact

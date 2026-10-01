@@ -1,12 +1,12 @@
 # SLO recording rules
 
-The recording rules a project publishes per service so the shared burn-rate alerts in `infra/observability/alerts/slo-burn.yaml` have something to read. Each service's targets live in its own `slo.yaml` ([ADR-0500](../adr/0500-observability.md)).
+A project publishes these recording rules for each service. The shared burn-rate alerts in `infra/observability/alerts/slo-burn.yaml` read them. Each service's targets live in its own `slo.yaml`, per [ADR-0500](../adr/0500-observability.md).
 
-The alerts evaluate over an empty set until these exist, and never fire. That is the correct state for a service whose owner has not chosen a target.
+Until these rules exist, the alerts evaluate over an empty set and never fire. This is the correct state for a service whose owner has not chosen a target.
 
-## Availability — one rule
+## Availability: one rule
 
-Availability needs only the target per service; the ratio rules are generic and already ship in `slo-burn.yaml`.
+Availability needs only the target for each service. The ratio rules are generic, and `slo-burn.yaml` already ships them.
 
 ```yaml
 - record: service:slo_availability_target:ratio
@@ -14,11 +14,11 @@ Availability needs only the target per service; the ratio rules are generic and 
   labels: { service_name: <this service> }
 ```
 
-## Latency — two rules
+## Latency: two rules
 
-Latency needs the service's own threshold inside the query, as an `le` label selector on the histogram, and PromQL cannot take a label selector from a series. The ratio is therefore per service, and only its burn alerts are shared.
+Latency needs the service's own threshold inside the query, as an `le` label selector on the histogram. PromQL cannot take a label selector from a series. So the ratio is per service, and only its burn alerts are shared.
 
-Publish one ratio per window — 5m, 30m, 1h and 6h, the four the burn alerts pair — with `le` set to the service's threshold and `service_name` to the service:
+Publish one ratio for each of the four windows that the burn alerts pair: 5m, 30m, 1h, and 6h. Set `le` to the service's threshold and `service_name` to the service:
 
 ```yaml
 - record: service:request_latency_errors:ratio_rate5m
@@ -30,7 +30,7 @@ Publish one ratio per window — 5m, 30m, 1h and 6h, the four the burn alerts pa
   labels: { service_name: <this service> }
 ```
 
-And the objective, once chosen:
+When the owner chooses the objective, publish it too:
 
 ```yaml
 - record: service:slo_latency_target:ratio
@@ -38,4 +38,4 @@ And the objective, once chosen:
   labels: { service_name: <this service> }
 ```
 
-`le` must match a bucket boundary the histogram has. A value between boundaries selects the next bucket up, so the SLI measures a looser threshold than `slo.yaml` states — the one failure here that produces a green dashboard rather than an empty one.
+`le` must match a bucket boundary of the histogram. A value between boundaries selects the next bucket up. The SLI then measures a looser threshold than `slo.yaml` states. This is the one failure here that gives a green dashboard and not an empty one.
