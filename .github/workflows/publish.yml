@@ -1,5 +1,5 @@
-# Build + push container images on every merge to master, then pin dev and staging to them (ADR-0101, ADR-0201).
-# Images are tagged <service>:<git-sha>. Prod is pinned by promote-on-release.yml.
+# Build and push container images on every merge to master, then pin dev and staging to them, per ADR-0101 and ADR-0201.
+# Images are tagged <service>:<git-sha>. promote-on-release.yml pins prod.
 name: publish
 
 on:
@@ -10,7 +10,8 @@ permissions:
   contents: read
   packages: write
 
-# ghcr.io and the forge's own path are the defaults, because a generated project has a GitHub origin and no cluster yet (ADR-0102). A deployment running its own registry sets these as forge variables.
+# ghcr.io and the forge's own path are the defaults, because a generated project has a GitHub origin and no cluster yet, per ADR-0102.
+# A deployment with its own registry sets these as forge variables.
 env:
   IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
   IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || github.repository }}
@@ -34,38 +35,37 @@ jobs:
 
   images:
     needs: affected
-    # An affected set of `[]` is normal, but GitHub rejects an empty `include` and a job that fails to be created fails the run while appearing nowhere in its job list.
+    # An affected set of `[]` is normal, but GitHub rejects an empty `include`.
+    # A job that GitHub cannot create fails the run, and it does not appear in the job list.
     if: ${{ needs.affected.outputs.images != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Explicit {service, cmd} pairs, not a cross product: not every service owns a worker, and asking the builder for a missing `cmd/worker` is one red cell per workerless service.
+        # Explicit {service, cmd} pairs, not a cross product. Not every service has a worker.
+        # A build for a missing `cmd/worker` fails one cell for each service with no worker.
         include: ${{ fromJSON(needs.affected.outputs.images) }}
     steps:
       - uses: actions/checkout@v4
-      # The toolchain, for the signing step: cosign, syft, sops and yq are pinned
-      # in .mise.toml like everything else (ADR-0101), so CI signs with the same
-      # binaries a developer verifies with.
+      # The toolchain for the signing step. cosign, syft, sops, and yq are pinned in .mise.toml, per ADR-0101.
+      # So CI signs with the same binaries that a developer verifies with.
       - uses: ./.github/actions/setup
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
-          # The forge's own token works for the forge's own registry, which is the
-          # default. A registry that is a separate component — zot — has its own
-          # push identity (ADR-0105), and these two secrets are where it goes.
+          # The forge's own token works for the forge's own registry, which is the default.
+          # A separate registry component such as zot has its own push identity, per ADR-0105. These two secrets hold it.
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
-      - name: Build & push ${{ matrix.service }}-${{ matrix.cmd }}
+      - name: Build and push ${{ matrix.service }}-${{ matrix.cmd }}
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
-          # Bake the build identity (ADR-0103): the commit SHA the pod will
-          # self-report via /version and the X-App-Version header. BUILD_VERSION
-          # stays "dev" for master builds; prod's CalVer is stamped on release.
+          # Bake the build identity, per ADR-0103: the commit SHA that the pod reports through /version and the X-App-Version header.
+          # BUILD_VERSION stays `dev` for master builds. The release stamps prod's CalVer.
           build-args: |
             APP_CMD=${{ matrix.cmd }}
             GIT_SHA=${{ github.sha }}
@@ -75,19 +75,19 @@ jobs:
           tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.service }}-${{ matrix.cmd }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # By DIGEST, not by the tag just pushed: cosign resolves a tag itself, and a
-      # tag resolved twice is a tag that can move in between (ADR-0104).
+      # By digest, not by the new tag, per ADR-0104. cosign resolves a tag itself, and a tag can move between two resolves.
       - name: Sign, SBOM, provenance
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
-          # The supply-chain record is filed by ci:sign itself, where the signature and both attestations exist. Unset until a project has a Loki to push to; the build stays signed either way.
+          # ci:sign records the supply chain, where the signature and both attestations exist.
+          # Unset until a project has a Loki to push to. The build is signed in both cases.
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
         run: mise run ci:sign -- "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.service }}-${{ matrix.cmd }}@${{ steps.build.outputs.digest }}"
 
-  # Apps are single images, so they get their own matrix, driven by the same ci:affected manifest.
-  # Each ships its own Dockerfile and the build context differs per app, so it is resolved below. The build SHA is baked as SERVICE_VERSION (ADR-0103).
+  # Apps are single images, so they have their own matrix from the same ci:affected manifest.
+  # Each app has its own Dockerfile and build context, so the context is resolved below. The build SHA is baked as SERVICE_VERSION, per ADR-0103.
   apps:
     needs: affected
     if: ${{ needs.affected.outputs.apps != '[]' }}
@@ -107,7 +107,7 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - id: ctx
         run: mise run ci:build-context -- "${{ matrix.app }}" >> "$GITHUB_OUTPUT"
-      - name: Build & push ${{ matrix.app }}
+      - name: Build and push ${{ matrix.app }}
         id: build
         uses: docker/build-push-action@v6
         with:
@@ -126,17 +126,17 @@ jobs:
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
         run: mise run ci:sign -- "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.app }}@${{ steps.build.outputs.digest }}"
 
-  # One job after every image, not a workflow triggered by this one: a completed-run trigger is a GitHub event the forge (ADR-0102) does not raise.
+  # One job after every image, not a workflow that this one triggers. The forge of ADR-0102 does not raise a completed-run event.
   promote:
     needs: [affected, images, apps]
-    # A skipped matrix is an empty one; a failed cell means a values file would name an image the registry does not hold.
+    # A skipped matrix is empty. A failed cell means a values file would name an image that the registry does not hold.
     if: ${{ !failure() && !cancelled() && (needs.affected.outputs.services != '[]' || needs.affected.outputs.apps != '[]') }}
     runs-on: ubuntu-latest
     concurrency: { group: promote, cancel-in-progress: false }
     permissions:
       contents: write
     steps:
-      # The machine user branch protection lets push (infra/forge/branch-protection.yaml).
+      # The machine user that branch protection lets push, in infra/forge/branch-protection.yaml.
       - uses: actions/checkout@v4
         with: { ref: "${{ github.ref_name }}", fetch-depth: 0, token: "${{ secrets.PROMOTE_TOKEN || secrets.GITHUB_TOKEN }}" }
       - uses: ./.github/actions/setup
@@ -146,7 +146,7 @@ jobs:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
-      - name: Pin dev + staging by digest
+      - name: Pin dev and staging by digest
         env:
           SHA: ${{ github.sha }}
           SERVICES: ${{ needs.affected.outputs.services }}
@@ -157,7 +157,7 @@ jobs:
           SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
         run: mise run ci:push-promotion
-      # After the push: the values that decide what is kept are the ones just committed.
+      # After the push, because the values just committed decide what is kept.
       - name: Prune the registry
         env:
           IMAGE_PREFIX: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply the committed Temporal Schedules (ADR-0302).
+# Apply the committed Temporal Schedules, per ADR-0302.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -16,7 +16,8 @@ for i in $(seq 0 $((count - 1))); do
   queue=$(yq -r ".schedules[$i].taskQueue" "$SPEC")
   cron=$(yq -r ".schedules[$i].cron" "$SPEC")
 
-  # One `--input` per top-level element, each as JSON. A schedule whose workflow expects an argument and is created without one fails on its first line, once per tick.
+  # One `--input` for each top-level element, each as JSON.
+  # A schedule whose workflow expects an argument and gets none fails on its first line, on every tick.
   args=()
   arg_count=$(yq -r ".schedules[$i].args // [] | length" "$SPEC")
   for j in $(seq 0 $((arg_count - 1))); do

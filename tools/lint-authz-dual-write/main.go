@@ -1,5 +1,5 @@
 // Command lint-authz-dual-write checks that authorization tuples are written from a workflow's activities, never from
-// a request handler (ADR-0304, ADR-0302).
+// a request handler, per ADR-0304 and ADR-0302.
 package main
 
 import (
@@ -15,16 +15,15 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
-// granterMethods are the mutating half of the authz seam (libs/go/authz).
+// granterMethods are the mutating half of the authz seam in libs/go/authz.
 var granterMethods = []string{"Grant", "Revoke"}
 
-// activitiesDir is the one package a tuple write belongs in: an activity is what
-// Temporal can retry until it succeeds, which is what makes the pair eventually
-// consistent rather than occasionally wrong.
+// activitiesDir is the one package where a tuple write belongs. Temporal can retry an activity until it succeeds,
+// so the pair becomes eventually consistent and is not sometimes wrong.
 const activitiesDir = "internal/activities"
 
-// exempt lists known violations with the reason each survives. It is empty and stays so the next violation has
-// somewhere to be written down.
+// exempt lists known violations with the reason each one stays. It is empty, and it stays so that the next violation
+// has a place to be recorded.
 var exempt = map[string]string{}
 
 type finding struct {
@@ -77,11 +76,11 @@ func run(r *lint.Report) error {
 		r.Addf("%s:%d: %s writes an authz tuple outside an activity", f.file, f.line, f.call)
 	}
 
-	r.Hintf("There is no transaction across Postgres and OpenFGA (ADR-0304). The row\n" +
+	r.Hintf("There is no transaction across Postgres and OpenFGA, per ADR-0304. The row\n" +
 		"  write and the tuple write belong in one workflow, as two activities it can\n" +
-		"  retry — a handler that does both leaves a resource nobody can read.")
+		"  retry. A handler that does both can leave a resource that nobody can read.")
 	if len(exempt) > 0 {
-		r.Okf("authz tuples are written from activities (%d exemption(s) recorded)", len(exempt))
+		r.Okf("authz tuples are written from activities, %d exemption(s) recorded", len(exempt))
 	} else {
 		r.Okf("authz tuples are written from activities, with no exemptions")
 	}
@@ -108,8 +107,8 @@ func grantCalls(path string) ([]finding, error) {
 			if !ok || !slices.Contains(granterMethods, sel.Sel.Name) {
 				return true
 			}
-			// The receiver's type is not resolved: a false positive is a call named Grant on something else, which is a name
-			// worth questioning anyway.
+			// The receiver's type is not resolved. A false positive is a call named Grant on something else, and that name
+			// deserves a question too.
 			hit := finding{
 				file: path,
 				line: fset.Position(call.Pos()).Line,

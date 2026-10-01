@@ -1,24 +1,13 @@
-# Git hooks (ADR-0101, ADR-0103). Installed via `mise run setup`.
+# Git hooks, per ADR-0101 and ADR-0103. `mise run setup` installs them.
 #
-# EVERY command runs through `mise exec --`, and that is not decoration. None of the
-# pinned tools is on PATH otherwise — gitleaks, golangci-lint, shellcheck, sqruff,
-# vacuum, cog, shfmt and rumdl all resolve only through mise — so a hook that calls
-# one by bare name works for whoever has mise active in their shell and fails for
-# everyone else. A terminal that ran the user's profile is the lucky case; an IDE's
-# commit dialog or an agent inherits whatever PATH launched it, and gets exit 127
-# from a script that never names the tool it could not find.
+# Every command runs through `mise exec --`. The pinned tools are not on PATH otherwise,
+# and an IDE commit dialog or an agent does not run the user's shell profile.
+# A bare name then fails with exit 127, or finds an unpinned distro version that CI does not use.
 #
-# The worse half is silent rather than loud: a developer with a distro `shellcheck`
-# on PATH would have this hook check with THAT version while CI checks with the
-# pinned one, and nothing reports the difference.
+# Nothing checks that `mise` itself is on PATH: `mise: command not found` already names the cause.
+# `mise exec` installs a missing pinned tool, so a fresh clone needs no check.
 #
-# `mise exec` needs `mise` itself on PATH, and nothing guards that — deliberately.
-# The failure reads `mise: command not found`, which names the cause and implies the
-# fix, and a check that restated it would be a second place to maintain. `mise exec`
-# also installs a pinned tool that is missing, so a fresh clone needs no guard either.
-#
-# A `rc:` file setting PATH once looks like the tidier fix and is not: lefthook 2.1.9
-# accepts the key, echoes it back from `lefthook dump`, and never sources it.
+# Do not set PATH in an `rc:` file: lefthook 2.1.9 accepts the key and never sources the file.
 
 commit-msg:
   commands:
@@ -26,35 +15,27 @@ commit-msg:
       run: mise exec -- cog verify --ignore-merge-commits --file {1}
 
 pre-commit:
-  # Mirrors `mise run lint` (plus the formatters), glob-gated so each check only
-  # runs when a file it cares about is staged. Keep this in step with the lint/
-  # format umbrellas in .mise.toml — a check that lives only in CI is a gate a
-  # commit can slip past locally (that is how a lint:gostyle break reached CI).
+  # This matches `mise run lint` and the formatters. A glob limits each check to the staged files it reads.
+  # Keep it in step with the `lint` and `format` tasks in .mise.toml. A check that only CI runs lets a commit pass locally.
   #
-  # SEQUENTIAL, and it costs almost nothing. Every analyser here finishes in under
-  # two seconds; `gen-drift` takes minutes and dominates the wall clock either way.
-  # What parallel bought was a race: gen-drift REGENERATES the tree while the
-  # analysers are reading it, and the failures name the wrong thing entirely —
-  # Biome reporting `No such file or directory` on a file that exists, and
-  # golangci-lint reporting `no go files to analyze` in a repository full of them.
-  # Both are real and neither is reproducible on demand, which is the worst kind of
-  # gate: one that fails for reasons the developer cannot act on.
+  # The hooks run in sequence. Each analyser takes under two seconds, and `gen-drift` takes minutes.
+  # In parallel, `gen-drift` regenerates the tree while the analysers read it.
+  # Biome and golangci-lint then fail at random on files that exist.
   piped: true
   commands:
     go-fmt:
       glob: "*.go"
-      # golangci-lint fmt applies the formatters from .golangci.yml and skips
-      # generated files (formatters.exclusions.generated), unlike bare gofumpt.
+      # `golangci-lint fmt` applies the formatters from .golangci.yml.
+      # It skips generated files through `formatters.exclusions.generated`. A bare gofumpt does not.
       run: mise exec -- golangci-lint fmt {staged_files}
       stage_fixed: true
     golangci-lint:
       glob: "*.go"
-      # Analyse packages, not the staged file list: golangci-lint rejects file
-      # arguments that span more than one directory. --new-from-rev still scopes
-      # reporting to issues introduced by the staged changes.
+      # Pass packages, not the staged files: golangci-lint rejects file arguments from more than one directory.
+      # `--new-from-rev` still reports only the issues that the staged changes add.
       run: mise exec -- golangci-lint run --new-from-rev HEAD ./...
     gostyle:
-      # Custom Go layout analyzers (lint:gostyle). Package-scoped like golangci-lint.
+      # The custom Go layout analyzers of `lint:gostyle`. They check packages, like golangci-lint.
       glob: "*.go"
       run: mise run lint:gostyle
     sqruff:
@@ -64,35 +45,28 @@ pre-commit:
       glob: "services/**/openapi.yaml"
       run: mise exec -- vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error {staged_files}
     api-audience:
-      # Audience↔exposure gate (lint:api-audience) — derives from the specs + routes.
+      # The audience and exposure gate of `lint:api-audience`. It reads the specs and the routes.
       glob: "services/**/openapi.yaml"
       run: mise run lint:api-audience
     secrets:
-      # Plaintext-secret scan over the staged tree (ADR-0202). The working-tree scope
-      # is the one a hook wants: is the change about to be made clean? CI runs the
-      # history scope, which asks a different question.
+      # A plaintext-secret scan over the working tree, per ADR-0202. It checks that the new change is clean.
+      # CI scans the history, which is a different check.
       run: mise run lint:secrets
     floating-tags:
       run: mise run lint:floating-tags
     gen-drift:
-      # Every input `mise run gen` reads into a committed artifact: specs and SQL for the
-      # SDKs, `docs/adr/` for the rules index and the security baseline, `infra/helm/` for
-      # the image allow-list, `tools/codegen/` for the shared components and retention.
+      # Every input that `mise run gen` reads into a committed artifact: specs and SQL for the SDKs,
+      # `docs/adr/` for the rules index and the security baseline, `infra/helm/` for the image allow-list,
+      # and `tools/codegen/` for the shared components and retention.
       glob: "{services/**/openapi.yaml,services/**/internal/store/queries/*.sql,services/**/migrations/*.sql,sqlc.yaml,docs/adr/*.md,infra/helm/**,tools/codegen/*.yaml}"
       run: mise run ci:gen
     biome:
-      # Mirror biome.jsonc's repo-wide scope (files.includes = "**" minus a few
-      # generated/vendored dirs): Biome checks these extensions ANYWHERE, including
-      # infra/ JSON like the Grafana dashboards. The old apps/**+libs/ts/** glob let
-      # a misformatted infra/ file slip past this hook and fail CI's repo-wide
-      # `biome ci .` (ci.yml's lint job) and the `mise run format` drift check (its drift job) —
-      # exactly the "gate a commit can slip past locally" this file warns about.
+      # This matches the repo-wide scope of biome.jsonc. Biome checks these extensions in every directory,
+      # including the infra/ JSON of the Grafana dashboards. A narrower glob lets a file pass here and fail CI.
       #
-      # `exclude` mirrors biome.jsonc's negated includes, and it is not redundant.
-      # Naming a file on the command line overrides the config's include list, so
-      # without this the hook hands Biome exactly the generated files the config
-      # excludes — checking, and potentially rewriting, output that is drift-checked
-      # rather than reviewed.
+      # `exclude` matches the negated includes of biome.jsonc, and it is needed.
+      # A file named on the command line overrides the config's include list.
+      # Without `exclude`, Biome checks and can rewrite generated files that CI drift-checks.
       glob: "**/*.{ts,tsx,js,jsx,json,jsonc,css}"
       exclude:
         - "libs/ts/sdks/**"
@@ -106,28 +80,28 @@ pre-commit:
       run: mise exec -- rumdl check --fix {staged_files}
       stage_fixed: true
     shfmt:
-      # Shell formatter (format:shell). -i 2 matches the repo's 2-space scripts.
+      # The shell formatter of `format:shell`. `-i 2` matches the 2-space indent of the scripts.
       glob: "*.sh"
       run: mise exec -- shfmt -w -i 2 {staged_files}
       stage_fixed: true
     shellcheck:
-      # Shell lint (lint:shell). Runs the repo-wide script; catches cross-file too.
+      # The shell lint of `lint:shell`. It runs the repo-wide script, so it also finds cross-file problems.
       glob: "*.sh"
       run: mise run lint:shell
     comments:
-      # ADR-0001's comment rules (lint:comments), over every commented surface.
+      # The comment rules of ADR-0001, through `lint:comments`, over every file type with comments.
       glob: "*.{go,ts,tsx,sh,yaml,yml,toml}"
       run: mise run lint:comments
     log-vocab:
-      # Human-output vocabulary gate (lint:log-vocab).
+      # The vocabulary gate for human output, `lint:log-vocab`.
       glob: "scripts/**/*.sh"
       run: mise run lint:log-vocab
     node-scope:
-      # Node confinement guard (lint:node-scope) — trips when a lockfile leaks.
+      # The Node confinement guard, `lint:node-scope`. It fails when a lockfile appears outside its scope.
       glob: "{**/package.json,**/package-lock.json,**/bun.lock}"
       run: mise run lint:node-scope
     auth-inline:
-      # Auth config single-source guard (lint:auth-inline).
+      # The guard that keeps one source for auth config, `lint:auth-inline`.
       glob: "infra/{auth/**,helm/platform/ory/values.yaml}"
       run: mise run lint:auth-inline
     authz:

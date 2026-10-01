@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Apply each service's migrations to the local Postgres (ADR-0300).
+# Apply each service's migrations to the local Postgres, per ADR-0300.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-# The CNPG cluster publishes role-suffixed services (postgres-rw is the primary);
-# there is no plain `postgres` service to forward to.
+# The CNPG cluster publishes services with a role suffix, and postgres-rw is the primary. There is no plain `postgres` service to forward to.
 kubectl -n platform port-forward svc/postgres-rw 5432:5432 >/dev/null &
 pf=$!
 trap 'kill "$pf" 2>/dev/null || true' EXIT

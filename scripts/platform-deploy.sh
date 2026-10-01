@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# One-shot working-tree overlay of a platform chart (ADR-0205). Pauses ArgoCD auto-sync on that one app so self-heal does not revert it.
+# A one-time overlay of a platform chart from the working tree, per ADR-0205.
+# It pauses ArgoCD auto-sync on that one app, so self-heal does not revert it.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -15,10 +16,10 @@ CHART_DIR="infra/helm/platform/${CHART}"
 k() { kubectl --context "$(cluster_ctx)" "$@"; }
 h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
-# `lowdefy build` bakes apps/admin's YAML pages into the image (ADR-0401), so a chart change alone is not enough.
+# `lowdefy build` bakes the apps/admin YAML pages into the image, per ADR-0401. So a chart change alone is not enough.
 if [ "$CHART" = "lowdefy" ]; then
   REG="registry.localhost:5000"
-  step "regenerating admin pages + rebuilding the admin image (${REG}/admin:local)"
+  step "regenerating admin pages and rebuilding the admin image ${REG}/admin:local"
   bash scripts/gen-admin.sh
   docker build -t "${REG}/admin:local" -f apps/admin/Dockerfile apps/admin
   docker push "${REG}/admin:local"
@@ -31,16 +32,15 @@ if k -n argocd get application.argoproj.io "$APP" >/dev/null 2>&1; then
     -p '{"spec":{"syncPolicy":{"automated":null}}}'
 fi
 
-# Mirror what the platform ApplicationSet supplies; keep in step with appset-platform.yaml.
-# The appset applies both auth value files to every chart, and omitting them fails silently: Kratos CrashLoops on `missing properties: "schemas"`, and Oathkeeper reports Ready with empty accessRules.
+# Match what the platform ApplicationSet supplies, and keep it in step with appset-platform.yaml.
+# The appset applies both auth value files to every chart. Without them, Kratos CrashLoops on `missing properties: "schemas"`, and Oathkeeper reports Ready with empty accessRules.
 extra_args=(
   -f infra/auth/kratos/values.yaml
   -f infra/auth/oathkeeper/values.yaml
 )
 case "$CHART" in
 openfga)
-  # Without this seed.model is empty and the seed Job is disabled (no store is
-  # created) — ADR-0304.
+  # Without this, seed.model is empty and the seed Job is off, so no store is created, per ADR-0304.
   extra_args+=(--set-file "seed.model=infra/auth/openfga/model.json")
   ;;
 ory)
@@ -53,19 +53,19 @@ esac
 
 step "helm upgrade ${CHART} from the working tree"
 h dependency update "$CHART_DIR" >/dev/null
-# Value-file order matches the ApplicationSet: auth overlays first, the per-env overlay last so it wins.
+# The value-file order matches the ApplicationSet: auth overlays first, and the per-env overlay last so it wins.
 h upgrade --install "$CHART" "$CHART_DIR" -n "$NS" \
   --take-ownership --force-conflicts "${extra_args[@]}" \
   -f infra/gitops/platform/local/values.yaml --timeout 8m
 
-# lowdefy's image tag is stable (:local), so helm sees no change to trigger a
-# rollout; restart explicitly to re-pull the image just rebuilt above.
+# lowdefy's image tag `:local` does not change, so helm sees no change and starts no rollout.
+# Restart it to pull the image rebuilt above.
 if [ "$CHART" = "lowdefy" ]; then
-  step "restarting lowdefy to re-pull the rebuilt image"
+  step "restarting lowdefy to pull the rebuilt image"
   k -n "$NS" rollout restart deploy/lowdefy
   k -n "$NS" rollout status deploy/lowdefy --timeout=180s
 fi
-ok "${CHART} overlaid from working tree."
+ok "${CHART} overlaid from the working tree."
 detail "Re-enable GitOps when done:"
 detail "  kubectl -n argocd patch application.argoproj.io ${APP} --type merge \\"
 detail "    -p '{\"spec\":{\"syncPolicy\":{\"automated\":{\"prune\":true,\"selfHeal\":true}}}}'"

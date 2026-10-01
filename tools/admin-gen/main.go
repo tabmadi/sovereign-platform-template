@@ -1,4 +1,4 @@
-// Command admin-gen scaffolds the Lowdefy admin pages from the service OpenAPI specs (ADR-0401, ADR-0303).
+// Command admin-gen scaffolds the Lowdefy admin pages from the service OpenAPI specs, per ADR-0401 and ADR-0303.
 package main
 
 import (
@@ -20,8 +20,7 @@ const (
 
 	pageType  = "PageSiderMenu"
 	typeAxios = "AxiosHttp"
-	// AG Grid's column keys: the row binding and the header label, both of which a
-	// money column emits twice.
+	// AG Grid's column keys: the row binding and the header label. A money column emits both twice.
 	keyField      = "field"
 	keyHeaderName = "headerName"
 
@@ -52,12 +51,12 @@ const (
 	crudMarker   = "crud"
 	actionMarker = "action"
 
-	// listPageSize is the changelist grid's client-side page size (Django-style).
+	// listPageSize is the client-side page size of the changelist grid, as in Django.
 	listPageSize = 20
 
 	menuFile = "menu.yaml"
 
-	// Lowdefy action + menu type strings and the map keys used across page blocks.
+	// Lowdefy action and menu type strings, and the map keys that page blocks use.
 	actLink       = "Link"
 	actRequest    = "Request"
 	actMessage    = "DisplayMessage"
@@ -101,15 +100,15 @@ func run() error {
 	}
 
 	var generated []string
-	// The nav always opens with a hand-written dashboard link; each service then
-	// contributes a menu group of its resource and action pages.
+	// The nav always starts with a hand-written dashboard link. Each service then adds a menu group of its resource and
+	// action pages.
 	groups := []menuLink{{
 		ID: "link_dashboard", Type: menuLinkType, PageID: "dashboard",
 		Properties: map[string]any{keyTitle: "Dashboard"},
 	}}
 	for _, specPath := range specs {
 		svc := filepath.Base(filepath.Dir(specPath))
-		// _template is scaffolding, not a live service — never generated for.
+		// _template is scaffolding, not a live service, so nothing is generated for it.
 		if svc == "_template" {
 			continue
 		}
@@ -130,8 +129,8 @@ func run() error {
 	return writeManifest(generated)
 }
 
-// genService writes every page for one service and returns their manifest refs
-// (root-relative to apps/admin) plus the service's nav menu group.
+// genService writes every page for one service. It returns their manifest refs, relative to the apps/admin root, and
+// the service's nav menu group.
 func genService(svc, specPath string) ([]string, menuLink, error) {
 	data, err := os.ReadFile(specPath)
 	if err != nil {
@@ -181,8 +180,8 @@ func genService(svc, specPath string) ([]string, menuLink, error) {
 	return refs, group, nil
 }
 
-// collect classifies a spec's operations into CRUD resource groups and standalone
-// actions, both keyed and ordered deterministically by the caller.
+// collect sorts a spec's operations into CRUD resource groups and standalone actions. The caller keys and orders both
+// deterministically.
 func (d *doc) collect() (map[string]*resource, []op, error) {
 	crud := d.crudTags()
 	resources := map[string]*resource{}
@@ -221,9 +220,9 @@ func (d *doc) collect() (map[string]*resource, []op, error) {
 	return resources, actions, nil
 }
 
-// writeResourcePages emits the Django-admin page set for one resource: a list
-// (changelist) page always, plus separate add and edit pages when the resource
-// exposes the matching operations. It returns the manifest refs it wrote.
+// writeResourcePages emits the Django-admin page set for one resource: always a list page, the changelist.
+// It adds separate add and edit pages when the resource exposes the matching operations. It returns the manifest refs
+// it wrote.
 func (d *doc) writeResourcePages(svc string, r *resource) ([]string, error) {
 	if r.list == nil && r.create == nil && r.update == nil && r.remove == nil {
 		return nil, nil
@@ -255,9 +254,9 @@ func (d *doc) writeResourcePages(svc string, r *resource) ([]string, error) {
 	return refs, nil
 }
 
-// writeListPage emits the changelist: a table of the resource, an "Add" button that
-// links to the create page (when a create exists), and row-click navigation to the
-// edit page (when an edit page exists).
+// writeListPage emits the changelist: a table of the resource, and an `Add` button that links to the create page when
+// a create exists.
+// A row click opens the edit page when an edit page exists.
 func (d *doc) writeListPage(svc string, r *resource, hasEdit bool) (string, error) {
 	pg := page{ID: r.name, Type: pageType, Properties: pageProps{Title: title(r.name)}}
 
@@ -265,8 +264,8 @@ func (d *doc) writeListPage(svc string, r *resource, hasEdit bool) (string, erro
 	req.Properties = map[string]any{keyURL: r.list.path, keyMethod: mGet}
 	pg.Requests = append(pg.Requests, req)
 
-	// Lowdefy 5 does not auto-run a request just because a block binds it; fetch the
-	// list explicitly on mount so the grid is populated when the page paints.
+	// Lowdefy 5 does not run a request only because a block binds it. So fetch the list on mount, and the grid has data
+	// when the page paints.
 	pg.Events = map[string]any{"onMount": []any{
 		map[string]any{"id": "loadList", keyType: actRequest, keyParams: "list"},
 	}}
@@ -280,15 +279,15 @@ func (d *doc) writeListPage(svc string, r *resource, hasEdit bool) (string, erro
 	table.Properties = map[string]any{
 		"rowData":    map[string]any{requestKey: "list.data"},
 		"columnDefs": d.columnDefs(r.list.responseSchema()),
-		// Every changelist paginates, like Django admin. AgGrid paginates the loaded
-		// page client-side; the list request itself is a single server page (services
-		// that support it accept page/per_page — see authz listIdentities).
+		// Every changelist paginates, like Django admin. AgGrid paginates the loaded page on the client.
+		// The list request itself is one server page. Services that support it accept page and per_page, see authz
+		// listIdentities.
 		"pagination":         true,
 		"paginationPageSize": listPageSize,
 	}
 	if hasEdit {
-		// Django's changelist: click a row to open its change page. The AgGrid
-		// onRowClick event carries the row under `event.row`.
+		// Django's changelist: a click on a row opens its change page. The AgGrid onRowClick event carries the row under
+		// `event.row`.
 		table.Events = map[string]any{"onRowClick": []any{
 			map[string]any{
 				"id": "openRow", keyType: actLink,
@@ -304,7 +303,7 @@ func (d *doc) writeListPage(svc string, r *resource, hasEdit bool) (string, erro
 	return writePage(svc, r.name, pg)
 }
 
-// writeCreatePage emits the standalone "add" form for a resource.
+// writeCreatePage emits the standalone `add` form for a resource.
 func (d *doc) writeCreatePage(svc string, r *resource) (string, error) {
 	pg := page{ID: r.name + "_new", Type: pageType, Properties: pageProps{Title: "Add " + singular(r.name)}}
 	pg.Blocks = append(pg.Blocks, heading("Add "+singular(r.name)))
@@ -325,9 +324,8 @@ func (d *doc) writeCreatePage(svc string, r *resource) (string, error) {
 	}
 	pg.Requests = append(pg.Requests, req)
 
-	// Django's add flow: on success return to the changelist, where the new row is
-	// the confirmation (a toast announces it). A failed request throws and halts the
-	// chain, so neither the toast nor the redirect fires.
+	// Django's add flow: on success, go back to the changelist, where the new row and a toast confirm it.
+	// A failed request throws and stops the chain, so neither the toast nor the redirect fires.
 	toast := message("Created " + singular(r.name))
 	submit := requestButton("submit", "Create", "create", "primary", false, toast, linkTo(r.name))
 	back := linkButton("back", "Back to list", r.name, nil, "")
@@ -336,15 +334,15 @@ func (d *doc) writeCreatePage(svc string, r *resource) (string, error) {
 	return writePage(svc, r.name+"_new", pg)
 }
 
-// writeEditPage emits the standalone change page: a form prefilled from GET /{id}
-// (when present), a Save (PUT), and a Delete (DELETE) that returns to the list.
+// writeEditPage emits the standalone change page: a form filled from GET /{id} when present, a Save with PUT,
+// and a Delete with DELETE that returns to the list.
 func (d *doc) writeEditPage(svc string, r *resource) (string, error) {
 	pg := page{ID: r.name + "_edit", Type: pageType, Properties: pageProps{Title: "Edit " + singular(r.name)}}
 	pg.Blocks = append(pg.Blocks, heading("Edit "+singular(r.name)))
 
-	// The record id comes from the ?id= query the changelist row-click set; the
-	// editable fields are whatever the PUT body accepts (none for a delete-only
-	// resource, which then renders just the id and a Delete button).
+	// The record id comes from the ?id= query that the changelist row click set. The editable fields are what the PUT
+	// body accepts.
+	// A delete-only resource has none, so it renders only the id and a Delete button.
 	idFromQuery := map[string]any{urlQueryKey: "id"}
 	var fields []prop
 	if r.update != nil {
@@ -365,9 +363,9 @@ func (d *doc) writeEditPage(svc string, r *resource) (string, error) {
 	return writePage(svc, r.name+"_edit", pg)
 }
 
-// appendPrefill wires the change page to load its record on mount (GET /{id}) and
-// copy the response body into the form's field state. No-op when the resource has
-// no get-by-id — the form then starts blank.
+// appendPrefill makes the change page load its record on mount with GET /{id} and copy the response body into the
+// form's field state.
+// It does nothing when the resource has no get-by-id, and the form then starts blank.
 func (d *doc) appendPrefill(pg *page, svc string, r *resource, fields []prop, id map[string]any) {
 	if r.get == nil {
 		return
@@ -381,7 +379,8 @@ func (d *doc) appendPrefill(pg *page, svc string, r *resource, fields []prop, id
 	fill := map[string]any{}
 	for _, f := range fields {
 		var v any = map[string]any{requestKey: "get.data." + f.Name}
-		// A string the record lacks fills as "", so Save sends an empty string rather than a null the API rejects.
+		// A string that the record lacks fills as an empty string, so Save sends an empty string and not a null that the
+		// API rejects.
 		if f.Type == "string" && f.Ref == "" {
 			v = map[string]any{"_if_none": []any{v, ""}}
 		}
@@ -393,8 +392,8 @@ func (d *doc) appendPrefill(pg *page, svc string, r *resource, fields []prop, id
 	}}
 }
 
-// editWrites appends the change page's Save (PUT) and Delete (DELETE) requests and
-// returns the buttons that drive them.
+// editWrites appends the change page's Save request with PUT and Delete request with DELETE, and returns the buttons
+// that run them.
 func (d *doc) editWrites(pg *page, svc string, r *resource, fields []prop, id map[string]any) []block {
 	var controls []block
 	if r.update != nil {
@@ -410,8 +409,7 @@ func (d *doc) editWrites(pg *page, svc string, r *resource, fields []prop, id ma
 			Properties: map[string]any{keyURL: pathToURL(r.update.path), keyMethod: mPut, keyData: data},
 		}
 		pg.Requests = append(pg.Requests, req)
-		// Save keeps the operator on the record (Django "save and continue"), with a
-		// toast confirming the write.
+		// Save keeps the operator on the record, like Django's `save and continue`, with a toast that confirms the write.
 		save := requestButton("save", "Save", "update", "primary", false, message("Saved changes"))
 		controls = append(controls, save)
 	}
@@ -422,15 +420,15 @@ func (d *doc) editWrites(pg *page, svc string, r *resource, fields []prop, id ma
 			Properties: map[string]any{keyURL: pathToURL(r.remove.path), keyMethod: mDelete},
 		}
 		pg.Requests = append(pg.Requests, req)
-		// Delete, then return to the list — the record no longer exists to edit.
+		// Delete, then return to the list, because the record no longer exists.
 		del := requestButton("delete", "Delete", "remove", "", true, linkTo(r.name))
 		controls = append(controls, del)
 	}
 	return controls
 }
 
-// writeActionPage emits a single action page: inputs for the operation's path params
-// and request body, and a button that posts to the endpoint.
+// writeActionPage emits one action page: inputs for the operation's path params and request body, and a button that
+// posts to the endpoint.
 func (d *doc) writeActionPage(svc string, o op) (string, error) {
 	pg := page{ID: o.OperationID, Type: pageType, Properties: pageProps{Title: humanize(o.OperationID)}}
 	pg.Blocks = append(pg.Blocks, heading(humanize(o.OperationID)))
@@ -472,13 +470,12 @@ func hint(text string) block {
 	return block{ID: "hint", Type: typePara, Properties: map[string]any{keyContent: text}}
 }
 
-// card wraps blocks in a titled antd Card — the panel that gives each page its
-// clean, single-purpose framing.
+// card wraps blocks in a titled antd Card. The card gives each page a clean frame with one purpose.
 func card(id, title string, blocks []block) block {
 	return block{ID: id, Type: typeCard, Properties: map[string]any{keyTitle: title}, Blocks: blocks}
 }
 
-// readonlyID shows the record id being edited, read from the page's ?id= query.
+// readonlyID shows the id of the record being edited, read from the page's ?id= query.
 func readonlyID(id any) block {
 	return block{ID: "id_display", Type: typePara, Properties: map[string]any{
 		keyContent: map[string]any{concatKey: []any{"Editing id: ", id}},
@@ -501,14 +498,14 @@ func linkButton(id, label, pageID string, urlQuery map[string]any, btnType strin
 	return b
 }
 
-// buttonSpacing separates a button from the field or button above it — Lowdefy
-// stacks blocks flush, so form actions need explicit top margin to breathe.
+// buttonSpacing separates a button from the field or button above it. Lowdefy stacks blocks with no gap, so form
+// actions need a top margin.
 func buttonSpacing() map[string]any {
 	return map[string]any{"marginTop": 16, "marginRight": 8}
 }
 
-// Lowdefy hides a block only on a strictly-false `visible`, which an unset flag never yields, so feedback is a
-// transient toast.
+// Lowdefy hides a block only on a strictly false `visible`, which an unset flag never gives, so feedback is a
+// short-lived toast.
 func requestButton(id, label, reqID, btnType string, danger bool, follow ...map[string]any) block {
 	b := block{ID: id, Type: typeButton, Style: buttonSpacing(), Properties: map[string]any{keyTitle: label}}
 	if btnType != "" {
@@ -527,12 +524,12 @@ func requestButton(id, label, reqID, btnType string, danger bool, follow ...map[
 	return b
 }
 
-// message is an onClick step showing a success toast.
+// message is an onClick step that shows a success toast.
 func message(text string) map[string]any {
 	return map[string]any{keyType: actMessage, keyParams: map[string]any{keyContent: text, "status": "success"}}
 }
 
-// linkTo is an onClick step navigating to a page.
+// linkTo is an onClick step that opens a page.
 func linkTo(pageID string) map[string]any {
 	return map[string]any{keyType: actLink, keyParams: map[string]any{keyPageID: pageID}}
 }
@@ -541,9 +538,9 @@ func (d *doc) columnDefs(schema yaml.Node) []any {
 	cols := d.props(schema)
 	defs := make([]any, 0, len(cols))
 	for _, c := range cols {
-		// A money column is two columns. AG Grid reads a dotted field as a path into
-		// the row, so this needs no expression and no formatter — and showing the
-		// currency as its own column is what a changelist of mixed currencies needs.
+		// A money column is two columns. AG Grid reads a dotted field as a path into the row, so this needs no expression
+		// and no formatter.
+		// A changelist of mixed currencies needs the currency as its own column.
 		if c.isMoney() {
 			defs = append(
 				defs,
@@ -557,8 +554,8 @@ func (d *doc) columnDefs(schema yaml.Node) []any {
 	return defs
 }
 
-// A dotted block id is nested state in Lowdefy, so `price.amount` assembles the object the payload reads as `price`.
-// The amount is a TextInput: a NumberInput hands back a double, which is what the string form exists to avoid.
+// A dotted block id is nested state in Lowdefy, so `price.amount` builds the object that the payload reads as `price`.
+// The amount is a TextInput: a NumberInput returns a double, and the string form exists to avoid that.
 func inputsFor(f prop) []block {
 	if !f.isMoney() {
 		return []block{input(f.Name, f.Name, f.Type)}
@@ -570,7 +567,7 @@ func inputsFor(f prop) []block {
 }
 
 func input(state, label, typ string) block {
-	// Lowdefy's `label` is an object; a bare string is ignored and the field labels itself with its own block id.
+	// Lowdefy's `label` is an object. It ignores a bare string, and the field then uses its own block id as the label.
 	b := block{ID: state, Properties: map[string]any{"label": map[string]any{"title": headerName(label)}}}
 	switch typ {
 	case "integer", "number":
@@ -667,7 +664,7 @@ func (o *op) responseSchema() yaml.Node {
 	return b.Content[mediaJSON].Schema
 }
 
-// segments counts the non-empty path segments (e.g. /orders/{id} == 2).
+// segments counts the non-empty path segments, for example /orders/{id} has 2.
 func (o *op) segments() int {
 	return len(strings.FieldsFunc(o.path, func(r rune) bool { return r == '/' }))
 }
@@ -683,9 +680,9 @@ type resource struct {
 	list, get, create, update, remove *op
 }
 
-// classify assigns an operation to its CRUD role by method and path shape. An
-// async create (POST returning 202, not 201) is intentionally left unassigned:
-// it is a workflow trigger, not a form-scaffoldable create.
+// classify gives an operation its CRUD role by method and path shape.
+// An async create, a POST that returns 202 and not 201, stays unassigned on purpose: it starts a workflow and is not
+// a form create.
 func (r *resource) classify(o op) {
 	cp := o
 	switch {
@@ -707,11 +704,11 @@ type prop struct {
 	Ref                string
 }
 
-// isMoney reports whether the property is the shared Money component — a decimal string plus its currency (ADR-0300).
+// isMoney reports whether the property is the shared Money component: a decimal string and its currency, per ADR-0300.
 func (p prop) isMoney() bool { return path.Base(p.Ref) == "Money" }
 
-// props resolves a schema node to its ordered properties, following a $ref into
-// components and unwrapping an array to its item schema.
+// props resolves a schema node to its ordered properties. It follows a $ref into components and unwraps an array to
+// its item schema.
 func (d *doc) props(schema yaml.Node) []prop {
 	if schema.Kind == 0 {
 		return nil
@@ -787,8 +784,8 @@ type block struct {
 	Blocks     []block        `yaml:"blocks,omitempty"`
 }
 
-// menuLink is a Lowdefy nav entry: a MenuLink (leaf, links to a pageId) or a
-// MenuGroup (a titled group of links).
+// menuLink is a Lowdefy nav entry: a MenuLink, which is a leaf that links to a pageId, or a MenuGroup, which is a
+// titled group of links.
 type menuLink struct {
 	ID         string         `yaml:"id"`
 	Type       string         `yaml:"type"`
@@ -797,7 +794,7 @@ type menuLink struct {
 	Links      []menuLink     `yaml:"links,omitempty"`
 }
 
-const genHeader = "# GENERATED by tools/admin-gen (ADR-0401). Do not edit; run `mise run gen:admin`.\n"
+const genHeader = "# GENERATED by tools/admin-gen, per ADR-0401. Do not edit. Run `mise run gen:admin`.\n"
 
 func writePage(svc, name string, pg page) (string, error) {
 	rel := filepath.Join("_generated", svc, name+".yaml")
@@ -808,8 +805,8 @@ func writePage(svc, name string, pg page) (string, error) {
 	return rel, nil
 }
 
-// writeMenu emits the shared nav as a single default menu the PageSiderMenu pages
-// render. The root lowdefy.yaml references it with `menus: { _ref: _generated/menu.yaml }`.
+// writeMenu emits the shared nav as one default menu that the PageSiderMenu pages render.
+// The root lowdefy.yaml references it with `menus: { _ref: _generated/menu.yaml }`.
 func writeMenu(groups []menuLink) error {
 	menus := []any{map[string]any{"id": "default", "links": groups}}
 	return marshalFile(filepath.Join(outRoot, menuFile), menus)
@@ -830,8 +827,8 @@ func writeManifest(generated []string) error {
 	return marshalFile(filepath.Join(outRoot, "pages.yaml"), refs)
 }
 
-// staticRefs lists the hand-written pages (pages/ and custom/) so the manifest is
-// the single page index the root config references.
+// staticRefs lists the hand-written pages in pages/ and custom/, so the manifest is the one page index that the root
+// config references.
 func staticRefs() ([]string, error) {
 	var out []string
 	for _, dir := range []string{"pages", "custom"} {
@@ -882,8 +879,8 @@ func marshalFile(p string, v any) error {
 	return nil
 }
 
-// pathToURL turns a spec path into a Lowdefy url: a plain string, or a
-// _string.concat that splices path params from the request payload.
+// pathToURL turns a spec path into a Lowdefy url: a plain string, or a _string.concat that inserts path params from
+// the request payload.
 func pathToURL(p string) any {
 	if !strings.Contains(p, "{") {
 		return p
@@ -919,7 +916,7 @@ func sortedKeys[V any](m map[string]V) []string {
 	return out
 }
 
-// title capitalizes a lower-case resource noun ("products" -> "Products").
+// title capitalizes a lower-case resource noun: `products` becomes `Products`.
 func title(s string) string {
 	if s == "" {
 		return s
@@ -927,9 +924,9 @@ func title(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// singular turns a plural resource noun into its per-record label: "identities" ->
-// "identity" ("ies" -> "y"), "products" -> "product" (drop trailing "s"). Good
-// enough for the demo resource nouns; not a full inflector.
+// singular turns a plural resource noun into its label for one record: `identities` becomes `identity`, and
+// `products` becomes `product`.
+// It is enough for the demo resource nouns. It is not a full inflector.
 func singular(s string) string {
 	if strings.HasSuffix(s, "ies") && len(s) > 3 {
 		return s[:len(s)-3] + "y"
@@ -940,12 +937,12 @@ func singular(s string) string {
 	return s
 }
 
-// headerName turns a snake_case field into a label ("price_cents" -> "Price cents").
+// headerName turns a snake_case field into a label: `price_cents` becomes `Price cents`.
 func headerName(s string) string {
 	return title(strings.ReplaceAll(s, "_", " "))
 }
 
-// humanize turns a camelCase operationId into words ("refundCharge" -> "Refund charge").
+// humanize turns a camelCase operationId into words: `refundCharge` becomes `Refund charge`.
 func humanize(s string) string {
 	var out []rune
 	for i, r := range s {

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Delete first-party image tags nothing can deploy (ADR-0105): a tag survives when an environment's values pin it or
-# its digest, or when it names one of the last PRUNE_KEEP commits on the branch (the rollback window); cosign's tags go
-# with the image they sign, and any other tag is left alone. The registry's own garbage collection reclaims the blobs.
+# Delete first-party image tags that nothing can deploy, per ADR-0105. A tag stays when an environment's values pin it or its digest.
+# A tag also stays when it names one of the last PRUNE_KEEP commits on the branch: the rollback window. cosign's tags go with the image they sign.
+# Any other tag stays. The registry's own garbage collection frees the blobs.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-prefix="${IMAGE_PREFIX:?IMAGE_PREFIX is unset — the registry and repository the pipeline pushes to}"
+prefix="${IMAGE_PREFIX:?IMAGE_PREFIX is unset. It is the registry and repository that the pipeline pushes to}"
 keep="${PRUNE_KEEP:-10}"
 user="${REGISTRY_USERNAME:?REGISTRY_USERNAME is unset}"
 pass="${REGISTRY_PASSWORD:?REGISTRY_PASSWORD is unset}"
 dry="${PRUNE_DRY_RUN:-}"
 
-# Every pinned image in every environment, as "<repository> <tag> <digest>" lines.
+# Every pinned image in every environment, as `<repository> <tag> <digest>` lines.
 pins="$(find infra/gitops -name '*.yaml' -print0 |
   xargs -0 yq -N -o tsv '.. | select(tag == "!!map" and has("repository") and has("tag")) | [.repository, .tag, (.digest // "")]' 2>/dev/null |
   sort -u)"
@@ -29,7 +29,7 @@ accept='application/vnd.oci.image.index.v1+json,application/vnd.oci.image.manife
 host="${prefix%%/*}"
 case "$host" in
 ghcr.io | docker.io | *.docker.io)
-  warn "${host} does not delete tags through the registry API — its own retention applies"
+  warn "${host} does not delete tags through the registry API. Its own retention applies"
   exit 0
   ;;
 esac
@@ -42,7 +42,7 @@ drop() { # <name> <tag>
   else
     local code
     code="$(registry DELETE "$host" "${1}/manifests/${2}" -o /dev/null -w '%{http_code}')"
-    [[ "$code" =~ ^2 ]] || fail "${host} refused deleting ${1}:${2} (HTTP ${code})"
+    [[ "$code" =~ ^2 ]] || fail "${host} refused to delete ${1}:${2}, HTTP ${code}"
   fi
   deleted=$((deleted + 1))
 }
@@ -63,7 +63,7 @@ while read -r repo; do
       drop "$name" "$tag"
     fi
   done
-  # cosign's signature and attestation tags name the digest they belong to, and go with it.
+  # cosign's signature and attestation tags name their digest, and they go with it.
   for tag in $(jq -r '.tags // [] | .[] | select(test("^sha256-[0-9a-f]{64}[.]"))' <<<"$tags"); do
     digest="sha256:$(cut -c8-71 <<<"$tag")"
     if grep -qx "$digest" <<<"$held"; then kept=$((kept + 1)); else drop "$name" "$tag"; fi

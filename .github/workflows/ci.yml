@@ -1,5 +1,5 @@
-# The merge gates (ADR-0102): each job is a thin caller of one `mise run ci:*` task. The job names are the required
-# checks in infra/forge/branch-protection.yaml.
+# The merge gates, per ADR-0102. Each job is a thin caller of one `mise run ci:*` task.
+# The job names are the required checks in infra/forge/branch-protection.yaml.
 name: ci
 
 on:
@@ -58,13 +58,13 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup
       - name: Run linters
-        # What `lint:commits` measures the commit range against; empty on a push, where it falls back to master.
+        # The base of the commit range for `lint:commits`. It is empty on a push, and then master is the base.
         env:
           BASE_REF: ${{ github.base_ref }}
         run: mise run ci:lint
 
-  # A service affected-detection fails to name is a service nothing ran against, on a pull request that goes green
-  # (ADR-0101): this perturbs each service in a scratch worktree, and a red here means CI's selection is wrong.
+  # A service that affected-detection misses gets no checks, and the pull request still passes, per ADR-0101.
+  # This job breaks each service in a scratch worktree. A failure here means CI's selection is wrong.
   affected-detection:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -76,8 +76,8 @@ jobs:
       - name: Adversarially test affected-detection
         run: mise run ci:affected-adversarial
 
-  # Apart from lint because it fails for a different reason: a dependency gaining a published fix turns a green PR red
-  # with no code change (ADR-0104).
+  # Separate from lint, because it fails for a different reason, per ADR-0104.
+  # A dependency that gets a published fix turns a green PR red with no code change.
   scan:
     runs-on: ubuntu-latest
     steps:

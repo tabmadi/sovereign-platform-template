@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Re-derive the measured numbers the ADR set asserts (ADR-0001, ADR-0204).
+# Re-derive the measured numbers that the ADR set states, per ADR-0001 and ADR-0204.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -13,11 +13,11 @@ detail "resource governance, computed from the charts as they stand now:"
 mise run lint:resource-governance 2>&1 | grep -E 'requests|containers' | sed 's/^/    /' || true
 
 echo
-detail "load suite — this needs a running cluster (ADR-0601):"
+detail "load suite. This needs a running cluster, per ADR-0601:"
 if mise run perf:smoke 2>&1 | tail -20 | sed 's/^/    /'; then
   ok "load suite ran"
 else
-  warn "load suite did not run — a cluster is required, and its absence is not drift"
+  warn "load suite did not run. It needs a cluster, and a missing cluster is not drift"
 fi
 
 echo

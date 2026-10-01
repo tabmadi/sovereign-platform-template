@@ -1,13 +1,13 @@
-# Load and performance (ADR-0601): shares the e2e workflow's full-tier prerequisite, is not part of ci:affected,
-# and never gates a merge. A threshold breach is a regression to triage, not a broken build — k6 shares the
-# runner with the platform, so CI numbers are a series to diff rather than capacity figures.
+# Load and performance, per ADR-0601. It needs the full tier like e2e, is not part of ci:affected, and never gates a merge.
+# A threshold breach is a regression to triage, not a broken build. k6 shares the runner with the platform,
+# so CI numbers are a series to compare, not capacity figures.
 name: perf
 
 on:
   schedule:
     - cron: "0 4 * * *" # nightly, after the e2e suite's 03:00
   push:
-    tags: ["v*", "services/*/v*"] # pre-release (ADR-0103)
+    tags: ["v*", "services/*/v*"] # pre-release, per ADR-0103
   pull_request:
     types: [labeled, synchronize, reopened]
   workflow_dispatch:
@@ -17,17 +17,17 @@ on:
         default: "load"
 
 concurrency:
-  # Never two load runs against one cluster: they would measure each other.
+  # Never two load runs against one cluster, because they measure each other.
   group: perf-${{ github.ref }}
-  # A cancelled job skips its teardown and leaves its cluster on a self-hosted runner: a newer run queues instead.
+  # A cancelled job skips its teardown and leaves its cluster on a self-hosted runner. So a newer run waits in the queue.
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  # Same activity gate as the e2e nightly: no commits, no bring-up. A perf number
-  # for an unchanged commit is yesterday's number plus runner noise.
+  # The same activity gate as the e2e nightly: with no new commits, no cluster starts.
+  # A perf number for an unchanged commit is the number from yesterday plus runner noise.
   gate:
     if: github.event_name != 'pull_request'
     permissions:
@@ -45,7 +45,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    # Up to an hour of it can be waiting for another job's cluster on a shared runner (ADR-0102).
+    # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
@@ -54,15 +54,15 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
         run: mise run secrets:age
-      # Authenticated Docker Hub pulls for zot's sync: anonymous pulls are limited per source IP, which this runner
-      # shares with the whole forge. Unset on a fork, where the secrets do not resolve.
-      # Restore-only: the lighthouse job is the single writer, and a full-tier bring-up would cache first-party images.
+      # Authenticated Docker Hub pulls for zot's sync. Anonymous pulls have a limit for each source IP, and the whole forge shares this IP.
+      # Unset on a fork, where the secrets do not resolve. Restore only: the lighthouse job is the one writer.
+      # A full-tier start would also cache first-party images.
       - name: Restore the registry mirror
-        # A self-hosted runner keeps the store in its home between jobs; only a fresh hosted machine needs the cache.
+        # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
         with:
-          # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
+          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
@@ -74,15 +74,14 @@ jobs:
           ARGOCD_REPO_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      # Seed before measuring: an empty catalog makes the read scenario a test of
-      # nothing (test/perf/seed/seed.sh).
+      # Seed before the measurement with test/perf/seed/seed.sh. With an empty catalog, the read scenario tests nothing.
       - name: Seed bulk test data
         run: mise run perf:seed
       - name: Run the load suite
         run: mise run perf${{ (github.event_name == 'workflow_dispatch' && inputs.profile != 'load') && format(':{0}', inputs.profile) || '' }}
       - name: Upload k6 summaries
         if: always()
-        # A report is a diagnostic: Forgejo's artifact service refuses v4, and that must not fail a passing run.
+        # A report is a diagnostic. Forgejo's artifact service refuses v4, and that must not fail a passing run.
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -94,13 +93,12 @@ jobs:
         run: mise run cluster:down -- full
 
   smoke:
-    # Label-gated per-PR, same opt-in shape as e2e-smoke: an unlabeled PR never
-    # pays a full bring-up.
+    # A label gates each PR, like e2e-smoke. A PR with no label never starts a full cluster.
     if: >-
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'perf-smoke')
     runs-on: ubuntu-latest
-    # Up to an hour of it can be waiting for another job's cluster on a shared runner (ADR-0102).
+    # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
@@ -110,11 +108,11 @@ jobs:
       - name: Provision the local SOPS age key
         run: mise run secrets:age
       - name: Restore the registry mirror
-        # A self-hosted runner keeps the store in its home between jobs; only a fresh hosted machine needs the cache.
+        # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
         with:
-          # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
+          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
@@ -132,7 +130,7 @@ jobs:
         run: mise run perf:smoke
       - name: Upload k6 summaries
         if: always()
-        # A report is a diagnostic: Forgejo's artifact service refuses v4, and that must not fail a passing run.
+        # A report is a diagnostic. Forgejo's artifact service refuses v4, and that must not fail a passing run.
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:

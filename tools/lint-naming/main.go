@@ -1,4 +1,4 @@
-// Command lint-naming enforces the resource-name grammar (ADR-0003).
+// Command lint-naming enforces the resource-name grammar, per ADR-0003.
 package main
 
 import (
@@ -24,29 +24,27 @@ const sopsFile = ".sops.yaml"
 
 const overlayDir = "infra/gitops/platform"
 
-// provisionedEnvs is ADR-0200's environment set, verbatim. `env` is the
-// environment's own name and nothing else.
+// provisionedEnvs is the environment set of ADR-0200, unchanged. `env` is the environment's own name and nothing else.
 var provisionedEnvs = map[string]bool{"dev": true, "staging": true, "prod": true}
 
-// localTier is the laptop tier (ADR-0600). It appears in no inventory, and does own a GitOps overlay and a committed
-// age recipient (ADR-0202).
+// localTier is the laptop tier, per ADR-0600. It appears in no inventory, but it has a GitOps overlay and a committed
+// age recipient, per ADR-0202.
 const localTier = "local"
 
-// slugPattern is ADR-0003's charset rule, itself derived from RFC 1123 DNS labels.
+// slugPattern is the ADR-0003 charset rule, which comes from RFC 1123 DNS labels.
 var slugPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`)
 
-// The project slug's bounds, including any collision token.
+// The limits of the project slug, including any collision token.
 const (
 	minProjectLen = 5
 	maxProjectLen = 11
 	maxSlugLen    = 63
 )
 
-// roleTableHeader matches the header row of the closed role table, whose two
-// columns are the token and its meaning.
+// roleTableHeader matches the header row of the closed role table. Its two columns are the token and its meaning.
 var roleTableHeader = regexp.MustCompile("^\\|\\s*`role`\\s*\\|\\s*Names\\s*\\|$")
 
-// roleRow matches a row of the ADR's role table: `| `cp` | a Kubernetes … |`.
+// roleRow matches a row of the ADR's role table: `| `cp` | a Kubernetes control-plane node |`.
 var roleRow = regexp.MustCompile("^\\|\\s*`([a-z0-9-]+)`\\s*\\|")
 
 func main() {
@@ -59,7 +57,7 @@ func run(r *lint.Report) error {
 		return err
 	}
 	if len(roles) == 0 {
-		return fmt.Errorf("%s: no role table found; the closed vocabulary is the gate's input", adrFile)
+		return fmt.Errorf("%s: no role table found. The closed vocabulary is the gate's input", adrFile)
 	}
 
 	for _, check := range []func() ([]string, error){
@@ -74,14 +72,14 @@ func run(r *lint.Report) error {
 		r.Add(problems...)
 	}
 
-	r.Hintf("Names derive from {project}-{env}-{role}[-{n}] (ADR-0003).\n  Roles: %s",
+	r.Hintf("Names follow {project}-{env}-{role}[-{n}], per ADR-0003.\n  Roles: %s",
 		strings.Join(sortedKeys(roles), ", "))
 	r.Okf("resource names follow {project}-{env}-{role}[-{n}]")
 	return nil
 }
 
-// parseRoles reads the role vocabulary from the ADR table whose rows are a backticked token and a prose column; a row
-// that does not match is not a role.
+// parseRoles reads the role vocabulary from the ADR table whose rows are a backticked token and a prose column.
+// A row that does not match is not a role.
 func parseRoles(path string) (map[string]bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -92,8 +90,7 @@ func parseRoles(path string) (map[string]bool, error) {
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		// The table's own header, not the segment table's `role` ROW — which names
-		// the same token and sits a few paragraphs above it.
+		// The table's own header, not the `role` row of the segment table, which names the same token a few paragraphs above.
 		if roleTableHeader.MatchString(line) {
 			inTable = true
 			continue
@@ -118,9 +115,8 @@ func parseRoles(path string) (map[string]bool, error) {
 	return roles, nil
 }
 
-// checkInventories walks every node inventory and parses each node name against the
-// grammar. The env comes from the DIRECTORY, so a node in inventory/dev naming
-// itself `staging` is a finding rather than a matter of opinion.
+// checkInventories walks every node inventory and parses each node name against the grammar.
+// The env comes from the directory, so a node in inventory/dev that calls itself `staging` is a clear finding.
 func checkInventories(roles map[string]bool) ([]string, error) {
 	var problems []string
 
@@ -139,7 +135,7 @@ func checkInventories(roles map[string]bool) ([]string, error) {
 		env := entry.Name()
 		if !provisionedEnvs[env] {
 			problem := fmt.Sprintf(
-				"%s/%s: %q is not an environment (%s)",
+				"%s/%s: %q is not an environment. Environments: %s",
 				inventoryDir,
 				env,
 				env,
@@ -153,9 +149,9 @@ func checkInventories(roles map[string]bool) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Every host in one inventory belongs to one project. A second slug is
-		// either a typo or two projects sharing a control plane, and both want a
-		// human to look.
+		// Every host in one inventory belongs to one project. A second slug is a typo or two projects that share a control
+		// plane,
+		// and both need a human to check.
 		project := ""
 		for _, host := range hosts {
 			problem := checkHostName(host, env, roles)
@@ -181,8 +177,7 @@ func checkInventories(roles map[string]bool) ([]string, error) {
 	return problems, nil
 }
 
-// inventoryHosts reads the node names out of an inventory: the keys of the top-level
-// `nodes` mapping.
+// inventoryHosts reads the node names from an inventory: the keys of the top-level `nodes` mapping.
 func inventoryHosts(path string) ([]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -214,22 +209,21 @@ func inventoryHosts(path string) ([]string, error) {
 		}
 	}
 	walk(&root)
-	// An inventory yielding no names is a failure, not a pass: the walk has been pointed at a shape it does not
-	// understand.
+	// An inventory with no names is a failure, not a pass: the walk is pointed at a shape it does not understand.
 	if len(hosts) == 0 {
-		return nil, fmt.Errorf("%s: no `nodes` mapping — the grammar cannot be checked", path)
+		return nil, fmt.Errorf("%s: no `nodes` mapping, so the grammar cannot be checked", path)
 	}
 	return hosts, nil
 }
 
-// checkHostName returns the problem with a host name, or "" when it is well formed.
+// checkHostName returns the problem with a host name, or an empty string when it is well formed.
 func checkHostName(host, env string, roles map[string]bool) string {
 	if !slugPattern.MatchString(host) {
-		return fmt.Sprintf("host %q is not a slug (^[a-z][a-z0-9]*(-[a-z0-9]+)*$)", host)
+		return fmt.Sprintf("host %q is not a slug: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$", host)
 	}
 	if len(host) > maxSlugLen {
 		return fmt.Sprintf(
-			"host %q is %d characters; the bound is %d",
+			"host %q is %d characters, and the limit is %d",
 			host,
 			len(host),
 			maxSlugLen,
@@ -244,7 +238,7 @@ func checkHostName(host, env string, roles map[string]bool) string {
 
 	if len(project) < minProjectLen || len(project) > maxProjectLen {
 		return fmt.Sprintf(
-			"host %q: project slug %q is %d characters; the bound is %d–%d",
+			"host %q: project slug %q is %d characters, and the limit is %d to %d",
 			host,
 			project,
 			len(project),
@@ -263,7 +257,7 @@ func checkHostName(host, env string, roles map[string]bool) string {
 	if !roles[role] {
 		return fmt.Sprintf("host %q: %q is not a role in ADR-0003's table", host, role)
 	}
-	// Only an ordinal may follow the role, and only where several of a role exist.
+	// Only an ordinal can follow the role, and only where several nodes have that role.
 	if len(parts) > 4 {
 		return fmt.Sprintf("host %q has more segments than {project}-{env}-{role}-{n}", host)
 	}
@@ -271,7 +265,7 @@ func checkHostName(host, env string, roles map[string]bool) string {
 		_, err := strconv.Atoi(parts[3])
 		if err != nil {
 			return fmt.Sprintf(
-				"host %q: %q is not an ordinal; names carry no descriptive suffix",
+				"host %q: %q is not an ordinal. Names have no descriptive suffix",
 				host,
 				parts[3],
 			)
@@ -280,13 +274,12 @@ func checkHostName(host, env string, roles map[string]bool) string {
 	return ""
 }
 
-// envToken matches the environment token wherever .sops.yaml names one: in an
-// anchor (`&cluster_dev`) and in a path rule (`platform/dev/secrets`).
+// envToken matches the environment token wherever .sops.yaml names one: in an anchor, `&cluster_dev`,
+// and in a path rule, `platform/dev/secrets`.
 var envToken = regexp.MustCompile(`(?:&cluster_([a-z]+)|platform/([a-z]+)/secrets)`)
 
-// checkSops asserts every environment .sops.yaml names is spelled out in full. A
-// recipient anchor is where an abbreviation is most tempting and most damaging: the
-// name is load-bearing for which key encrypts which file.
+// checkSops checks that every environment that .sops.yaml names is written in full. A recipient anchor is where
+// an abbreviation is most tempting and does most damage, because the name decides which key encrypts which file.
 func checkSops() ([]string, error) {
 	data, err := os.ReadFile(sopsFile)
 	if err != nil {
@@ -308,7 +301,7 @@ func checkSops() ([]string, error) {
 		}
 		seen[env] = true
 		problem := fmt.Sprintf(
-			"%s: %q is not an environment; env is spelled out in full (%s, %s)",
+			"%s: %q is not an environment. Write env in full: %s, %s",
 			sopsFile,
 			env,
 			strings.Join(sortedKeys(provisionedEnvs), ", "),
@@ -319,9 +312,8 @@ func checkSops() ([]string, error) {
 	return problems, nil
 }
 
-// checkOverlays asserts the per-environment GitOps directories are named for the
-// environments themselves. This is the surface ArgoCD's ApplicationSets select on,
-// so a directory named `stg` becomes an env token in the cluster too.
+// checkOverlays checks that the GitOps directory of each environment has the environment's own name.
+// ArgoCD's ApplicationSets select on these, so a directory named `stg` becomes an env token in the cluster too.
 func checkOverlays() ([]string, error) {
 	entries, err := os.ReadDir(overlayDir)
 	if err != nil {
@@ -341,7 +333,7 @@ func checkOverlays() ([]string, error) {
 			continue
 		}
 		problem := fmt.Sprintf(
-			"%s/%s: %q is not an environment (%s, %s)",
+			"%s/%s: %q is not an environment. Environments: %s, %s",
 			overlayDir,
 			name,
 			name,

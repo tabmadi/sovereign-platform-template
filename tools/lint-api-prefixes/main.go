@@ -1,4 +1,5 @@
-// Command lint-api-prefixes enforces resource-prefix ownership across the flat /api namespace (ADR-0303, ADR-0306).
+// Command lint-api-prefixes enforces resource-prefix ownership across the flat /api namespace, per ADR-0303 and
+// ADR-0306.
 package main
 
 import (
@@ -17,7 +18,7 @@ import (
 )
 
 func main() {
-	lint.Main("resource-prefix ownership (ADR-0303, ADR-0306)", run)
+	lint.Main("resource-prefix ownership, per ADR-0303 and ADR-0306", run)
 }
 
 func run(r *lint.Report) error {
@@ -26,8 +27,7 @@ func run(r *lint.Report) error {
 		return err
 	}
 
-	// owner maps a resource to every service declaring it, so a collision reports
-	// all claimants rather than just the second one.
+	// owner maps a resource to every service that declares it, so a collision reports all claimants, not only the second.
 	owner := map[string][]string{}
 
 	for _, spec := range specs {
@@ -65,7 +65,7 @@ func run(r *lint.Report) error {
 		if len(claimants) < 2 {
 			continue
 		}
-		const form = "resource %q is claimed by %s — one flat /api namespace admits one owner"
+		const form = "resource %q is claimed by %s. One flat /api namespace allows one owner"
 		r.Addf(form, resource, strings.Join(claimants, ", "))
 	}
 
@@ -73,9 +73,8 @@ func run(r *lint.Report) error {
 	return nil
 }
 
-// routedResources reads the service's edge route table from its canonical dev
-// values. A service with no values file (the _template scaffold) is not deployed
-// and routes nothing.
+// routedResources reads the service's edge route table from its canonical dev values.
+// A service with no values file, such as the _template scaffold, is not deployed and routes nothing.
 func routedResources(svc string) ([]string, error) {
 	path := filepath.Join("infra", "gitops", "services", "dev", "values", svc+".yaml")
 	data, err := os.ReadFile(path)
@@ -101,15 +100,15 @@ func routedResources(svc string) ([]string, error) {
 	return v.Ingress.Resources, nil
 }
 
-// httpMethods are the OpenAPI operation keys under a path item; other keys
-// (parameters, servers, summary) are not operations and carry no audience.
+// httpMethods are the OpenAPI operation keys under a path item. Other keys, such as parameters, servers, and summary,
+// are not operations.
 var httpMethods = map[string]bool{
 	"get": true, "put": true, "post": true, "delete": true,
 	"patch": true, "options": true, "head": true, "trace": true,
 }
 
-// servedPrefixes is the set of top-level segments the spec exposes at the edge. A path resolving entirely to
-// `x-audience: cluster` is east-west — the Kratos identity webhook into orgs — and is deliberately unrouted.
+// servedPrefixes is the set of top-level segments that the spec exposes at the edge. A path that resolves only to
+// `x-audience: cluster` is east-west, such as the Kratos identity webhook into orgs, and is not routed on purpose.
 func servedPrefixes(spec string) (map[string]bool, error) {
 	data, err := os.ReadFile(spec)
 	if err != nil {

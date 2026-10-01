@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Emit the affected manifest as forge step-output assignments, with services and apps as separate JSON arrays (ADR-0102).
+# Emit the affected manifest as forge step-output assignments, with services and apps as separate JSON arrays, per ADR-0102.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-# A push is diffed against the commit it replaced: on master the default base is HEAD itself, and that diff is always empty. With no such commit in history — a new branch, a force-push — everything is affected.
+# A push is compared with the commit it replaced. On master the default base is HEAD itself, and that diff is always empty.
+# When that commit is not in the history, after a new branch or a force-push, everything is affected.
 args=(--all)
 if [ -n "${BEFORE:-}" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
   args=(--base "$BEFORE")
-  # No image is built from a values file, and a promotion commit changes nothing else: counted as infra, it would republish everything and promote again.
+  # No image is built from a values file, and a promotion commit changes nothing else.
+  # Counted as infra, it would publish everything again and promote again.
   if [ -z "$(git diff --name-only "${BEFORE}...HEAD" | grep -v '^infra/gitops/')" ]; then
     printf 'services=[]\napps=[]\nimages=[]\n'
     exit 0
@@ -15,7 +17,7 @@ if [ -n "${BEFORE:-}" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; the
 fi
 manifest="$(mise run ci:affected -- "${args[@]}")"
 
-# A global manifest names no components, so it expands here to every one that builds an image.
+# A global manifest names no components, so here it expands to every component that builds an image.
 if [ "$(printf '%s' "$manifest" | jq -r '.global')" = true ]; then
   every() { find "$1" -mindepth 2 -maxdepth 2 -name Dockerfile ! -path '*/_*' | cut -d/ -f2 | sort | jq -Rsc 'split("\n") | map(select(. != ""))'; }
   manifest="$(printf '%s' "$manifest" | jq -c --argjson s "$(every services)" --argjson a "$(every apps)" '.services = $s | .apps = $a')"
@@ -23,8 +25,8 @@ fi
 printf 'services=%s\n' "$(printf '%s' "$manifest" | jq -c '.services')"
 printf 'apps=%s\n' "$(printf '%s' "$manifest" | jq -c '.apps')"
 
-# Explicit {service, cmd} pairs, not a cross product: not every service has a worker, and asking the builder for a missing `cmd/worker` fails that cell.
-# The filesystem is the source rather than a list here: a service gains a worker by gaining the directory.
+# Explicit {service, cmd} pairs, not a cross product. Not every service has a worker, and a build for a missing `cmd/worker` fails that cell.
+# The filesystem is the source, not a list: a service gets a worker when it gets the directory.
 images='[]'
 for svc in $(printf '%s' "$manifest" | jq -r '.services[]'); do
   for cmd in server worker; do

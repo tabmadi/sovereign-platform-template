@@ -1,14 +1,13 @@
-# The pull-request preview environment (ADR-0205). Label-gated, because a preview is a full-platform bring-up,
-# and the label is applied by a maintainer, which keeps a fork's code off the runner until someone has read it.
-# It is the full local tier at this PR's images, destroyed with the run: nothing is promoted or released from it.
+# The pull-request preview environment, per ADR-0205. A label gates it, because a preview starts the full platform.
+# A maintainer adds the label, so a fork's code reaches the runner only after someone reads it.
+# It is the full local tier at this PR's images, destroyed with the run. Nothing is promoted or released from it.
 name: preview
 
 on:
   pull_request:
     types: [labeled, synchronize, reopened]
 
-# One preview per pull request. A new push replaces the environment rather than
-# racing a second bring-up against it on the same runner.
+# One preview for each pull request. A new push replaces the environment, so two starts never race on the same runner.
 concurrency:
   group: preview-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -33,13 +32,13 @@ jobs:
         run: mise run secrets:age
       - name: Bring up the preview
         run: mise run ci:preview -- up
-      - name: Install Playwright (Node island)
+      - name: Install Playwright in the Node island
         run: mise run e2e:install
       - name: Smoke the preview
         run: mise run e2e:smoke
       - name: Upload Playwright report
         if: always()
-        # A report is a diagnostic: Forgejo's artifact service refuses v4, and that must not fail a passing run.
+        # A report is a diagnostic. Forgejo's artifact service refuses v4, and that must not fail a passing run.
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:

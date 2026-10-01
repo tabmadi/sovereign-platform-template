@@ -1,5 +1,5 @@
-// Command lint-thin-workflows enforces that workflow YAML checks out, sets up the toolchain, and calls `mise run
-// ci:*` (ADR-0102).
+// Command lint-thin-workflows checks that workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`,
+// per ADR-0102.
 package main
 
 import (
@@ -22,7 +22,7 @@ type finding struct {
 }
 
 func main() {
-	lint.Main("workflow steps carry pipeline logic (ADR-0102)", run)
+	lint.Main("workflow steps contain pipeline logic, per ADR-0102", run)
 }
 
 func run(r *lint.Report) error {
@@ -43,7 +43,7 @@ func run(r *lint.Report) error {
 		}
 	}
 	r.Hintf("Move the logic into a mise task and call it from the step.")
-	r.Okf("workflow steps call mise tasks (%d files)", len(files))
+	r.Okf("workflow steps call mise tasks, %d files", len(files))
 	return nil
 }
 
@@ -71,8 +71,8 @@ func check(path string) ([]finding, error) {
 	}
 
 	var findings []finding
-	// script.Line is the line of the scalar's first content line for a block
-	// scalar, which is what makes the offsets below point at the real source.
+	// For a block scalar, script.Line is the line of the scalar's first content line. So the offsets below point at the
+	// real source.
 	collect := func(script *yaml.Node) {
 		for i, line := range strings.Split(script.Value, "\n") {
 			bad := offending(line)
@@ -85,9 +85,8 @@ func check(path string) ([]finding, error) {
 	return findings, nil
 }
 
-// walk calls fn with the script of every step under a `steps:` sequence. Scoping
-// to steps matters: a reusable workflow may declare an output literally named
-// `run`, which is a value rather than a script.
+// walk calls fn with the script of every step under a `steps:` sequence. The scope matters:
+// a reusable workflow can declare an output named `run`, which is a value and not a script.
 func walk(n *yaml.Node, fn func(*yaml.Node)) {
 	if n.Kind == yaml.MappingNode {
 		for i := 0; i+1 < len(n.Content); i += 2 {
@@ -111,13 +110,13 @@ func walk(n *yaml.Node, fn func(*yaml.Node)) {
 	}
 }
 
-// offending returns the trimmed line if it is logic, or "" if it is permitted.
+// offending returns the trimmed line if it is logic, or an empty string if it is allowed.
 func offending(line string) string {
 	s := strings.TrimSpace(line)
 	if s == "" || strings.HasPrefix(s, "#") || s == "set -euo pipefail" {
 		return ""
 	}
-	// A forge step-output redirect is plumbing; strip it before judging the command.
+	// A forge step-output redirect is plumbing. Remove it before judging the command.
 	for _, sink := range []string{`>> "$GITHUB_OUTPUT"`, `>> "$GITHUB_ENV"`} {
 		cut, found := strings.CutSuffix(s, sink)
 		if found {

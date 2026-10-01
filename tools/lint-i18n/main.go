@@ -1,4 +1,4 @@
-// Command lint-i18n enforces that the frontend is localisable (ADR-0400).
+// Command lint-i18n checks that the frontend can be localised, per ADR-0400.
 package main
 
 import (
@@ -20,7 +20,7 @@ const (
 	sourceDir   = "apps/frontend/src"
 )
 
-// The physical → logical swaps, applied in order.
+// The physical to logical swaps, applied in order.
 var logicalSwaps = []struct {
 	re   *regexp.Regexp
 	with string
@@ -41,13 +41,13 @@ var logicalSwaps = []struct {
 	{regexp.MustCompile(`\bright-([0-9.]+)\b`), "end-$1"},
 }
 
-// `left-1/2` and `right-1/2` are centring offsets, and mirroring them moves the element. RE2 has no negative
-// lookahead, so they are protected by substitution.
+// `left-1/2` and `right-1/2` are centring offsets, and mirroring them moves the element.
+// RE2 has no negative lookahead, so a substitution protects them.
 var centringRe = regexp.MustCompile(`\b(left|right)-([0-9]+)/([0-9]+)\b`)
 
 const centringSentinel = "\x00centring\x00"
 
-// toLogical applies every swap with the centring offsets held out of reach.
+// toLogical applies every swap, with the centring offsets protected.
 func toLogical(body string) string {
 	var held []string
 	hold := func(match string) string {
@@ -65,7 +65,7 @@ func toLogical(body string) string {
 }
 
 func main() {
-	lint.Main("the frontend is not fully localisable (ADR-0400)", run)
+	lint.Main("the frontend is not fully localisable, per ADR-0400", run)
 }
 
 func run(r *lint.Report) error {
@@ -86,7 +86,7 @@ func run(r *lint.Report) error {
 	return nil
 }
 
-// checkParity asserts every catalogue holds the same key paths.
+// checkParity checks that every catalogue holds the same key paths.
 func checkParity() ([]string, error) {
 	entries, err := os.ReadDir(messagesDir)
 	if err != nil {
@@ -110,7 +110,7 @@ func checkParity() ([]string, error) {
 
 	// An empty message directory is a broken enumeration, not a localised app.
 	if len(keysPerLocale) < 2 {
-		return nil, fmt.Errorf("%s holds %d catalogue(s); parity needs at least two", messagesDir, len(keysPerLocale))
+		return nil, fmt.Errorf("%s holds %d catalogue(s), and parity needs at least two", messagesDir, len(keysPerLocale))
 	}
 
 	locales := make([]string, 0, len(keysPerLocale))
@@ -119,19 +119,19 @@ func checkParity() ([]string, error) {
 	}
 	sort.Strings(locales)
 
-	// The first catalogue alphabetically is the reference only for REPORTING; the
-	// check itself is symmetric, so neither direction of drift is missed.
+	// The first catalogue in alphabetical order is the reference only for the report.
+	// The check itself is symmetric, so it finds drift in both directions.
 	reference := locales[0]
 	var problems []string
 	for _, locale := range locales[1:] {
 		for _, key := range keysPerLocale[reference] {
 			if !slices.Contains(keysPerLocale[locale], key) {
-				problems = append(problems, fmt.Sprintf("%s.json is missing %q (present in %s.json)", locale, key, reference))
+				problems = append(problems, fmt.Sprintf("%s.json is missing %q, which is in %s.json", locale, key, reference))
 			}
 		}
 		for _, key := range keysPerLocale[locale] {
 			if !slices.Contains(keysPerLocale[reference], key) {
-				problems = append(problems, fmt.Sprintf("%s.json is missing %q (present in %s.json)", reference, key, locale))
+				problems = append(problems, fmt.Sprintf("%s.json is missing %q, which is in %s.json", reference, key, locale))
 			}
 		}
 	}
@@ -171,8 +171,8 @@ func checkLogicalProperties(fix bool) ([]string, error) {
 		candidates = append(candidates, path)
 		return nil
 	}
-	// A read error fails the gate rather than skipping the file: a check that cannot
-	// resolve its input must not report success.
+	// A read error fails the gate and does not skip the file: a check that cannot resolve its input must not report
+	// success.
 	err := filepath.Walk(sourceDir, collect)
 	if err != nil {
 		return nil, fmt.Errorf("walk %s: %w", sourceDir, err)
@@ -190,19 +190,18 @@ func checkLogicalProperties(fix bool) ([]string, error) {
 			continue
 		}
 		if fix {
-			// #nosec G703 -- path comes from a walk of this repository's own source
-			// tree; this is a local lint helper, not a server.
+			// path comes from a walk of this repository's own source tree, and this is a local lint helper, not a server.
+			// #nosec G703
 			err = os.WriteFile(path, []byte(patched), 0o600)
 			if err != nil {
 				return nil, fmt.Errorf("write %s: %w", path, err)
 			}
 			continue
 		}
-		// Name the offending lines rather than the file: "this file has a physical
-		// property somewhere" is a message that costs a grep to act on.
+		// Name the lines, not only the file. A message that names only the file costs a grep to act on.
 		for i, before := range strings.Split(body, "\n") {
 			if toLogical(before) != before {
-				const form = "%s:%d: physical property does not mirror; run `mise run lint:i18n -- -fix`"
+				const form = "%s:%d: physical property does not mirror. Run `mise run lint:i18n -- -fix`"
 				problems = append(problems, fmt.Sprintf(form, path, i+1))
 			}
 		}

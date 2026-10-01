@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Open the prod pin as a pull request and have the forge merge it once its checks pass (ADR-0201, ADR-0102). Prod is promoted through review, not pushed.
+# Open the prod pin as a pull request, and let the forge merge it when its checks pass, per ADR-0201 and ADR-0102.
+# Prod is promoted through review, not pushed.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

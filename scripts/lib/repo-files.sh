@@ -4,7 +4,7 @@
 if [[ -n "${__REPO_FILES_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi
 __REPO_FILES_LOADED=1
 
-# repo_source — prints `git` or `find`, whichever the enumerators will use.
+# repo_source prints `git` or `find`: the source that the enumerators use.
 repo_source() {
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     printf 'git'
@@ -13,14 +13,16 @@ repo_source() {
   fi
 }
 
-# existing — drop index entries whose working-tree file is gone: `git ls-files` lists a deleted path until the deletion is staged, and shfmt, shellcheck, and sha256sum all fail on a missing file.
+# existing drops index entries whose working-tree file is gone. `git ls-files` lists a deleted path until the deletion is staged.
+# shfmt, shellcheck, and sha256sum all fail on a missing file.
 existing() {
   while IFS= read -r -d '' f; do
     if [[ -e "$f" ]]; then printf '%s\0' "$f"; fi
   done
 }
 
-# sh_files and repo_files are NUL-delimited and count untracked-but-not-ignored paths, because a file the gate cannot see is a file the gate cannot hold; a generated file that is new is still drift.
+# sh_files and repo_files are NUL-delimited, and they include untracked paths that are not ignored.
+# A gate cannot check a file it cannot see, and a new generated file is still drift.
 sh_files() {
   if [[ "$(repo_source)" == "git" ]]; then
     {
@@ -43,7 +45,7 @@ repo_files() {
   prune_find
 }
 
-# prune_find — `find` without the vendored and generated trees .gitignore keeps out of `git ls-files`.
+# prune_find is `find` without the vendored and generated trees that .gitignore keeps out of `git ls-files`.
 prune_find() {
   find . \
     -type d \( -name .git -o -name node_modules -o -name .next -o -name dist -o -name vendor \) -prune \

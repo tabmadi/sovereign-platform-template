@@ -1,4 +1,4 @@
-// Command lint-alert-severity asserts every alert rule carries a severity ADR-0502 admits, and that the Watchdog
+// Command lint-alert-severity checks that every alert rule has a severity that ADR-0502 allows, and that the Watchdog
 // exists.
 package main
 
@@ -11,10 +11,10 @@ import (
 
 const rulesDir = "infra/observability/alerts"
 
-// watchdogAlert is the dead man's switch ADR-0502 names.
+// watchdogAlert is the dead man's switch that ADR-0502 names.
 const watchdogAlert = "Watchdog"
 
-// The vocabulary. Not configurable: it is the routing tree's matcher set.
+// The vocabulary. It is not configurable, because it is the matcher set of the routing tree.
 var allowed = map[string]bool{"page": true, "ticket": true}
 
 type ruleFile struct {
@@ -39,8 +39,8 @@ func run(r *lint.Report) error {
 	}
 	alerts, watchdog := 0, false
 	for _, path := range paths {
-		// Chart.yaml and any other non-rule YAML that lands here parses cleanly
-		// into an empty Groups, so it is skipped rather than reported.
+		// Chart.yaml and any other YAML here that is not a rule file parses into an empty Groups, so it is skipped and not
+		// reported.
 		rf, err := repo.ReadYAML[ruleFile](path)
 		if err != nil {
 			r.Addf("%v", err)
@@ -58,16 +58,16 @@ func run(r *lint.Report) error {
 				sev, ok := rule.Labels["severity"]
 				switch {
 				case !ok:
-					r.Addf("%s: %s carries no severity", path, rule.Alert)
+					r.Addf("%s: %s has no severity", path, rule.Alert)
 				case !allowed[sev]:
-					r.Addf("%s: %s carries severity %q, which is not page or ticket", path, rule.Alert, sev)
+					r.Addf("%s: %s has severity %q, which is not page or ticket", path, rule.Alert, sev)
 				}
 			}
 		}
 	}
 	if !watchdog {
-		r.Addf("no %s rule in %s — nothing detects a dead alerting pipeline (ADR-0502)", watchdogAlert, rulesDir)
+		r.Addf("no %s rule in %s. Nothing detects a dead alerting pipeline, per ADR-0502", watchdogAlert, rulesDir)
 	}
-	r.Okf("%d alert rules carry page or ticket, and the Watchdog exists", alerts)
+	r.Okf("%d alert rules have page or ticket, and the Watchdog exists", alerts)
 	return nil
 }

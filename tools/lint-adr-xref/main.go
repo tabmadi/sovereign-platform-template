@@ -1,5 +1,6 @@
-// Command lint-adr-xref checks the ADR set's internal wiring: references, Related headers, index rows, and genre
-// paths (ADR-0001).
+// Command lint-adr-xref checks the internal links of the ADR set: references, Related headers, index rows, and genre
+// paths,
+// per ADR-0001.
 package main
 
 import (
@@ -28,7 +29,7 @@ var (
 	decidesRow = regexp.MustCompile(`^- \*\*Decides:\*\* \S`)
 	indexRow   = regexp.MustCompile(`^\| \[(\d{4})\]\(([^)]+)\)`)
 	reservedNo = regexp.MustCompile(`^\| (\d{4}) \| `)
-	// A bold leading table cell is how both inventory documents name a component.
+	// Both inventory documents name a component with a bold first table cell.
 	boldCell = regexp.MustCompile(`^\| \*\*([^*|]+)\*\*`)
 	readme   = regexp.MustCompile(`\]\((\.\./)+README\.md`)
 )
@@ -114,8 +115,7 @@ func loadSet() (*adrSet, error) {
 	return set, nil
 }
 
-// checkReferences resolves every ADR-XXXX mention under docs/ and in the root files a
-// reader starts from.
+// checkReferences resolves every ADR-XXXX mention under docs/ and in the root files where a reader starts.
 func checkReferences(set *adrSet) []string {
 	var problems []string
 	for _, path := range markdownFiles() {
@@ -153,8 +153,8 @@ func checkRelatedExists(set *adrSet) []string {
 	return problems
 }
 
-// checkDecidesAndIndex holds the header line and the index in step. The Decides line is
-// the set's skim surface, so an ADR without one is unreadable at index speed.
+// checkDecidesAndIndex keeps the header line and the index in step. The Decides line is the fast way to read the set,
+// so an ADR without one cannot be read at index speed.
 func checkDecidesAndIndex(set *adrSet) []string {
 	var problems []string
 	index, err := os.ReadFile(indexPath)
@@ -193,8 +193,8 @@ func checkDecidesAndIndex(set *adrSet) []string {
 	return problems
 }
 
-// checkComponentAgreement keeps the two adoption documents from drifting: every
-// component adoption-path.md offers to remove has to be one the inventory lists.
+// checkComponentAgreement keeps the two adoption documents from drifting apart.
+// Every component that adoption-path.md offers to remove must be one that the inventory lists.
 func checkComponentAgreement() []string {
 	surface, err := os.ReadFile(surfacePath)
 	if err != nil {
@@ -219,8 +219,8 @@ func checkComponentAgreement() []string {
 			continue
 		}
 		name := strings.TrimSpace(m[1])
-		// A row may name a component or a posture ("Cilium's default-deny and
-		// WireGuard posture"); the first word is the component either way.
+		// A row can name a component or a posture, such as `Cilium's default-deny and WireGuard posture`.
+		// In both cases the first word is the component.
 		head := strings.SplitN(name, "'", 2)[0]
 		head = strings.SplitN(head, " + ", 2)[0]
 		if !strings.Contains(inventory, strings.ToLower(head)) {
@@ -250,8 +250,8 @@ func checkDeferralCoverage(set *adrSet) []string {
 		if err != nil {
 			return []string{fmt.Sprintf("%s: %v", path, err)}
 		}
-		// ADR-0000 defines the Trigger field rather than deferring, and a deferral stated in prose means a registered ADR
-		// without a Trigger row is not a defect.
+		// ADR-0000 defines the Trigger field and does not defer. A deferral stated in prose means that a registered ADR
+		// with no Trigger row is not a defect.
 		if num == "0000" || registered[num] {
 			continue
 		}
@@ -262,9 +262,8 @@ func checkDeferralCoverage(set *adrSet) []string {
 	return problems
 }
 
-// checkReadmeBoundary asserts ADR-0001's rule that nothing under docs/ links to the root
-// README: a generated project rewrites that file, so the link would point at someone
-// else's selection guidance.
+// checkReadmeBoundary enforces the ADR-0001 rule that nothing under docs/ links to the root README.
+// A generated project rewrites that file, so the link would point at another project's selection guidance.
 func checkReadmeBoundary() []string {
 	var problems []string
 	for _, path := range markdownFiles() {

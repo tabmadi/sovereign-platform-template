@@ -1,5 +1,5 @@
-// Command shared-components gives every service spec the canonical definition of each shared component it uses
-// (ADR-0303).
+// Command shared-components gives every service spec the canonical definition of each shared component it uses,
+// per ADR-0303.
 package main
 
 import (
@@ -20,18 +20,18 @@ import (
 const sourceFile = "tools/codegen/shared-components.yaml"
 
 const (
-	beginFmt = "# >>> shared-components: %s — generated from tools/codegen/shared-components.yaml, do not edit"
+	beginFmt = "# >>> shared-components: %s. Generated from tools/codegen/shared-components.yaml. Do not edit"
 	endMark  = "# <<< shared-components"
 )
 
-// refPattern matches a local component reference. Local is the whole story here:
-// a spec has no external refs, which is the property the copying buys.
+// refPattern matches a local component reference. A spec has only local refs, and the copying exists to give it that
+// property.
 var refPattern = regexp.MustCompile(`#/components/(schemas|responses)/([A-Za-z0-9_.-]+)`)
 
-// section is one spliced region: a key under `components` and the source mapping
-// holding every component that region can carry.
+// section is one spliced region: a key under `components`, and the source mapping that holds every component the
+// region can carry.
 type section struct {
-	key  string // "schemas" or "responses"
+	key  string // `schemas` or `responses`
 	node *yaml.Node
 }
 
@@ -50,8 +50,8 @@ func loadSource() ([]section, error) {
 	}, nil
 }
 
-// blocksFor renders the region each section contributes to one spec: the shared
-// components that spec reaches, in source order.
+// blocksFor renders the region that each section adds to one spec: the shared components that the spec reaches, in
+// source order.
 func blocksFor(sections []section, spec string) (map[string]string, error) {
 	keep, err := reachable(sections, spec)
 	if err != nil {
@@ -67,8 +67,9 @@ func blocksFor(sections []section, spec string) (map[string]string, error) {
 	return blocks, nil
 }
 
-// reachable is the set of shared components a spec points at, closed over their own references. The seed ignores the
-// spliced regions: a component is carried because the spec needs it.
+// reachable is the set of shared components that a spec points at, closed over their own references. The seed ignores
+// the
+// spliced regions, because a component is carried only when the spec needs it.
 func reachable(sections []section, spec string) (map[string]bool, error) {
 	byName := make(map[string]*yaml.Node)
 	for _, sec := range sections {
@@ -110,7 +111,7 @@ func refsIn(doc string) []string {
 	return out
 }
 
-// stripRegions removes the spliced regions, leaving the spec's own content.
+// stripRegions removes the spliced regions and leaves the spec's own content.
 func stripRegions(doc string) string {
 	var out []string
 	inRegion := false
@@ -196,14 +197,14 @@ func apply(spec string, sections []section, blocks map[string]string, dryRun boo
 	if dryRun {
 		return true, nil
 	}
-	// The write target is rebuilt from a validated service name rather than reusing
-	// the globbed path, so the only thing this tool can write is a service spec.
+	// The write target is rebuilt from a validated service name and does not reuse the globbed path.
+	// So this tool can write only a service spec.
 	target, err := specPath(spec)
 	if err != nil {
 		return false, err
 	}
-	// 0o600 matches the other generators here (tools/adr-rules, tools/admin-gen);
-	// git carries the tracked mode, so the bits set on write do not survive a clone.
+	// 0o600 matches the other generators here, tools/adr-rules and tools/admin-gen.
+	// git keeps the tracked mode, so the bits set on write do not survive a clone.
 	err = os.WriteFile(target, []byte(updated), 0o600)
 	if err != nil {
 		return false, fmt.Errorf("write: %w", err)
@@ -211,8 +212,7 @@ func apply(spec string, sections []section, blocks map[string]string, dryRun boo
 	return true, nil
 }
 
-// specPath rebuilds services/<name>/openapi.yaml from the service name in the
-// given path, rejecting anything that is not exactly that shape.
+// specPath rebuilds services/<name>/openapi.yaml from the service name in the given path, and rejects any other shape.
 func specPath(spec string) (string, error) {
 	cleaned := filepath.Clean(spec)
 	dir, file := filepath.Split(cleaned)
@@ -226,8 +226,9 @@ func specPath(spec string) (string, error) {
 	return filepath.Join("services", name, "openapi.yaml"), nil
 }
 
-// splice replaces the sentinel-delimited region for one section. A spec with no sentinels is an error, not a silent
-// skip: it is not wired to the shared source at all.
+// splice replaces the region between the sentinels for one section. A spec with no sentinels is an error and not
+// skipped:
+// it is not wired to the shared source at all.
 func splice(doc, key, block string) (string, error) {
 	begin := fmt.Sprintf(beginFmt, key)
 	lines := strings.Split(doc, "\n")
@@ -246,7 +247,7 @@ func splice(doc, key, block string) (string, error) {
 		}
 	}
 	if startIdx < 0 {
-		return "", fmt.Errorf("no %q sentinel — add it under components.%s", begin, key)
+		return "", fmt.Errorf("no %q sentinel. Add it under components.%s", begin, key)
 	}
 	if endIdx < 0 {
 		return "", fmt.Errorf("%q sentinel is not closed by %q", begin, endMark)
@@ -285,8 +286,8 @@ func renderNode(n *yaml.Node) (string, error) {
 	return b.String(), nil
 }
 
-// filterMap copies a mapping node down to the kept entries, in source order. The
-// key node carries the leading comment, so a kept component keeps its rationale.
+// filterMap copies a mapping node down to the kept entries, in source order.
+// The key node holds the leading comment, so a kept component keeps its reason.
 func filterMap(n *yaml.Node, key string, keep map[string]bool) *yaml.Node {
 	if n.Kind != yaml.MappingNode {
 		return nil

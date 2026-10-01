@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Converge this machine for a firewalled network, once, before any cluster command (docs/guide/http-proxy.md). On a direct network it exits 0.
+# Set up this machine for a firewalled network, once, before any cluster command. See docs/guide/http-proxy.md.
+# On a direct network it exits 0.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -8,27 +9,26 @@ APPLY=1
 
 GAPS=0
 NEEDS_ROOT=0
-# A gap is recoverable on its own — the fatal verdict is the count, at the end.
+# A gap alone is recoverable. The count at the end is the fatal verdict.
 gap() {
   GAPS=$((GAPS + 1))
   warn "$1"
 }
 
-# Cluster-internal traffic must stay direct. fc00::/7 is not optional: docker's
-# embedded DNS answers the node with its IPv6 ULA first, and without it the node's
-# kubelet dials the API server THROUGH the proxy and `kind create` aborts.
+# Cluster-internal traffic must stay direct. fc00::/7 is required: docker's embedded DNS answers the node with its IPv6 ULA first.
+# Without it, the node's kubelet dials the API server through the proxy, and `kind create` stops.
 PROXY_VALUES='infra/local/proxy.local.yaml'
 PROXY_ENV='infra/local/proxy.local.env'
 DAEMON_DROPIN='/etc/systemd/system/docker.service.d/http-proxy.conf'
 NO_PROXY_VALUE='10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,.svc,.svc.cluster.local,.cluster.local,127.0.0.1,localhost,.localtest.me'
 
 PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
-# Not exported here does not mean absent — ask docker before concluding.
+# A variable that is not exported here can still be set. Ask docker before deciding.
 [[ -n "$PROXY" ]] || PROXY="$(docker info --format '{{.HTTPSProxy}}' 2>/dev/null || true)"
 if [[ -z "$PROXY" ]]; then
   ok "no proxy configured anywhere this script can see"
-  detail "If your network reaches ghcr.io, github.com and the chart repos directly,"
-  detail "none of this applies: run 'mise run cluster:up' as-is."
+  detail "If your network reaches ghcr.io, github.com, and the chart repos directly,"
+  detail "none of this applies. Run 'mise run cluster:up' as it is."
   detail "If it does not, export HTTPS_PROXY and run this again."
   exit 0
 fi
@@ -41,9 +41,9 @@ LOOPBACK=0
 
 step "proxy: ${PROXY}"
 if ((LOOPBACK)); then
-  detail "loopback — each layer below needs a different address for the same proxy"
+  detail "loopback: each layer below needs a different address for the same proxy"
 else
-  detail "routable — the same address works from every layer"
+  detail "routable: the same address works from every layer"
 fi
 
 # The proxy as seen from a container on a given docker network.
@@ -59,46 +59,45 @@ addr_from_network() {
   printf 'http://%s:%s' "$gw" "$PROXY_PORT"
 }
 
-step "step 1 — the docker daemon (image pulls, and zot's own egress)"
+step "step 1: the docker daemon, for image pulls and zot's own egress"
 if ! command -v docker >/dev/null 2>&1; then
   gap "docker not found; steps 1-4 cannot be checked"
 else
   daemon_proxy="$(docker info --format '{{.HTTPSProxy}}' 2>/dev/null || true)"
   if [[ -z "$daemon_proxy" ]]; then
-    gap "the daemon has no HTTPS proxy — image pulls go direct and hang"
+    gap "the daemon has no HTTPS proxy. Image pulls go direct and hang"
     NEEDS_ROOT=1
   else
     ok "daemon proxied at ${daemon_proxy}"
-    # `docker info` reports daemon.json's `proxies` block, which overrides the systemd
-    # drop-in silently. Two sources that disagree is the configuration most likely to
-    # be edited in the copy that has no effect.
+    # `docker info` reports the `proxies` block of daemon.json, which overrides the systemd drop-in with no warning.
+    # When two sources disagree, an engineer usually edits the copy that has no effect.
     if [[ -f /etc/docker/daemon.json ]] && jq -e '.proxies' /etc/docker/daemon.json >/dev/null 2>&1 &&
       [[ -f "$DAEMON_DROPIN" ]]; then
-      detail "both /etc/docker/daemon.json and ${DAEMON_DROPIN} set one — daemon.json is what you see above"
+      detail "both /etc/docker/daemon.json and ${DAEMON_DROPIN} set one. daemon.json is what you see above"
     fi
   fi
 fi
 
-step "step 1b — the environment cluster:up runs kind in"
-# kind is the only thing that can add the node's name to the node's NO_PROXY, and kubeadm dials the API server by name, which no CIDR exempts.
+step "step 1b: the environment that cluster:up runs kind in"
+# Only kind can add the node's name to the node's NO_PROXY. kubeadm dials the API server by name, and no CIDR exempts a name.
 if ((APPLY)); then
   mkdir -p "$(dirname "$PROXY_ENV")"
   cat >"$PROXY_ENV" <<EOF
 # Written by \`mise run proxy:setup\`. Machine-local, and absent on a direct network.
-# scripts/lib/cluster.sh loads it, so every cluster command runs with this machine's
-# egress without naming a proxy anywhere in the cluster scripts.
+# scripts/lib/cluster.sh loads it, so every cluster command uses this machine's egress,
+# and no cluster script names a proxy.
 HTTP_PROXY=${PROXY}
 HTTPS_PROXY=${PROXY}
 NO_PROXY=${NO_PROXY_VALUE}
 EOF
-  ok "wrote ${PROXY_ENV} — cluster:up loads it"
+  ok "wrote ${PROXY_ENV}. cluster:up loads it"
 elif [[ -f "$PROXY_ENV" ]]; then
   ok "${PROXY_ENV} present"
 else
-  gap "no ${PROXY_ENV} — 'kind create' will abort on an EOF from the node's own API call"
+  gap "no ${PROXY_ENV}. 'kind create' will stop on an EOF from the node's own API call"
 fi
 
-step "step 2 — docker build (RUN steps inside a build container)"
+step "step 2: docker build, for RUN steps inside a build container"
 DOCKER_CFG="${DOCKER_CONFIG:-$HOME/.docker}/config.json"
 if ! build_want="$(addr_from_network bridge)"; then
   gap "cannot read the docker bridge gateway; is the daemon running?"
@@ -115,26 +114,25 @@ else
       "$DOCKER_CFG" >"$tmp" && mv "$tmp" "$DOCKER_CFG"
     ok "wrote proxies.default = ${build_want} to ${DOCKER_CFG}"
   else
-    # A loopback value here is the classic build failure: inside the build container
-    # 127.0.0.1 is the container, so the package manager goes direct and is blocked.
+    # A loopback value here is the common build failure. Inside the build container 127.0.0.1 is the container, so the package manager goes direct and is blocked.
     gap "build proxy is '${build_have:-<unset>}', should be ${build_want}"
   fi
 fi
 
-step "step 3 — docker's embedded resolver"
+step "step 3: docker's embedded resolver"
 NODE="${CLUSTER:-platform}-control-plane"
 if ! docker inspect "$NODE" >/dev/null 2>&1; then
-  detail "no '${NODE}' container — nothing to check until a cluster exists"
+  detail "no '${NODE}' container. Nothing to check until a cluster exists"
 elif docker exec "$NODE" getent hosts github.com >/dev/null 2>&1; then
   ok "the node resolves github.com"
 else
-  # The daemon cached the host's nameservers at start.
-  gap "the node cannot resolve github.com while the host can — stale daemon resolver"
+  # The daemon cached the host's nameservers when it started.
+  gap "the node cannot resolve github.com while the host can. The daemon resolver is stale"
   detail "sudo systemctl restart docker"
 fi
 
-step "step 4 — ArgoCD's repo-server (git and chart repositories, full tier only)"
-# The repo-server does not exist until a full tier has been brought up, so the value goes to an overlay the argocd stage reads on every install.
+step "step 4: ArgoCD's repo-server, for git and chart repositories, full tier only"
+# The repo-server exists only after a full tier starts, so the value goes to an overlay that the argocd stage reads on every install.
 if ! repo_want="$(addr_from_network kind)"; then
   gap "cannot read the kind network gateway"
 elif ((APPLY)); then
@@ -152,15 +150,15 @@ argo-cd:
       - name: NO_PROXY
         value: ${NO_PROXY_VALUE}
 EOF
-  ok "wrote ${PROXY_VALUES} — every cluster:up full applies it"
+  ok "wrote ${PROXY_VALUES}. Every cluster:up full applies it"
 elif [[ -f "$PROXY_VALUES" ]]; then
   ok "${PROXY_VALUES} present"
 else
-  gap "no ${PROXY_VALUES} — a full tier's repo-server will not reach git or the chart repositories"
+  gap "no ${PROXY_VALUES}. A full tier's repo-server will not reach git or the chart repositories"
 fi
 
 if ! kubectl get deploy argocd-repo-server -n argocd >/dev/null 2>&1; then
-  detail "no repo-server running — the overlay applies at the next cluster:up full"
+  detail "no repo-server running. The overlay applies at the next cluster:up full"
 elif ! repo_want="$(addr_from_network kind)"; then
   :
 else
@@ -179,12 +177,10 @@ else
       --set-string "argo-cd.repoServer.env[2].value=${NO_PROXY_VALUE//,/\\,}" >/dev/null
     kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=180s >/dev/null
     ok "repo-server proxied at ${repo_want}"
-    # Argo caches the generation error with the manifests, so a plain --refresh
-    # replays it and reads as a failed fix.
-    detail "un-stick an app with: argocd app get <app> --core --hard-refresh"
+    # Argo caches the generation error with the manifests, so a plain --refresh shows it again and looks like a failed fix.
+    detail "unblock an app with: argocd app get <app> --core --hard-refresh"
   else
-    # Without it, any chart with external dependencies: leaves its app at Unknown on
-    # a helm-repo timeout while every other app syncs.
+    # Without it, any chart with external dependencies leaves its app at Unknown on a helm-repo timeout, while every other app syncs.
     gap "repo-server has ${repo_have:-no proxy}, should be ${repo_want}"
   fi
 fi
@@ -198,12 +194,12 @@ Environment="HTTPS_PROXY=${PROXY}"
 Environment="NO_PROXY=${NO_PROXY_VALUE}"
 EOF
   printf '\n'
-  step "step 1 needs root — written for you, paste this:"
+  step "step 1 needs root. The file is written for you. Paste this:"
   detail "sudo install -Dm644 ${DROPIN} /etc/systemd/system/docker.service.d/http-proxy.conf"
   detail "sudo systemctl daemon-reload && sudo systemctl restart docker"
-  detail "then re-run: mise run proxy:setup"
+  detail "then run again: mise run proxy:setup"
 fi
 
 printf '\n'
-((GAPS == 0)) || fail "${GAPS} gap(s) above; details in docs/guide/http-proxy.md"
-ok "proxy setup complete — 'mise run cluster:up' works unchanged from here"
+((GAPS == 0)) || fail "${GAPS} gap(s) above. Details are in docs/guide/http-proxy.md"
+ok "proxy setup complete. 'mise run cluster:up' works unchanged from here"

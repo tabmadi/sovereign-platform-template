@@ -1,12 +1,11 @@
 //go:build ruleguard
 
-// Package gorules holds custom gocritic/ruleguard lint rules for this repo.
+// Package gorules holds custom gocritic ruleguard lint rules for this repo.
 package gorules
 
 import "github.com/quasilyte/go-ruleguard/dsl"
 
-// noIfInitAssign forbids the init-statement form of `if`. The three else-shapes are spelled out because
-// gogrep has no wildcard for an else clause.
+// noIfInitAssign forbids the init-statement form of `if`. The three else shapes are written out, because gogrep has no wildcard for an else clause.
 func noIfInitAssign(m dsl.Matcher) {
 	m.Match(
 		`if $*_ := $*_; $_ { $*_ }`,
@@ -18,8 +17,8 @@ func noIfInitAssign(m dsl.Matcher) {
 	).Report(`no assignment in if-init: declare the variable on its own line`)
 }
 
-// errCompare forbids == / != on errors outside nil checks, which see only the outermost error once it is
-// wrapped with %w. It exists because errorlint misses the single-value short-declaration form.
+// errCompare forbids == and != on errors outside nil checks. After a %w wrap, they see only the outermost error.
+// It exists because errorlint misses the single-value short-declaration form.
 func errCompare(m dsl.Matcher) {
 	m.Match(
 		`$x == $y`,

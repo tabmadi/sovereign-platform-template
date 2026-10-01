@@ -1,4 +1,4 @@
-// Command lint-money enforces the monetary-value rule (ADR-0100, ADR-0300).
+// Command lint-money enforces the monetary-value rule, per ADR-0100 and ADR-0300.
 package main
 
 import (
@@ -37,7 +37,7 @@ var moneyWords = []string{
 	"total",
 }
 
-// countWords end an identifier that counts rather than values. `total_count` and `amount_of_rows` are not money.
+// countWords end an identifier that counts and does not hold a value. `total_count` and `amount_of_rows` are not money.
 var countWords = []string{
 	"bytes",
 	"count",
@@ -50,8 +50,8 @@ var countWords = []string{
 	"size",
 }
 
-// moneyComponent is the shared OpenAPI schema every monetary property must point at
-// (tools/codegen/shared-components.yaml).
+// moneyComponent is the shared OpenAPI schema that every monetary property must point at, in
+// tools/codegen/shared-components.yaml.
 const moneyComponent = "Money"
 
 // A finding is one violation, rendered as `file:line: message`.
@@ -93,14 +93,13 @@ func run(r *lint.Report) error {
 	for _, f := range found {
 		r.Addf("%s:%d: %s", f.file, f.line, f.msg)
 	}
-	r.Hintf("A monetary amount is the shared money type (ADR-0100):\n" +
+	r.Hintf("A monetary amount is the shared money type, per ADR-0100:\n" +
 		"  numeric in the column, " + moneyComponent + " in the spec, a decimal string on the wire.")
 	r.Okf("every monetary value is the shared money type")
 	return nil
 }
 
-// checkSpec walks every schema's `properties` mapping and reports a monetary
-// property that is not the shared component.
+// checkSpec walks every schema's `properties` mapping and reports a monetary property that is not the shared component.
 func checkSpec(path string) ([]finding, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -119,8 +118,8 @@ func checkSpec(path string) ([]finding, error) {
 			if key != "properties" || value.Kind != yaml.MappingNode {
 				return
 			}
-			// The Money component's own members. It is the definition of the shape, so
-			// its `amount` is a string by construction rather than in violation.
+			// The Money component's own members. It defines the shape, so its `amount` is a string by design and not a
+			// violation.
 			if isMoneyDefinition(value) {
 				return
 			}
@@ -137,9 +136,8 @@ func checkSpec(path string) ([]finding, error) {
 				if filepath.Base(s.Ref) == moneyComponent {
 					continue
 				}
-				// A monetary property that carries no type at all is a composed schema
-				// (allOf, oneOf) or a free-form object, neither of which this can read as
-				// a money shape. Reporting it is right: the reader has to say which.
+				// A monetary property with no type at all is a composed schema such as allOf or oneOf, or a free-form object.
+				// This cannot read either as a money shape. The report is right: the author has to say which one it is.
 				msg := fmt.Sprintf(
 					"%q is a monetary property but is %s, not $ref: %s",
 					name.Value,
@@ -153,9 +151,9 @@ func checkSpec(path string) ([]finding, error) {
 	return found, nil
 }
 
-// isMoneyDefinition reports whether a `properties` mapping is the Money component
-// itself, recognised by its members rather than by the schema's name — a spec is
-// free to call it something else, and what makes it Money is amount + currency.
+// isMoneyDefinition reports whether a `properties` mapping is the Money component itself.
+// It is recognised by its members, not by the schema's name: a spec can use another name, and amount with currency
+// makes it Money.
 func isMoneyDefinition(properties *yaml.Node) bool {
 	var amount, currency bool
 	for i := 0; i < len(properties.Content); i += 2 {
@@ -176,7 +174,7 @@ func describeType(t string) string {
 	return "type: " + t
 }
 
-// walkYAML calls fn for every key/value pair in every mapping in the document.
+// walkYAML calls fn for every key and value pair in every mapping in the document.
 func walkYAML(n *yaml.Node, fn func(key string, value *yaml.Node)) {
 	if n == nil {
 		return
@@ -191,12 +189,12 @@ func walkYAML(n *yaml.Node, fn func(key string, value *yaml.Node)) {
 	}
 }
 
-// goSkip are trees this cannot speak to: the money package implements the type, generated code mirrors a checked
-// source, and vendored code is not ours.
+// goSkip are trees that this does not cover: the money package implements the type, generated code mirrors a checked
+// source,
+// and vendored code is not ours.
 var goSkip = []string{
 	"libs/go/money",
-	// This file names the thing it forbids, in the pattern and in the explanation
-	// of why the pattern exists.
+	// This file names what it forbids, in the pattern and in the reason for the pattern.
 	"tools/lint-money",
 	"libs/go/sdks",
 	"internal/store",
@@ -208,8 +206,7 @@ var goSkip = []string{
 // floatTypes are the two types the rule names outright.
 var floatTypes = map[string]bool{"float32": true, "float64": true}
 
-// centsPattern matches an identifier that names minor units — the representation
-// the shared type replaced.
+// centsPattern matches an identifier that names minor units, the representation that the shared type replaced.
 var centsPattern = regexp.MustCompile(`(?i)cents`)
 
 func checkGo() ([]finding, error) {
@@ -230,8 +227,7 @@ func checkGo() ([]finding, error) {
 	return found, nil
 }
 
-// checkGoFile reports the two Go-side shapes: a float typed money value, and an
-// identifier that names minor units.
+// checkGoFile reports the two Go-side shapes: a money value typed as a float, and an identifier that names minor units.
 func checkGoFile(fset *token.FileSet, path string, file *ast.File) []finding {
 	var found []finding
 
@@ -260,7 +256,7 @@ func checkGoFile(fset *token.FileSet, path string, file *ast.File) []finding {
 
 func checkGoName(name string, typ ast.Expr, pos token.Pos, report func(token.Pos, string)) {
 	if centsPattern.MatchString(name) {
-		report(pos, fmt.Sprintf("%q names minor units; a monetary value is money.Amount", name))
+		report(pos, fmt.Sprintf("%q names minor units. A monetary value is money.Amount", name))
 		return
 	}
 	if !isMoneyName(name) {
@@ -268,15 +264,14 @@ func checkGoName(name string, typ ast.Expr, pos token.Pos, report func(token.Pos
 	}
 	ident, ok := typ.(*ast.Ident)
 	if ok && floatTypes[ident.Name] {
-		report(pos, fmt.Sprintf("%q is monetary and %s; use money.Amount", name, ident.Name))
+		report(pos, fmt.Sprintf("%q is monetary and %s. Use money.Amount", name, ident.Name))
 	}
 }
 
-// tsSkip mirrors goSkip: generated clients restate a spec that is checked at its
-// source, and build output is not source at all.
+// tsSkip matches goSkip: generated clients repeat a spec that is checked at its source, and build output is not source.
 var tsSkip = []string{
-	// The counterpart of the money package exclusion: libs/ts/money IMPLEMENTS the
-	// type, so its own members are the shape rather than a violation of it.
+	// The counterpart of the money package exclusion: libs/ts/money implements the type, so its own members are the
+	// shape and not a violation.
 	"libs/ts/money",
 	"libs/ts/sdks",
 	"node_modules",
@@ -286,8 +281,8 @@ var tsSkip = []string{
 	"playwright-report",
 }
 
-// tsMoneyField matches an object-type member or literal whose name is monetary and
-// whose value is a number: `price: number`, `total_cents: 1299`.
+// tsMoneyField matches an object-type member or literal whose name is monetary and whose value is a number:
+// `price: number`, `total_cents: 1299`.
 var tsMoneyField = regexp.MustCompile(`(?i)\b([a-z_][a-z0-9_]*)\s*\??\s*:\s*(number\b|-?[0-9])`)
 
 func checkTypeScript() ([]finding, error) {
@@ -307,15 +302,13 @@ func checkTypeScript() ([]finding, error) {
 	return found, nil
 }
 
-// checkTypeScriptFile is textual where the Go side is syntactic. TypeScript has no
-// standard-library parser to reach for, and the shape being looked for — a name and
-// a number on the same line — survives the loss of structure.
+// checkTypeScriptFile is textual, where the Go side is syntactic. TypeScript has no standard-library parser.
+// The shape it looks for, a name and a number on the same line, survives the loss of structure.
 func checkTypeScriptFile(path, source string) []finding {
 	var found []finding
 
 	for i, line := range strings.Split(source, "\n") {
-		// A comment is prose about money, not money. The check is textual here, so
-		// the exclusion has to be textual too.
+		// A comment is prose about money, not money. The check is textual here, so the exclusion is textual too.
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "*") {
 			continue
@@ -328,7 +321,7 @@ func checkTypeScriptFile(path, source string) []finding {
 			hit := finding{
 				file: path,
 				line: i + 1,
-				msg:  fmt.Sprintf("%q is a monetary value as a number; use Money from @libs/money", name),
+				msg:  fmt.Sprintf("%q is a monetary value as a number. Use Money from @libs/money", name),
 			}
 			found = append(found, hit)
 		}
@@ -336,9 +329,9 @@ func checkTypeScriptFile(path, source string) []finding {
 	return found
 }
 
-// sourceFiles lists the committed files with one of these extensions, outside the
-// skipped trees. repo.Files rather than a walk: a gitignored build output is not
-// source, and a gate whose verdict depends on what is lying in the tree is not one.
+// sourceFiles lists the committed files with one of these extensions, outside the skipped trees.
+// It uses repo.Files, not a walk: a gitignored build output is not source, and a gate must not depend on stray files
+// in the tree.
 func sourceFiles(exts, skip []string) ([]string, error) {
 	files, err := repo.Files()
 	if err != nil {
@@ -354,16 +347,16 @@ func sourceFiles(exts, skip []string) ([]string, error) {
 	return out, nil
 }
 
-// isMoneyName reports whether an identifier names a monetary value. The match is on
-// WORDS, so `total_amount` and `unitPrice` match while `totals` and `pricing` do
-// not — a substring match makes `pricing_enabled` a monetary field.
+// isMoneyName reports whether an identifier names a monetary value. The match is on words, so `total_amount` and
+// `unitPrice` match,
+// and `totals` and `pricing` do not. A substring match would make `pricing_enabled` a monetary field.
 func isMoneyName(name string) bool {
 	words := splitIdentifier(name)
 	if len(words) == 0 {
 		return false
 	}
-	// The last word decides what the identifier IS; the earlier ones qualify it.
-	// `total_count` is a count of something, `order_total` is a total.
+	// The last word decides what the identifier is, and the earlier words qualify it.
+	// `total_count` is a count of something, and `order_total` is a total.
 	if slices.Contains(countWords, words[len(words)-1]) {
 		return false
 	}

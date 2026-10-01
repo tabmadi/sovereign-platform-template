@@ -1,10 +1,10 @@
-# OpenAPI 3.1 lint ruleset for all services (ADR-0303). Spectral-format ruleset,
-# run by vacuum (`mise run lint:openapi`). `spectral:oas` is the built-in core ruleset.
+# OpenAPI 3.1 lint ruleset for all services, per ADR-0303. A Spectral-format ruleset that vacuum runs through `mise run lint:openapi`.
+# `spectral:oas` is the built-in core ruleset.
 extends:
   - "spectral:oas"
 
 rules:
-  # Per-property examples stay off: maintenance on every scaffolded field for no consumer.
+  # Examples for each property stay off: they add upkeep on every scaffolded field, and nothing reads them.
   oas3-missing-example: off
   operation-operationId: error
   operation-tag-defined: error
@@ -12,11 +12,11 @@ rules:
   info-contact: off
   info-license: off
 
-  # Breaking-change hygiene — every operation must declare its security and a 2xx + 4xx response.
+  # Breaking-change hygiene: every operation must declare its security, a 2xx response, and a 4xx response.
   operation-success-response: error
 
   operation-operationId-valid-in-url:
-    description: operationId must be camelCase, ASCII, no spaces
+    description: operationId must be camelCase and ASCII, with no spaces
     given: $.paths.*[get,post,put,patch,delete].operationId
     severity: error
     then:
@@ -24,9 +24,8 @@ rules:
       functionOptions:
         match: "^[a-z][a-zA-Z0-9]+$"
 
-  # Enforce snake_case property names (this project's wire-format convention).
-  # Disable the built-in camelCase rule and replace it with the snake_case
-  # variant of the same function, so non-snake_case names still warn.
+  # Enforce snake_case property names, the wire-format convention of this project.
+  # The built-in camelCase rule is replaced with the snake_case form of the same function, so other names still warn.
   camel-case-properties: off
   snake-case-properties:
     description: schema property names must be snake_case
@@ -38,10 +37,10 @@ rules:
       functionOptions:
         type: snake
 
-  # The API mock serves response examples verbatim and Scalar renders the same values (ADR-0600); without one a mocked response is schema-generated.
-  # The check runs on the resolved document, so a $ref to a component carrying an `example` satisfies it.
+  # The API mock serves response examples unchanged, and Scalar renders the same values, per ADR-0600.
+  # Without one, the mock generates a response from the schema. The check runs on the resolved document, so a $ref to a component with an `example` passes.
   response-example-required:
-    description: every 2xx response schema must carry an `example` — the API mock serves it and the developer portal renders it
+    description: every 2xx response schema must have an `example`. The API mock serves it, and the developer portal renders it
     given: $.paths.*[get,post,put,patch,delete].responses['200','201','202'].content.*.schema
     resolved: true
     severity: error
@@ -49,11 +48,11 @@ rules:
       field: example
       function: truthy
 
-  # The mock serves an example verbatim (ADR-0600), so one that no longer validates feeds the UI a shape the real API cannot return.
+  # The mock serves an example unchanged, per ADR-0600. An example that fails validation gives the UI a shape the real API cannot return.
   oas3-valid-schema-example: error
   oas3-example-external-check: error
 
-  # Every path must have a tag for grouping
+  # Every path must have a tag for grouping.
   must-have-tag:
     description: every operation must have at least one tag
     given: $.paths.*[get,post,put,patch,delete]
@@ -62,9 +61,9 @@ rules:
       field: tags
       function: truthy
 
-  # admin-gen reads `x-admin: crud` on a tag and `action` on an operation (ADR-0401); a value in the wrong place is silently ignored.
+  # admin-gen reads `x-admin: crud` on a tag and `action` on an operation, per ADR-0401. It ignores a value in the wrong place with no warning.
   x-admin-operation-value:
-    description: "operation-level x-admin must be `action` (resource CRUD is marked with x-admin: crud on the tag)"
+    description: "operation-level x-admin must be `action`. Resource CRUD is marked with x-admin: crud on the tag"
     given: $.paths.*[*]['x-admin']
     severity: error
     then:
@@ -73,7 +72,7 @@ rules:
         values:
           - action
   x-admin-tag-value:
-    description: "tag-level x-admin must be `crud` (per-operation actions use x-admin: action on the operation)"
+    description: "tag-level x-admin must be `crud`. An action for one operation uses x-admin: action on the operation"
     given: $.tags[*]['x-admin']
     severity: error
     then:

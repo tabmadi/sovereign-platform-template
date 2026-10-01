@@ -1,6 +1,6 @@
-# Shared activity gate for the nightly full-tier suites. Re-running them against a commit that already passed
-# buys nothing: a red is flake or upstream drift, and a green is a result already held.
-# A reusable `workflow_call` rather than a composite action: it is a whole job with an output two workflows gate on.
+# The shared activity gate for the nightly full-tier suites. A new run on a commit that already passed adds nothing.
+# A red is flake or upstream drift, and a green is a result the forge already has.
+# A reusable `workflow_call`, not a composite action: it is a whole job with an output that two workflows gate on.
 name: nightly-gate
 
 on:
@@ -12,13 +12,13 @@ on:
         type: string
     outputs:
       run:
-        description: "'true' when the nightly suite should proceed."
+        description: "`true` when the nightly suite runs."
         value: ${{ jobs.gate.outputs.run }}
 
 permissions:
   contents: read
-  # Reading the caller's own run history: the skip is only safe when the last run PASSED, and that fact lives in
-  # the forge. A caller grants this on the calling job, or the workflow is rejected before it starts.
+  # It reads the caller's run history: a skip is safe only when the last run passed, and the forge holds that fact.
+  # A caller grants this on the calling job. Otherwise the forge rejects the workflow before it starts.
   actions: read
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
     outputs:
       run: ${{ steps.check.outputs.run }}
     steps:
-      # Full history: --since needs commits to look at, and a shallow clone has one.
+      # Full history: --since needs commits, and a shallow clone has only one.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0

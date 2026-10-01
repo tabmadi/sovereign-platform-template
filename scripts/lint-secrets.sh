@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Plaintext-secret scan (ADR-0202). The defect survives its own fix: reverting the file leaves the value in history.
+# Plaintext-secret scan, per ADR-0202. A revert does not fix the defect, because the value stays in history.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

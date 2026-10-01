@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Generate a project from this working tree and prove it reaches a serving cluster
-# (ADR-0106) — what "ready to use" means. Needs Docker, so it runs in CI, never in
-# the template's own `check`.
+# Generate a project from this working tree and prove that it reaches a serving cluster, per ADR-0106. This defines `ready to use`.
+# It needs Docker, so it runs in CI and never in the template's own `check`.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -9,8 +8,7 @@ DATA_FILE="${ACCEPTANCE_DATA:-test/template/fixtures/valid/defaults.yml}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# From the working tree, never the published tag: a release that moves while the
-# template does not is the failure this job exists to catch.
+# From the working tree, never the published tag. This job exists to catch a release that moves while the template does not.
 step "snapshotting the working tree"
 SRC="$WORK/template"
 mkdir -p "$SRC"

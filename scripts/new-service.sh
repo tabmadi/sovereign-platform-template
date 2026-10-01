@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scaffold a new service from services/_template/ (ADR-0101).
+# Scaffold a new service from services/_template/, per ADR-0101.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -18,7 +18,7 @@ find "$DEST" -name "*.go" -print0 | while IFS= read -r -d '' f; do
   sed -i '/^\/\/go:build _template$/{N;d;}' "$f"
 done
 
-# Substitute the service name in obvious places.
+# Put the service name in the obvious places.
 find "$DEST" -type f \( -name "*.go" -o -name "*.yaml" -o -name "*.md" -o -name "Dockerfile" -o -name "*.toml" \) \
   -exec sed -i "s/_template/${NAME}/g" {} +
 
@@ -28,14 +28,14 @@ mv "${DEST}/migrations/"*_init.sql "${DEST}/migrations/${ts}_init.sql"
 
 ok "created ${DEST}. Next:"
 detail "  1. Register a local port in scripts/lib/ports.sh, and set the same PORT in"
-detail "     ${DEST}/.mise.toml (it ships 80XX and will fail lint until you do)"
-detail "  2. Edit ${DEST}/openapi.yaml — define your routes"
+detail "     ${DEST}/.mise.toml. It ships 80XX and fails lint until you do"
+detail "  2. Edit ${DEST}/openapi.yaml to define your routes"
 detail "  3. mise run gen"
 detail "  4. Implement handlers/ and wire them in cmd/server/main.go"
-detail "  5. Trim dep:* to what you actually read, and add svc:* for every service"
-detail "     you call over HTTP — an undeclared callee fails at runtime, not startup"
-detail "  6. Add infra/gitops/services/<env>/values/${NAME}.yaml for EVERY env —"
-detail "     the ApplicationSet generates one Argo app per values file, so a missing"
-detail "     one means you are silently absent from that environment"
+detail "  5. Keep only the dep:* tasks you read, and add svc:* for every service"
+detail "     you call over HTTP. An undeclared callee fails at runtime, not at startup"
+detail "  6. Add infra/gitops/services/<env>/values/${NAME}.yaml for every env."
+detail "     The ApplicationSet generates one Argo app for each values file, so with a"
+detail "     missing file the service is absent from that environment, with no error"
 printf '\n'
-detail "Then: mise run lint:service-contract   # checks all of the above (ADR-0205)"
+detail "Then: mise run lint:service-contract   # checks all of the above, per ADR-0205"

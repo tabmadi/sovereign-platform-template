@@ -1,15 +1,14 @@
 [tools]
 go = "1.26.4"
 bun = "1.4.2"
-# node is NOT pinned here — it is an island tool (ADR-0100/ADR-0601). Its consumers
-# are test/e2e/ (the Playwright runner) and apps/admin (Lowdefy's optional local dev
-# loop), so each pins it in its own config against NODE_VERSION below. See [env].
+# node is not pinned here. It is an island tool, per ADR-0100 and ADR-0601.
+# test/e2e/ for Playwright and apps/admin for the optional Lowdefy dev loop each pin it to NODE_VERSION in [env].
 
 dbmate = "2.33.0"
 sqlc = "1.31.1"
 "github:quarylabs/sqruff" = "0.38.0"
 
-# Workflow determinism (ADR-0302): a workflow function that reads the clock, the map iteration order, or the network replays into a different history than it recorded.
+# Workflow determinism, per ADR-0302. A workflow that reads the clock, the map order, or the network replays into a different history.
 "go:go.temporal.io/sdk/contrib/tools/workflowcheck" = "0.5.0"
 
 "go:github.com/ogen-go/ogen/cmd/ogen" = "1.22.0"
@@ -20,21 +19,22 @@ biome = "2.5.0"
 
 helm = "4.2.2"
 kubectl = "1.36.2"
-# CLI pinned to the server appVersion (infra/helm/platform/argocd). cluster:up full
-# drives convergence with `argocd app wait --core` (talks to the Application CRDs
-# via kubeconfig, no argocd-server login).
+# The CLI is pinned to the server appVersion in infra/helm/platform/argocd.
+# cluster:up full waits for convergence with `argocd app wait --core`. It reads the Application CRDs through kubeconfig, with no argocd-server login.
 argocd = "3.4.4"
 cilium-cli = "0.19.4"
 terraform = "1.15.6"
 kind = "0.32.0"
-# talosctl configures every node in a provisioned environment (ADR-0200); no local tier applies a machine config. The version tracks the Talos release infra/talos/ is written against.
+# talosctl configures every node in a provisioned environment, per ADR-0200. No local tier applies a machine config.
+# The version follows the Talos release that infra/talos/ targets.
 talosctl = "1.13.5"
 
-# Dependency updates and template propagation (ADR-0106). renovate is an npm package, so it resolves Node — the one place outside the three islands where Node appears.
+# Dependency updates and template propagation, per ADR-0106. renovate is an npm package, so it resolves Node.
+# This is the one place outside the three islands where Node appears.
 "pipx:copier" = "9.17.1"
-# A reviewed supply-chain exception, not a bypass: each pin below is a package mise's npm backend reports as a
-# trust downgrade, verified against the registry and explained upstream. Scoped to the exact package@version,
-# so any other downgrade still fails the install. Git holds each review; delete an entry rather than widening it.
+# A reviewed supply-chain exception. mise's npm backend reports each package below as a trust downgrade, checked against the registry.
+# Each entry covers the exact package@version, so any other downgrade still fails the install.
+# Git holds each review. Delete an entry, and never widen it.
 "npm:renovate" = { version = "44.26.0", trust_policy_excludes = [
   "@yarnpkg/libzip@3.2.2",
   "@smithy/core@3.33.0",
@@ -45,26 +45,24 @@ age = "1.3.1"
 sops = "3.13.1"
 gitleaks = "8.30.1"
 
-# Supply chain (ADR-0104), covering OS packages, language dependencies and IaC. Its secret scanner stays off: gitleaks owns that question.
+# Supply chain, per ADR-0104: OS packages, language dependencies, and IaC. Its secret scanner stays off, because gitleaks does that job.
 trivy = "0.73.0"
-# Image signing and verification (ADR-0104); CI signs with the same binary a developer verifies with.
-# 2.x deliberately: cosign 3 makes the Sigstore bundle format mandatory, and the Kyverno path that reads one
-# initialises the public TUF root, which is the third-party trust root ADR-0104 refused.
+# Image signing and verification, per ADR-0104. CI signs with the same binary that a developer verifies with.
+# Keep 2.x: cosign 3 requires the Sigstore bundle format. Kyverno reads it through the public TUF root, which ADR-0104 rejects.
 cosign = "2.6.5"
-# Pushes the frontend's source-map archive to the registry as an OCI artefact (ADR-0503, ADR-0105).
+# Pushes the frontend's source-map archive to the registry as an OCI artefact, per ADR-0503 and ADR-0105.
 oras = "1.3.3"
-# The SBOM half of the same rule: an SPDX bill of materials attached to each image
-# as a cosign attestation, so it travels with the image rather than beside it.
+# The SBOM part of the same rule: an SPDX bill of materials attached to each image as a cosign attestation.
+# So it moves with the image.
 syft = "1.51.0"
 
-# JSON wrangling for runtime glue scripts (ops:grant). Static policy checks use
-# Go tools/ instead; this is the one reproducible binary for shell-side JSON.
+# JSON handling for runtime glue scripts such as ops:grant. Static policy checks use the Go tools/ instead.
 jq = "1.8.1"
-# YAML counterpart of jq, for the prod-promotion glue (promote-on-release writes
-# image digests into the prod values files — ADR-0103). Same rationale as jq.
+# The YAML version of jq, for the prod-promotion glue, per ADR-0103.
+# promote-on-release writes image digests into the prod values files.
 "aqua:mikefarah/yq" = "4.47.1"
 
-# Authorization (OpenFGA model validation + ops-grant tuple writes)
+# Authorization: OpenFGA model validation and ops-grant tuple writes.
 "github:openfga/cli" = "0.7.13"
 
 lefthook = "2.1.9"
@@ -72,24 +70,21 @@ cocogitto = "7.0.0"
 act = "0.2.89"
 golangci-lint = "2.12.2"
 rumdl = "0.2.18"
-# Shell scripts are first-class here (all glue is bash, ADR-0101) — shellcheck
-# lints, shfmt (mvdan/sh) formats. Wired into lint:shell / format:shell and the
-# pre-commit hook so a scripts/ edit gets the same gate as Go/TS/Markdown.
+# All glue is bash, per ADR-0101. shellcheck lints and shfmt formats, through lint:shell, format:shell, and the pre-commit hook.
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:mvdan/sh" = "3.13.1"
 
 [env]
 GOFLAGS = "-mod=readonly"
 CGO_ENABLED = "0"
-# Single source for the island Node version. Islands pin `node = "{{env.NODE_VERSION}}"`
-# in their own config rather than repeating the number — root [env] resolves into a
-# nested config's [tools], so there is exactly one place to bump.
+# The single source for the island Node version. Islands pin `node = "{{env.NODE_VERSION}}"` in their own config.
+# The root [env] resolves into a nested config's [tools], so there is one place to bump.
 NODE_VERSION = "22"
 
 
-# Task naming: `group:member`, group = the axis you list/run together (ADR-0101).
-# `activity:target` for fan-out families with an umbrella (gen, lint, format);
-# `resource:operation` for lifecycles (cluster, service, db).
+# Task names are `group:member`, per ADR-0101. The group is what you list or run together.
+# `activity:target` is for families with an umbrella task: gen, lint, format.
+# `resource:operation` is for lifecycles: cluster, service, db.
 
 [tasks.setup]
 description = "The git hooks, installed from .lefthook.yml."
@@ -101,20 +96,20 @@ description = "The workspace's node_modules."
 run = "bun install --frozen-lockfile"
 
 [tasks.bootstrap]
-description = "One command for a fresh checkout (ADR-0106): hooks, dependencies, .env, and in a generated project this engineer's SOPS key and the project's own local-tier key. Idempotent."
+description = "One command for a fresh checkout, per ADR-0106: hooks, dependencies, and .env. In a generated project it also creates this engineer's SOPS key and the project's local-tier key. Idempotent."
 depends = ["setup", "setup:node"]
 run = "bash scripts/bootstrap.sh"
 
-# One entrypoint, one verb per task (scripts/cluster.sh). The tier is an argument,
-# not a separate command: both are kind, one node each, and what separates them is
-# which workloads run and what drives them (ADR-0600, ADR-0205).
+# One entrypoint, scripts/cluster.sh, with one verb for each task. The tier is an argument, per ADR-0600 and ADR-0205.
+# Both tiers are kind with one node. They differ in the workloads that run and what drives them.
 [tasks."cluster:up"]
-description = "Create, resume or repair a tier."
+description = "Create, resume, or repair a tier."
 run = "bash scripts/cluster.sh up"
 
-# One task per label slice of infra/local/deps.yaml. mise dedupes the shared cluster:up edge, and each fast-exits when already Ready.
+# One task for each label slice of infra/local/deps.yaml. mise runs the shared cluster:up once.
+# Each task exits at once when its slice is already Ready.
 [tasks."dep:postgres"]
-description = "In the floor already (Kratos needs a store); declared anyway so a service's dependencies read as its own, not as something base happens to provide."
+description = "Already in the floor, because Kratos needs a store. It is declared anyway, so a service lists its own dependencies and does not rely on base."
 depends = ["cluster:up"]
 run = "bash scripts/dep-apply.sh postgres"
 
@@ -127,12 +122,12 @@ depends = ["cluster:up"]
 run = "bash scripts/dep-apply.sh openfga"
 
 [tasks."dep:db-secrets"]
-description = "The per-service DB secrets the service chart mounts via envFrom."
+description = "The DB secrets for each service, which the service chart mounts through envFrom."
 depends = ["cluster:up"]
 run = "bash scripts/dep-apply.sh db-secrets"
 
-# `dep:*` covers the infrastructure a service needs; these cover the other services it calls (ADR-0205, ADR-0600).
-# Each makes the callee answer on its registered local port. Deploying is the default; run a callee natively and svc:* stays out of the way.
+# `dep:*` covers the infrastructure a service needs. These tasks cover the services it calls, per ADR-0205 and ADR-0600.
+# Each makes the callee answer on its registered local port. The default deploys it. A callee that runs natively makes svc:* do nothing.
 [tasks."svc:authz"]
 depends = ["cluster:up"]
 run = "bash scripts/svc-apply.sh authz"
@@ -154,12 +149,12 @@ depends = ["cluster:up"]
 run = "bash scripts/svc-apply.sh payment"
 
 [tasks."cluster:glue"]
-description = "Re-stamp the host-only edge glue: the catch-all `/` → host `next dev` :3000 and the docker-bridge EndpointSlice behind it."
+description = "Apply the host-only edge glue again: the catch-all `/` → host `next dev` :3000, and the docker-bridge EndpointSlice behind it."
 hide = true
 run = "bash scripts/cluster.sh glue"
 
 [tasks."cluster:stop"]
-description = "Halt the tier's nodes but KEEP them: the image cache and volumes survive, so the next cluster:up resumes without re-pulling."
+description = "Stop the tier's nodes but keep them. The image cache and volumes stay, so the next cluster:up resumes without a new pull."
 run = "bash scripts/cluster.sh stop"
 
 [tasks."cluster:down"]
@@ -167,113 +162,112 @@ description = "Delete the tier's cluster and its image cache."
 run = "bash scripts/cluster.sh down"
 
 [tasks."cluster:heal"]
-description = "Recover a cluster wedged by a host reboot: Docker replays the node raw, which can leave Cilium's datapath half-restored (pods cannot reach the API) and the docker-bridge address stale under."
+description = "Recover a cluster after a host reboot. Docker restarts the node raw, which can leave the Cilium datapath half-restored and the docker-bridge address stale. Then pods cannot reach the API."
 run = "bash scripts/cluster.sh heal"
 
 [tasks."cluster:status"]
-description = "What is running in the active tier and where to reach it: nodes, the registry, the Argo applications or helm releases, and anything not Running."
+description = "What runs in the active tier and how to reach it: nodes, the registry, the Argo applications or helm releases, and anything not Running."
 run = "bash scripts/cluster.sh status"
 
 [tasks.verify]
-description = "Assert a tier is up and serving (ADR-0600): the active local tier, or with VERIFY_HOST=<apex> the deployed environment in the current kubectl context, where it also walks a purchase, the escalation probe, and mail. The acceptance job calls it against every generated project."
+description = "Check that a tier is up and serving, per ADR-0600. The default is the active local tier. With VERIFY_HOST=<apex> it checks the deployed environment in the current kubectl context. There it also runs a purchase, the escalation probe, and mail. The acceptance job runs it against every generated project."
 run = "bash scripts/verify.sh"
 
 [tasks."cluster:populate-zot"]
-description = "Mirror the first-party images into the full tier's in-cluster zot so its zot.ops console is not empty (ADR-0105)."
+description = "Mirror the first-party images into the full tier's in-cluster zot, so its zot.ops console is not empty, per ADR-0105."
 run = "bash scripts/populate-zot.sh"
 
-# OPT-IN and separate from every command above: nothing in scripts/cluster.sh knows
-# a proxy exists, so a direct network never runs this.
+# Opt-in, and separate from every command above. scripts/cluster.sh does not know about a proxy, so a direct network never runs this.
 [tasks."proxy:setup"]
-description = "Converge this machine for a proxied network, once, before the first cluster:up (docs/guide/http-proxy.md)."
+description = "Set up this machine for a proxied network, once, before the first cluster:up. See docs/guide/http-proxy.md."
 run = "bash scripts/proxy-setup.sh"
 
 
 [tasks."argo:pause"]
-description = "Open a live-patch window: ArgoCD selfHeal reverts any direct edit to a synced resource within seconds, so scale the application-controller to 0 before kubectl-patching / helm-upgrading the c."
+description = "Open a live-patch window. ArgoCD selfHeal reverts a direct edit to a synced resource within seconds. So scale the application-controller to 0 before a kubectl patch or a helm upgrade."
 run = "bash scripts/argo.sh pause"
 
 [tasks."argo:resume"]
-description = "Close the live-patch window and hand the cluster back to GitOps."
+description = "Close the live-patch window and give the cluster back to GitOps."
 run = "bash scripts/argo.sh resume"
 
 [tasks."dev:forward"]
-description = "Port-forward the inner-loop deps so a natively-run service can reach them."
+description = "Port-forward the inner-loop deps, so a service that runs natively can reach them."
 run = "bash scripts/dev-forward.sh"
 
 [tasks."dev:frontend"]
-description = "The host-run `next dev` the local edge routes `/` to (ADR-0400/0016)."
+description = "The host-run `next dev` that the local edge routes `/` to, per ADR-0400."
 env = { EDGE_PUBLIC_ORIGIN = "https://dev.localtest.me:8443" }
 run = "bash scripts/dev-frontend.sh"
 
 [tasks."mock:start"]
-description = "The API mock for UI work (ADR-0600): Prism serving the committed `internal.json` projection, behind the real edge and its real middleware chain."
+description = "The API mock for UI work, per ADR-0600. Prism serves the committed `internal.json` projection behind the real edge and its real middleware chain."
 run = "bash scripts/mock.sh start"
 
 [tasks."mock:stop"]
 run = "bash scripts/mock.sh stop"
 
 [tasks."mock:logs"]
-description = "The interesting output: a request that matched no operation, and a body that failed the spec's own validation."
+description = "The useful output: a request that matched no operation, and a body that failed the spec's own validation."
 run = "bash scripts/mock.sh logs"
 
 [tasks."db:migrate"]
 run = "bash scripts/db-migrate.sh"
 
 [tasks."auth:seed"]
-description = "Seed the committed deterministic test identities (ADR-0601) into a running Kratos."
+description = "Seed the committed deterministic test identities into a running Kratos, per ADR-0601."
 run = "bash scripts/identity-seed.sh"
 
 [tasks.gen]
-description = "No gateway codegen — the edge (Traefik + Oathkeeper) does not consume the OpenAPI spec (ADR-0305)."
+description = "No gateway codegen. The edge, Traefik and Oathkeeper, does not read the OpenAPI spec, per ADR-0305."
 depends = ["gen:shared-components", "gen:openapi", "gen:openapi-public", "gen:zod", "gen:sqlc", "gen:admin", "gen:adr-rules", "gen:data-classes", "gen:image-allowlist", "gen:build-path"]
 
 [tasks."gen:adr-rules"]
-description = "Two documents are views over the ADR set's Rules sections: the rules index and the security baseline (ADR-0203)."
+description = "Two documents are views over the Rules sections of the ADR set: the rules index and the security baseline, per ADR-0203."
 run = "go run ./tools/adr-rules"
 
 [tasks."gen:build-path"]
-description = "The machinery table in docs/reference/build-path.md, from the tasks a workflow or hook reaches (ADR-0000)."
+description = "The machinery table in docs/reference/build-path.md, from the tasks that a workflow or hook reaches, per ADR-0000."
 run = "bash scripts/gen-build-path.sh"
 
 [tasks."gen:data-classes"]
-description = "The data-class and retention registry (ADR-0301) — the checklist a new service is reviewed against."
+description = "The data-class and retention registry, per ADR-0301. A new service is reviewed against this checklist."
 run = "go run ./tools/data-classes"
 
 [tasks."gen:zod"]
-description = "The runtime validation schemas generated from the OpenAPI specs for the TypeScript apps (ADR-0303)."
+description = "The runtime validation schemas for the TypeScript apps, generated from the OpenAPI specs, per ADR-0303."
 depends = ["gen:shared-components"]
-# Request bodies only: response shapes are already TypeScript types from openapi-typescript, and a zod schema is for something a form must validate (ADR-0400).
+# Request bodies only, per ADR-0400. openapi-typescript already types the responses, and a zod schema is for form validation.
 run = "go run ./tools/zod-gen"
 
 [tasks."gen:shared-components"]
-description = "Writes the canonical error envelope, money, and timestamp components into every spec from tools/codegen/shared-components.yaml (ADR-0303)."
+description = "Writes the canonical error envelope, money, and timestamp components from tools/codegen/shared-components.yaml into every spec, per ADR-0303."
 run = "go run ./tools/shared-components"
 
 [tasks."gen:openapi"]
-description = "The Go and TypeScript clients and servers generated from each service's OpenAPI spec (ADR-0303)."
+description = "The Go and TypeScript clients and servers, generated from each service's OpenAPI spec, per ADR-0303."
 depends = ["gen:shared-components"]
 run = "bash scripts/gen-openapi.sh"
 
 [tasks."gen:admin"]
-description = "Scaffold the Lowdefy admin pages from the OpenAPI specs (ADR-0401)."
+description = "Scaffold the Lowdefy admin pages from the OpenAPI specs, per ADR-0401."
 depends = ["gen:openapi"]
 run = "bash scripts/gen-admin.sh"
 
 [tasks."gen:openapi-public"]
-description = "Filtered OpenAPI projections for the Scalar developer portals (ADR-0303/0009/0014)."
+description = "Filtered OpenAPI projections for the Scalar developer portals, per ADR-0303."
 run = "bash scripts/gen-openapi-public.sh"
 
 [tasks."gen:authz-model"]
-description = "Regenerate infra/auth/openfga/model.json from the canonical model.fga DSL (ADR-0304)."
+description = "Regenerate infra/auth/openfga/model.json from the canonical model.fga DSL, per ADR-0304."
 run = "fga model transform --file infra/auth/openfga/model.fga --output-format json | jq -S . > infra/auth/openfga/model.json"
 
 [tasks."gen:sqlc"]
-description = "The typed Go database access generated from each service's queries (ADR-0300)."
+description = "The typed Go database access, generated from each service's queries, per ADR-0300."
 run = "bash scripts/gen-sqlc.sh"
 
 [tasks."gen:clean"]
-description = "Wipe generated SDKs and regenerate, pruning orphans."
+description = "Delete the generated SDKs and regenerate them. This removes orphans."
 run = """
 rm -rf libs/go/sdks/* libs/ts/sdks/*
 mise run gen
@@ -283,60 +277,60 @@ mise run gen
 depends = ["format:go", "format:ts", "format:md", "format:shell"]
 
 [tasks."format:go"]
-description = "Go formatting, golangci-lint's formatters in place (ADR-0100)."
+description = "Go formatting: golangci-lint's formatters, in place, per ADR-0100."
 run = "golangci-lint fmt ./... ./tools/..."
 
 [tasks."format:ts"]
-description = "TypeScript, JSON and CSS formatting, biome in place (ADR-0100)."
+description = "TypeScript, JSON, and CSS formatting: biome, in place, per ADR-0100."
 run = "biome format --write ."
 
 [tasks."format:md"]
-description = "rumdl is the only Markdown formatter — never the IDE's."
+description = "rumdl is the only Markdown formatter. Never use the IDE's formatter."
 run = "rumdl fmt ."
 
 [tasks."format:shell"]
-description = "shfmt (mvdan/sh) is the shell formatter, over the same file set lint:shell reads (scripts/lib/sh-files.sh)."
+description = "shfmt from mvdan/sh formats shell, over the same file set that lint:shell reads, from scripts/lib/sh-files.sh."
 run = "bash scripts/format-shell.sh"
 
 [tasks.lint]
 depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
 
 [tasks."lint:go"]
-description = "Go correctness and style: golangci-lint's configured analysers over every module (ADR-0100)."
-# In CI the cache lives in the job's temp directory: a runner that keeps its home between jobs would otherwise replay
-# results naming files under an earlier job's checkout, and the generated-file filter cannot read those to exclude them.
+description = "Go correctness and style: golangci-lint's configured analysers over every module, per ADR-0100."
+# In CI the cache is in the job's temp directory. A runner that keeps its home between jobs replays results from an earlier checkout.
+# The generated-file filter cannot read those files, so it cannot exclude them.
 run = '[ -z "${RUNNER_TEMP:-}" ] || export GOLANGCI_LINT_CACHE="$RUNNER_TEMP/golangci-lint"; golangci-lint run ./... ./tools/...'
 
 [tasks."lint:gostyle"]
-description = "Custom layout-based Go style analyzers."
+description = "Custom Go style analyzers based on layout."
 run = "go run ./tools/gostyle ./..."
 
 [tasks."lint:ts"]
-description = "TypeScript, JSON and CSS: biome lint and format, warnings as errors (ADR-0100)."
+description = "TypeScript, JSON, and CSS: biome lint and format, with warnings as errors, per ADR-0100."
 run = "biome ci --error-on-warnings ."
 
 [tasks."lint:template-build"]
-description = "`go build ./...` cannot see services/_template: every hand-written file there carries a //go:build _template constraint, which scripts/new-service.sh strips when it copies the tree."
+description = "`go build ./...` cannot see services/_template. Every hand-written file there has a //go:build _template constraint, and scripts/new-service.sh removes it when it copies the tree."
 run = "go vet -tags _template ./services/_template/cmd/... ./services/_template/internal/..."
 
 [tasks."lint:helm-deps"]
-description = "`helm dependency build` needs the repo registered in the caller's helm config; `update` resolves it from Chart.yaml."
+description = "`helm dependency build` needs the repo registered in the caller's helm config. `update` resolves it from Chart.yaml."
 run = "bash scripts/lint-helm-deps.sh"
 
 [tasks."lint:sql"]
-description = "SQL: sqruff over every migration and sqlc query, and a column holding personal data carries its pii class (ADR-0300, ADR-0301)."
+description = "SQL: sqruff over every migration and sqlc query. A column with personal data has its pii class, per ADR-0300 and ADR-0301."
 run = "bash scripts/lint-sql.sh"
 
 [tasks."lint:openapi"]
-description = "OpenAPI contracts: every spec against the platform ruleset, and resource-prefix ownership across the set (ADR-0303)."
+description = "OpenAPI contracts: every spec against the platform ruleset, and resource-prefix ownership across the set, per ADR-0303."
 run = "bash scripts/lint-openapi.sh"
 
 [tasks."lint:service-contract"]
-description = "ADR-0205 gate: every service provides the same artifacts, because the platform DISCOVERS services through those artifacts."
+description = "ADR-0205 gate: every service provides the same artifacts, because the platform finds services through those artifacts."
 run = "bash scripts/lint-service-contract.sh"
 
 [tasks."lint:workspace-copies"]
-description = "A TS workspace member missing from the frontend image build fails `bun install` with \"Workspace not found\" — and only when the image is BUILT, which on the full tier is minutes into a cluste."
+description = "A TS workspace member that the frontend image build does not copy fails `bun install` with `Workspace not found`. This happens only at image build, which on the full tier is minutes into a cluster start."
 run = "bash scripts/lint-workspace-copies.sh"
 
 [tasks."lint:service-databases"]
@@ -344,115 +338,115 @@ description = "ADR-0300: a service that ships migrations has a database to run t
 run = "bash scripts/lint-service-databases.sh"
 
 [tasks."lint:ports"]
-description = "Local port registry gate (ADR-0205): ports unique, every service registered, and each service's .mise.toml binding what the registry assigns it."
+description = "The local port registry gate, per ADR-0205: ports are unique, every service is registered, and each service's .mise.toml uses the port the registry assigns."
 run = "bash scripts/lint-ports.sh"
 
 [tasks."lint:api-audience"]
-description = "Audience↔exposure gate (ADR-0303): a spec's info.x-audience must match whether the service is edge-exposed (public ⇔ has an /api route)."
+description = "The audience and exposure gate, per ADR-0303. A spec's info.x-audience is public only when the service has an /api route at the edge."
 run = "go run ./tools/lint-api-audience"
 
 [tasks."lint:service-deps"]
-description = "The inner loop's dependency graph, checked against the code (ADR-0600, ADR-0205)."
+description = "The inner loop's dependency graph, checked against the code, per ADR-0600 and ADR-0205."
 run = "go run ./tools/lint-service-deps"
 
 [tasks."lint:activity-register"]
-description = "Temporal registration gate (ADR-0302): every activity a workflow names as a string is registered on its service's worker."
+description = "The Temporal registration gate, per ADR-0302: every activity that a workflow names as a string is registered on its service's worker."
 run = "go run ./tools/lint-activity-register"
 
 [tasks."lint:authz-dual-write"]
-description = "ADR-0304's dual-write rule, statically: a tuple is written from an activity, never from a handler."
+description = "The ADR-0304 dual-write rule, checked statically: a tuple is written from an activity, never from a handler."
 run = "go run ./tools/lint-authz-dual-write"
 
 [tasks."lint:alert-severity"]
-description = "The alert-severity gate (ADR-0502)."
+description = "The alert-severity gate, per ADR-0502."
 run = "go run ./tools/lint-alert-severity"
 
 [tasks."lint:money"]
-description = "The monetary-value gate (ADR-0100, ADR-0300): a money-ish OpenAPI property is the shared `Money` component, no Go field or variable with a money-ish name is a float, and no TypeScript money."
+description = "The monetary-value gate, per ADR-0100 and ADR-0300. A money-like OpenAPI property is the shared `Money` component. No Go or TypeScript field or variable with a money-like name is a float."
 run = "go run ./tools/lint-money"
 
 [tasks."lint:naming"]
-description = "The resource-name grammar (ADR-0003): `{project}-{env}-{role}[-{n}]` across the Talos inventory, the sops recipients, and the GitOps overlays, with the role vocabulary read from the ADR's ow."
+description = "The resource-name grammar of ADR-0003, `{project}-{env}-{role}[-{n}]`, across the Talos inventory, the sops recipients, and the GitOps overlays. The role vocabulary comes from the ADR."
 run = "go run ./tools/lint-naming"
 
 [tasks."lint:resource-governance"]
-description = "ADR-0204 gate: renders every chart (each service separately) and checks the declared resources against the guardrails in infra/helm/platform/resource-governance BEFORE they reach a cluster."
+description = "ADR-0204 gate: render every chart, each service separately, and check the declared resources against the guardrails in infra/helm/platform/resource-governance before they reach a cluster."
 run = "go run ./tools/lint-resource-governance"
 
 [tasks."lint:gitops-env-scope"]
-description = "ADR-0201 gate: an environment's bootstrap directory names that environment alone."
+description = "ADR-0201 gate: an environment's bootstrap directory names only that environment."
 run = "bash scripts/lint-gitops-env-scope.sh"
 
 [tasks."lint:parity"]
-description = "ADR-0205 gate: every key a deployed environment's values carry exists in the local overlay, or is allowlisted with its sanctioned reason."
+description = "ADR-0205 gate: every key in a deployed environment's values exists in the local overlay, or is on the allowlist with its approved reason."
 run = "bash scripts/lint-parity.sh"
 
 [tasks."lint:floating-tags"]
-description = "Image references pin a digest or an explicit version, never a moving tag (ADR-0101, ADR-0104)."
+description = "Image references pin a digest or an explicit version, never a moving tag, per ADR-0101 and ADR-0104."
 run = "bash scripts/lint-floating-tags.sh"
 
 [tasks."lint:project-identity"]
-description = "ADR-0106 gate: a project created from this template must own its own name before it pushes."
+description = "ADR-0106 gate: a project created from this template must have its own name before it pushes."
 run = "bash scripts/lint-project-identity.sh"
 
 [tasks."image:digest"]
-description = "Resolve a tag to the index digest a Dockerfile or values file pins to, so the pin is read from the registry rather than copied by hand (ADR-0101, ADR-0104)."
+description = "Resolve a tag to the index digest that a Dockerfile or values file pins, so the pin comes from the registry and not a manual copy, per ADR-0101 and ADR-0104."
 run = "bash scripts/image-digest.sh"
 
 [tasks."lint:prose"]
-description = "ADR-0001's banned-constructs table, enforced."
+description = "The Simple English profile and the banned-constructs table of ADR-0001, enforced."
 run = "go run ./tools/lint-prose"
 
 [tasks."lint:comments"]
-description = "The half of ADR-0001's comment table a machine can read, over the Go and TypeScript this repository owns."
+description = "The part of the ADR-0001 comment rules that a machine can check, over the comments this repository owns."
 run = "go run ./tools/lint-comments"
 
 [tasks."lint:adr-xref"]
-description = "The ADR set's internal wiring: references resolve, Related names documents that exist, every ADR carries a Decides line and an index row, the two adoption documents name the same components."
+description = "The internal links of the ADR set. References resolve, and Related names documents that exist. Every ADR has a Decides line and an index row. The two adoption documents name the same components."
 run = "go run ./tools/lint-adr-xref"
 
 [tasks."lint:readme-drift"]
-description = "Principle 9 applied to the one document that is not generated."
+description = "Principle 9, applied to the one document that is not generated."
 run = "go run ./tools/lint-readme-drift"
 
 [tasks."gen:image-allowlist"]
-description = "The third-party image allow-list (ADR-0104), derived from the charts themselves: every repository the platform's own charts pull from."
+description = "The third-party image allow-list, per ADR-0104. It comes from the charts: every repository that the platform's own charts pull from."
 run = "bash scripts/gen-image-allowlist.sh"
 
 [tasks."lint:image-allowlist"]
-description = "Drift check for it."
+description = "The drift check for the image allow-list."
 run = "bash scripts/gen-image-allowlist.sh --check"
 
 [tasks."lint:data-classes"]
-description = "Drift check for it."
+description = "The drift check for the data-class registry."
 run = "go run ./tools/data-classes --check"
 
 [tasks."lint:rules-index"]
-description = "Drift check for the generated rule documents."
+description = "The drift check for the generated rule documents."
 run = "go run ./tools/adr-rules -check"
 
 [tasks."lint:md"]
-description = "Markdown structure and formatting, rumdl over every document (ADR-0001)."
+description = "Markdown structure and formatting: rumdl over every document, per ADR-0001."
 run = "rumdl check ."
 
 [tasks."lint:shell"]
-description = "shellcheck over every tracked *.sh (ADR-0101)."
+description = "shellcheck over every tracked *.sh, per ADR-0101."
 run = "bash scripts/lint-shell.sh"
 
 [tasks."lint:log-vocab"]
-description = "Human-output vocabulary gate (ADR-0001): scripts use →/✓/✗/⚠ via scripts/lib/log.sh, not bare WARN/ERROR/FAIL prose."
+description = "The vocabulary gate for human output, per ADR-0001. Scripts use → ✓ ✗ ⚠ through scripts/lib/log.sh, not bare WARN, ERROR, or FAIL text."
 run = "bash scripts/lint-log-vocab.sh"
 
 [tasks."lint:node-scope"]
-description = "Node confinement guard (ADR-0100/ADR-0601): Node/npm may appear ONLY in the repo-root test/e2e/ workspace."
+description = "The Node confinement guard, per ADR-0100 and ADR-0601. Node and npm appear only in the repo-root test/e2e/ workspace."
 run = "bash scripts/lint-node-scope.sh"
 
 [tasks."lint:auth-inline"]
-description = "Auth single-source guard (ADR-0305/0010/0029): fails if kratos/oathkeeper config is re-inlined into the Ory chart values instead of living in infra/auth/*, or if the frontend grows developme."
+description = "The single-source guard for auth config, per ADR-0305. It fails if kratos or oathkeeper config is put inline in the Ory chart values instead of infra/auth/*, or if the frontend adds development auth."
 run = "bash scripts/lint-auth-inline.sh"
 
 [tasks."lint:authz"]
-description = "Edge-auth policy gates (ADR-0304/0305/0306): - OpenFGA model + assertions (fga model test) + model.json in-sync check - ops dashboards authorize via remote_json → Checker, never `allow` - th."
+description = "The edge-auth policy gates, per ADR-0304, ADR-0305, and ADR-0306. They check the OpenFGA model, its assertions, and model.json sync. Ops dashboards authorize through remote_json to the Checker, never `allow`."
 run = """
 bash scripts/validate-openfga.sh
 go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
@@ -464,16 +458,16 @@ bash scripts/lint-strip-headers.sh
 depends = ["test:go", "test:ts"]
 
 [tasks."test:go"]
-description = "Every Go package's tests, the tools included (ADR-0601)."
+description = "Every Go package's tests, including the tools, per ADR-0601."
 run = "go test ./... ./tools/..."
 
 [tasks."test:ts"]
-description = "The shared TypeScript libraries under libs/ts/ — not the frontend, whose browser behaviour is covered by the e2e suite (ADR-0601)."
+description = "The shared TypeScript libraries under libs/ts/. The e2e suite covers the frontend's browser behaviour, per ADR-0601."
 depends = ["setup:node"]
 run = "bun test libs/ts/"
 
 [tasks.build]
-description = "Every Go module compiles, the tools included (ADR-0101)."
+description = "Every Go module compiles, including the tools, per ADR-0101."
 run = "go build ./... ./tools/..."
 
 [tasks.pre-commit]
@@ -486,23 +480,23 @@ depends = ["format", "lint", "test"]
 run = "go run ./tools/affected"
 
 [tasks."lint:secrets"]
-description = "ADR-0202: plaintext secret values do not appear in any committed file."
+description = "ADR-0202: no committed file holds a plaintext secret value."
 run = "bash scripts/lint-secrets.sh"
 
 [tasks."lint:tool-register"]
-description = "ADR-0002's four register Rules: every Tier 1/2 row names an owning ADR that exists, that ADR carries the comparison its tier owes, a Tier 1 row names a runner-up, and every alternative a row."
+description = "The four register Rules of ADR-0002: every Tier 1 or Tier 2 row names an owning ADR that exists, and that ADR has the comparison its tier needs. A Tier 1 row names a runner-up."
 run = "go run ./tools/lint-tool-register"
 
 [tasks."lint:i18n"]
-description = "Localisation, enforced rather than intended (ADR-0400)."
+description = "Localisation, enforced, per ADR-0400."
 run = "go run ./tools/lint-i18n"
 
 [tasks."lint:contrast"]
-description = "Colour contrast against the design-token file rather than per component (ADR-0400): a token change moves every surface at once, so the token file is where a regression is introduced."
+description = "Colour contrast, checked against the design-token file and not for each component, per ADR-0400. A token change moves every surface, so the token file is where a regression starts."
 run = "go run ./tools/lint-contrast"
 
 [tasks."lint:determinism"]
-description = "Temporal workflow determinism (ADR-0302)."
+description = "Temporal workflow determinism, per ADR-0302."
 run = "workflowcheck ./services/..."
 
 [tasks."lint:thin-workflows"]
@@ -510,11 +504,11 @@ description = "ADR-0102: workflow YAML checks out, sets up the toolchain, and ca
 run = "go run ./tools/lint-thin-workflows"
 
 [tasks."lint:commits"]
-description = "Conventional Commits over the pull request's commit RANGE (ADR-0103)."
+description = "Conventional Commits over the commit range of the pull request, per ADR-0103."
 run = "bash scripts/lint-commits.sh"
 
 [tasks."lint:api-breaking"]
-description = "oasdiff labels breaking contract changes for review; it is NOT a version gate (ADR-0303)."
+description = "oasdiff labels breaking contract changes for review. It is not a version gate, per ADR-0303."
 run = "bash scripts/lint-api-breaking.sh"
 
 [tasks."lint:secrets-history"]
@@ -526,74 +520,74 @@ run = "bash scripts/lint-secrets.sh"
 depends = ["lint", "lint:commits", "lint:secrets-history", "lint:api-breaking"]
 
 [tasks."ci:scan"]
-description = "The vulnerability merge gate (ADR-0104)."
+description = "The vulnerability merge gate, per ADR-0104."
 run = "bash scripts/scan.sh"
 
 [tasks."scan:report"]
-description = "Triage, not a gate: every dependency finding at every severity, including the ones with no fix published."
+description = "Triage, not a gate: every dependency finding at every severity, including findings with no published fix."
 run = "bash scripts/scan.sh report"
 
 [tasks."ci:test"]
 depends = ["test"]
 
 [tasks."ci:affected-matrix"]
-description = "The affected manifest split into the two arrays publish.yml's matrices need, as forge step-output assignments (ADR-0102)."
+description = "The affected manifest, split into the two arrays that publish.yml's matrices need, as forge step-output assignments, per ADR-0102."
 run = "bash scripts/ci-affected-matrix.sh"
 
 [tasks."ci:prune-registry"]
-description = "Delete the first-party image tags no environment pins and the last PRUNE_KEEP commits do not name (ADR-0105)."
+description = "Delete the first-party image tags that no environment pins and the last PRUNE_KEEP commits do not name, per ADR-0105."
 run = "bash scripts/ci-prune-registry.sh"
 
 [tasks."ci:push-promotion"]
-description = "Commit a promotion's values changes and push them to the default branch (ADR-0201)."
+description = "Commit a promotion's values changes and push them to the default branch, per ADR-0201."
 run = "bash scripts/ci-push-promotion.sh"
 
 [tasks."ci:release-pr"]
-description = "Open the prod pin as a pull request the forge merges once its checks pass (ADR-0201)."
+description = "Open the prod pin as a pull request. The forge merges it when its checks pass, per ADR-0201."
 run = "bash scripts/ci-release-pr.sh"
 
 [tasks."ci:release-publish"]
-description = "Publish the forge release for $VER (ADR-0103)."
+description = "Publish the forge release for $VER, per ADR-0103."
 run = "bash scripts/ci-release-publish.sh"
 
 [tasks."ci:sign"]
-description = "Sign a published image and attach its SBOM and provenance (ADR-0104)."
+description = "Sign a published image and attach its SBOM and provenance, per ADR-0104."
 run = "bash scripts/ci-sign.sh"
 
 [tasks."supply-chain:inventory"]
-description = "Verify the SBOM attestation of every image pinned in committed values and file what is in it (ADR-0104)."
+description = "Verify the SBOM attestation of every image pinned in committed values, and record its contents, per ADR-0104."
 run = "bash scripts/supply-chain-inventory.sh"
 
 [tasks."ci:affected-adversarial"]
-description = "Test affected-detection from the other side (ADR-0101, ADR-0601): break each service in a scratch worktree and assert the manifest names it."
+description = "Test affected-detection from the other side, per ADR-0101 and ADR-0601. Break each service in a scratch worktree and check that the manifest names it."
 run = "bash scripts/ci-affected-adversarial.sh"
 
 [tasks."ci:e2e-gate"]
-description = "Whether a pull request pays for the smoke suite, as a forge step-output assignment (ADR-0102, ADR-0601)."
+description = "Whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0102 and ADR-0601."
 run = "bash scripts/ci-e2e-gate.sh"
 
 [tasks."ci:nightly-gate"]
-description = "Whether tonight's cluster:up full suite should run, as a forge step-output assignment (ADR-0102, ADR-0601)."
+description = "Whether tonight's cluster:up full suite runs, as a forge step-output assignment, per ADR-0102 and ADR-0601."
 run = "bash scripts/ci-nightly-gate.sh"
 
 [tasks."ci:build-context"]
-description = "An app's Docker build context, as a forge step-output assignment (ADR-0102)."
+description = "An app's Docker build context, as a forge step-output assignment, per ADR-0102."
 run = "bash scripts/ci-build-context.sh"
 
 [tasks.release]
-description = "Cut a repo-wide CalVer release: compute the version, stamp the fields a build tool requires, regenerate CHANGELOG.md, commit, tag, and push (ADR-0103)."
+description = "Cut a repo-wide CalVer release, per ADR-0103: compute the version, stamp the fields a build tool needs, regenerate CHANGELOG.md, commit, tag, and push."
 run = "bash scripts/release.sh"
 
 [tasks."ci:release-info"]
-description = "A CalVer release tag resolved to version + commit, as forge step-output assignments (ADR-0102, ADR-0103)."
+description = "A CalVer release tag resolved to a version and a commit, as forge step-output assignments, per ADR-0102 and ADR-0103."
 run = "bash scripts/ci-release-info.sh"
 
 [tasks."promote:dev-staging"]
-description = "Pin dev + staging values for the components in $SERVICES and $APPS to $SHA by digest."
+description = "Pin the dev and staging values for the components in $SERVICES and $APPS to $SHA by digest."
 run = "bash scripts/promote-dev-staging.sh"
 
 [tasks."promote:prod"]
-description = "Pin every prod values file to $SHA by digest and label the images $VER."
+description = "Pin every prod values file to $SHA by digest, and label the images $VER."
 run = "bash scripts/promote-prod.sh"
 
 [tasks."promote:verify"]
@@ -604,86 +598,87 @@ run = "bash scripts/promote-verify.sh"
 depends = ["build"]
 
 [tasks."ci:preview"]
-description = "The pull-request preview environment (ADR-0205): the full tier at one pull request's images and manifests, destroyed with the run that made it."
+description = "The pull-request preview environment, per ADR-0205: the full tier at one pull request's images and manifests. The run that creates it also destroys it."
 run = "bash scripts/ci-preview.sh"
 
 [tasks."forge:apply"]
-description = "Reconcile the committed branch protection and required checks into the forge (ADR-0102)."
+description = "Reconcile the committed branch protection and required checks into the forge, per ADR-0102."
 run = "bash scripts/forge-apply.sh"
 
 [tasks."temporal:schedules"]
-description = "The platform's periodic obligations, from infra/temporal/schedules.yaml (ADR-0302)."
+description = "The platform's periodic duties, from infra/temporal/schedules.yaml, per ADR-0302."
 run = "bash scripts/temporal-schedules.sh"
 
 [tasks."ci:gen"]
-description = "The single definition behind ci.yml's drift job and the lefthook gen-drift hook: run it locally to reproduce that CI job exactly."
+description = "The one definition behind ci.yml's drift job and the lefthook gen-drift hook. Run it locally to repeat that CI job exactly."
 run = "bash scripts/ci-gen.sh"
 
 [tasks."argocd:bootstrap"]
-description = "Lay an environment's bootstrap floor in the current kubectl context and apply its root Application (ADR-0200): mise run argocd:bootstrap <env>."
+description = "Lay an environment's bootstrap floor in the current kubectl context and apply its root Application, per ADR-0200: mise run argocd:bootstrap <env>."
 run = "bash scripts/argocd-bootstrap.sh"
 
 [tasks."cluster:add"]
-description = "One verb for \"put this in the cluster\" (ADR-0600)."
+description = "One verb to put something in the cluster, per ADR-0600."
 run = "bash scripts/cluster.sh add"
 
 [tasks."cluster:remove"]
-description = "The counterpart."
+description = "The opposite of cluster:add."
 run = "bash scripts/cluster.sh remove"
 
 [tasks."service:dev"]
-description = "Run a service NATIVELY behind the real edge: stamps the per-service edge glue (an IngressRoute + an EndpointSlice at the docker-bridge gateway) so Traefik routes to the host process, then ha."
+description = "Run a service natively behind the real edge. It applies the service's edge glue, an IngressRoute and an EndpointSlice at the docker-bridge gateway, so Traefik routes to the host process."
 run = "bash scripts/service-dev.sh"
 
 [tasks."auth:token"]
-description = "Mint a Kratos session token for local authenticated calls (needs the full tier)."
+description = "Mint a Kratos session token for local authenticated calls. It needs the full tier."
 run = "bash scripts/auth-token.sh"
 
 [tasks."ops:grant"]
-description = "Break-glass operator grant (ADR-0304): the first operator, or any while the admin console is down. Promotion otherwise happens in the console."
+description = "Break-glass operator grant, per ADR-0304: the first operator, or any operator while the admin console is down. Otherwise promotion happens in the console."
 run = "bash scripts/ops-grant.sh"
 
 [tasks."secrets:cosign"]
-description = "Generate the platform's image-signing key pair (ADR-0104): public half committed where every environment's Kyverno policy reads it, private half encrypted for CI alone."
+description = "Generate the platform's image-signing key pair, per ADR-0104. The public half is committed where every environment's Kyverno policy reads it. The private half is encrypted for CI only."
 run = "bash scripts/secrets-cosign.sh"
 
 [tasks."secrets:age"]
-description = "Idempotent; also writes .sops.yaml (ADR-0202)."
+description = "Idempotent. It also writes .sops.yaml, per ADR-0202."
 run = "bash scripts/secrets-age.sh"
 
 [tasks."secrets:updatekeys"]
-description = "Re-encrypt every SOPS file to .sops.yaml's current recipients (ADR-0202). Run after adding or removing an engineer, then commit the diff."
+description = "Re-encrypt every SOPS file to the current recipients in .sops.yaml, per ADR-0202. Run it after you add or remove an engineer, then commit the diff."
 run = "bash scripts/secrets-updatekeys.sh"
 
-# Thin delegates into the Node island: the real tasks and the node pin live in test/e2e/.mise.toml, and mise tools flow down a config tree, never up.
+# Thin delegates into the Node island. The real tasks and the node pin live in test/e2e/.mise.toml.
+# mise tools flow down a config tree, never up.
 [tasks."e2e:install"]
-description = "The e2e island's Node dependencies and its browser (ADR-0601)."
+description = "The e2e island's Node dependencies and its browser, per ADR-0601."
 run = "mise run -C test/e2e install"
 
 [tasks.e2e]
-description = "The full browser suite against a running full tier: acceptance, visual and accessibility (ADR-0601)."
+description = "The full browser suite against a running full tier: acceptance, visual, and accessibility, per ADR-0601."
 run = "mise run -C test/e2e test"
 
 [tasks."e2e:smoke"]
-description = "The @smoke subset of the browser suite, for a labelled pull request (ADR-0601)."
+description = "The @smoke subset of the browser suite, for a labelled pull request, per ADR-0601."
 run = "mise run -C test/e2e test:smoke"
 
-# Thin delegates into the k6 island: the pin lives in test/perf/.mise.toml and mise tools flow down a config tree, never up.
-# Not part of `test`, `check` or `ci:affected` (ADR-0601), and they need a running full tier.
+# Thin delegates into the k6 island. The pin lives in test/perf/.mise.toml, and mise tools flow down a config tree, never up.
+# They are not part of `test`, `check`, or `ci:affected`, per ADR-0601. They need a running full tier.
 [tasks.perf]
-description = "The steady baseline: nightly + pre-release."
+description = "The steady baseline: nightly and before a release."
 run = "mise run -C test/perf load"
 
 [tasks."frontend:sourcemaps"]
-description = "Collect the production build's browser source maps for a release and strip them from the served output (ADR-0503)."
+description = "Collect the production build's browser source maps for a release, and remove them from the served output, per ADR-0503."
 run = "bash scripts/frontend-sourcemaps.sh"
 
 [tasks."perf:re-derive"]
-description = "The measured numbers the ADR set asserts, recomputed and printed beside what is committed (ADR-0001)."
+description = "Recompute the measured numbers that the ADR set states, and print them next to the committed values, per ADR-0001."
 run = "bash scripts/perf-rederive.sh"
 
 [tasks."perf:smoke"]
-description = "~30s."
+description = "About 30 seconds."
 run = "mise run -C test/perf smoke"
 
 [tasks."perf:stress"]
@@ -691,25 +686,25 @@ description = "Ramp to saturation."
 run = "mise run -C test/perf stress"
 
 [tasks."perf:soak"]
-description = "~30min sustained, for leak detection."
+description = "About 30 minutes of steady load, to find leaks."
 run = "mise run -C test/perf soak"
 
 [tasks."e2e:a11y"]
-description = "The axe scan alone (ADR-0400), for iterating on an accessibility fix."
+description = "Only the axe scan, per ADR-0400, to iterate on an accessibility fix."
 run = "mise run -C test/e2e test:a11y"
 
 [tasks."e2e:visual"]
-description = "The committed screenshot baselines alone (ADR-0601), for iterating on an intentional UI change without a full acceptance run."
+description = "Only the committed screenshot baselines, per ADR-0601, to iterate on an intended UI change without a full acceptance run."
 run = "mise run -C test/e2e test:visual"
 
 [tasks."lighthouse"]
-description = "Web vitals and the per-route bundle budgets, as merge gates (ADR-0400): LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile."
+description = "Web vitals and the bundle budget for each route, as merge gates, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile."
 run = "mise run -C test/e2e lighthouse"
 
 [tasks."perf:seed"]
-description = "Bulk catalog data so the read path is measured against a realistic table."
+description = "Bulk catalog data, so the read path is measured against a realistic table."
 run = "mise run -C test/perf seed"
 
 [tasks."act:local"]
-description = "act with a pre-baked toolchain image (scripts/act-local.sh): bakes the full mise toolchain once, so the parallel jobs share it instead of each re-installing it."
+description = "act with a pre-built toolchain image, from scripts/act-local.sh. It builds the full mise toolchain once, and the parallel jobs share it."
 run = "bash scripts/act-local.sh"

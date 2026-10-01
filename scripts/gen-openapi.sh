@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate Go servers/clients and TS clients from every service's OpenAPI spec.
+# Regenerate Go servers and clients, and TS clients, from every service's OpenAPI spec.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -9,11 +9,12 @@ for spec in services/*/openapi.yaml; do
   service=$(basename "$(dirname "$spec")")
   go_out="libs/go/sdks/${service}"
   ts_out="libs/ts/sdks/${service}"
-  # ogen package name must be a valid Go identifier (e.g. "_template" -> "template").
+  # The ogen package name must be a valid Go identifier, for example `_template` becomes `template`.
   pkg=$(printf '%s' "$service" | tr -cd '[:alnum:]')
 
-  step "$service: Go SDK (ogen)"
-  # `ogen --clean` overwrites and prunes orphans itself, and keeping the directory populated means a concurrent go/lint pass never sees it empty. `gen:clean` wipes it.
+  step "$service: Go SDK with ogen"
+  # `ogen --clean` overwrites and removes orphans itself. The directory stays full, so a concurrent go or lint pass never sees it empty.
+  # `gen:clean` deletes it.
   mkdir -p "$go_out"
   ogen --target "$go_out" --package "$pkg" --clean "$spec"
 
@@ -22,13 +23,14 @@ for spec in services/*/openapi.yaml; do
 
   bun x openapi-typescript@7.13.0 "$spec" --output "$ts_out/index.d.ts"
 
-  # A package.json, so the generated SDK is a real workspace package: a tsconfig path alias alone makes every import an undeclared dependency, which Biome rejects.
+  # A package.json makes the generated SDK a real workspace package.
+  # With only a tsconfig path alias, every import is an undeclared dependency, which Biome rejects.
   cat >"$ts_out/package.json" <<JSON
 {
   "name": "@sdks/${service}",
   "version": "0.0.0",
   "private": true,
-  "description": "Generated TypeScript client types for ${service} (ADR-0303). Do not edit.",
+  "description": "Generated TypeScript client types for ${service}, per ADR-0303. Do not edit.",
   "type": "module",
   "exports": {
     ".": "./index.d.ts"
@@ -38,5 +40,5 @@ for spec in services/*/openapi.yaml; do
 JSON
 done
 
-# The block above wrote workspace manifests, and CI installs with `--frozen-lockfile`, which rejects a lockfile that does not know about them.
+# The block above wrote workspace manifests. CI installs with `--frozen-lockfile`, which rejects a lockfile that does not know them.
 bun install >/dev/null 2>&1 || true

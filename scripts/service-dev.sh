@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a service natively behind the real edge (ADR-0205, ADR-0600) — the other half of `cluster:add`.
+# Run a service natively behind the real edge, per ADR-0205 and ADR-0600. This is the other half of `cluster:add`.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/ports.sh
@@ -12,8 +12,7 @@ NS="platform"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 
 SVC="${1:?usage: mise run service:dev -- <svc>}"
-# The registry, not a flag: the glue must point at the same port the service's own
-# .mise.toml makes it bind, or Traefik forwards to nothing. One source of truth.
+# The registry, not a flag: the glue must point at the port that the service's own .mise.toml binds, or Traefik forwards to nothing.
 PORT="$(service_port "$SVC")"
 SVC_DIR="services/${SVC}"
 VALUES="infra/gitops/services/local/values/${SVC}.yaml"
@@ -24,14 +23,14 @@ VALUES="infra/gitops/services/local/values/${SVC}.yaml"
 k() { kubectl --context "$(cluster_ctx)" "$@"; }
 
 # The deployed service and the native one would both answer for the same routes.
-# Rather than racing them on route priority, refuse — one of them is what you meant.
+# This refuses, and does not let them race on route priority. You meant one of them.
 if k -n "$NS" get "deploy/${SVC}-server" >/dev/null 2>&1; then
-  fail "${SVC} is deployed in-cluster; run 'mise run cluster:remove -- ${SVC}' first"
+  fail "${SVC} is deployed in-cluster. Run 'mise run cluster:remove -- ${SVC}' first"
 fi
 
 step "stamping the edge glue for a native ${SVC}"
 
-# Selector-less Service; the EndpointSlice below supplies the address.
+# A Service with no selector. The EndpointSlice below gives the address.
 k apply -f - <<EOF
 apiVersion: v1
 kind: Service
@@ -46,10 +45,10 @@ spec:
       targetPort: ${PORT}
 EOF
 
-# The same resources and middleware chain the service chart routes when deployed,
-# read from the committed local values so the two paths cannot drift.
+# The same resources and middleware chain that the service chart routes when deployed.
+# They are read from the committed local values, so the two paths cannot drift.
 resources="$(yq -r '.ingress.resources // [] | join(" ")' "$VALUES")"
-[ -n "$resources" ] || fail "${SVC} declares no ingress.resources in ${VALUES} (nothing to route)"
+[ -n "$resources" ] || fail "${SVC} declares no ingress.resources in ${VALUES}, so there is nothing to route"
 
 match=""
 for r in $resources; do
@@ -57,7 +56,8 @@ for r in $resources; do
   match="${match}PathPrefix(\`/api/${r}\`)"
 done
 
-# Mirrors infra/helm/service/templates/ingressroute.yaml: same match, same middleware chain, same order. Flat-API routing strips /api (ADR-0306).
+# Matches infra/helm/service/templates/ingressroute.yaml: the same match, the same middleware chain, the same order.
+# Flat-API routing strips /api, per ADR-0306.
 k apply -f - <<EOF
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
@@ -82,8 +82,8 @@ spec:
     - kind: Rule
       match: Host(\`${DOMAIN}\`) && (${match})
       middlewares:
-        # Anti-spoofing (ADR-0305): strip client-supplied identity headers BEFORE
-        # forwardAuth, so nothing can inject X-User-* on an anonymous /api route.
+        # Anti-spoofing, per ADR-0305: strip client-supplied identity headers before forwardAuth,
+        # so nothing can inject X-User-* on an anonymous /api route.
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
         - name: security-headers
@@ -101,10 +101,10 @@ cat <<EOF
 
 ✓ ${SVC} glued to the host on :${PORT}.
 
-  Now run it (its own tasks pull the dependency components in):
+  Now run it. Its own tasks pull in the dependency components:
     cd services/${SVC} && mise run server
 
   Reached at:  https://${DOMAIN}:8443/api/$(echo "$resources" | cut -d' ' -f1)
-  Through:     the real Oathkeeper chain — identity headers are genuine here
+  Through:     the real Oathkeeper chain, so identity headers are real here
   Remove:      mise run cluster:remove -- ${SVC}
 EOF

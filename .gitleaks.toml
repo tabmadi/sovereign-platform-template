@@ -1,9 +1,6 @@
-# Plaintext-secret scanning (ADR-0202). The Rule is that plaintext secret values do
-# not appear in any committed file; this is what checks it.
+# Plaintext-secret scanning. It checks the ADR-0202 rule that no committed file holds a plaintext secret value.
 #
-# The default rule set is extended rather than replaced: gitleaks ships provider
-# patterns for the credential formats that actually leak, and hand-maintaining that
-# list is the work the tool exists to avoid.
+# This extends the default rule set and does not replace it. The gitleaks provider patterns are the list to use.
 
 title = "platform secret scan"
 
@@ -12,14 +9,13 @@ useDefault = true
 
 [allowlist]
 description = """
-Encrypted-by-design and generated content. Every entry here is a path whose
-high-entropy strings are the correct state of the file, not a finding — an
-allowlist entry for anything else would be suppressing the defect this scans for.
+Encrypted and generated content. In each path here, high-entropy strings are the
+correct state of the file, not a finding. An entry for any other path hides the
+defect that this scan looks for.
 """
 
 paths = [
-  # SOPS output. The whole point is that these values are ciphertext, and the age
-  # recipients and MAC in the sops block are public by construction.
+  # SOPS output. These values are ciphertext, and the age recipients and MAC in the sops block are public.
   '''.*\.enc\.ya?ml$''',
   '''^\.sops\.yaml$''',
 
@@ -28,44 +24,40 @@ paths = [
   '''.*/package-lock\.json$''',
   '''^go\.sum$''',
 
-  # Generated trees are rewritten by `mise run gen`; a secret cannot originate here.
+  # `mise run gen` rewrites the generated trees, so a secret cannot start here.
   '''^libs/(go|ts)/sdks/.*''',
   '''^apps/admin/_generated/.*''',
 
   # Committed public halves. A public key in a repository is the intended state.
   '''.*\.pub$''',
 
-  # Untracked build output and dependencies. "Committed file" is what the Rule
-  # says, and scanning the rest costs 1.6 GB of read for findings in files git
-  # does not track.
+  # Untracked build output and dependencies. The rule covers committed files only.
+  # A scan of these paths reads 1.6 GB of files that git does not track.
   '''.*node_modules/.*''',
   '''.*\.next/.*''',
   '''^test-results/.*''',
   '''^\.rumdl_cache/.*''',
   '''^\.idea/.*''',
 
-  # The local secret store: gitignored by contract (.gitignore ignores `.env` and
-  # `.env.*`), so never a "committed file". The second pattern skips `.env.<name>`
-  # only when the name does not start with `e`, which keeps the TRACKED
-  # `.env.example` templates in scope — they are not secrets and still get scanned.
+  # The local secret store. .gitignore ignores `.env` and `.env.*`, so these are never committed files.
+  # The second pattern skips `.env.<name>` only when the name does not start with `e`.
+  # This keeps the tracked `.env.example` templates in the scan.
   '''(^|/)\.env$''',
   '''(^|/)\.env\.[^e].*''',
 
-  # The local tier's age private key, committed under the exemption ADR-0202 names:
-  # no bootstrap step materialises a key for a cluster whose lifetime is a mise task,
-  # and it decrypts throwaway local values only. .sops.yaml confines it to a single
-  # creation rule, which is what bounds the exemption. Widening this pattern, or
-  # encrypting a real credential to that key, is the failure it guards against.
+  # The local tier's age private key, committed under the ADR-0202 exemption. It decrypts only throwaway local values.
+  # .sops.yaml limits it to one creation rule, and that limits the exemption.
+  # Do not widen this pattern, and never encrypt a real credential to this key.
   '''^infra/gitops/platform/local/age\.key$''',
 ]
 
 regexes = [
-  # The all-zero image tag placeholder the promotion workflow rewrites.
+  # The all-zero image tag placeholder that the promotion workflow rewrites.
   '''0{40}''',
 ]
 
 [[rules]]
 id = "age-secret-key"
-description = "age private key (must never be committed — ADR-0202)"
+description = "age private key. It must never be committed, per ADR-0202"
 regex = '''AGE-SECRET-KEY-1[0-9A-Z]{58}'''
 keywords = ["age-secret-key"]

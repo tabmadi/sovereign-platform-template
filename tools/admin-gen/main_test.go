@@ -63,9 +63,9 @@ func newOp(method, path string, respCodes []string, pathParams ...string) op {
 	return o
 }
 
-// TestClassify pins the role assignment, including the 201-vs-202 heuristic: a
-// synchronous create (201) becomes a form; an async workflow create (202) is left
-// unassigned so the resource stays list-only (ADR-0401).
+// TestClassify pins the role assignment, with the 201 or 202 rule, per ADR-0401. A synchronous create with 201
+// becomes a form.
+// An async workflow create with 202 stays unassigned, so the resource stays list-only.
 func TestClassify(t *testing.T) {
 	t.Parallel()
 
@@ -101,8 +101,7 @@ func TestMoneyFields(t *testing.T) {
 	if blocks[0].ID != "price.amount" || blocks[1].ID != "price.currency" {
 		t.Fatalf("ids = %q, %q", blocks[0].ID, blocks[1].ID)
 	}
-	// A NumberInput would hand back a JavaScript double, which is exactly what the
-	// decimal string form exists to avoid.
+	// A NumberInput would return a JavaScript double, and the decimal string form exists to avoid that.
 	if blocks[0].Type != typeText {
 		t.Fatalf("amount input = %q, want %q", blocks[0].Type, typeText)
 	}

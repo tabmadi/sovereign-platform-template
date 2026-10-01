@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# Conventional Commit gate over a commit range (ADR-0103), which is where a rebase or cherry-pick can smuggle a bad message past the commit-msg hook.
+# Conventional Commit gate over a commit range, per ADR-0103. A rebase or cherry-pick can bring a bad message past the commit-msg hook there.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 base="${BASE_REF:-master}"
 base="${base#refs/heads/}"
 
-# Prefer the remote-tracking ref: in CI the base branch is fetched but not checked
-# out, so `master` alone may not resolve.
+# Prefer the remote-tracking ref. In CI the base branch is fetched but not checked out, so `master` alone can fail to resolve.
 for candidate in "origin/${base}" "$base"; do
   if git rev-parse --verify --quiet "${candidate}^{commit}" >/dev/null; then
     ref="$candidate"
@@ -16,7 +15,7 @@ for candidate in "origin/${base}" "$base"; do
 done
 
 if [[ -z "${ref:-}" ]]; then
-  warn "no such base ref: ${base} — skipping the commit-range check"
+  warn "no such base ref: ${base}. Skipping the commit-range check"
   exit 0
 fi
 

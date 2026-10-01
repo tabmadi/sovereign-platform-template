@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Breaking-change detection for the API contracts (ADR-0303). It labels and does not gate: it exits 0 with findings.
+# Breaking-change detection for the API contracts, per ADR-0303. It labels and does not gate: it exits 0 with findings.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -15,7 +15,7 @@ for candidate in "origin/${base}" "$base"; do
 done
 
 if [[ -z "$ref" ]]; then
-  warn "no such base ref: ${base} — skipping breaking-change detection"
+  warn "no such base ref: ${base}. Skipping breaking-change detection"
   exit 0
 fi
 
@@ -32,7 +32,7 @@ trap 'rm -rf "$work"' EXIT
 
 breaking=0
 for spec in "${specs[@]}"; do
-  # A spec that does not exist on the base is new: nothing to break.
+  # A spec that does not exist on the base is new, so it has nothing to break.
   if ! git cat-file -e "${ref}:${spec}" 2>/dev/null; then
     detail "$(dirname "$spec" | xargs basename): new spec, nothing to compare"
     continue
@@ -40,22 +40,21 @@ for spec in "${specs[@]}"; do
   old="${work}/$(echo "$spec" | tr / _)"
   git show "${ref}:${spec}" >"$old"
 
-  # JSON rather than the text renderer: "no findings" is an empty array, which is
-  # unambiguous, where the text output varies ("No changes detected" when the specs
-  # are identical, an empty body when they differ but nothing breaks).
+  # JSON, not the text renderer: an empty array means no findings, and that is clear.
+  # The text output varies: `No changes detected` for identical specs, and an empty body when they differ but nothing breaks.
   findings="$(oasdiff breaking "$old" "$spec" --format json 2>/dev/null || true)"
   count="$(printf '%s' "${findings:-[]}" | jq 'length' 2>/dev/null || echo 0)"
   if [[ "$count" -gt 0 ]]; then
     breaking=1
     warn "$(basename "$(dirname "$spec")"): ${count} breaking change(s)"
-    # level 3 is oasdiff's ERR; anything lower is a warning it still classifies.
+    # Level 3 is oasdiff's ERR. Anything lower is a warning that it still classifies.
     printf '%s' "$findings" |
-      jq -r '.[] | "    \(.operation) \(.path) — \(.text) [\(.id)]"'
+      jq -r '.[] | "    \(.operation) \(.path): \(.text) [\(.id)]"'
   fi
 done
 
 if [[ "$breaking" -eq 1 ]]; then
-  warn "breaking API changes above — intentional is fine, unnoticed is not (ADR-0303)"
+  warn "breaking API changes above. An intended change is fine, and an unnoticed one is not, per ADR-0303"
   if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     printf 'breaking=true\n' >>"$GITHUB_OUTPUT"
   fi

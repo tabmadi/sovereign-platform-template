@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# ADR-0201 gate: an environment's bootstrap directory names that environment alone. A set listing several against one cluster address is several copies of every chart contending for the same objects, and narrowing it afterwards prunes what the survivor owns.
+# ADR-0201 gate: an environment's bootstrap directory names only that environment.
+# A set that lists several environments against one cluster makes copies of every chart that fight for the same objects. A later fix prunes what the remaining copy owns.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

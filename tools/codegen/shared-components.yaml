@@ -1,53 +1,52 @@
-# Canonical OpenAPI components shared by every service spec (ADR-0303). This file is the source; each spec carries a copy and `lint:openapi` fails when one diverges.
-# A spec receives what it references, transitively, so a shape nothing points at is copied nowhere.
+# Canonical OpenAPI components that every service spec shares, per ADR-0303. This file is the source.
+# Each spec has a copy, and `lint:openapi` fails when one diverges. A spec gets what it references, transitively.
 
 schemas:
-  # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
-  # identifies the occurrence, and it reaches the trace where an instance URL
-  # reaches nothing.
+  # RFC 9457 problem details. `instance` is absent on purpose: `trace_id` identifies the occurrence and leads to the trace.
+  # An instance URL leads nowhere.
   Problem:
     type: object
     description: |
-      RFC 9457 problem details. Served as `application/problem+json` by services and
-      by the edge alike, so a generated client has one error branch rather than two.
+      RFC 9457 problem details. Services and the edge both serve it as
+      `application/problem+json`, so a generated client has one error branch, not two.
     required: [type, title, status]
     properties:
       type:
         type: string
         description: |
           `about:blank`, except where two errors share a status code and a client
-          handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-          URN — never a dereferenceable URL, which would put an error taxonomy into
+          handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+          URN. It is never a dereferenceable URL, which would put an error taxonomy into
           the flat public URL namespace.
         default: "about:blank"
         example: "about:blank"
       title:
         type: string
-        description: A stable, human-readable summary. Does not vary with the instance.
+        description: A stable, human-readable summary. It does not change with the instance.
         example: Not Found
       status:
         type: integer
-        description: The HTTP status, duplicated in the body.
+        description: The HTTP status, repeated in the body.
         minimum: 100
         maximum: 599
         example: 404
       detail:
         type: string
         description: |
-          Instance-specific and safe to show a user. Never a stack trace, a query, or
-          an internal hostname.
+          Specific to the instance and safe to show a user. Never a stack trace, a query,
+          or an internal hostname.
         example: No product with that identifier.
       trace_id:
         type: string
         description: |
-          The W3C Trace Context trace-id of the failing request, so a user-reported
-          error reaches its trace. Supplied from the active span, not by the handler.
+          The W3C Trace Context trace-id of the failing request, so an error that a user
+          reports leads to its trace. The active span supplies it, not the handler.
         pattern: "^[0-9a-f]{32}$"
         example: 4bf92f3577b34da6a3ce929d0e0e4736
       errors:
         type: array
         description: |
-          Field-level validation failures, populated from the generated validator.
+          Field-level validation failures, filled from the generated validator.
           Absent when the failure is not a validation failure.
         items:
           type: object
@@ -55,7 +54,7 @@ schemas:
           properties:
             pointer:
               type: string
-              description: RFC 6901 JSON Pointer to the offending member.
+              description: RFC 6901 JSON Pointer to the member that failed.
               example: /price/amount
             message:
               type: string
@@ -67,21 +66,20 @@ schemas:
       detail: No product with that identifier.
       trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
 
-  # A monetary amount. `string`, never `number`: a JSON number is parsed as an
-  # IEEE-754 double by every TypeScript client, and a double cannot represent a
-  # decimal amount exactly. A `type: number` monetary field is a contract defect.
+  # A monetary amount. `string`, never `number`: every TypeScript client parses a JSON number as an IEEE-754 double.
+  # A double cannot hold a decimal amount exactly. A `type: number` monetary field is a contract defect.
   Money:
     type: object
     description: |
-      A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-      double in the TypeScript client, and a double cannot hold a decimal amount
-      exactly. Currency travels with the amount, because an amount without one is
+      A monetary amount. The amount is a decimal string, because a JSON number becomes
+      a double in the TypeScript client, and a double cannot hold a decimal amount
+      exactly. The currency goes with the amount, because an amount without one is
       not a quantity of anything.
     required: [amount, currency]
     properties:
       amount:
         type: string
-        description: Decimal amount, sign-prefixed when negative. No thousands separators.
+        description: Decimal amount, with a leading sign when negative. No thousands separators.
         pattern: '^-?[0-9]+(\.[0-9]+)?$'
         example: "1299.00"
       currency:
@@ -93,14 +91,14 @@ schemas:
       amount: "1299.00"
       currency: EUR
 
-  # An RFC 3339 timestamp. UTC always, with a literal `Z`; an offset other than `Z`
-  # is rejected rather than converted, so one wire format survives round-tripping.
+  # An RFC 3339 timestamp, always UTC with a literal `Z`. Another offset is rejected, not converted,
+  # so one wire format survives a round trip.
   Timestamp:
     type: string
     format: date-time
     description: |
       RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-      rejected rather than converted. Columns behind these are Postgres `timestamptz`.
+      rejected, not converted. The columns behind these are Postgres `timestamptz`.
     pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
     example: "2026-08-12T09:30:00Z"
 

@@ -1,4 +1,4 @@
-// Command data-classes generates the data-class and retention registry (ADR-0301).
+// Command data-classes generates the data-class and retention registry, per ADR-0301.
 package main
 
 import (
@@ -15,8 +15,8 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
-// `.tmpl` rather than `.md`: the relative links resolve from the output's directory, so the markdown linter reads
-// every one as broken.
+// `.tmpl`, not `.md`: the relative links resolve from the output's directory, so the markdown linter reads every one
+// as broken.
 
 //go:embed header.tmpl
 var header string
@@ -29,9 +29,8 @@ const (
 	retentionPath = "tools/codegen/retention.yaml"
 )
 
-// tagRe matches the tag ADR-0300 puts in the DDL. It is the same expression
-// lint-pii uses, and deliberately so: a registry that recognised a different set
-// of tags from the gate would disagree with it about what is classified.
+// tagRe matches the tag that ADR-0300 puts in the DDL. It is the same expression that lint-pii uses, on purpose.
+// A registry that recognised other tags than the gate would disagree with it about what is classified.
 var tagRe = regexp.MustCompile(
 	`(?i)comment\s+on\s+column\s+([a-z0-9_."]+)\.([a-z0-9_"]+)\s+is\s+'pii:([a-z_]+)'`,
 )
@@ -69,7 +68,7 @@ func run(r *lint.Report) error {
 		return err
 	}
 	if len(columns) == 0 {
-		return errors.New("no tagged columns found — the registry would be empty, which is never right")
+		return errors.New("no tagged columns found. The registry would be empty, which is never right")
 	}
 	for _, c := range columns {
 		_, known := policies.Classes[c.class]
@@ -83,7 +82,7 @@ func run(r *lint.Report) error {
 	if check {
 		got, readErr := os.ReadFile(outPath)
 		if readErr != nil || string(got) != want {
-			return fmt.Errorf("%s is stale — run `mise run gen:data-classes`", outPath)
+			return fmt.Errorf("%s is stale. Run `mise run gen:data-classes`", outPath)
 		}
 		r.Okf("%s matches the migrations and retention.yaml", outPath)
 		return nil
@@ -96,8 +95,8 @@ func run(r *lint.Report) error {
 	return nil
 }
 
-// scanColumns reads every service's migrations. A later migration's tag wins, so a column is re-classified by a new
-// `COMMENT ON`.
+// scanColumns reads every service's migrations. A later migration's tag wins, so a new `COMMENT ON` reclassifies a
+// column.
 func scanColumns() ([]column, error) {
 	paths, err := filepath.Glob(filepath.Join("services", "*", "migrations", "*.sql"))
 	if err != nil {
@@ -112,8 +111,7 @@ func scanColumns() ([]column, error) {
 		if readErr != nil {
 			return nil, readErr
 		}
-		// The `migrate:down` half undoes the tags, so reading it would record every
-		// column as untagged by the end of the file.
+		// The `migrate:down` half undoes the tags. Reading it would record every column as untagged by the end of the file.
 		body := upSection(string(raw))
 		for _, m := range tagRe.FindAllStringSubmatch(body, -1) {
 			table, name := unquote(m[1]), unquote(m[2])
@@ -134,8 +132,7 @@ func scanColumns() ([]column, error) {
 	return out, nil
 }
 
-// byServiceThenColumn orders the registry the way a reader scans it: by service,
-// then by table, then by column.
+// byServiceThenColumn orders the registry as a reader scans it: by service, then by table, then by column.
 func byServiceThenColumn(out []column) func(i, j int) bool {
 	return func(i, j int) bool {
 		if out[i].service != out[j].service {

@@ -30,7 +30,7 @@ done
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# The mise version CI pins, single-sourced from the setup action (renovate-managed).
+# The mise version that CI pins, from the setup action, which Renovate manages.
 MISE_VERSION="$(sed -n '/depName=jdx\/mise/,+1p' .github/actions/setup/action.yml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
 [[ -n "$MISE_VERSION" ]] || fail "cannot read the mise version from .github/actions/setup/action.yml"
 
@@ -47,19 +47,19 @@ fi
 
 step "checking proxy ${PROXY}"
 if ! curl -sS -o /dev/null -m 10 -x "$PROXY" https://api.github.com/rate_limit; then
-  fail "proxy ${PROXY} is unreachable — the bake needs it to download and verify tools"
+  fail "proxy ${PROXY} is unreachable. The bake needs it to download and verify tools"
 fi
 
 needs_build() {
   [[ "$REBUILD" == 1 ]] && return 0
   local baked
   baked="$(docker image inspect --format '{{ index .Config.Labels "act-local.source-hash" }}' "$IMAGE" 2>/dev/null || true)"
-  # A missing image reports an empty hash, so it takes the build path with a stale one.
+  # A missing image reports an empty hash, so it takes the build path like a stale image.
   [[ "$baked" != "$SOURCE_HASH" ]]
 }
 
 build_image() {
-  step "building ${IMAGE} — baking the full mise toolchain"
+  step "building ${IMAGE} with the full mise toolchain"
   cp .mise.toml "$WORK/"
   cat >"$WORK/Dockerfile" <<'DOCKERFILE'
 FROM catthehacker/ubuntu:act-latest
@@ -73,20 +73,15 @@ ARG GITHUB_TOKEN
 
 LABEL act-local.source-hash="${SOURCE_HASH}"
 
-# mise at the version CI pins (.github/actions/setup/action.yml).
+# mise at the version that CI pins in .github/actions/setup/action.yml.
 RUN set -eux; \
   curl -fsSL "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64.tar.zst" | tar --zstd -xf - -C /tmp; \
   mv /tmp/mise/bin/mise /usr/local/bin/mise; \
   rm -rf /tmp/mise
 
-# The toolchain from the root .mise.toml. The proxy and token are passed on the
-# RUN line (not ENV), so neither persists into the image. No `-x` on this one: the
-# trace prints GITHUB_TOKEN into the build log and the BuildKit cache metadata,
-# both of which outlive the layer the token was needed for.
-#
-# PIP_RETRIES/PIP_TIMEOUT because mise retries its own HTTP but pipx shells out to
-# pip, which does not — a single truncated read from PyPI through the proxy takes
-# the whole bake down with it, after every other tool has already installed.
+# The toolchain from the root .mise.toml. The proxy and token go on the RUN line, not ENV, so neither stays in the image.
+# No `-x` here: the trace prints GITHUB_TOKEN into the build log and the BuildKit cache metadata.
+# PIP_RETRIES and PIP_TIMEOUT, because pipx calls pip, which does not retry. One truncated read from PyPI stops the whole bake.
 COPY .mise.toml /opt/act-local/.mise.toml
 RUN set -eu; \
   cd /opt/act-local; \
@@ -96,7 +91,7 @@ RUN set -eu; \
   PIP_RETRIES=10 PIP_TIMEOUT=60 \
   mise install
 
-# The install is done; drop mise's download cache to keep the layer lean.
+# The install is done. Delete mise's download cache to keep the layer small.
 RUN rm -rf /root/.cache/mise
 DOCKERFILE
 
@@ -112,10 +107,10 @@ DOCKERFILE
 }
 
 if needs_build; then
-  [[ -n "$TOKEN" ]] || warn "no GITHUB_TOKEN in ${ENV_FILE} — the bake may hit the unauthenticated GitHub rate limit"
+  [[ -n "$TOKEN" ]] || warn "no GITHUB_TOKEN in ${ENV_FILE}. The bake can hit the unauthenticated GitHub rate limit"
   build_image
 else
-  step "reusing ${IMAGE} (toolchain unchanged — pass --rebuild to force)"
+  step "reusing ${IMAGE}: the toolchain is unchanged. Pass --rebuild to force a build"
 fi
 
 if command -v mise >/dev/null 2>&1; then

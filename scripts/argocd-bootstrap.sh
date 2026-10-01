@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Lay the bootstrap floor of the environment in the current kubectl context and hand it to Argo CD (ADR-0200 step 2
-# and 3): Argo CD, Traefik, the cluster's age key, and the forge credential Argo clones with.
+# Lay the bootstrap floor of the environment in the current kubectl context and give it to Argo CD, per ADR-0200 steps 2 and 3.
+# The floor is Argo CD, Traefik, the cluster's age key, and the forge credential that Argo clones with.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 ENV="${1:?usage: argocd-bootstrap.sh <env>}"
 ROOT_APP="infra/gitops/${ENV}-bootstrap/root-application.yaml"
 REPO_SECRET="infra/gitops/platform/${ENV}/secrets/argocd-repo.enc.yaml"
-[ -f "$ROOT_APP" ] || fail "no ${ROOT_APP} — '${ENV}' is not an environment"
+[ -f "$ROOT_APP" ] || fail "no ${ROOT_APP}: '${ENV}' is not an environment"
 
 step "bootstrapping ${ENV} in $(kubectl config current-context)"
 
@@ -35,12 +35,12 @@ if [ -n "${CLUSTER_AGE_KEY:-}" ]; then
 else
   # On Talos the machine config carries it as an inline manifest.
   kubectl -n platform get secret sops-age-key >/dev/null 2>&1 ||
-    fail "no sops-age-key in the cluster — set CLUSTER_AGE_KEY to the ${ENV} cluster's age private key"
+    fail "no sops-age-key in the cluster. Set CLUSTER_AGE_KEY to the ${ENV} cluster's age private key"
   detail "present"
 fi
 
-# A plain Secret rather than a SopsSecret: the sops-operator that renders those is deployed by the Argo this lets run.
-# Its url is the forge's origin, so it survives the repository moving between owners (docs/guide/gitops-runbook.md).
+# A plain Secret, not a SopsSecret: Argo deploys the sops-operator that renders SopsSecrets, and this Secret lets Argo run.
+# Its url is the forge's origin, so it survives a move of the repository to a new owner. See docs/guide/gitops-runbook.md.
 if [ -f "$REPO_SECRET" ]; then
   step "the forge credential"
   field() { sops --decrypt --extract "[\"stringData\"][\"$1\"]" "$REPO_SECRET"; }
@@ -55,4 +55,4 @@ fi
 
 step "applying the root application"
 kubectl apply -f "$ROOT_APP" >/dev/null
-ok "Argo CD reconciles ${ENV} — watch with 'kubectl -n argocd get applications'"
+ok "Argo CD reconciles ${ENV}. Watch it with 'kubectl -n argocd get applications'"

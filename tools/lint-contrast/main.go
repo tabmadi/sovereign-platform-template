@@ -1,4 +1,4 @@
-// Command lint-contrast checks colour contrast against the design-token file rather than per component (ADR-0400).
+// Command lint-contrast checks colour contrast against the design-token file and not for each component, per ADR-0400.
 package main
 
 import (
@@ -20,15 +20,14 @@ const (
 	thresholdUI   = 3.0 // WCAG 2.2 SC 1.4.11, non-text contrast
 )
 
-// The two surfaces a role can be rendered on regardless of its own name: the page
-// and anything raised off it.
+// The two surfaces that a role can render on, whatever its own name: the page, and anything raised from it.
 const (
 	surfacePage = "--background"
 	surfaceCard = "--card"
 )
 
-// The pairs whose foreground is not named for the surface it sits on. Each is a
-// place the design system puts a role that its name does not predict.
+// The pairs whose foreground is not named for the surface it sits on. Each is a place where the design system puts a
+// role that its name does not predict.
 var extraPairs = []pair{
 	{fg: "--foreground", bg: surfaceCard},
 	{fg: "--muted-foreground", bg: surfacePage},
@@ -37,16 +36,15 @@ var extraPairs = []pair{
 	{fg: "--destructive", bg: surfaceCard},
 }
 
-// Non-text roles, at SC 1.4.11's 3:1 against the page. `--input` and `--ring` qualify: each is the only
-// visual information identifying a control or its focus. `--border` is excluded — it decorates, and is never
-// the sole indicator of a component or a state.
+// Non-text roles, at the 3:1 of SC 1.4.11 against the page. `--input` and `--ring` qualify: each is the only visual
+// sign of a control or its focus.
+// `--border` is excluded: it decorates, and it is never the only sign of a component or a state.
 var nonTextPairs = []pair{
 	{fg: "--ring", bg: surfacePage},
 	{fg: "--input", bg: surfacePage},
 }
 
-// Disabled states are incidental under SC 1.4.3's own exception for an inactive
-// user-interface component, so they are not scored at all.
+// Disabled states fall under the SC 1.4.3 exception for an inactive user-interface component, so they are not scored.
 var exemptMarkers = []string{"disabled"}
 
 type rgb struct{ r, g, b float64 }
@@ -54,7 +52,7 @@ type rgb struct{ r, g, b float64 }
 // pair is a foreground token and the surface token it is rendered on.
 type pair struct{ fg, bg string }
 
-// CSS keywords a token may be declared as rather than a value.
+// CSS keywords that a token can be declared as, in place of a value.
 var baseColors = map[string]rgb{
 	"--white": {1, 1, 1},
 	"--black": {0, 0, 0},
@@ -71,7 +69,7 @@ var (
 )
 
 func main() {
-	lint.Main("design tokens fail WCAG 2.2 AA contrast (ADR-0400)", run)
+	lint.Main("design tokens fail WCAG 2.2 AA contrast, per ADR-0400", run)
 }
 
 func run(r *lint.Report) error {
@@ -131,22 +129,20 @@ func checkMode(mode string, tokens map[string]string) (int, []string) {
 		checked++
 		got := contrast(fg, bg)
 		if got < want {
-			const form = "%s: %s on %s is %.2f:1, below %.1f:1 (SC %s)"
+			const form = "%s: %s on %s is %.2f:1, below %.1f:1, SC %s"
 			problems = append(problems, fmt.Sprintf(form, mode, p.fg, p.bg, got, want, criterion))
 		}
 	}
 	return checked, problems
 }
 
-// pairsFor lists every pair to score: one per declared `--<role>-foreground`
-// couple, plus the two fixed tables. A role declared without its surface (or the
-// reverse) yields no pair here and is caught by the couple check below.
+// pairsFor lists every pair to score: one for each declared `--<role>-foreground` couple, and the two fixed tables.
+// A role declared without its surface, or the reverse, gives no pair here, and the couple check below catches it.
 func pairsFor(tokens map[string]string) []pair {
 	pairs := []pair{{fg: "--foreground", bg: surfacePage}}
 	for name := range tokens {
-		// `--color-*` are the @theme aliases that map Tailwind's utility namespace
-		// onto the roles below them. They hold a var() reference, not a value, and
-		// scoring them would score every role twice under a second name.
+		// `--color-*` are the @theme aliases that map Tailwind's utility namespace onto the roles below them.
+		// They hold a var() reference, not a value. Scoring them would score every role twice under a second name.
 		if strings.HasPrefix(name, "--color-") {
 			continue
 		}
@@ -181,9 +177,8 @@ func isExempt(name string) bool {
 
 // The `.dark` block restates only what changes, so a role it omits keeps its light value.
 func split(css string) (string, string) {
-	// The SELECTOR, anchored to the start of a line: the string ".dark" also appears
-	// in prose in this file, and matching that silently truncates the light palette
-	// to nothing.
+	// The selector, anchored to the start of a line. The string `.dark` also appears in prose in this file,
+	// and a match on that would cut the light palette to nothing with no error.
 	loc := darkSelectorRe.FindStringIndex(css)
 	if loc == nil {
 		return css, css
@@ -200,8 +195,8 @@ func parse(css string) map[string]string {
 	return out
 }
 
-// resolve follows var() indirection to a concrete colour. The depth cap is a cycle
-// guard: a token file with a reference loop should fail the lint, not hang it.
+// resolve follows var() references to a concrete colour. The depth limit guards against a cycle: a token file with a
+// reference loop fails the lint and does not hang it.
 func resolve(tokens map[string]string, name string) (rgb, bool) {
 	c, ok := baseColors[name]
 	if ok {
@@ -266,9 +261,8 @@ func parseColor(value string) (rgb, bool) {
 	return rgb{}, false
 }
 
-// oklchToSRGB converts OKLCH to gamma-encoded sRGB. Tailwind publishes its palette
-// in OKLCH, and WCAG's contrast formula is defined on sRGB, so the conversion is
-// unavoidable rather than a preference.
+// oklchToSRGB converts OKLCH to gamma-encoded sRGB. Tailwind publishes its palette in OKLCH,
+// and WCAG defines its contrast formula on sRGB, so the conversion is required.
 func oklchToSRGB(lightness, chroma, hue float64) rgb {
 	rad := hue * math.Pi / 180
 	a := chroma * math.Cos(rad)
@@ -285,8 +279,7 @@ func oklchToSRGB(lightness, chroma, hue float64) rgb {
 	return rgb{gamma(lr), gamma(lg), gamma(lb)}
 }
 
-// gamma encodes a linear sRGB channel and clamps out-of-gamut results, which OKLCH
-// can produce for saturated colours.
+// gamma encodes a linear sRGB channel and clamps out-of-gamut results, which OKLCH can produce for saturated colours.
 func gamma(v float64) float64 {
 	if v <= 0.0031308 {
 		v *= 12.92
@@ -296,7 +289,7 @@ func gamma(v float64) float64 {
 	return math.Min(1, math.Max(0, v))
 }
 
-// relativeLuminance is WCAG 2.x's definition, not perceptual lightness.
+// relativeLuminance is the WCAG 2.x definition, not perceptual lightness.
 func relativeLuminance(c rgb) float64 {
 	lin := func(v float64) float64 {
 		if v <= 0.04045 {

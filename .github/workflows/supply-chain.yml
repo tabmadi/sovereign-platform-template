@@ -1,12 +1,11 @@
-# Nightly supply-chain inventory (ADR-0104, ADR-0501): verify each pinned image's SBOM attestation and file what
-# is in it. Nightly rather than per build, because this says what an environment is pointed at, which changes on
-# a promotion and has to be re-answered as new CVEs appear. It goes red and pages nobody: a research surface.
+# Nightly supply-chain inventory, per ADR-0104 and ADR-0501. It verifies each pinned image's SBOM attestation and records its contents.
+# It runs nightly, not for each build, because it reports what an environment runs. That changes on a promotion and with new CVEs.
+# It can fail and pages nobody. It is a research surface.
 name: supply-chain
 
 on:
   schedule:
-    # 03:00 UTC, after the day's merges have promoted and before working hours in
-    # the westernmost timezone this is likely to be read in.
+    # 03:00 UTC: after the day's merges are promoted, and before working hours in the westernmost likely timezone.
     - cron: "0 3 * * *"
   workflow_dispatch:
 
@@ -23,24 +22,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # cosign, jq and yq, pinned in .mise.toml like everything else (ADR-0101), so
-      # this verifies with the same binaries that signed.
+      # cosign, jq, and yq are pinned in .mise.toml, per ADR-0101. So this verifies with the same binaries that signed.
       - uses: ./.github/actions/setup
-      # Reading the attestations means reading the registry the images were pushed
-      # to; `packages: read` above is what makes the token sufficient.
+      # The attestations are in the registry that holds the images. `packages: read` above gives the token that access.
       - uses: docker/login-action@v3
         with:
-          # Same three settings as publish.yml, for the same reason: the registry
-          # is configuration, and a deployment that runs its own (ADR-0105) sets
-          # them as forge variables rather than editing this file.
+          # The same three settings as publish.yml. The registry is configuration.
+          # A deployment with its own registry, per ADR-0105, sets them as forge variables and does not edit this file.
           registry: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - name: Verify SBOMs and file the inventory
         env:
-          # Unset until a project has somewhere to push to. The script says so and
-          # continues: the verification is the point, and filing it is how the result
-          # is read later, not whether it happened.
+          # Unset until a project has a place to push to. The script reports this and continues.
+          # The verification is the goal. The record only makes the result readable later.
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}

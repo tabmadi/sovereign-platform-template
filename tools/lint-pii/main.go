@@ -1,5 +1,5 @@
-// Command lint-pii asserts that a column holding personal data carries its `pii:<class>` comment in the migration set
-// (ADR-0301, ADR-0300).
+// Command lint-pii checks that a column with personal data has its `pii:<class>` comment in the migration set,
+// per ADR-0301 and ADR-0300.
 package main
 
 import (
@@ -14,8 +14,7 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/tools/internal/repo"
 )
 
-// Column-name fragments that carry personal data often enough that an untagged one
-// is a review finding rather than a guess.
+// Column-name fragments that hold personal data often enough that an untagged one is a review finding, not a guess.
 var piiIndicators = []string{
 	"email", "phone", "mobile", "address", "postcode", "zip",
 	"first_name", "last_name", "full_name", "given_name", "family_name", "surname",
@@ -24,9 +23,8 @@ var piiIndicators = []string{
 	"ip_address", "user_agent", "device_id", "latitude", "longitude",
 }
 
-// Classes a tag may name. `none` is the explicit "considered, and it is not
-// personal data" answer, which is what keeps the gate from being satisfied by
-// mislabelling something.
+// Classes that a tag can name. `none` is the explicit answer that someone checked and found no personal data.
+// It stops a wrong label from satisfying the gate.
 var validClasses = []string{
 	"none",
 	"contact",          // email, phone, postal address
@@ -36,8 +34,8 @@ var validClasses = []string{
 	"financial",        // payment instrument details
 	"location",         // coordinates, precise geolocation
 	"device",           // IP address, user agent, device identifier
-	"special_category", // GDPR Art. 9 — health, biometrics, and the rest
-	"free_text",        // a field a user types into, which may hold anything
+	"special_category", // GDPR Art. 9 data, such as health and biometrics
+	"free_text",        // a field that a user types into, which can hold anything
 }
 
 var (
@@ -55,7 +53,7 @@ type finding struct {
 }
 
 func main() {
-	lint.Main("PII column tagging (ADR-0301)", run)
+	lint.Main("PII column tagging, per ADR-0301", run)
 }
 
 func run(r *lint.Report) error {
@@ -85,19 +83,19 @@ func run(r *lint.Report) error {
 		if isTagged {
 			continue
 		}
-		const form = "%s: %s holds personal data by its name and carries no pii: tag — add one, or pii:none if it does not"
+		const form = "%s: %s holds personal data by its name and has no pii: tag. Add one, or pii:none if it does not"
 		r.Addf(form, columns[key], key)
 	}
 
-	r.Okf("%d columns across %d migrations; every personal-data column is tagged", len(columns), len(migrations))
+	r.Okf("%d columns across %d migrations. Every personal-data column is tagged", len(columns), len(migrations))
 	return nil
 }
 
-// scan reads every migration once. Tags are collected across the whole service: a dbmate migration is immutable, so a
-// retrospective tag is a new file.
+// scan reads every migration once. Tags are collected across the whole service: a dbmate migration is immutable,
+// so a later tag is a new file.
 func scan(migrations []string) (map[string]string, map[string]string, []finding, error) {
-	columns := map[string]string{} // "service:table.column" -> file that declares it
-	tagged := map[string]string{}  // "service:table.column" -> class
+	columns := map[string]string{} // `service:table.column` to the file that declares it
+	tagged := map[string]string{}  // `service:table.column` to its class
 	var findings []finding
 
 	for _, path := range migrations {
@@ -123,7 +121,7 @@ func scan(migrations []string) (map[string]string, map[string]string, []finding,
 			key := service + ":" + unquote(m[1]) + "." + unquote(m[2])
 			class := m[3]
 			if !slices.Contains(validClasses, class) {
-				const form = "%s is tagged pii:%s, which is not a class — one of: %s"
+				const form = "%s is tagged pii:%s, which is not a class. Use one of: %s"
 				msg := fmt.Sprintf(form, key, class, strings.Join(validClasses, ", "))
 				findings = append(findings, finding{path, msg})
 				continue
@@ -165,8 +163,8 @@ func columnName(line string) string {
 
 func unquote(s string) string {
 	s = strings.ReplaceAll(s, `"`, "")
-	// A schema-qualified name is stored under its table name alone: the migrations
-	// declare one schema, and pg_description is queried by table.
+	// A schema-qualified name is stored under its table name alone: the migrations declare one schema, and
+	// pg_description is queried by table.
 	i := strings.LastIndex(s, ".")
 	if i >= 0 {
 		s = s[i+1:]

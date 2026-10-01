@@ -5,7 +5,7 @@ import "testing"
 func TestBareAPIWildcard(t *testing.T) {
 	t.Parallel()
 	cases := map[string]bool{
-		// Collision-prone: wildcard directly after /api/.
+		// Causes collisions: a wildcard directly after /api/.
 		"<{http,https}>://<**>/api/<**>": true,
 		"<{http,https}>://<**>/api/<*>":  true,
 		"http://example.com/api/*":       true,

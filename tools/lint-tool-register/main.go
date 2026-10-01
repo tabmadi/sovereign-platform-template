@@ -1,4 +1,4 @@
-// Command lint-tool-register asserts that the tool register and the ADR set agree (ADR-0002).
+// Command lint-tool-register checks that the tool register and the ADR set agree, per ADR-0002.
 package main
 
 import (
@@ -29,14 +29,14 @@ type row struct {
 }
 
 var (
-	// [0100](adr/0100-language-and-runtime.md) — the register links relative to docs/.
+	// [0100](adr/0100-language-and-runtime.md): the register links relative to docs/.
 	adrLinkRe = regexp.MustCompile(`\[(\d{4})\]\(adr/(\d{4}-[a-z0-9-]+)\.md\)`)
-	// Cells carry markdown; the comparison is on the visible text.
+	// Cells hold markdown, and the comparison uses the visible text.
 	markupRe = regexp.MustCompile("[`*_]|\\[([^\\]]*)\\]\\([^)]*\\)")
 )
 
 func main() {
-	lint.Main("tool register does not agree with the ADR set (ADR-0002)", run)
+	lint.Main("tool register does not agree with the ADR set, per ADR-0002", run)
 }
 
 func run(r *lint.Report) error {
@@ -73,7 +73,7 @@ func checkRow(r row, adrs map[string]string) []string {
 		return problems
 	}
 
-	// Rule 1 — the owning ADR exists.
+	// Rule 1: the owning ADR exists.
 	if r.owningADR == "" {
 		problems = append(problems, where+": no owning ADR")
 		return problems
@@ -84,7 +84,7 @@ func checkRow(r row, adrs map[string]string) []string {
 		return problems
 	}
 
-	// Rules 2 and 3 — the ADR carries the comparison its tier owes.
+	// Rules 2 and 3: the ADR has the comparison that its tier needs.
 	options := consideredOptions(body)
 	if options == "" {
 		problems = append(problems, fmt.Sprintf("%s: ADR %s has no Considered options section", where, r.owningADR))
@@ -94,17 +94,15 @@ func checkRow(r row, adrs map[string]string) []string {
 		problems = append(problems, fmt.Sprintf("%s: ADR %s Considered options has no comparison table", where, r.owningADR))
 	}
 
-	// Rule 2 — Tier 1 names a runner-up, or says no option survived.
+	// Rule 2: Tier 1 names a runner-up, or says that no option survived.
 	if r.tier == 1 && r.runnerUp == "" {
 		problems = append(problems, where+": Tier 1 row has an empty Runner-up cell")
 	}
 
-	// Rule 4 — every named alternative is visible somewhere in the owning ADR.
-	// The Rule names Considered options, and the ADRs put sub-decisions and their
-	// comparison tables in Decision: ADR-0300 weighs pgcat against PgBouncer there,
-	// under the pooler question. Scoping to one section would demand restructuring
-	// those ADRs rather than finding what the Rule is about, which is an option the
-	// ADR never shows the reader at all.
+	// Rule 4: every named alternative is visible somewhere in the owning ADR. The Rule names Considered options,
+	// and the ADRs put sub-decisions and their comparison tables in Decision. ADR-0300 compares pgcat and PgBouncer there.
+	// A scope of one section would require those ADRs to change. The Rule is about an option that the ADR never shows at
+	// all.
 	haystack := normalise(strip(body))
 	for _, alt := range r.alternatives {
 		if alt == "" || isEscapeHatch(alt) {
@@ -118,14 +116,11 @@ func checkRow(r row, adrs map[string]string) []string {
 	return problems
 }
 
-// mentions reports whether the ADR's Considered options names this alternative.
-//
-// The comparison is on significant tokens rather than the whole cell, because the
-// register and the ADR legitimately word the same option differently: the register
-// says "C#/.NET" where ADR-0100 says ".NET (C#)", and "TypeScript on the backend"
-// where it says "TypeScript on Bun". Requiring the exact phrase would fail on
-// wording, which is not what the Rule is about. The Rule is about an option the ADR
-// never mentions at all, so one significant token is the right bar.
+// mentions reports whether the ADR's Considered options names this alternative. It compares significant tokens, not
+// the whole cell:
+// the register and the ADR can word one option differently, such as `C#/.NET` and `.NET (C#)`. The Rule is about an
+// option
+// that the ADR never mentions, so one significant token is the right bar.
 func mentions(haystack, alt string) bool {
 	for _, tok := range tokens(alt) {
 		if strings.Contains(haystack, tok) {
@@ -135,8 +130,8 @@ func mentions(haystack, alt string) bool {
 	return false
 }
 
-// tokens are the words in a cell that carry identity — the stopwords a phrase like
-// "Traefik ForwardAuth to a first-party service" wraps around "traefik" do not.
+// tokens are the words in a cell that carry identity. In `Traefik ForwardAuth to a first-party service`, only
+// `traefik` does.
 func tokens(s string) []string {
 	var out []string
 	for w := range strings.FieldsSeq(normalise(s)) {
@@ -154,9 +149,8 @@ var stopwords = map[string]bool{
 	"service": true, "services": true, "backend": true, "plain": true,
 }
 
-// normalise lowercases and turns separators into spaces, so "C#/.NET" and
-// ".NET (C#)" tokenise the same way. `#` and `.` survive because they are part of
-// a name here.
+// normalise lowercases and turns separators into spaces, so `C#/.NET` and `.NET (C#)` give the same tokens.
+// `#` and `.` stay, because they are part of a name here.
 func normalise(s string) string {
 	var b strings.Builder
 	for _, r := range strings.ToLower(s) {
@@ -170,9 +164,9 @@ func normalise(s string) string {
 	return b.String()
 }
 
-// isEscapeHatch reports whether a cell is prose standing in for an option rather
-// than naming one — "none — the browser sets it", "review alone". These are honest
-// answers to "what else was considered", and there is nothing to find in a table.
+// isEscapeHatch reports whether a cell is prose in place of an option, such as `none: the browser sets it` or `review
+// alone`.
+// These are honest answers about what else was considered, and there is nothing to find in a table.
 func isEscapeHatch(alt string) bool {
 	lower := strings.ToLower(alt)
 	for _, prefix := range []string{"none", "review alone", "build it", "nothing", "any "} {
@@ -183,8 +177,7 @@ func isEscapeHatch(alt string) bool {
 	return false
 }
 
-// consideredOptions returns the ADR's Considered options section, up to the next
-// section at the same level.
+// consideredOptions returns the ADR's Considered options section, up to the next section at the same level.
 func consideredOptions(body string) string {
 	_, rest, found := strings.Cut(body, "## Considered options")
 	if !found {
@@ -269,7 +262,7 @@ func splitRow(line string) []string {
 	return out
 }
 
-// splitList splits a "Recorded against" cell into the alternatives it names.
+// splitList splits a `Recorded against` cell into the alternatives that it names.
 func splitList(cell string) []string {
 	var out []string
 	for part := range strings.SplitSeq(cell, ",") {
@@ -281,9 +274,8 @@ func splitList(cell string) []string {
 	return out
 }
 
-// strip removes markdown emphasis, code ticks, and link targets, leaving the text a
-// reader sees. Comparing rendered text is what makes a `sqlc` cell match a plain
-// sqlc mention in an ADR table.
+// strip removes markdown emphasis, code ticks, and link targets, and leaves the text that a reader sees.
+// The rendered text lets a `sqlc` cell match a plain sqlc mention in an ADR table.
 func strip(s string) string {
 	return strings.TrimSpace(markupRe.ReplaceAllString(s, "$1"))
 }

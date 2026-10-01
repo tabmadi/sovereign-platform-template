@@ -1,4 +1,4 @@
-// Package lint is the terminal report every gate under tools/ prints (ADR-0001).
+// Package lint is the terminal report that every gate under tools/ prints, per ADR-0001.
 package lint
 
 import (
@@ -27,14 +27,13 @@ func (r *Report) Okf(format string, args ...any) {
 	r.ok = fmt.Sprintf(format, args...)
 }
 
-// Hintf sets the remedy printed under the findings; it never appears on a passing run.
+// Hintf sets the fix printed under the findings. It never appears on a passing run.
 func (r *Report) Hintf(format string, args ...any) {
 	r.hint = fmt.Sprintf(format, args...)
 }
 
-// Main runs fn and owns the exit code. An error from fn prints "✗ <err>"; findings print under a
-// "✗ <problem>:" header, sorted and indented two spaces. Either exits 1; otherwise the success line
-// goes to stdout. Never returns.
+// Main runs fn and owns the exit code. An error from fn prints `✗ <err>`. Findings print under a `✗ <problem>:` header,
+// sorted and indented two spaces. Both exit 1. Otherwise the success line goes to stdout. Main never returns.
 func Main(problem string, fn func(*Report) error) {
 	var r Report
 	err := fn(&r)

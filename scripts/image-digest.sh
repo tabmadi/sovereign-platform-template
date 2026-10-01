@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Resolve a tag to the immutable index digest a values file pins to, reading the registry's own `Docker-Content-Digest` (ADR-0101, ADR-0104).
+# Resolve a tag to the immutable index digest that a values file pins, from the registry's own `Docker-Content-Digest`, per ADR-0101 and ADR-0104.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -12,7 +12,7 @@ case "$ref" in
   tag="${ref##*:}"
   name="${ref%:*}"
   ;;
-*) fail "no tag in reference: $ref — a floating reference has nothing to pin" ;;
+*) fail "no tag in reference: $ref. A floating reference has nothing to pin" ;;
 esac
 
 case "$name" in

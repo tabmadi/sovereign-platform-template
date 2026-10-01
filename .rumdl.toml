@@ -1,11 +1,10 @@
-# Shared Markdown ruleset + runner config for CI (`mise run lint:md` / `format:md`),
-# lefthook, and any editor with the rumdl LSP. rumdl is the single source of truth
-# for Markdown lint *and* format — do NOT use the IDE's Ctrl+Alt+L on .md files.
+# The shared Markdown rules and runner config for CI, `mise run lint:md`, `format:md`, lefthook, and any editor with the rumdl LSP.
+# rumdl is the single source of truth for Markdown lint and format. Do not use the IDE's Ctrl+Alt+L on .md files.
 # Rules: https://github.com/rvben/rumdl
 
 [global]
-# Prose is not hard-wrapped: one line per paragraph, list item, or table row, so a
-# reflow never shows up as a diff. A column limit would fight that (ADR-0001).
+# Prose is not hard-wrapped, per ADR-0001: one line for each paragraph, list item, or table row.
+# A reflow then never shows in a diff, and a column limit conflicts with that.
 disable = ["MD013"]
 exclude = [
   "node_modules",
@@ -25,16 +24,15 @@ style = "dash"
 indent = 2
 style = "fixed"
 
-# ADRs reuse section names (Context, Decision, Consequences) under different parents.
+# ADRs use the same section names under different parents: Context, Decision, and Consequences.
 [MD024]
 siblings-only = true
 
 [MD029]
 style = "ordered"
 
-# Tables are compact, never column-padded: one space inside each pipe and a bare
-# `---` delimiter. Padding makes every cell edit reflow the whole table, and the
-# rule ships disabled upstream, which is why alignment had drifted (ADR-0001).
+# Tables are compact, per ADR-0001: one space inside each pipe and a bare `---` delimiter.
+# With padding, every cell edit reflows the whole table. The rule is off by default upstream, so it is enabled here.
 [MD060]
 enabled = true
 style = "compact"

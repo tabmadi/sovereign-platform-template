@@ -1,5 +1,6 @@
-// Command lint-activity-register checks that every activity a workflow names is registered on the worker serving its
-// task queue (ADR-0302).
+// Command lint-activity-register checks that every activity a workflow names is registered on the worker that serves
+// its task queue,
+// per ADR-0302.
 package main
 
 import (
@@ -16,8 +17,7 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
-// executeActivity names the workflow-side calls that take an activity name. Both
-// take it as the second argument.
+// executeActivity names the workflow-side calls that take an activity name. Both take it as the second argument.
 var executeActivity = map[string]bool{
 	"ExecuteActivity":      true,
 	"ExecuteLocalActivity": true,
@@ -36,8 +36,8 @@ func run(r *lint.Report) error {
 	checked := 0
 
 	for _, svc := range services {
-		// `_template` is behind a `//go:build _template` tag with commented example registrations; lint:template-build
-		// checks it under that tag.
+		// `_template` is behind a `//go:build _template` tag, with example registrations in comments.
+		// lint:template-build checks it under that tag.
 		if strings.HasPrefix(filepath.Base(svc), "_") {
 			continue
 		}
@@ -67,7 +67,7 @@ func run(r *lint.Report) error {
 	}
 
 	r.Hintf("A workflow names its activities as strings, so the compiler cannot\n" +
-		"  see this. The worker answers \"unable to find activityType\" at run time.")
+		"  see this. The worker answers `unable to find activityType` at run time.")
 	r.Okf("%d workers register every activity their workflows call", checked)
 	return nil
 }
@@ -83,8 +83,7 @@ func calledActivities(dir string) (map[string]string, error) {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		// A _test.go file registers stubs in the Temporal test environment, which is
-		// what hides this defect rather than what reveals it.
+		// A _test.go file registers stubs in the Temporal test environment. That hides this defect and does not reveal it.
 		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
@@ -106,9 +105,7 @@ func calledActivities(dir string) (map[string]string, error) {
 				}
 				activity, ok := stringLiteral(call.Args[1])
 				if !ok {
-					// A non-literal name is a value this cannot follow. It is also not
-					// what any workflow here does, so it is left alone rather than
-					// guessed at.
+					// This cannot follow a name that is not a literal. No workflow here uses one, so it is skipped and not guessed.
 					return true
 				}
 				_, seen := out[activity]
@@ -122,8 +119,8 @@ func calledActivities(dir string) (map[string]string, error) {
 	return out, nil
 }
 
-// registeredActivities reads the worker's registrations: the method name for a
-// bare RegisterActivity, and the explicit Name for RegisterActivityWithOptions.
+// registeredActivities reads the worker's registrations: the method name for a bare RegisterActivity,
+// and the explicit Name for RegisterActivityWithOptions.
 func registeredActivities(path string) (map[string]bool, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
@@ -145,8 +142,7 @@ func registeredActivities(path string) (map[string]bool, error) {
 			}
 			switch sel.Sel.Name {
 			case "RegisterActivity":
-				// The registered name is the FUNCTION's name, which is what Temporal
-				// derives it from.
+				// The registered name is the function's name, because Temporal derives it from that.
 				arg, ok := call.Args[0].(*ast.SelectorExpr)
 				if ok {
 					out[arg.Sel.Name] = true
@@ -162,7 +158,7 @@ func registeredActivities(path string) (map[string]bool, error) {
 	return out, nil
 }
 
-// optionNames pulls `Name: "…"` out of an activity.RegisterOptions literal.
+// optionNames reads `Name: "<name>"` from an activity.RegisterOptions literal.
 func optionNames(args []ast.Expr) []string {
 	var out []string
 	for _, arg := range args {

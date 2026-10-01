@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerate sqlc Go code for every service that has a sqlc.yaml (ADR-0300).
+# Regenerate sqlc Go code for every service that has a sqlc.yaml, per ADR-0300.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Render the machinery table in docs/reference/build-path.md from the tasks themselves (ADR-0000 principle 2): every
-# task a workflow or hook reaches, the failure class its description names, and where it runs.
+# Render the machinery table in docs/reference/build-path.md from the tasks themselves, per ADR-0000 principle 2.
+# It lists every task that a workflow or hook reaches, the failure class its description names, and where it runs.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -14,7 +14,7 @@ tasks="$(for f in .mise.toml .config/mise/conf.d/*.toml; do
   yq -p toml -o json '.tasks // {}' "$f"
 done | jq -s 'add')"
 
-# Each entry point and the tasks it names, as "<file> <task>" lines.
+# Each entry point and the tasks it names, as `<file> <task>` lines.
 roots="$(grep -oE 'mise run [a-z][a-z0-9:.-]*' .github/workflows/*.yml .lefthook.yml |
   sed -E 's|^([^:]+):mise run |\1 |' | sort -u)"
 
@@ -30,7 +30,7 @@ rows="$(jq -rn --argjson t "$tasks" --arg roots "$roots" '
   | "\(.task)\t\(.owns)\t\(.from)"')"
 
 missing="$(awk -F'\t' '$2 == "" {print $1}' <<<"$rows")"
-[ -z "$missing" ] || fail "tasks a workflow or hook reaches carry no description — the failure class they own:
+[ -z "$missing" ] || fail "tasks that a workflow or hook reaches have no description of the failure class they own:
 $(sed 's/^/  /' <<<"$missing")"
 
 table="$(

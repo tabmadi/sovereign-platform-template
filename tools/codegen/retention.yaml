@@ -1,14 +1,14 @@
-# Retention per data class (ADR-0301). `period` is how long the class is kept; `disposal` is `delete` or `anonymise`.
-# ADR-0301 makes disposal a per-category decision, never a per-request one.
+# Retention for each data class, per ADR-0301. `period` is how long the class is kept, and `disposal` is `delete` or `anonymise`.
+# ADR-0301 decides disposal for each category, never for each request.
 classes:
   none:
-    period: n/a
-    disposal: n/a
-    note: Considered and carries no personal data. The tag exists so that "nobody looked" and "someone decided" are distinguishable.
+    period: not applicable
+    disposal: not applicable
+    note: Checked, and holds no personal data. The tag shows that someone decided, so it differs from a column nobody checked.
   contact:
     period: life of the account, then 30 days
     disposal: delete
-    note: Email, phone, postal address. Directly identifying, so an erasure request removes it rather than anonymising it.
+    note: Email, phone, postal address. It identifies a person directly, so an erasure request removes it and does not anonymise it.
   name:
     period: life of the account, then 30 days
     disposal: delete
@@ -16,15 +16,15 @@ classes:
   identifier:
     period: life of the account, then 30 days
     disposal: anonymise
-    note: A pseudonymous subject or account identifier. Anonymised rather than deleted because rows keyed by it — orders, charges — carry their own retention obligation that outlives the account.
+    note: A pseudonymous subject or account identifier. It is anonymised, not deleted, because rows keyed by it, such as orders and charges, have their own retention obligation. That obligation outlives the account.
   government_id:
     period: only while a legal obligation requires it
     disposal: delete
-    note: National identifier, passport, tax number. The shortest period of any class, because holding one without a live obligation is the risk.
+    note: National identifier, passport, tax number. The shortest period of any class, because the risk is to hold one with no current obligation.
   financial:
     period: 7 years
     disposal: anonymise
-    note: Payment instrument details. The period is a bookkeeping obligation rather than a product decision, and it overrides an erasure request for the row's financial fields.
+    note: Payment instrument details. The period is a bookkeeping obligation, not a product decision. It overrides an erasure request for the row's financial fields.
   location:
     period: 90 days
     disposal: delete
@@ -32,12 +32,12 @@ classes:
   device:
     period: 90 days
     disposal: delete
-    note: IP address, user agent, device identifier. Raw IP addresses are not stored at all (ADR-0700); what falls under this class is what survives reduction.
+    note: IP address, user agent, device identifier. Raw IP addresses are never stored, per ADR-0700. This class covers what is left after reduction.
   special_category:
     period: only while a legal obligation requires it
     disposal: delete
-    note: GDPR Art. 9 — health, biometrics, and the rest. The platform stores none today, and the class exists so that adding one is a deliberate act against a stated rule.
+    note: GDPR Art. 9 data, such as health and biometrics. The platform stores none. The class exists so that adding one is a deliberate act against a stated rule.
   free_text:
     period: life of the account, then 30 days
     disposal: delete
-    note: A field a user types into, which may hold anything. Treated at the strictest plausible class because its contents cannot be predicted.
+    note: A field that a user types into, which can hold anything. It gets the strictest likely class, because its contents cannot be predicted.

@@ -1,4 +1,4 @@
-// Package edge reads the Oathkeeper access-rule file the edge gates judge (ADR-0305, ADR-0306).
+// Package edge reads the Oathkeeper access-rule file that the edge gates check, per ADR-0305 and ADR-0306.
 package edge
 
 import "github.com/tabmadi/sovereign-platform-template/tools/internal/repo"

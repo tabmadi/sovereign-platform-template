@@ -14,7 +14,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// gitTimeout bounds every git call, so a wedged git cannot hang a gate.
+// gitTimeout limits every git call, so a git that hangs cannot hang a gate.
 const gitTimeout = 30 * time.Second
 
 func Root() (string, error) {
@@ -27,9 +27,9 @@ func Root() (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// Files is the set git accounts for: everything committed plus anything new that is not ignored, the same
-// set scripts/lib/repo-files.sh enumerates. A machine-local file a .gitignore excludes must not reach a
-// gate, or its verdict differs between a working tree and a clean checkout. Paths are relative to Root.
+// Files is the set git tracks, the same as scripts/lib/repo-files.sh: everything committed and anything new that is
+// not ignored. A file that .gitignore excludes never reaches a gate, so a working tree and a clean checkout get one
+// verdict. Paths are relative to Root.
 func Files() ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
@@ -65,9 +65,10 @@ func Glob(pat string) ([]string, error) {
 	return hits, nil
 }
 
-// Read carries the gosec annotation for the package: a path here is an operator-supplied repo file, never user input.
+// Read has the gosec annotation for the package: a path here is an operator-supplied repo file, never user input.
 func Read(path string) ([]byte, error) {
-	// #nosec G304 G703 -- path is an operator-supplied repo file; these are local lint helpers, not servers.
+	// path is an operator-supplied repo file, and these are local lint helpers, not servers.
+	// #nosec G304 G703
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)

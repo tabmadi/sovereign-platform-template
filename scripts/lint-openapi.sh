@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Lint every OpenAPI spec under services/ (ADR-0303). Each spec is self-contained, with shared shapes declared in its own components rather than cross-file $refs.
+# Lint every OpenAPI spec under services/, per ADR-0303. Each spec is self-contained.
+# Its shared shapes are declared in its own components, not in cross-file $refs.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -18,13 +19,12 @@ fi
 step "linting ${#specs[@]} OpenAPI spec(s) with vacuum"
 vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error "${specs[@]}"
 
-# Resource-prefix ownership is the one rule vacuum cannot express: it is a property
-# of the SET of specs, and vacuum lints one document at a time (ADR-0303).
+# Resource-prefix ownership is the one rule vacuum cannot express, per ADR-0303.
+# It is a property of the set of specs, and vacuum lints one document at a time.
 step "checking resource-prefix ownership across the /api namespace"
 go run ./tools/lint-api-prefixes
 
-# The shared components are copied into each spec rather than $ref'd across files,
-# so each document stays self-contained for ogen and vacuum (ADR-0303). This is
-# what makes "identical across specs" a fact rather than a habit.
+# The shared components are copied into each spec, not $ref'd across files, so each document stays self-contained for ogen and vacuum, per ADR-0303.
+# This check makes `identical across specs` a fact and not a habit.
 step "checking the shared components have not diverged"
 go run ./tools/shared-components -check

@@ -1,6 +1,6 @@
-# Web vitals and bundle budgets (ADR-0400): merge gates, so this runs unconditionally rather than behind a label.
-# The origin is the inner-loop floor plus the API mock (ADR-0600), serving the production bundle.
-# `/devportal` is unmeasured: proxy.ts redirects it to login when unauthenticated, so the slot measured login twice.
+# Web vitals and bundle budgets are merge gates, per ADR-0400. So this runs on every PR, not behind a label.
+# The origin is the inner-loop floor and the API mock, per ADR-0600. It serves the production bundle.
+# `/devportal` is not measured: proxy.ts redirects an unauthenticated request to login, so it measures login twice.
 name: lighthouse
 
 on:
@@ -11,7 +11,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # A cancelled job skips its teardown and leaves its cluster on a self-hosted runner: a newer run queues instead.
+  # A cancelled job skips its teardown and leaves its cluster on a self-hosted runner. So a newer run waits in the queue.
   cancel-in-progress: false
 
 permissions:
@@ -20,65 +20,65 @@ permissions:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    # Up to an hour of it can be waiting for another job's cluster on a shared runner (ADR-0102).
+    # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
 
-      # A cold warm pulls every third-party image from upstream and is the dominant cost of this job. The key is the generated warm list, so it changes when the image set changes and at no other time.
+      # A cold warm pulls every third-party image from upstream, and that is most of this job's cost.
+      # The key is the generated warm list, so it changes only when the image set changes.
       - name: Restore the registry mirror
         id: registry-cache
-        # A self-hosted runner keeps the store in its home between jobs; only a fresh hosted machine needs the cache.
+        # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
         with:
-          # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
+          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
-      # The floor: real Traefik, cert-manager, Kratos and Oathkeeper, because `/auth/login` is a measured URL.
-      # Authenticated Docker Hub pulls for zot's sync, unset on a fork where the secrets do not resolve.
+      # The floor: real Traefik, cert-manager, Kratos, and Oathkeeper, because `/auth/login` is a measured URL.
+      # Authenticated Docker Hub pulls for zot's sync. Unset on a fork, where the secrets do not resolve.
       - name: Bring up cluster:up
         run: mise run cluster:up
         env:
-          # The single writer of the mirror cache warms it for the full-tier jobs that only restore it.
+          # The one writer of the mirror cache warms it for the full-tier jobs that only restore it.
           WARM_TIER: full
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Saved before the frontend is pushed: later steps push first-party images that change every commit.
-      # On a miss and on `always()`: the warm is what fails when upstream throttles, and a partial store leaves the next run less to fetch.
+      # Saved before the frontend push, because later steps push first-party images that change with every commit.
+      # Saved on a miss and on `always()`. The warm fails when upstream throttles, and a partial store still helps the next run.
       - name: Save the registry mirror
         if: always() && runner.environment == 'github-hosted' && steps.registry-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
+          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
           key: ${{ steps.registry-cache.outputs.cache-primary-key }}
 
-      # The production container, not `next dev`. A bundle budget measured against a
-      # development server measures unminified output and means nothing.
+      # The production container, not `next dev`. A development server serves unminified output, so its bundle budget means nothing.
       - name: Deploy the frontend as its production image
         run: mise run cluster:add -- frontend
 
-      # `/api` from the committed OpenAPI projection. The panel pages render server
-      # components that fetch through the edge; without it they render an error
-      # state and the measurement is of the wrong page.
+      # `/api` from the committed OpenAPI projection. The panel pages render server components that fetch through the edge.
+      # Without the mock they render an error state, and the job measures the wrong page.
       - name: Start the API mock
         run: mise run mock:start
 
       - name: Install the Node island
         run: mise run e2e:install
 
-      # Advisory until B6a1 lands: the app misses the LCP budget by ~340ms on every page, which is a finding with an owner rather than something a PR author can fix. Delete this line when it passes.
-      - name: Web vitals + bundle budgets
+      # Advisory until B6a1 is done: the app misses the LCP budget by about 340ms on every page.
+      # This finding has an owner, and a PR author cannot fix it. Delete this line when it passes.
+      - name: Web vitals and bundle budgets
         continue-on-error: true
         run: mise run lighthouse
 
       - name: Upload the Lighthouse report
         if: always()
-        # A report is a diagnostic: Forgejo's artifact service refuses v4, and that must not fail a passing run.
+        # A report is a diagnostic. Forgejo's artifact service refuses v4, and that must not fail a passing run.
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:

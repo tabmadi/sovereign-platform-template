@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Seed the committed deterministic test identities into Kratos (ADR-0601, ADR-0600).
+# Seed the committed deterministic test identities into Kratos, per ADR-0601 and ADR-0600.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -21,7 +21,7 @@ identity_id_for() {
     jq -r --arg e "$1" 'map(select(.traits.email == $e)) | .[0].id // empty'
 }
 
-# Kratos hashes the password on import and skips the sign-up policy, so committed credentials are fine (ADR-0306).
+# Kratos hashes the password on import and skips the sign-up policy, so committed credentials are acceptable, per ADR-0306.
 create_identity() {
   local body
   body="$(jq -n --argjson i "$1" '{
@@ -41,16 +41,16 @@ seed_identities() {
     email="$(jq -r .email <<<"$id")"
     existing="$(identity_id_for "$email")"
     if [ -n "$existing" ]; then
-      detail "${email} already exists (${existing})"
+      detail "${email} already exists as ${existing}"
       continue
     fi
     created="$(create_identity "$id")"
-    detail "created ${email} (${created})"
+    detail "created ${email} as ${created}"
   done
 }
 
-# The import path runs no self-service flow, so the `after` web_hook never fires and the identity would have no
-# org or X-Org-Id (ADR-0304). The workflow id is derived from the identity, so a re-run is a no-op.
+# The import path runs no self-service flow, so the `after` web_hook never fires. The identity would have no org or X-Org-Id, per ADR-0304.
+# The workflow id comes from the identity, so a second run is a no-op.
 run_post_registration() {
   local i id email identity_id
   step "running the post-registration process for each identity"
@@ -70,7 +70,7 @@ run_post_registration() {
   done
 }
 
-# OpenFGA rejects a duplicate tuple with a 400, so `-sS` without `-f` keeps the body that separates it from a real failure.
+# OpenFGA rejects a duplicate tuple with a 400. `-sS` without `-f` keeps the body, which separates it from a real failure.
 grant_operator() {
   local sid=$1 identity_id=$2 email=$3 resp code body
   resp="$(curl -sS -w '\n%{http_code}' -H "Authorization: Bearer ${sk}" \
@@ -86,12 +86,12 @@ grant_operator() {
     detail "group:operator already granted to ${email}"
   else
     echo "$body" >&2
-    fail "OpenFGA write failed for ${email} (HTTP ${code})"
+    fail "OpenFGA write failed for ${email}, HTTP ${code}"
   fi
 }
 
-# group:operator membership feeds the optional fine gate and the admin console (ADR-0304, ADR-0401); the coarse
-# gate is the metadata_public.operator flag set above.
+# group:operator membership feeds the optional fine gate and the admin console, per ADR-0304 and ADR-0401.
+# The coarse gate is the metadata_public.operator flag set above.
 grant_operator_membership() {
   local sid i id email identity_id
   step "granting group:operator membership in OpenFGA"
@@ -103,7 +103,7 @@ grant_operator_membership() {
   sid="$(curl -fsS -H "Authorization: Bearer ${sk}" "http://localhost:18080/stores" |
     jq -r '.stores[] | select(.name=="platform") | .id' | head -n1)"
   if [ -z "$sid" ]; then
-    detail "no OpenFGA store 'platform' — skipping the operator grant"
+    detail "no OpenFGA store 'platform'. Skipping the operator grant"
     return 0
   fi
   for i in $(seq 0 "$(last_index)"); do
@@ -124,16 +124,16 @@ sleep 3
 
 seed_identities
 
-# Only where orgs is running: a seed that insisted would fail the whole tier on a service it never claimed to run.
+# Only where orgs runs. A seed that required it would fail the whole tier on a service it never claimed to run.
 if k get svc orgs-server >/dev/null 2>&1; then
   run_post_registration
 else
-  detail "orgs is not running in this tier — seeded identities have no org yet"
+  detail "orgs is not running in this tier. Seeded identities have no org yet"
 fi
 
-# Gated on the real platform OpenFGA: the inner-loop stand-in has no store to grant against.
+# Only with the real platform OpenFGA: the inner-loop stand-in has no store to grant against.
 if k get secret openfga-creds >/dev/null 2>&1; then
   grant_operator_membership
 else
-  detail "no openfga-creds secret — skipping the operator grant"
+  detail "no openfga-creds secret. Skipping the operator grant"
 fi

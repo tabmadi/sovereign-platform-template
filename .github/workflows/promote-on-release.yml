@@ -1,5 +1,6 @@
-# Tag-driven prod promotion (ADR-0201, ADR-0103), triggered by the CalVer tag `mise run release` cuts.
-# It pins every prod service to the release commit by digest, labels the images, opens the pin as a PR that merges on green, and gates on the rollout.
+# Prod promotion from a tag, per ADR-0201 and ADR-0103. The CalVer tag that `mise run release` cuts starts it.
+# It pins every prod service to the release commit by digest and labels the images.
+# It opens the pin as a PR that merges on green, and it gates on the rollout.
 name: promote-on-release
 
 on:
@@ -22,9 +23,8 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
-          # Same three settings as publish.yml, for the same reason: the registry
-          # is configuration, and a deployment that runs its own (ADR-0105) sets
-          # them as forge variables rather than editing this file.
+          # The same three settings as publish.yml. The registry is configuration.
+          # A deployment with its own registry, per ADR-0105, sets them as forge variables and does not edit this file.
           registry: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
@@ -33,7 +33,7 @@ jobs:
         id: rel
         run: mise run ci:release-info >> "$GITHUB_OUTPUT"
 
-      - name: Pin prod to digests + label images with the CalVer
+      - name: Pin prod to digests and label images with the CalVer
         env:
           SHA: ${{ steps.rel.outputs.sha }}
           VER: ${{ steps.rel.outputs.version }}
@@ -45,7 +45,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mise run ci:release-pr
 
-      # "Argo Healthy" already means the new ReplicaSet is available, but a release must not report success until prod has converged on the release commit (ADR-0201, ADR-0103).
+      # Argo `Healthy` already means the new ReplicaSet is available.
+      # A release still reports success only after prod converges on the release commit, per ADR-0201 and ADR-0103.
       - name: Verify prod rollout
         env:
           SHA: ${{ steps.rel.outputs.sha }}

@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
-# The vulnerability and misconfiguration merge gate (ADR-0104, ADR-0106).
+# The vulnerability and misconfiguration merge gate, per ADR-0104 and ADR-0106.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-# HIGH and CRITICAL only. MEDIUM on a transitive dependency is a weekly Renovate
-# bump, not a merge blocker, and a gate that blocks on everything is one that gets
-# an --exit-code 0 within a month.
+# HIGH and CRITICAL only. MEDIUM on a transitive dependency is a weekly Renovate bump, not a merge blocker.
+# A gate that blocks on everything soon gets an --exit-code 0.
 SEVERITY="${TRIVY_SEVERITY:-HIGH,CRITICAL}"
 
-# Directories with nothing of ours in them. node_modules is the e2e island's npm
-# tree (its own lockfile is scanned); .next and dist are build output; test-results
-# holds Playwright traces.
+# Directories with nothing of ours. node_modules is the npm tree of the e2e island, and its own lockfile is scanned.
+# .next and dist are build output, and test-results holds Playwright traces.
 SKIP=(
-  # Vendored upstream Helm charts, unpacked from their .tgz. Someone else's
-  # manifests; a finding here is a finding for them.
+  # Vendored upstream Helm charts, unpacked from their .tgz. These are another project's manifests, and a finding here belongs to them.
   --skip-dirs "**/charts"
   --skip-dirs "**/node_modules"
   --skip-dirs "**/.next"
@@ -22,8 +19,7 @@ SKIP=(
   --skip-dirs "**/playwright-report"
 )
 
-# `report` is the triage view: everything, gated on nothing. It is what you run
-# when the question is "what do we carry", not "does this merge".
+# `report` is the triage view: everything, and it gates nothing. Run it to see what the repo carries, not to decide a merge.
 if [ "${1:-gate}" = "report" ]; then
   step "every dependency finding, fixed or not, at every severity"
   trivy fs --scanners vuln --no-progress "${SKIP[@]}" .
@@ -32,7 +28,7 @@ if [ "${1:-gate}" = "report" ]; then
   exit 0
 fi
 
-step "scanning dependencies (severity ${SEVERITY})"
+step "scanning dependencies, severity ${SEVERITY}"
 trivy fs \
   --scanners vuln \
   --severity "$SEVERITY" \
@@ -44,8 +40,8 @@ trivy fs \
 
 ok "no fixable ${SEVERITY} findings"
 
-# A separate invocation, because --ignore-unfixed is meaningless for a manifest and a combined run accepts it while changing nothing.
-step "scanning manifests and Dockerfiles (severity ${SEVERITY})"
+# A separate run: --ignore-unfixed has no meaning for a manifest, and a combined run accepts it and changes nothing.
+step "scanning manifests and Dockerfiles, severity ${SEVERITY}"
 trivy fs \
   --scanners misconfig \
   --severity "$SEVERITY" \

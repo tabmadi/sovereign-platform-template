@@ -35,9 +35,9 @@ while IFS= read -r glob; do
   fi
 done <<<"$globs"
 
-[ "$count" -gt 0 ] || fail "no members checked — the gate would pass vacuously"
+[ "$count" -gt 0 ] || fail "no members checked. The gate would pass with nothing to check"
 
 if [ "$rc" -eq 0 ]; then
-  ok "every workspace member is copied into the frontend build (${count} checked)"
+  ok "every workspace member is copied into the frontend build, ${count} checked"
 fi
 exit "$rc"

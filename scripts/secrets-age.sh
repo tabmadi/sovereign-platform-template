@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate this engineer's SOPS age key (ADR-0202). Idempotent.
+# Generate this engineer's SOPS age key, per ADR-0202. Idempotent.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -10,7 +10,7 @@ mkdir -p "$KEY_DIR"
 chmod 700 "$KEY_DIR"
 
 if [[ -f "$KEY_FILE" ]]; then
-  step "age key already exists at $KEY_FILE (leaving it)"
+  step "age key already exists at $KEY_FILE, leaving it"
 else
   step "generating age key at $KEY_FILE"
   age-keygen -o "$KEY_FILE"
@@ -18,5 +18,5 @@ else
 fi
 
 echo
-echo "Your age PUBLIC key — add it to .sops.yaml, then run 'sops updatekeys' on encrypted files:"
+echo "Your age public key. Add it to .sops.yaml, then run 'sops updatekeys' on encrypted files:"
 echo "  $(age-keygen -y "$KEY_FILE")"

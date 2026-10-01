@@ -1,4 +1,4 @@
-// Command gostyle runs the layout-based style analyzers golangci-lint cannot express.
+// Command gostyle runs the layout-based style analyzers that golangci-lint cannot express.
 package main
 
 import (
@@ -9,8 +9,8 @@ import (
 	"golang.org/x/tools/go/analysis/multichecker"
 )
 
-// callArgsAnalyzer checks that a call's arguments are all on one line or one per line, never a mix.
-// gofmt preserves whatever breaks the source had, so nothing upstream catches the in-between layout.
+// callArgsAnalyzer checks that a call's arguments are all on one line or one on each line, never a mix.
+// gofmt keeps the line breaks the source had, so no upstream tool catches the mixed layout.
 var callArgsAnalyzer = &analysis.Analyzer{
 	Name: "callargs",
 	Doc:  "a call's arguments must be either all on one line or fully exploded one per line",
@@ -46,9 +46,8 @@ func runCallArgs(pass *analysis.Pass) (any, error) {
 	return nil, nil //nolint:nilnil // Run's (result, error) signature; nil result is normal
 }
 
-// isGenerated reports whether the file carries the standard
-// "// Code generated ... DO NOT EDIT." marker (same convention golangci-lint
-// uses for its own `generated: lax` exclusion).
+// isGenerated reports whether the file has the standard `// Code generated ... DO NOT EDIT.` marker.
+// golangci-lint uses the same convention for its own `generated: lax` exclusion.
 func isGenerated(file *ast.File) bool {
 	for _, c := range file.Comments {
 		for _, line := range c.List {
@@ -60,17 +59,16 @@ func isGenerated(file *ast.File) bool {
 	return false
 }
 
-// isSingleLine reports whether the call's parens and every argument sit on
-// the same source line.
+// isSingleLine reports whether the call's parens and every argument are on the same source line.
 func isSingleLine(call *ast.CallExpr, pass *analysis.Pass) bool {
 	lparenLine := pass.Fset.Position(call.Lparen).Line
 	rparenLine := pass.Fset.Position(call.Rparen).Line
 	return lparenLine == rparenLine
 }
 
-// isFullyExploded reports whether the call has a newline right after the
-// opening paren, a newline right before the closing paren, and each argument
-// starts on a line of its own (none sharing a line with its neighbor).
+// isFullyExploded reports whether the call has a newline right after the opening paren and right before the closing
+// one.
+// Each argument must also start on its own line.
 func isFullyExploded(call *ast.CallExpr, pass *analysis.Pass) bool {
 	lparenLine := pass.Fset.Position(call.Lparen).Line
 	firstArgLine := pass.Fset.Position(call.Args[0].Pos()).Line

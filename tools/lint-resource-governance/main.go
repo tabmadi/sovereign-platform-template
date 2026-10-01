@@ -1,5 +1,5 @@
 // Command lint-resource-governance renders every chart and checks its declared resources against the guardrails
-// before they reach a cluster (ADR-0204).
+// before they reach a cluster, per ADR-0204.
 package main
 
 import (
@@ -18,30 +18,31 @@ import (
 
 const setFlag = "--set"
 
-// Charts that render into a namespace other than `platform`. Everything else under
-// infra/helm/platform/ targets platform, matching the ApplicationSet destination.
+// Charts that render into a namespace other than `platform`. Everything else under infra/helm/platform/ targets
+// platform,
+// like the ApplicationSet destination.
 var chartNamespace = map[string]string{
 	"argocd": "argocd",
 	"cilium": "kube-system",
 }
 
-// Values some charts require before they will render at all. Throwaway placeholders
-// — this lint only reads resource stanzas.
+// Values that some charts require before they render at all. They are throwaway placeholders, because this lint reads
+// only resource stanzas.
 var chartExtraArgs = map[string][]string{
 	"lowdefy": {setFlag, "lowdefy.image.repository=r", setFlag, "lowdefy.image.tag=v"},
 	"openfga": {setFlag, "image.repository=r", setFlag, "image.tag=v"},
 }
 
-// sharedValues is the repo-wide overlay every platform chart is rendered with.
+// sharedValues is the repo-wide overlay that every platform chart is rendered with.
 const sharedValues = "infra/gitops/platform/shared-values.yaml"
 
-// CPU limits ADR-0204 tolerates, each with the reason it survives. A container not
-// listed here may not carry one.
+// CPU limits that ADR-0204 accepts, each with the reason it stays. A container that is not listed here must not have
+// one.
 var cpuLimitAllowList = map[string]string{
-	// Upstream hook Job whose `podResources: null` renders as `cpu: null`, which the API server reads as a limit of
-	// zero.
+	// An upstream hook Job whose `podResources: null` renders as `cpu: null`, and the API server reads that as a limit
+	// of zero.
 	"kyverno/kyverno-migrate-resources/kyverno-cli": "upstream hook Job, undeletable default, runs once",
-	// Runs once at pod start to copy CNI binaries: throttling delays startup only.
+	// Runs once at pod start to copy CNI binaries, so throttling only delays startup.
 	"cilium/cilium/install-cni-binaries": "upstream init container, startup-only",
 }
 
@@ -91,7 +92,7 @@ type resourceQuota struct {
 	LimitsMemory   string `yaml:"limitsMemory"`
 }
 
-// governance mirrors the part of resource-governance/values.yaml this lint reads.
+// governance matches the part of resource-governance/values.yaml that this lint reads.
 type governance struct {
 	LimitRanges    map[string]limitRange    `yaml:"limitRanges"`
 	ResourceQuotas map[string]resourceQuota `yaml:"resourceQuotas"`
@@ -118,7 +119,7 @@ var memSuffixes = []struct {
 	{"G", 1e9},
 }
 
-// parseCPU returns cores: "100m" -> 0.1, "2" -> 2.
+// parseCPU returns cores: `100m` is 0.1, and `2` is 2.
 func parseCPU(v string) (float64, error) {
 	if v == "" {
 		return 0, nil
@@ -187,7 +188,7 @@ func memOf(v, where string) float64 {
 
 func gib(b float64) string { return fmt.Sprintf("%.2fGi", b/(1<<30)) }
 
-// ratio renders "used/cap (pct%)" for the utilisation line.
+// ratio renders the usage line as used, cap, and percent.
 func ratio(got, want float64) string {
 	return fmt.Sprintf("%s/%s (%.0f%%)", gib(got), gib(want), 100*got/want)
 }
@@ -209,7 +210,7 @@ func isWorkload(kind string) bool {
 	}
 }
 
-// chartDeps mirrors the dependency list of a chart's Chart.yaml.
+// chartDeps matches the dependency list of a chart's Chart.yaml.
 type chartDeps struct {
 	Dependencies []struct {
 		Name    string `yaml:"name"`
@@ -217,7 +218,7 @@ type chartDeps struct {
 	} `yaml:"dependencies"`
 }
 
-// Matches the pinned version, not the name, so a Chart.yaml bump re-vendors rather than rendering the stale subchart
+// Matches the pinned version, not the name, so a Chart.yaml bump vendors again and does not render the stale subchart
 // in charts/.
 func hasSubchart(dir, name, version string) bool {
 	base := filepath.Join(dir, "charts")
@@ -229,8 +230,7 @@ func hasSubchart(dir, name, version string) bool {
 	return tgzErr == nil
 }
 
-// `update`, not `build`: nothing here runs `helm repo add`, and `build` rejects a repository it has no local name
-// for.
+// `update`, not `build`: nothing here runs `helm repo add`, and `build` rejects a repository that has no local name.
 func ensureDeps(ctx context.Context, dir, name string) error {
 	raw, err := os.ReadFile(filepath.Join(dir, "Chart.yaml"))
 	if err != nil {
@@ -268,8 +268,8 @@ func render(ctx context.Context, root, dir, name string) ([]entry, error) {
 	if ns == "" {
 		ns = "platform"
 	}
-	// Without `--namespace` helm renders Release.Namespace as "default", so every chart matches no LimitRange.
-	// The shared deletions file is the only place a subchart default can be removed rather than replaced.
+	// Without `--namespace`, helm renders Release.Namespace as `default`, so no chart matches a LimitRange.
+	// The shared deletions file is the only place where a subchart default can be removed and not replaced.
 	extra := chartExtraArgs[name]
 	args := make([]string, 0, 7+len(extra))
 	args = append(args, "template", name, dir, "--namespace", ns)
@@ -359,7 +359,7 @@ func collectPlatformCharts(ctx context.Context, root string) []entry {
 	for _, d := range dirs {
 		_, chartErr := os.Stat(filepath.Join(d, "Chart.yaml"))
 		if chartErr != nil {
-			continue // not a chart (e.g. an empty placeholder directory)
+			continue // not a chart, for example an empty placeholder directory
 		}
 		entries, renderErr := render(ctx, root, d, filepath.Base(d))
 		if renderErr != nil {
@@ -370,8 +370,8 @@ func collectPlatformCharts(ctx context.Context, root string) []entry {
 	return all
 }
 
-// Renders once per service; a single render undercounts the platform namespace and the quota check is only worth
-// having if the total is right.
+// Renders once for each service. A single render undercounts the platform namespace, and the quota check is useful
+// only with the right total.
 func collectServices(ctx context.Context, root string) []entry {
 	svcDirs, err := filepath.Glob(filepath.Join(root, "services/*"))
 	if err != nil {
@@ -421,7 +421,7 @@ func serviceArgs(svc string, worker bool) []string {
 	}
 }
 
-// quantity parses a cpu or memory quantity, whichever the field is.
+// quantity parses a cpu or memory quantity, depending on the field.
 func quantity(field, value, where string) float64 {
 	if field == "cpu" {
 		return cpuOf(value, where)
@@ -429,8 +429,8 @@ func quantity(field, value, where string) float64 {
 	return memOf(value, where)
 }
 
-// checkRejection is the cluster-breaking class: a declared value outside a
-// LimitRange's min/max means the API server refuses the pod.
+// checkRejection is the class that breaks a cluster: a declared value outside a LimitRange's min or max makes the API
+// server refuse the pod.
 func checkRejection(all []entry, gov governance) int {
 	fail := 0
 	for _, e := range all {
@@ -459,14 +459,14 @@ func checkRejection(all []entry, gov governance) int {
 			}
 			what := fmt.Sprintf("%s %s=%s", c.kind, c.field, c.declared)
 			bound := fmt.Sprintf("%s LimitRange bound of %s", e.ns, c.bound)
-			outf("✗ %s %s is %s the %s — the pod would be REJECTED", e.label, what, c.rel, bound)
+			outf("✗ %s %s is %s the %s. The pod would be rejected", e.label, what, c.rel, bound)
 			fail++
 		}
 	}
 	return fail
 }
 
-// checkCoverage asserts every container ends up governed, declared or defaulted.
+// checkCoverage checks that every container is governed, by a declared value or a default.
 func checkCoverage(all []entry, gov governance) int {
 	fail := 0
 	for _, e := range all {
@@ -479,7 +479,7 @@ func checkCoverage(all []entry, gov governance) int {
 		} {
 			covered := c.declared != "" || (defaulted && c.fallback != "")
 			if !covered {
-				outf("✗ %s has no %s and namespace %s supplies no default (ADR-0204)", e.label, c.what, e.ns)
+				outf("✗ %s has no %s, and namespace %s supplies no default, per ADR-0204", e.label, c.what, e.ns)
 				fail++
 			}
 		}
@@ -487,17 +487,17 @@ func checkCoverage(all []entry, gov governance) int {
 	return fail
 }
 
-// checkCPULimits enforces ADR-0204's opt-in-only CPU limit policy.
+// checkCPULimits enforces the ADR-0204 policy that CPU limits are opt-in only.
 func checkCPULimits(all []entry) int {
 	fail := 0
 	for _, e := range all {
 		limit, present := e.res.Limits["cpu"]
-		// A present key with an empty value renders as `cpu: null`, which the API server reads as a limit of zero and
-		// rejects.
+		// A present key with an empty value renders as `cpu: null`. The API server reads that as a limit of zero and
+		// rejects it.
 		if present && limit == "" {
-			outf("✗ %s sets an EMPTY cpu limit (`cpu: null`); the API server reads that as 0, not as absent", e.label)
+			outf("✗ %s sets an empty cpu limit, `cpu: null`. The API server reads that as 0, not as absent", e.label)
 			outf("  a values-file `null` did not delete the upstream key here")
-			outf("  — remove the override and allow-list the container instead")
+			outf("  Remove the override and allow-list the container instead")
 			fail++
 			continue
 		}
@@ -509,7 +509,7 @@ func checkCPULimits(all []entry) int {
 			continue
 		}
 		hint := "add it to cpuLimitAllowList in tools/lint-resource-governance with a reason, or remove it"
-		outf("✗ %s sets a cpu limit (%s); ADR-0204 sets these only where throttling is desired", e.label, limit)
+		outf("✗ %s sets a cpu limit, %s. ADR-0204 sets these only where throttling is wanted", e.label, limit)
 		outf("  %s", hint)
 		fail++
 	}
@@ -518,13 +518,13 @@ func checkCPULimits(all []entry) int {
 
 type nsSum struct{ reqCPU, reqMem, limMem float64 }
 
-// sumByNamespace totals each namespace's EFFECTIVE requests/limits, applying the
-// LimitRange default wherever a container declared nothing.
+// sumByNamespace totals each namespace's effective requests and limits. It applies the LimitRange default wherever a
+// container declared nothing.
 func sumByNamespace(all []entry, gov governance) map[string]*nsSum {
 	sums := map[string]*nsSum{}
 	for _, e := range all {
-		// initContainers do not add to a pod's effective request — the kubelet takes
-		// the max of init vs the sum of app containers — so they are excluded.
+		// initContainers do not add to a pod's effective request: the kubelet takes the max of the init containers
+		// or the sum of the app containers. So they are excluded.
 		if e.init {
 			continue
 		}
@@ -541,8 +541,8 @@ func sumByNamespace(all []entry, gov governance) map[string]*nsSum {
 	return sums
 }
 
-// checkQuota compares each namespace's totals with its ResourceQuota, printing
-// utilisation either way so the cap can be tightened deliberately.
+// checkQuota compares each namespace's totals with its ResourceQuota. It prints the usage in both cases, so the cap
+// can be tightened on purpose.
 func checkQuota(all []entry, gov governance) int {
 	sums := sumByNamespace(all, gov)
 	names := make([]string, 0, len(sums))
@@ -585,7 +585,7 @@ func reportOverruns(ns string, s *nsSum, capCPU, capReqMem, capLimMem float64) i
 	} {
 		if c.got > c.want {
 			detail := fmt.Sprintf("summed %s is %s, cap is %s", c.name, c.render(c.got), c.render(c.want))
-			outf("✗ %s: %s — pods would be rejected", ns, detail)
+			outf("✗ %s: %s. Pods would be rejected", ns, detail)
 			fail++
 		}
 	}

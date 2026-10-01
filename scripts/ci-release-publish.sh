@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish the forge release for a CalVer tag once prod runs it (ADR-0103).
+# Publish the forge release for a CalVer tag when prod runs it, per ADR-0103.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

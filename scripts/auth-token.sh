@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Mint a Kratos session token for a registered identity, for hitting authenticated endpoints locally (ADR-0305, ADR-0304). Requires the full tier.
+# Mint a Kratos session token for a registered identity, to call authenticated endpoints locally, per ADR-0305 and ADR-0304.
+# It needs the full tier.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

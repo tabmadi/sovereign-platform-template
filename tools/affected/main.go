@@ -1,4 +1,4 @@
-// Command affected emits the JSON manifest of what the current diff touches, consumed by CI (ADR-0101).
+// Command affected emits the JSON manifest of what the current diff touches, for CI, per ADR-0101.
 package main
 
 import (
@@ -41,7 +41,8 @@ func main() {
 }
 
 func changedFiles(ctx context.Context, base string) ([]string, error) {
-	// #nosec G204 -- base is an operator-supplied git ref; this is a local CI helper, not a server.
+	// base is an operator-supplied git ref, and this is a local CI helper, not a server.
+	// #nosec G204
 	out, err := exec.CommandContext(ctx, "git", "diff", "--name-only", base+"...HEAD").Output()
 	if err != nil {
 		return nil, fmt.Errorf("git diff: %w", err)
@@ -53,8 +54,8 @@ func changedFiles(ctx context.Context, base string) ([]string, error) {
 	return lines, nil
 }
 
-// classify maps the given list of changed paths onto the affected scopes.
-// Exported (well — unexported but accessible within the package) for testing.
+// classify maps the list of changed paths onto the affected scopes. It is unexported, and the tests in the package
+// call it.
 func classify(files []string, forceAll bool) Manifest {
 	m := Manifest{
 		Services: []string{},
@@ -74,7 +75,7 @@ func classify(files []string, forceAll bool) Manifest {
 
 	for _, f := range files {
 		switch {
-		// Anything that affects the whole repo's build graph.
+		// Anything that affects the build graph of the whole repo.
 		case isGlobalTrigger(f):
 			m.Global = true
 			m.Reason = "global trigger: " + f
@@ -93,9 +94,9 @@ func classify(files []string, forceAll bool) Manifest {
 			}
 
 		case strings.HasPrefix(f, "libs/go/sdks/") || strings.HasPrefix(f, "libs/ts/sdks/"):
-			// A change under libs/{go,ts}/sdks/<service>/ affects consumers of that service's client.
-			// We mark the underlying service as affected; downstream consumers are handled by
-			// `go list -deps` in CI when this turns out to be insufficient.
+			// A change under libs/{go,ts}/sdks/<service>/ affects the consumers of that service's client.
+			// The service itself is marked as affected. When that is not enough, `go list -deps` in CI handles downstream
+			// consumers.
 			p := segment(f, 3)
 			if p != "" {
 				svcSet[p] = struct{}{}
@@ -126,7 +127,7 @@ func isGlobalTrigger(f string) bool {
 		strings.HasPrefix(f, ".github/")
 }
 
-// segment returns the n-th path segment (0-indexed), or "" if absent.
+// segment returns the n-th path segment, counted from 0, or an empty string if absent.
 func segment(p string, n int) string {
 	parts := strings.Split(p, "/")
 	if len(parts) <= n {

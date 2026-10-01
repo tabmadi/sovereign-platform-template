@@ -1,5 +1,5 @@
-// Command lint-readme-drift checks the two documents that duplicate by design — the root README and ADR-0000 —
-// against the ADRs they copy from (ADR-0001).
+// Command lint-readme-drift checks the two documents that repeat content by design, the root README and ADR-0000,
+// against the ADRs they copy from, per ADR-0001.
 package main
 
 import (
@@ -23,29 +23,29 @@ const (
 var (
 	adrRef  = regexp.MustCompile(`ADR-(\d{4})|\]\(docs/adr/(\d{4})-`)
 	adrFile = regexp.MustCompile(`^(\d{4})-[a-z0-9-]+\.md$`)
-	// A staffing level attached to people. The floor's constraints are a property of the component, not a team size.
+	// A staffing level tied to people. The floor's constraints are a property of the component, not a team size.
 	headcount = regexp.MustCompile(
 		`(?i)\b(\d+|two|three|four|five|six|seven|eight|nine|ten)` +
-			`\s*([–—-]|\bto\b)?\s*(\d+|two|three|four|five)?\s+(platform\s+)?` +
+			`\s*([\x{2013}\x{2014}-]|\bto\b)?\s*(\d+|two|three|four|five)?\s+(platform\s+)?` +
 			`(engineers?|people|persons?|FTEs?|staff)\b`,
 	)
 	singular  = regexp.MustCompile(`(?i)^(1|one)\b`)
 	linkText  = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
 	inlineTag = regexp.MustCompile("[`*]")
 
-	// A principle heading in ADR-0000, as in "**4. Spend novelty by exit cost**".
+	// A principle heading in ADR-0000, such as `**4. Spend novelty by exit cost**`.
 	principleHead = regexp.MustCompile(`^\*\*(\d+)\.\s`)
 	// A principle row in either README table: the number is the first cell.
 	principleRow = regexp.MustCompile(`^\|\s*(\d+)\s*\|`)
-	// Link targets, which are what an anchor is compared on. Prose around a citation is
-	// written to two different lengths on purpose; the source cited is not.
+	// Link targets, which the anchor comparison uses. The prose around a citation has two different lengths on purpose,
+	// and the cited source does not.
 	linkTarget   = regexp.MustCompile(`\]\(([^)]+)\)`)
 	localMarker  = regexp.MustCompile(`(?i)\*\*local\*\*`)
 	parenthetics = regexp.MustCompile(`\([^)]*\)`)
 )
 
-// principle is one numbered selection or construction principle, as either document
-// states it. Only the fields both documents carry are compared.
+// principle is one numbered selection or construction principle, as either document states it. Only the fields that
+// both documents have are compared.
 type principle struct {
 	local    bool
 	sources  map[string]bool
@@ -53,8 +53,8 @@ type principle struct {
 	accepted []string
 }
 
-// stopWords are option-cell openings that carry no product name. An option is written as
-// a phrase, and only some phrases start with the thing being named.
+// stopWords are option-cell openings that hold no product name. An option is written as a phrase, and only some
+// phrases start with the named thing.
 var stopWords = map[string]bool{
 	"a": true, "an": true, "the": true, "one": true, "two": true, "no": true, "none": true,
 	"do": true, "per": true, "build": true, "write": true, "keep": true, "everything": true,
@@ -102,9 +102,9 @@ func run(r *lint.Report) error {
 	return nil
 }
 
-// verdictSet is what every ADR's comparison tables concluded, pooled across the set: the
-// names that won somewhere, and the names that lost somewhere. ADR-0000 chooses no
-// technology, so its principle blocks are claims about these two sets.
+// verdictSet is what every ADR's comparison tables concluded, pooled across the set: the names that won somewhere,
+// and the names that lost somewhere. ADR-0000 chooses no technology, so its principle blocks are claims about these
+// two sets.
 type verdictSet struct {
 	chosen map[string]string // name → the ADR number that chose it
 	lost   map[string]string // name → an ADR number that refused it
@@ -139,9 +139,8 @@ func loadVerdicts() (verdictSet, error) {
 	return out, nil
 }
 
-// principlesInADR reads ADR-0000's principle blocks. A principle opens with a bold
-// numbered heading and carries its anchor, its casualties, and what it admitted on the
-// same rule as sibling bullets.
+// principlesInADR reads ADR-0000's principle blocks. A principle starts with a bold numbered heading.
+// Its anchor, its casualties, and what it admitted are sibling bullets on the same rule.
 func principlesInADR(body string) map[string]principle {
 	out := map[string]principle{}
 	current := ""
@@ -171,8 +170,8 @@ func principlesInADR(body string) map[string]principle {
 	return out
 }
 
-// principlesInREADME reads the two principle tables. Their rows carry the number, the
-// principle, the anchor, and what it rejected, in that order.
+// principlesInREADME reads the two principle tables. Their rows hold the number, the principle, the anchor, and what
+// it rejected, in that order.
 func principlesInREADME(body string) map[string]principle {
 	out := map[string]principle{}
 	for line := range strings.SplitSeq(body, "\n") {
@@ -192,8 +191,8 @@ func principlesInREADME(body string) map[string]principle {
 	return out
 }
 
-// checkPrincipleBlocks holds ADR-0000's hand copies against the verdicts their owning
-// ADRs reached: the document every other ADR cites is otherwise the one nothing reads back.
+// checkPrincipleBlocks checks ADR-0000's hand copies against the verdicts of their owning ADRs.
+// Every other ADR cites that document, and without this check nothing reads it back.
 func checkPrincipleBlocks(principles map[string]principle, v verdictSet) []string {
 	var problems []string
 	for num, p := range principles {
@@ -288,9 +287,9 @@ func checkAnchors(adr, readme map[string]principle) []string {
 	return problems
 }
 
-// externalSources returns the anchor's citations, excluding links into the ADR set. A
-// principle marked local may still point at the ADR that elaborates it, and that pointer
-// is a cross-reference rather than a borrowed criterion.
+// externalSources returns the anchor's citations, without links into the ADR set. A principle marked local can still
+// point at the ADR
+// that explains it, and that pointer is a cross-reference, not a borrowed criterion.
 func externalSources(s string) map[string]bool {
 	out := map[string]bool{}
 	for _, m := range linkTarget.FindAllStringSubmatch(s, -1) {
@@ -310,10 +309,10 @@ func marking(local bool) string {
 	return "to an external standard"
 }
 
-// Each whole fragment is kept, never its leading token: "Argo Workflows" and "Argo CD" are different decisions.
+// Each whole fragment is kept, never only its first token: `Argo Workflows` and `Argo CD` are different decisions.
 func namesIn(s string) []string {
 	s = parenthetics.ReplaceAllString(plain(s), "")
-	dash := strings.Index(s, " — ")
+	dash := strings.Index(s, " \u2014 ")
 	if dash >= 0 {
 		s = s[:dash]
 	}
@@ -332,8 +331,8 @@ func namesIn(s string) []string {
 	return out
 }
 
-// cleanName returns a fragment that could name a product, or empty. A name is short, its
-// tokens are name-shaped, and it does not open with an article or a verb.
+// cleanName returns a fragment that could name a product, or empty. A name is short, its tokens look like a name,
+// and it does not start with an article or a verb.
 func cleanName(part string) string {
 	fields := strings.Fields(part)
 	if len(fields) == 0 || len(fields) > 3 {
@@ -349,9 +348,10 @@ func cleanName(part string) string {
 	return strings.Join(fields, " ")
 }
 
-// loadRejected reads every ADR's comparison tables and returns, per ADR number, the
-// names of the options that lost. A verdict cell beginning with a bold "Chosen" is the
-// winner; everything else in the table is an option this ADR refused.
+// loadRejected reads every ADR's comparison tables and returns, for each ADR number, the names of the options that
+// lost.
+// A verdict cell that starts with a bold `Chosen` is the winner. Every other option in the table is one that this ADR
+// refused.
 func loadRejected() (map[string][]string, error) {
 	out := map[string][]string{}
 	entries, err := os.ReadDir(adrDir)
@@ -373,16 +373,15 @@ func loadRejected() (map[string][]string, error) {
 	return out, nil
 }
 
-// rejectedIn returns the names one ADR refuses: the options that lost, minus the ones it
-// adopts elsewhere, plus the names it states outright are not used.
+// rejectedIn returns the names that one ADR refuses: the options that lost, without the ones it adopts elsewhere,
+// and with the names it states are not used.
 func rejectedIn(body string) []string {
 	chosen, lost := comparedNames(body)
 	adopted := adoptedNames(body)
 
-	// A comparison compares variants as well as products, so a losing row often names
-	// the winner — "Helm rendered, then Kustomize post-render" loses, and Helm is the
-	// decision. A name survives only where no row it heads won and the Decision does
-	// not adopt it.
+	// A comparison compares variants as well as products, so a losing row often names the winner.
+	// `Helm rendered, then Kustomize post-render` loses, and Helm is the decision. A name stays only where no row it
+	// heads won and the Decision does not adopt it.
 	var out []string
 	seen := map[string]bool{}
 	for name := range lost {
@@ -391,9 +390,9 @@ func rejectedIn(body string) []string {
 			seen[name] = true
 		}
 	}
-	// A refusal stated in the Decision outranks all of that: "TypeSpec and equivalent
-	// authoring layers are not used" is the strongest form the set has, and it needs no
-	// comparison row to be binding.
+	// A refusal stated in the Decision ranks above all of that. `TypeSpec and equivalent authoring layers are not used`
+	// is the strongest form in the set,
+	// and it needs no comparison row to bind.
 	for name := range refusedNames(body) {
 		if !seen[name] {
 			out = append(out, name)
@@ -402,8 +401,8 @@ func rejectedIn(body string) []string {
 	return out
 }
 
-// comparedNames reads one ADR's comparison tables and returns the names that won and the
-// names that lost, keyed by the leading token of each option cell.
+// comparedNames reads one ADR's comparison tables and returns the names that won and the names that lost, keyed by
+// the first token of each option cell.
 func comparedNames(body string) (map[string]bool, map[string]bool) {
 	chosen, lost := map[string]bool{}, map[string]bool{}
 	inOptions := false
@@ -431,10 +430,10 @@ func comparedNames(body string) (map[string]bool, map[string]bool) {
 	return chosen, lost
 }
 
-// adoptedNames returns every name the Decision section states positively. A name the
-// decision adopts is not a rejection, whatever a comparison row beside it was called —
-// and a line that adopts a name while denying it ("Kustomize is not used") states the
-// refusal rather than the adoption.
+// adoptedNames returns every name that the Decision section states positively. A name that the decision adopts is not
+// a rejection,
+// whatever a comparison row next to it says. A line that adopts a name while it denies it, such as `Kustomize is not
+// used`, states the refusal.
 func adoptedNames(body string) map[string]bool {
 	out := map[string]bool{}
 	inDecision := false
@@ -455,9 +454,8 @@ func adoptedNames(body string) map[string]bool {
 	return out
 }
 
-// refusedNames returns names the ADR states are not used. The phrasing is fixed by
-// ADR-0001's declarative rule — "X is not used", "X are not used" — which is what makes
-// it greppable.
+// refusedNames returns the names that the ADR states are not used. The ADR-0001 declarative rule fixes the phrasing,
+// `X is not used` or `X are not used`, so it is greppable.
 func refusedNames(body string) map[string]bool {
 	out := map[string]bool{}
 	for line := range strings.SplitSeq(body, "\n") {
@@ -478,16 +476,17 @@ func refusalIn(line string) string {
 	if idx < 0 {
 		return ""
 	}
-	// A qualified refusal is not a refusal of the thing: "Hydra is not used for internal
-	// calls" adopts Hydra and scopes it. Only a refusal that ends its clause is blanket.
+	// A qualified refusal does not refuse the thing: `Hydra is not used for internal calls` adopts Hydra and limits its
+	// scope.
+	// Only a refusal that ends its clause is total.
 	rest := strings.TrimSpace(line[idx+width:])
 	if rest != "" && rest[0] != '.' && rest[0] != ',' {
 		return ""
 	}
-	// Scope to the clause carrying the refusal: a line may state a decision and then
-	// refuse an alternative, and only the second half is the refusal.
+	// Limit to the clause with the refusal: a line can state a decision and then refuse an alternative, and only the
+	// second half is the refusal.
 	clause := line[:idx]
-	for _, sep := range []string{". ", "! ", "? ", "; ", ": ", "| ", "— ", ", and "} {
+	for _, sep := range []string{". ", "! ", "? ", "; ", ": ", "| ", "\u2014 ", ", and "} {
 		i := strings.LastIndex(clause, sep)
 		if i >= 0 {
 			clause = clause[i+len(sep):]
@@ -543,8 +542,9 @@ func checkStackTable(readme string, rejected map[string][]string) []string {
 	return problems
 }
 
-// checkHeadcount asserts the capacity reframe holds everywhere it is stated: the
-// obligation columns are the demand side, and no document converts them into a number.
+// checkHeadcount checks that the capacity reframe holds everywhere it is stated. The obligation columns are the
+// demand side,
+// and no document turns them into a number.
 func checkHeadcount() ([]string, error) {
 	var problems []string
 	paths, err := markdownFiles()
@@ -563,7 +563,7 @@ func checkHeadcount() ([]string, error) {
 				continue
 			}
 			problem := fmt.Sprintf(
-				"%s:%d: states a headcount (%q) — capacity is stated as obligations in docs/operational-surface.md",
+				"%s:%d: states a headcount, %q. Capacity is stated as obligations in docs/operational-surface.md",
 				path,
 				n+1,
 				strings.TrimSpace(m),
@@ -574,8 +574,8 @@ func checkHeadcount() ([]string, error) {
 	return problems, nil
 }
 
-// markdownFiles lists the committed Markdown a headcount could hide in. Paths are
-// collected before anything is read, so no file operation runs inside the walk.
+// markdownFiles lists the committed Markdown where a headcount could hide. Paths are collected before any read, so no
+// file operation runs inside the walk.
 func markdownFiles() ([]string, error) {
 	var out []string
 	for _, root := range []string{"docs", readmePath, "AGENTS.md"} {
@@ -599,9 +599,8 @@ func markdownFiles() ([]string, error) {
 	return out, nil
 }
 
-// leadToken returns the first word of an option cell that names a thing rather than
-// describing one. Options are written as phrases, so the name is the first token that
-// is not an article, a quantifier, or a verb.
+// leadToken returns the first word of an option cell that names a thing and does not describe one.
+// Options are written as phrases, so the name is the first token that is not an article, a quantifier, or a verb.
 func leadToken(cell string) string {
 	for field := range strings.FieldsSeq(plain(cell)) {
 		field = strings.Trim(field, ".,;:()")
@@ -616,8 +615,7 @@ func leadToken(cell string) string {
 	return ""
 }
 
-// isName accepts a token that could be a product name: letters, digits, and the
-// punctuation product names use.
+// isName accepts a token that could be a product name: letters, digits, and the punctuation that product names use.
 func isName(s string) bool {
 	for _, r := range s {
 		switch {
@@ -630,9 +628,9 @@ func isName(s string) bool {
 	return true
 }
 
-// containsToken reports whether every word of a name appears in the cell. A refusal may
-// name a variant — "Argo CD Image Updater" — and the decision that adopts Argo CD is not
-// the decision that adopts the updater.
+// containsToken reports whether every word of a name appears in the cell. A refusal can name a variant, such as `Argo
+// CD Image Updater`,
+// and the decision that adopts Argo CD does not adopt the updater.
 func containsToken(haystack, name string) bool {
 	for token := range strings.FieldsSeq(name) {
 		re, err := regexp.Compile(`\b` + regexp.QuoteMeta(token) + `\b`)

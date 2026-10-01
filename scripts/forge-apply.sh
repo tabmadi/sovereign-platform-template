@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reconcile infra/forge/branch-protection.yaml into the forge (ADR-0102).
+# Reconcile infra/forge/branch-protection.yaml into the forge, per ADR-0102.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -10,15 +10,14 @@ repo="${FORGE_REPO:-}"
 token="${FORGE_TOKEN:-}"
 
 if [[ -z "$url" || -z "$repo" || -z "$token" ]]; then
-  warn "FORGE_URL/FORGE_REPO/FORGE_TOKEN unset — branch protection is NOT applied"
+  warn "FORGE_URL, FORGE_REPO, or FORGE_TOKEN unset. Branch protection is not applied"
   detail "the committed rules are in ${CONFIG}"
   exit 0
 fi
 
 branch="$(yq -r '.branch' "$CONFIG")"
-# The protection block is the API body: the file's field names are Forgejo's, so
-# the payload is the block itself plus the branch it applies to. A mapping table
-# here would be a second place for a field name to be wrong.
+# The protection block is the API body. The file's field names are Forgejo's, so the payload is the block and its branch.
+# A mapping table here would be a second place where a field name can be wrong.
 body="$(yq -o=json '.protection + {"rule_name": .branch}' "$CONFIG")"
 
 api() { # <method> <path> [body]
@@ -35,12 +34,12 @@ code="$(api PATCH "branch_protections/${branch}" "$body")"
 if [[ "$code" == "404" ]]; then
   code="$(api POST "branch_protections" "$body")"
 fi
-[[ "$code" =~ ^2 ]] || fail "forge refused the branch protection (HTTP ${code})"
+[[ "$code" =~ ^2 ]] || fail "forge refused the branch protection, HTTP ${code}"
 detail "$(yq -r '.protection.status_check_contexts | join(", ")' "$CONFIG") required"
 
 if [[ "$(yq -r '.actions.approval_for_outside_collaborators' "$CONFIG")" == "true" ]]; then
   warn "fork-run approval is a repository setting with no API: confirm it is on"
-  detail "${url}/${repo}/settings/actions — approval required for outside collaborators"
+  detail "${url}/${repo}/settings/actions: approval required for outside collaborators"
 fi
 
 ok "branch protection applied to ${repo}@${branch}"

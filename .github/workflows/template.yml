@@ -1,6 +1,6 @@
 name: template
 
-# The template's own gates, excluded from generated projects (ADR-0106); acceptance is this repository's nightly e2e.
+# The template's own gates. Generated projects exclude them, per ADR-0106. Acceptance is this repository's nightly e2e.
 on:
   push:
     branches: [master]
@@ -8,7 +8,7 @@ on:
     branches: [master]
     types: [opened, synchronize, reopened, labeled]
   schedule:
-    - cron: "0 5 * * *" # after perf (04:00)
+    - cron: "0 5 * * *" # after perf at 04:00
   workflow_dispatch:
 
 permissions:
@@ -41,13 +41,13 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           go-cache: "true"
-      # Restore-only, like e2e.yml: the lighthouse job is the single writer of the mirror.
+      # Restore only, like e2e.yml: the lighthouse job is the one writer of the mirror.
       - name: Restore the registry mirror
-        # A self-hosted runner keeps the store in its home between jobs; only a fresh hosted machine needs the cache.
+        # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
         with:
-          # A literal path: the cache is versioned by this string, and runner.temp differs per job on a self-hosted runner.
+          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
       - name: Generate a project and prove it serves

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Resolve a CalVer release tag to its version and commit (ADR-0102, ADR-0103). The `^{}` peel turns an annotated tag into the commit it points at.
+# Resolve a CalVer release tag to its version and commit, per ADR-0102 and ADR-0103.
+# The `^{}` peel turns an annotated tag into the commit it points at.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

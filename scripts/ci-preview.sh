@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The pull-request preview environment (ADR-0205).
+# The pull-request preview environment, per ADR-0205.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -12,8 +12,7 @@ esac
 pr="${PREVIEW_PR:-}"
 [[ "$pr" =~ ^[0-9]+$ ]] || fail "PREVIEW_PR is not a pull request number: '${pr}'"
 
-# Set BEFORE lib/cluster.sh is sourced: the cluster name, the kube-context and
-# every path derived from them are computed at source time.
+# Set before lib/cluster.sh is sourced: the cluster name, the kube-context, and every path from them are computed at source time.
 CLUSTER="pr-${pr}"
 TIER=full
 export CLUSTER TIER
@@ -29,17 +28,15 @@ fi
 
 rev="${PREVIEW_REVISION:-}"
 [[ -n "$rev" ]] ||
-  fail "PREVIEW_REVISION is unset — a preview syncs the pull request's branch, and master is not it"
+  fail "PREVIEW_REVISION is unset. A preview syncs the pull request's branch, not master"
 
 step "preview pr-${pr} on ${rev}"
 
-# The tier itself, images built from this checkout (ADR-0600). Argo comes up
-# pointed at master, because that is what the committed root Application says.
+# The tier itself, with images built from this checkout, per ADR-0600. Argo starts pointed at master, as the committed root Application says.
 bash scripts/cluster.sh up full
 
-# Then the pull request's manifests. Repointing after the bring-up rather than
-# templating the root Application keeps one committed bootstrap file: a preview
-# that rendered its own would be a second GitOps entrypoint to keep correct.
+# Then the pull request's manifests. The root Application is repointed after the start and not templated.
+# So there is one committed bootstrap file, and a preview does not add a second GitOps entrypoint.
 step "repointing the root application at ${rev}"
 k -n argocd patch application local-root --type merge \
   -p "{\"spec\":{\"source\":{\"targetRevision\":\"${rev}\"}}}" >/dev/null

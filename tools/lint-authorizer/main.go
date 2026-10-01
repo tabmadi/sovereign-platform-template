@@ -1,4 +1,4 @@
-// Command lint-authorizer enforces the ops-tier authorizer policy (ADR-0306):
+// Command lint-authorizer enforces the ops-tier authorizer policy, per ADR-0306.
 package main
 
 import (
@@ -24,16 +24,16 @@ func run(r *lint.Report) error {
 	}
 	ops := 0
 	for _, rule := range rules {
-		// Ops dashboards are identified by the `ops-` rule-id prefix (one origin
-		// per tool under *.ops.<host>). They must use remote_json, not allow.
+		// The `ops-` rule-id prefix identifies ops dashboards, with one origin for each tool under *.ops.<host>.
+		// They must use remote_json, not allow.
 		if !strings.HasPrefix(rule.ID, "ops-") {
 			continue
 		}
 		ops++
 		if rule.Authorizer.Handler != "remote_json" {
-			r.Addf("%s: authorizer is %q, expected \"remote_json\"", rule.ID, rule.Authorizer.Handler)
+			r.Addf("%s: authorizer is %q, expected `remote_json`", rule.ID, rule.Authorizer.Handler)
 		}
 	}
-	r.Okf("all ops dashboard rules use remote_json (%d rules)", ops)
+	r.Okf("all ops dashboard rules use remote_json, %d rules", ops)
 	return nil
 }

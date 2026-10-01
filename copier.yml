@@ -1,16 +1,11 @@
-# The template's own interface (ADR-0106).
+# The template's own interface, per ADR-0106.
 #
-# A project is generated with `copier copy` and tracks this repository afterwards
-# through the answers file below: `copier update` re-renders the template at a
-# newer commit and 3-way merges it into the project, so a file the project
-# rewrote arrives as a conflict rather than as an overwrite. There is no
-# compatibility promise, and resolving the conflict is the project's work.
+# `copier copy` generates a project, and the answers file below tracks this repository after that.
+# `copier update` renders a newer commit and 3-way merges it, so a file the project rewrote becomes a conflict.
+# There is no compatibility promise. The project resolves the conflict.
 #
-# ONLY `*.jinja` FILES ARE RENDERED. The tree carries Helm charts and Go
-# templates, both of which use `{{ }}` for their own purposes, so rendering every
-# file through Jinja would corrupt them at generation time. Everything the
-# generated project must rename instead goes through scripts/project-rename.sh,
-# which runs once, on generation, against literal strings.
+# Only `*.jinja` files are rendered. Helm charts and Go templates use `{{ }}` too, and Jinja would corrupt them.
+# scripts/project-rename.sh renames everything else once, at generation, as literal strings.
 _min_copier_version: "9"
 _templates_suffix: ".jinja"
 _answers_file: .copier-answers.yml
@@ -19,18 +14,17 @@ _exclude:
   - ".git"
   - "node_modules"
   - "copier.yml"
-  - "*.local.md" # per-engineer working files (AGENTS.md), never inherited
+  - "*.local.md" # each engineer's working files, per AGENTS.md. A project never inherits them
   - ".idea"
   - ".run"
   - "test-results"
   - "playwright-report"
   - ".rumdl_cache"
-  # The forge-copy path only (ADR-0106). Copier renames through `_tasks` below and
-  # writes the answers file itself, so a project generated this way has no use for
-  # the script that does it by hand — or for the release stamp it reads.
+  # Only the forge-copy path uses these, per ADR-0106. Copier renames through `_tasks` below and writes the answers file.
+  # So a Copier project needs neither the manual script nor the release stamp it reads.
   - "scripts/project-init.sh"
   - ".template-version"
-  # The template's own machinery (ADR-0106): its tasks, its workflow, and the scripts and fixtures they run.
+  # The template's own machinery, per ADR-0106: its tasks, its workflow, and the scripts and fixtures they run.
   - ".config/mise/conf.d/template.toml"
   - ".github/workflows/template.yml"
   - "scripts/test-template.sh"
@@ -38,14 +32,11 @@ _exclude:
   - "test/template"
 
 _tasks:
-  # Generation only. On an update the project already carries its own names, and
-  # re-running the rename would rewrite the merge result.
+  # Generation only. On an update the project already has its own names, and a second rename rewrites the merge result.
   - command: "bash scripts/project-rename.sh {{ project_slug }} {{ module_path }} {{ apex_host }} {{ image_registry }}"
     when: "{{ _copier_operation == 'copy' }}"
-  # A once-only script has no business in a product repository: it stays armed for
-  # the life of the project against a name someone chose. Removing it here is what
-  # keeps this path's output identical to `project:init`'s, which is the equality
-  # `copier update`'s 3-way baseline depends on.
+  # A product repository does not keep a script that runs once, because it can still rename the chosen name later.
+  # The removal keeps this output identical to the output of `project:init`. The 3-way baseline of `copier update` depends on that.
   - command: "rm -f scripts/project-rename.sh"
     when: "{{ _copier_operation == 'copy' }}"
 
@@ -56,29 +47,28 @@ project_name:
 
 project_slug:
   type: str
-  help: "The project slug (ADR-0003): 5-11 characters, globally unique, no org prefix"
+  help: "The project slug, per ADR-0003: 5 to 11 characters, globally unique, no org prefix"
   default: "acmeplat"
-  # The grammar is ADR-0003's, enforced here at generation as well as by
-  # lint:naming afterwards — a name is cheapest to fix before it is in a provider
-  # console.
+  # The ADR-0003 grammar, checked here at generation and later by `lint:naming`.
+  # A name is cheapest to fix before it is in a provider console.
   validator: >-
     {% if not (project_slug | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}
     a slug is lower-case alphanumeric with single hyphens
     {% elif project_slug | length < 5 or project_slug | length > 11 %}
-    a project slug is 5-11 characters
+    a project slug is 5 to 11 characters
     {% endif %}
 
 module_path:
   type: str
-  help: "The Go module path — the repository's own import path"
+  help: "The Go module path: the repository's own import path"
   default: "github.com/acme/{{ project_slug }}"
 
 apex_host:
   type: str
-  help: "The apex host the product is served at; environments are dev./staging./prod. below it"
+  help: "The apex host that serves the product. The environments are dev., staging., and prod. below it"
   default: "{{ project_slug }}.example"
 
 image_registry:
   type: str
-  help: "The registry namespace images are published under (ADR-0105)"
+  help: "The registry namespace for published images, per ADR-0105"
   default: "ghcr.io/acme/{{ project_slug }}"

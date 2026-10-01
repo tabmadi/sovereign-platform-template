@@ -1,4 +1,4 @@
-// Command lint-api-audience gates audience against exposure, failing closed at cluster (ADR-0303).
+// Command lint-api-audience checks audience against exposure, and fails closed at cluster, per ADR-0303.
 package main
 
 import (
@@ -19,15 +19,15 @@ const (
 	audiencePublic   = "public"
 )
 
-// The OpenAPI operation keys under a path item; other keys (parameters, servers,
-// summary) are not operations and carry no audience.
+// The OpenAPI operation keys under a path item. Other keys, such as parameters, servers, and summary, are not
+// operations and have no audience.
 var httpMethods = map[string]bool{
 	"get": true, "put": true, "post": true, "delete": true,
 	"patch": true, "options": true, "head": true, "trace": true,
 }
 
 func main() {
-	lint.Main("API audience does not match edge exposure (ADR-0303)", run)
+	lint.Main("API audience does not match edge exposure, per ADR-0303", run)
 }
 
 func run(r *lint.Report) error {
@@ -60,7 +60,7 @@ func check(svc string, auds []string, exposed bool) []string {
 		case audienceInternal, audiencePublic:
 			hasEdge = true
 		default:
-			msg := fmt.Sprintf("%s: unknown x-audience %q (expected cluster, internal, or public)", svc, a)
+			msg := fmt.Sprintf("%s: unknown x-audience %q, expected cluster, internal, or public", svc, a)
 			problems = append(problems, msg)
 		}
 	}
@@ -75,8 +75,9 @@ func check(svc string, auds []string, exposed bool) []string {
 	return problems
 }
 
-// effectiveAudiences resolves each operation's audience: its own x-audience, else the
-// service default (info.x-audience), else the fail-closed `cluster`.
+// effectiveAudiences resolves each operation's audience: its own x-audience, then the service default in
+// info.x-audience,
+// then the fail-closed `cluster`.
 func effectiveAudiences(path string) ([]string, error) {
 	s, err := repo.ReadYAML[struct {
 		Info struct {
@@ -114,9 +115,8 @@ func effectiveAudiences(path string) ([]string, error) {
 	return auds, nil
 }
 
-// edgeExposed reports whether the service has an /api route, read from its canonical
-// dev gitops values. A service with no such file (e.g. the _template scaffold) is
-// treated as not deployed, hence not edge-exposed.
+// edgeExposed reports whether the service has an /api route, read from its canonical dev gitops values.
+// A service with no such file, such as the _template scaffold, counts as not deployed, so not edge-exposed.
 func edgeExposed(svc string) (bool, error) {
 	path := filepath.Join("infra", "gitops", "services", "dev", "values", svc+".yaml")
 	v, err := repo.ReadYAML[struct {

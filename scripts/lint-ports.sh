@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The local port registry gate (ADR-0205). Two services sharing a port is a bind race that surfaces only when someone runs both.
+# The local port registry gate, per ADR-0205. Two services on one port make a bind race that shows only when someone runs both.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/ports.sh
@@ -15,10 +15,9 @@ if [ -n "$dupes" ]; then
   rc=1
 fi
 
-# 8080 must stay unassigned: the local edge maps host 8080, so a service bound
-# there would shadow it.
+# 8080 must stay unassigned: the local edge maps host 8080, so a service bound there would hide it.
 if all_port_entries | grep -q ':8080$'; then
-  warn "8080 is reserved for the local edge mapping — pick another port"
+  warn "8080 is reserved for the local edge mapping. Choose another port"
   rc=1
 fi
 
@@ -26,11 +25,11 @@ for dir in services/*/; do
   svc="$(basename "$dir")"
   [ "${svc#_}" = "$svc" ] || continue # skip _template
 
-  # A worker-only service binds nothing, and an entry for it would put a number in the registry that means nothing.
-  # `cmd/server` is the discriminator lint:service-contract uses, so the two gates cannot disagree.
+  # A worker-only service binds nothing, and an entry for it would put a meaningless number in the registry.
+  # `cmd/server` is the test that lint:service-contract uses, so the two gates always agree.
   if [ ! -d "${dir}cmd/server" ]; then
     if service_port "$svc" >/dev/null 2>&1; then
-      warn "${svc} has no cmd/server but registers a local port — it never binds one"
+      warn "${svc} has no cmd/server but registers a local port. It never binds one"
       rc=1
     fi
     continue
@@ -44,7 +43,7 @@ for dir in services/*/; do
 
   declared="$(grep -oP '^PORT\s*=\s*"\K[0-9]+' "${dir}.mise.toml" || true)"
   if [ -z "$declared" ]; then
-    warn "${svc}/.mise.toml sets no PORT — it would bind :8080 and ignore the registry"
+    warn "${svc}/.mise.toml sets no PORT. It would bind :8080 and ignore the registry"
     rc=1
   elif [ "$declared" != "$registered" ]; then
     warn "${svc}: registry says ${registered}, ${svc}/.mise.toml binds ${declared}"

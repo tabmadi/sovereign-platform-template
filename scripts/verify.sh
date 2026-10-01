@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Assert a tier is up and serving (ADR-0600, ADR-0601), reporting every failure rather than the first. Without
-# VERIFY_HOST it checks the active local tier; with it, the deployed environment at that host through the current
-# kubectl context, where it also walks what the e2e suite cannot run there: a purchase, the escalation probe, and mail.
+# Check that a tier is up and serving, per ADR-0600 and ADR-0601. It reports every failure, not only the first.
+# Without VERIFY_HOST it checks the active local tier. With it, it checks the deployed environment at that host through the current kubectl context.
+# There it also runs what the e2e suite cannot run: a purchase, the escalation probe, and mail.
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/cluster.sh
@@ -30,7 +30,7 @@ miss() {
 expect() { # <label> <want> <got>
   if [ "$2" = "$3" ]; then ok "$1"; else miss "$1" "want ${2:-nothing}, got ${3:-nothing}"; fi
 }
-# Reached directly: a workstation proxy would answer for the edge.
+# Reached directly, because a workstation proxy would answer for the edge.
 edge() { curl -s --noproxy '*' --max-time 20 "${tls[@]}" "$@"; }
 code() { edge -o /dev/null -w '%{http_code}' "$@"; }
 has() { kc -n "$NS" get "$@" >/dev/null 2>&1; }
@@ -76,7 +76,7 @@ fi
 step "edge"
 storefront="$(code "${base}/")"
 case "$storefront" in
-2?? | 3??) ok "storefront answers (${storefront})" ;;
+2?? | 3??) ok "storefront answers, ${storefront}" ;;
 *) miss "storefront" "answered ${storefront:-nothing}" ;;
 esac
 if has svc catalog-server; then
@@ -86,7 +86,7 @@ for api in orders orgs charges; do
   has svc "${api/charges/payment}-server" || continue
   expect "/api/${api} without a session" 401 "$(code "${base}/api/${api}")"
 done
-# Every ops route whose backend exists: a route to an absent component is deliberate (infra/gateway/ingressroutes.yaml).
+# Every ops route whose backend exists. A route to an absent component is intended, see infra/gateway/ingressroutes.yaml.
 while read -r tool svc ns; do
   kc -n "$ns" get svc "$svc" >/dev/null 2>&1 || continue
   expect "${tool}.ops without a session" 401 "$(code "$(ops "$tool")")"
@@ -115,12 +115,12 @@ if has clusters.postgresql.cnpg.io postgres &&
   expect "WAL archiving" True "$(kc -n "$NS" get clusters.postgresql.cnpg.io postgres \
     -o jsonpath='{.status.conditions[?(@.type=="ContinuousArchiving")].status}')"
   if [ -n "$HOST" ]; then
-    # A deployed environment is judged by its schedule's output, never by a backup this run adds to it.
+    # A deployed environment is judged by its schedule's output, never by a backup that this run adds.
     last="$(kc -n "$NS" get clusters.postgresql.cnpg.io postgres -o jsonpath='{.status.lastSuccessfulBackup}')"
     age=$(($(date +%s) - $(date -d "${last:-1970-01-01T00:00:00Z}" +%s)))
     if [ "$age" -lt 129600 ]; then ok "a base backup within 36h"; else miss "base backup" "last one ${last:-never}"; fi
   else
-    # A backup setting that is enabled but never exercised is configuration, not coverage.
+    # A backup setting that is on but never used is configuration, not coverage.
     name="verify-$(date +%s)"
     kc -n "$NS" apply -f - >/dev/null <<EOF
 apiVersion: postgresql.cnpg.io/v1
@@ -157,7 +157,7 @@ if [ -n "$HOST" ] && has svc catalog-server && has svc ory-kratos-admin; then
     miss "catalog" "no product id"
   fi
 
-  # Throwaway identities: the committed e2e ones never reach a deployed environment.
+  # Throwaway identities: the committed e2e identities never reach a deployed environment.
   shopper="verify-$(date +%s)@example.com"
   probe="verify-probe-$(date +%s)@example.com"
   for e in "$shopper" "$probe"; do
@@ -174,7 +174,7 @@ if [ -n "$HOST" ] && has svc catalog-server && has svc ory-kratos-admin; then
     '{method: "password", password: $p, traits: {email: $e, operator: true}}')")"
   expect "self-service cannot claim operator" "" "$(jq -r '.identity.id // ""' <<<"$r")"
 
-  # The browser flow, for the cookie: the edge authenticates an API call by the session cookie (ADR-0305).
+  # The browser flow, for the cookie: the edge authenticates an API call by the session cookie, per ADR-0305.
   jar="${work}/cookies"
   login="$(edge -b "$jar" -c "$jar" -H 'Accept: application/json' "${base}/auth/self-service/login/browser")"
   r="$(edge -b "$jar" -c "$jar" -H 'Accept: application/json' -H 'Content-Type: application/json' -X POST \
@@ -184,8 +184,8 @@ if [ -n "$HOST" ] && has svc catalog-server && has svc ory-kratos-admin; then
       '{method: "password", csrf_token: $c, identifier: $e, password: $p}')")"
   expect "Kratos logged the shopper in" yes "$(jq -r 'if .session.id then "yes" else "no" end' <<<"$r")"
 
-  # The org is assigned by a workflow the registration hook starts, and an order needs it. A checkout answers with the
-  # workflow's handle; the order is at its result_url.
+  # A workflow that the registration hook starts assigns the org, and an order needs it.
+  # A checkout answers with the workflow's handle, and the order is at its result_url.
   order=""
   for _ in $(seq 1 30); do
     order="$(edge -b "$jar" -H 'Content-Type: application/json' \
@@ -196,14 +196,14 @@ if [ -n "$HOST" ] && has svc catalog-server && has svc ory-kratos-admin; then
   done
   status=""
   for _ in $(seq 1 30); do
-    status="$(edge -b "$jar" "${base}/api/orders/${order##*/}" | jq -r '.status // ""')"
+    status="$(edge -b "$jar" "${base}/api/orders/${order##*/}" | jq -r '.status // ""')" # lint:comments-allow
     case "$status" in confirmed | failed) break ;; esac
     sleep 2
   done
-  expect "the saga confirmed the order (orders → catalog → payment, on Temporal)" confirmed "$status"
+  expect "the saga confirmed the order: orders → catalog → payment, on Temporal" confirmed "$status"
 
-  # The shopper's example.com address publishes a null MX, so maddy refuses it after Kratos has authenticated and
-  # submitted; delivery beyond maddy is observed through DMARC reports (ADR-0307).
+  # The shopper's example.com address publishes a null MX, so maddy refuses it after Kratos authenticates and submits.
+  # DMARC reports show delivery beyond maddy, per ADR-0307.
   if has statefulset maddy; then
     seen=0
     for _ in $(seq 1 20); do

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shell formatter: shfmt in place over every script, `-i 2` to match the repo's style (ADR-0101).
+# Shell formatter: shfmt in place over every script, with `-i 2` to match the repo's style, per ADR-0101.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/repo-files.sh
@@ -7,7 +7,7 @@ source "$LIB/repo-files.sh"
 
 mapfile -d '' -t files < <(sh_files)
 if [[ ${#files[@]} -eq 0 ]]; then
-  fail "no shell scripts found via $(repo_source) — this repository has dozens, so the enumeration is broken rather than the tree empty"
+  fail "no shell scripts found through $(repo_source). This repository has dozens, so the enumeration is broken, and the tree is not empty"
 fi
 
 shfmt -w -i 2 "${files[@]}"

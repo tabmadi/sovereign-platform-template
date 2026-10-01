@@ -12,7 +12,7 @@
 .DS_Store
 Thumbs.db
 
-# Env files (ADR-0202: never commit real secrets; encrypted .enc.yaml is ok)
+# Env files. Never commit a real secret, per ADR-0202. An encrypted .enc.yaml is allowed.
 .env
 .env.*
 !.env.example
@@ -24,40 +24,40 @@ Thumbs.db
 *.out
 coverage.*
 
-# Node / Bun
+# Node and Bun
 node_modules/
 .next/
 out/
 .bun/
 *.tsbuildinfo
 
-# Biome (ADR-0400)
+# Biome, per ADR-0400
 .biome/
 
-# Playwright e2e (ADR-0400, ADR-0601)
+# Playwright e2e, per ADR-0400 and ADR-0601
 playwright-report/
 test-results/
-# Lighthouse CI output: the HTML/JSON reports and lhci's own state directory. CI
-# uploads them as an artifact; locally they are noise.
+# Lighthouse CI output: the HTML and JSON reports and the lhci state directory.
+# CI uploads them as an artifact. Locally they are noise.
 lighthouse-report/
 .lighthouseci/
 blob-report/
-# Saved auth storage states (session cookies) from the e2e setup project.
+# Saved auth storage states from the e2e setup project. They hold session cookies.
 test/e2e/.auth/
 
-# k6 load-run summaries (ADR-0601). Evidence attached to a PR or a CI artifact,
-# not repo content — a committed one would be stale the next day.
+# k6 load-run summaries, per ADR-0601. They are evidence for a PR or a CI artifact, not repo content.
+# A committed summary is out of date the next day.
 test/perf/results/
 
-# Helm / Terraform
+# Helm and Terraform
 **/charts/*.tgz
-# ...except the charts that declare no `dependencies:` and vendor their subcharts
-# instead, so ArgoCD's repo-server renders them without the network fetch that wedges
-# behind the local privoxy edge. Each records why in its own Chart.yaml.
+# The exception: charts with no `dependencies:` that vendor their subcharts instead.
+# The ArgoCD repo-server then renders them with no network fetch, which hangs behind the local privoxy edge.
+# Each chart records the reason in its own Chart.yaml.
 !infra/helm/platform/observability/charts/*.tgz
 !infra/helm/platform/otel-agent/charts/*.tgz
-# `helm dependency update` unpacks into `tmpcharts-<pid>/` beside the chart and
-# leaves the directory behind when the download fails. Scratch, never content.
+# `helm dependency update` unpacks into `tmpcharts-<pid>/` next to the chart.
+# It leaves the directory when the download fails. It is scratch, never content.
 **/tmpcharts-*/
 .terraform/
 *.tfstate
@@ -73,19 +73,16 @@ core.*
 # Rumble cache
 .rumdl_cache
 
-# Compiled Go binaries dropped at the repo root. `go build ./tools/<name>` with no
-# -o writes the binary into the CWD named after the package, and the root is where
-# most people run it from — so a stray 3 MB artefact is one forgotten flag away, and
-# nothing else here would have caught it. Every tool is RUN with `go run` (see the
-# lint tasks in .mise.toml); a built binary is scratch either way.
+# Compiled Go binaries at the repo root. `go build ./tools/<name>` with no -o writes a binary named after the package into the CWD.
+# Every tool runs with `go run`, as the lint tasks in .mise.toml show, so a built binary is scratch.
 /lint-*
 /gen-*
 /data-classes
 /zod-gen
 
-# Local-only working files, never committed (AGENTS.md)
+# Local working files. They are never committed, per AGENTS.md.
 *.local.md
 
-# Written by proxy:setup — this machine's egress route into the cluster.
+# proxy:setup writes these. They hold this machine's egress route into the cluster.
 infra/local/proxy.local.yaml
 infra/local/proxy.local.env

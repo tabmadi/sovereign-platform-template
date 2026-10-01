@@ -1,5 +1,5 @@
 // Command lint-strip-headers is the anti-spoofing gate: a forwardAuth IngressRoute must apply strip-identity-headers
-// before it (ADR-0305).
+// before it, per ADR-0305.
 package main
 
 import (
@@ -62,7 +62,7 @@ func run(r *lint.Report) error {
 			case strip < 0:
 				r.Addf("%s: forward-auth route without strip-identity-headers", ir.Metadata.Name)
 			case strip > fwd:
-				r.Addf("%s: strip-identity-headers must come BEFORE forward-auth", ir.Metadata.Name)
+				r.Addf("%s: strip-identity-headers must come before forward-auth", ir.Metadata.Name)
 			}
 		}
 	}

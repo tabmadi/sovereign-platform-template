@@ -2,8 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", ":semanticCommits", ":dependencyDashboard"],
   "description": [
-    "Dependency updates per ADR-0106. Renovate opens the pull request; the gates decide.",
-    "It merges nothing: every update passes the same lint, drift, and test gates a human PR passes, because a bump that skips them is a pin that was never load-bearing.",
+    "Dependency updates, per ADR-0106. Renovate opens the pull request, and the gates decide.",
+    "It merges nothing. Every update passes the same lint, drift, and test gates as a human PR. A bump that skips them makes the pin useless.",
     "A dependency held back carries its reason on the package rule that holds it. A pin with no recorded reason is treated as unreviewed."
   ],
   "labels": ["dependencies"],
@@ -19,34 +19,34 @@
   },
   "packageRules": [
     {
-      "description": "A major version is a decision, so it is proposed alone and never joins a group (ADR-0106).",
+      "description": "A major version is a decision, so it is proposed alone and never joins a group, per ADR-0106.",
       "matchUpdateTypes": ["major"],
       "groupName": null,
       "groupSlug": null
     },
     {
-      "description": "One repository, one dependency graph (ADR-0101): the single go.mod produces one PR, minor and patch together.",
+      "description": "One repository has one dependency graph, per ADR-0101. The single go.mod produces one PR, with minor and patch together.",
       "matchManagers": ["gomod"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "go modules",
       "groupSlug": "gomod"
     },
     {
-      "description": "Bun packages, likewise one PR for the ecosystem.",
+      "description": "Bun packages: also one PR for the ecosystem.",
       "matchManagers": ["bun", "npm"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "bun packages",
       "groupSlug": "bun"
     },
     {
-      "description": "One PR for the pinned toolchain file, so a SHA keeps reproducing its own toolchain (ADR-0101).",
+      "description": "One PR for the pinned toolchain file, so a SHA always reproduces its own toolchain, per ADR-0101.",
       "matchManagers": ["mise"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "mise tools",
       "groupSlug": "mise"
     },
     {
-      "description": "Container base images and platform chart images: one PR per image, tag and digest together. A digest moving while its tag does not is a rebuild of the same version, which is what base-image patching produces and what a reviewer cannot judge from the diff alone (ADR-0106).",
+      "description": "Container base images and platform chart images: one PR for each image, with tag and digest together, per ADR-0106. A new digest with the same tag is a rebuild of the same version. Base-image patching produces this, and a reviewer cannot judge it from the diff alone.",
       "matchDatasources": ["docker"],
       "groupName": null,
       "groupSlug": null,
@@ -54,7 +54,7 @@
       "separateMinorPatch": false
     },
     {
-      "description": "Terraform moves on its own, slower cadence.",
+      "description": "Terraform moves on its own, slower schedule.",
       "matchManagers": ["terraform"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "terraform",
@@ -62,13 +62,13 @@
       "schedule": ["before 6am on the first day of the month"]
     },
     {
-      "description": "The template pin is a dependency like any other: the same weekly mechanism proposes the bump and the same gates judge it (ADR-0106).",
+      "description": "The template pin is a normal dependency, per ADR-0106. The same weekly mechanism proposes the bump, and the same gates check it.",
       "matchDepNames": ["template"],
       "groupName": "template",
       "groupSlug": "template"
     },
     {
-      "description": "The inner loop's local stand-ins (infra/local/*.yaml): Postgres, the Temporal dev server, OpenFGA and the API mock. One PR, because they are one thing \u2014 the floor an engineer runs against (ADR-0600) \u2014 and none of them is deployed anywhere.",
+      "description": "The inner loop's local stand-ins in infra/local/*.yaml: Postgres, the Temporal dev server, OpenFGA, and the API mock. They get one PR, because together they are the floor an engineer runs against, per ADR-0600. None of them is deployed anywhere.",
       "matchManagers": ["kubernetes"],
       "matchFileNames": ["infra/local/**"],
       "groupName": "local dev stand-ins",
@@ -77,7 +77,7 @@
   ],
   "customManagers": [
     {
-      "description": "Copier records the template commit a generated project tracks. Renovate bumps it; `copier update` performs the 3-way merge (ADR-0106).",
+      "description": "Copier records the template commit that a generated project tracks. Renovate bumps it, and `copier update` does the 3-way merge, per ADR-0106.",
       "customType": "regex",
       "managerFilePatterns": ["/^\\.copier-answers\\.ya?ml$/"],
       "matchStrings": [
@@ -87,7 +87,7 @@
       "datasourceTemplate": "git-refs"
     },
     {
-      "description": "The mise version CI installs is pinned in the setup action, because the tool that reads every other pin is itself a dependency (ADR-0002, ADR-0106). No manager sees a composite-action input, so the marker comment above the value is what makes it visible. It stays out of the `mise tools` group: that group bumps the tools mise installs, and this bumps mise.",
+      "description": "The setup action pins the mise version that CI installs. The tool that reads every other pin is also a dependency, per ADR-0002 and ADR-0106. No manager sees a composite-action input, so the marker comment above the value makes it visible. It is not in the `mise tools` group: that group bumps the tools mise installs, and this bumps mise.",
       "customType": "regex",
       "managerFilePatterns": ["/^\\.github/actions/setup/action\\.ya?ml$/"],
       "matchStrings": [
@@ -97,7 +97,7 @@
     }
   ],
   "vulnerabilityAlerts": {
-    "description": "A CVE with a fixed version available is proposed immediately, outside the batch \u2014 it is the one class where the weekly slot is too slow (ADR-0106, ADR-0104).",
+    "description": "A CVE with a fixed version is proposed at once, outside the batch. For this class only, the weekly slot is too slow, per ADR-0106 and ADR-0104.",
     "labels": ["dependencies", "security"],
     "schedule": ["at any time"],
     "minimumReleaseAge": null

@@ -1,5 +1,5 @@
-// Command lint-api-wildcard enforces that the product edge rule never matches /api/ with an open path wildcard
-// (ADR-0306).
+// Command lint-api-wildcard checks that the product edge rule never matches /api/ with an open path wildcard, per
+// ADR-0306.
 package main
 
 import (
@@ -11,9 +11,8 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/tools/internal/lint"
 )
 
-// A wildcard token (`<*>`, `<**>`, or a bare `*`) directly after `/api/` — the
-// collision-prone form. `/api/<{products,...}>` (an enumerated alternation) and
-// literal segments are fine.
+// A wildcard token directly after `/api/`, such as `<*>`, `<**>`, or a bare `*`. This form causes collisions.
+// An enumerated alternation such as `/api/<{products,...}>` and literal segments are fine.
 var bareAPIWildcard = regexp.MustCompile(`/api/(<\*|\*)`)
 
 func main() {
@@ -30,7 +29,7 @@ func run(r *lint.Report) error {
 	}
 	for _, rule := range rules {
 		if bareAPIWildcard.MatchString(rule.Match.URL) {
-			const form = "%s: match url %q has a bare wildcard after /api/ — enumerate resources instead (/api/<{a,b,c}>)"
+			const form = "%s: match url %q has a bare wildcard after /api/. List the resources instead: /api/<{a,b,c}>"
 			r.Addf(form, rule.ID, rule.Match.URL)
 		}
 	}

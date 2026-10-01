@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Decide whether a pull request pays for the smoke suite, as a forge step-output assignment (ADR-0102, ADR-0601).
+# Decide whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0102 and ADR-0601.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -13,17 +13,17 @@ decide() {
   exit 0
 }
 
-[[ "${LABELED:-false}" != true ]] || decide true "→ the \`e2e-smoke\` label is set; running the suite."
+[[ "${LABELED:-false}" != true ]] || decide true "→ the \`e2e-smoke\` label is set. Running the suite."
 
 manifest="$(mise run ci:affected -- --base "origin/${BASE_REF:-master}")"
 
-# A global change (a shared library, the toolchain, the platform charts) reaches
-# every service by definition, so it is the multi-service case at its widest.
+# A global change reaches every service, so it is the widest multi-service case.
+# Examples are a shared library, the toolchain, and the platform charts.
 [[ "$(jq -r '.global' <<<"$manifest")" != true ]] ||
-  decide true "→ a global change; running the suite."
+  decide true "→ a global change. Running the suite."
 
 services="$(jq -r '.services | length' <<<"$manifest")"
 [[ "$services" -le 1 ]] ||
-  decide true "→ ${services} services affected; a cross-service change is what only an e2e can see."
+  decide true "→ ${services} services affected. Only an e2e test sees a cross-service change."
 
-decide false "✓ ${services} service(s) affected and no label — the smoke suite is skipped."
+decide false "✓ ${services} service(s) affected and no label. The smoke suite is skipped."

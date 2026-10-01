@@ -1,26 +1,20 @@
-# Shared toolchain setup for every workflow: mise (with its tool cache) and,
-# optionally, the Go build + module cache. Defined exactly once here.
+# The shared toolchain setup for every workflow: mise with its tool cache, and optionally the Go build and module cache.
 #
-# A composite action, not a reusable `workflow_call` workflow: a called workflow
-# runs as its OWN job on its OWN runner, so it cannot install a toolchain that a
-# later step in the calling job would see. Composite steps splice into the caller.
-# Checkout stays in the caller — the runner needs the repo on disk before it can
-# resolve `./.github/actions/setup` at all, and fetch-depth differs per workflow.
+# A composite action, not a `workflow_call` workflow. A called workflow runs as its own job, so the caller's later steps cannot see its toolchain.
+# Checkout stays in the caller: the runner needs the repo on disk to resolve this action, and fetch-depth differs for each workflow.
 name: setup
-description: Install the mise toolchain (and optionally the Go build cache).
+description: Install the mise toolchain, and optionally the Go build cache.
 
 inputs:
   go-cache:
-    description: Restore and save the shared Go build + module cache.
+    description: Restore and save the shared Go build and module cache.
     default: "false"
 
 runs:
   using: composite
   steps:
-    # mise reads every other pin in the repo, so an unpinned reader makes those
-    # pins conditional on whatever release the action happened to fetch: a cold
-    # runner can go red on a commit that changed nothing. Renovate's custom
-    # manager in .github/renovate.json owns the bump, keyed on the marker comment.
+    # mise reads every other pin in the repo. An unpinned mise lets a cold runner fail on a commit that changed nothing.
+    # Renovate's custom manager in .github/renovate.json bumps it, through the marker comment.
     - uses: jdx/mise-action@v2
       with:
         # renovate: datasource=github-releases depName=jdx/mise
@@ -28,8 +22,7 @@ runs:
         install: true
         cache: true
 
-    # One key across ci.yml's test and build jobs so they share a single cache entry
-    # instead of each warming their own copy of the same compiled packages.
+    # One key for ci.yml's test and build jobs, so they share one cache entry of the same compiled packages.
     - if: inputs.go-cache == 'true'
       uses: actions/cache@v4
       with:

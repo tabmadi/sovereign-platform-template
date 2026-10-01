@@ -1,20 +1,15 @@
-# Findings in git history that are known, judged, and left in place (ADR-0202).
+# Findings in git history that are known, reviewed, and kept, per ADR-0202.
 #
-# An entry here suppresses one finding at one commit, by fingerprint. It is not a
-# path allowlist: a new secret in the same file still fails. Adding a line without
-# the reason and the rotation decision beside it defeats the point of the scan.
+# An entry hides one finding at one commit, by fingerprint. It is not a path allowlist: a new secret in the same file still fails.
+# Every entry states the reason and the rotation decision next to it.
 #
-# The remediation for a committed secret is ROTATION, not deletion — reverting the
-# file leaves the value in the history that every clone already has. So each entry
-# below records what happened to the credential, never merely that it is old.
+# The fix for a committed secret is rotation, not deletion. A revert leaves the value in the history of every clone.
+# So each entry records what happened to the credential, not only that it is old.
 
-# TYK_GW_SECRET in a docker-compose.yml, June 2024. Now carried by the root commit,
-# which squashes the pre-2026 Tyk prototype.
-# Rotation is moot: Tyk was the API gateway before Traefik and Oathkeeper, and both
-# the component and the file are gone from the tree. There is no gateway holding
-# this value and no environment it opens.
+# TYK_GW_SECRET in a docker-compose.yml, June 2024. The root commit now carries it, and it squashes the pre-2026 Tyk prototype.
+# Rotation does not apply: Tyk was the API gateway before Traefik and Oathkeeper, and the component and the file are gone.
+# No gateway holds this value, and it opens no environment.
 #
-# A fingerprint names a commit, so rewriting history invalidates this line and the
-# scan goes red until it is repointed. It was last repointed when the history was
-# squashed in September 2026.
+# A fingerprint names a commit. A history rewrite invalidates this line, and the scan fails until the line points to the new commit.
+# The line last changed when the history was squashed in September 2026.
 ed7b4e5a653370c6cd126fc9aa6e7b28229efc66:docker-compose.yml:generic-api-key:21

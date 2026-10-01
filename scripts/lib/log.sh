@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
-# Avoid re-defining if sourced twice.
+# Do not define the functions again when the file is sourced twice.
 if [[ -n "${__LOG_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi
 __LOG_SH_LOADED=1
 
@@ -10,15 +10,14 @@ step() { printf '→ %s\n' "$*"; }
 # ✓ a step succeeded.
 ok() { printf '✓ %s\n' "$*"; }
 
-# ⚠ a warning (recoverable); goes to stderr so it stands out but does not pollute
-# a piped stdout.
+# ⚠ a recoverable warning. It goes to stderr, so it stands out and does not pollute a piped stdout.
 warn() { printf '⚠ %s\n' "$*" >&2; }
 
-# ✗ a fatal error to stderr, then exit. Optional second arg is the exit code.
+# ✗ a fatal error to stderr, then exit. The optional second argument is the exit code.
 fail() {
   printf '✗ %s\n' "$1" >&2
   exit "${2:-1}"
 }
 
-# Two-space-indented sub-detail under a step.
+# A detail under a step, indented by two spaces.
 detail() { printf '  %s\n' "$*"; }
