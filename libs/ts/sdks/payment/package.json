@@ -2,7 +2,7 @@
   "name": "@sdks/payment",
   "version": "0.0.0",
   "private": true,
-  "description": "Generated TypeScript client types for payment (ADR-0303). Do not edit.",
+  "description": "Generated TypeScript client types for payment, per ADR-0303. Do not edit.",
   "type": "module",
   "exports": {
     ".": "./index.d.ts"

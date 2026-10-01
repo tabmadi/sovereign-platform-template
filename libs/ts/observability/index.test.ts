@@ -1,4 +1,4 @@
-// The browser fingerprint's rules, pinned (ADR-0503).
+// These tests pin the browser fingerprint's rules, per ADR-0503.
 import { describe, expect, test } from "bun:test";
 
 import { appFrames, fingerprint, normalise } from "./index";
@@ -16,7 +16,7 @@ describe("normalise", () => {
     expect(normalise("retry 3 of 5")).toBe("retry <n> of <n>");
   });
 
-  // Words that happen to be hex are words, not values.
+  // Words that are also hex are words, not values.
   test("short words survive", () => {
     expect(normalise("deadlock detected")).toBe("deadlock detected");
     expect(normalise("add failed")).toBe("add failed");
@@ -55,7 +55,7 @@ describe("fingerprint", () => {
     expect(fingerprint(base)).toBe(fingerprint({ ...base }));
   });
 
-  // The property the normaliser exists for: an id must not mint a fault.
+  // This is the purpose of the normaliser: an id must not make a new fault.
   test("ignores the varying part of the message", () => {
     const other = { ...base, message: "order order_2 not found" };
     expect(fingerprint(other)).toBe(fingerprint(base));
@@ -66,7 +66,7 @@ describe("fingerprint", () => {
     expect(fingerprint(other)).not.toBe(fingerprint(base));
   });
 
-  // A line-number change is a cosmetic edit and must not move the fault.
+  // A line-number change is a cosmetic edit and must not change the fault.
   test("ignores line and column numbers", () => {
     const moved = { ...base, stack: "at f (a.js:99:7)" };
     expect(fingerprint(moved)).toBe(fingerprint(base));

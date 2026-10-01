@@ -15,8 +15,8 @@ var _ Handler = UnimplementedHandler{}
 
 // CreateCharge implements createCharge operation.
 //
-// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
-// (ADR-0302).
+// Starts the Charge Temporal workflow. It is idempotent on the Idempotency-Key header. Returns a
+// workflow handle, per ADR-0302.
 //
 // POST /charges
 func (UnimplementedHandler) CreateCharge(ctx context.Context, req *ChargeInput, params CreateChargeParams) (r *WorkflowHandle, _ error) {
@@ -43,7 +43,7 @@ func (UnimplementedHandler) ListCharges(ctx context.Context) (r []Charge, _ erro
 
 // RefundCharge implements refundCharge operation.
 //
-// Refund a settled charge. Starts the Refund workflow (ADR-0302).
+// Refund a settled charge. Starts the Refund workflow, per ADR-0302.
 //
 // POST /charges/{id}/refund
 func (UnimplementedHandler) RefundCharge(ctx context.Context, req *RefundInput, params RefundChargeParams) (r *WorkflowHandle, _ error) {

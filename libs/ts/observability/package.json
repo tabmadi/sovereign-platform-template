@@ -2,7 +2,7 @@
   "name": "@libs/observability",
   "version": "0.0.0",
   "private": true,
-  "description": "Error fingerprinting on the browser side (ADR-0503).",
+  "description": "Error fingerprinting on the browser side, per ADR-0503.",
   "type": "module",
   "exports": {
     ".": "./index.ts"

@@ -1,15 +1,15 @@
 [env]
-# The registered local port for this service (scripts/lib/ports.sh).
+# The registered local port for this service, from scripts/lib/ports.sh.
 PORT = "8086"
 _.file = ".env"
 
 [tasks.env]
-description = "Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why it stops rather than continuing)."
+description = "Create .env from .env.example on a fresh clone. It then stops and does not continue, and scripts/env-ensure.sh states why."
 hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
 [tasks.server]
-description = "No OpenFGA and no Temporal."
+description = "Run the HTTP server. It needs no OpenFGA and no Temporal."
 depends = ["env", "dep:postgres"]
 run = "go run ./cmd/server"
 

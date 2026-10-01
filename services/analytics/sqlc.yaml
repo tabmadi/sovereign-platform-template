@@ -1,5 +1,5 @@
-# sqlc config for the template service (ADR-0300). Copy alongside the rest
-# when scaffolding a new service.
+# sqlc config for the template service, per ADR-0300. Copy it with the rest of the
+# template when you scaffold a new service.
 version: "2"
 sql:
   - engine: postgresql

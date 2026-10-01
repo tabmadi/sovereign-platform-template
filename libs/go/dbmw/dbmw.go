@@ -1,4 +1,4 @@
-// Package dbmw wires pgx with OTel tracing + per-query metrics (ADR-0500).
+// Package dbmw wires pgx with OTel tracing and per-query metrics, per ADR-0500.
 package dbmw
 
 import (
@@ -14,34 +14,35 @@ import (
 )
 
 // MustOpen opens a pgxpool with the platform-default tracer.
-// dsn typically comes from an envFrom-mounted Secret (ADR-0202).
+// dsn usually comes from a Secret mounted with envFrom, per ADR-0202.
 func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		panic(err)
 	}
-	// PgBouncer transaction-mode compatibility (ADR-0300): `DescribeExec` describes a statement without creating a
-	// server-side prepared statement. Still required — PgBouncer honours them only when `max_prepared_statements`
-	// is above zero, and the CNPG Pooler does not set it. Turning it on is an ADR-0300 amendment, not a values edit.
+	// PgBouncer transaction mode needs this, per ADR-0300. `DescribeExec` describes a statement and creates no
+	// server-side prepared statement. PgBouncer honours prepared statements only when `max_prepared_statements` is
+	// above zero, and the CNPG Pooler does not set it. To turn it on, amend ADR-0300. A values edit is not enough.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
 	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		panic(err)
 	}
-	// Bounded startup retry: on a cold cluster Postgres may not accept connections yet, and a panic here yields
-	// CrashLoopBackOff with a growing delay. Runtime blips need nothing: pgxpool reconnects and /readyz parks the pod.
+	// A bounded startup retry. On a cold cluster, Postgres can refuse connections, and a panic here gives
+	// CrashLoopBackOff with a growing delay. A short fault at runtime needs nothing: pgxpool reconnects and /readyz
+	// parks the pod.
 	err = retry(ctx, pool.Ping)
 	if err != nil {
 		panic(err)
 	}
-	// Auto-register the /readyz check for this dependency (ADR-0500).
+	// Register the /readyz check for this dependency, per ADR-0500.
 	observability.RegisterReadinessCheck("postgres", pool.Ping)
 	return pool
 }
 
-// retry calls fn until it succeeds, a ~60s budget elapses, or ctx is cancelled,
-// backing off 500ms→5s between attempts. Returns fn's last error on give-up.
+// retry calls fn until it succeeds, a budget of about 60s ends, or ctx is cancelled.
+// The wait between attempts grows from 500ms to 5s. When it stops, it returns fn's last error.
 func retry(ctx context.Context, fn func(context.Context) error) error {
 	const budget = 60 * time.Second
 	deadline := time.Now().Add(budget)

@@ -65,12 +65,12 @@ func (s *ErrorStatusCode) SetResponse(val Problem) {
 	s.Response = val
 }
 
-// A monetary amount. The amount is a decimal STRING — a JSON number becomes a double in the
-// TypeScript client, and a double cannot hold a decimal amount exactly. Currency travels with the
+// A monetary amount. The amount is a decimal string, because a JSON number becomes a double in the
+// TypeScript client, and a double cannot hold a decimal amount exactly. The currency goes with the
 // amount, because an amount without one is not a quantity of anything.
 // Ref: #/components/schemas/Money
 type Money struct {
-	// Decimal amount, sign-prefixed when negative. No thousands separators.
+	// Decimal amount, with a leading sign when negative. No thousands separators.
 	Amount string `json:"amount"`
 	// ISO 4217 alphabetic code, uppercase.
 	Currency string `json:"currency"`
@@ -259,25 +259,26 @@ func (s *OrderStatus) UnmarshalText(data []byte) error {
 	}
 }
 
-// RFC 9457 problem details. Served as `application/problem+json` by services and by the edge alike, so
-// a generated client has one error branch rather than two.
+// RFC 9457 problem details. Services and the edge both serve it as `application/problem+json`, so a
+// generated client has one error branch, not two.
 // Ref: #/components/schemas/Problem
 type Problem struct {
 	// `about:blank`, except where two errors share a status code and a client handles them differently.
-	// That case takes a `urn:problem-type:<service>:<slug>` URN — never a dereferenceable URL, which
+	// That case uses a `urn:problem-type:<service>:<slug>` URN. It is never a dereferenceable URL, which
 	// would put an error taxonomy into the flat public URL namespace.
 	Type string `json:"type"`
-	// A stable, human-readable summary. Does not vary with the instance.
+	// A stable, human-readable summary. It does not change with the instance.
 	Title string `json:"title"`
-	// The HTTP status, duplicated in the body.
+	// The HTTP status, repeated in the body.
 	Status int `json:"status"`
-	// Instance-specific and safe to show a user. Never a stack trace, a query, or an internal hostname.
+	// Specific to the instance and safe to show a user. Never a stack trace, a query, or an internal
+	// hostname.
 	Detail OptString `json:"detail"`
-	// The W3C Trace Context trace-id of the failing request, so a user-reported error reaches its trace.
-	// Supplied from the active span, not by the handler.
+	// The W3C Trace Context trace-id of the failing request, so an error that a user reports leads to its
+	// trace. The active span supplies it, not the handler.
 	TraceID OptString `json:"trace_id"`
-	// Field-level validation failures, populated from the generated validator. Absent when the failure is
-	// not a validation failure.
+	// Field-level validation failures, filled from the generated validator. Absent when the failure is not
+	// a validation failure.
 	Errors []ProblemErrorsItem `json:"errors"`
 }
 
@@ -342,7 +343,7 @@ func (s *Problem) SetErrors(val []ProblemErrorsItem) {
 }
 
 type ProblemErrorsItem struct {
-	// RFC 6901 JSON Pointer to the offending member.
+	// RFC 6901 JSON Pointer to the member that failed.
 	Pointer string `json:"pointer"`
 	Message string `json:"message"`
 }
@@ -375,7 +376,7 @@ type WorkflowHandle struct {
 	ID     string               `json:"id"`
 	RunID  string               `json:"run_id"`
 	Status WorkflowHandleStatus `json:"status"`
-	// GET to fetch terminal status + result.
+	// GET it to fetch the terminal status and result.
 	ResultURL OptString `json:"result_url"`
 }
 

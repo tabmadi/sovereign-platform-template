@@ -1,4 +1,4 @@
-// Package handlers implement the ogen-generated orgs.Handler interface (ADR-0303).
+// Package handlers implement the ogen-generated orgs.Handler interface, per ADR-0303.
 package handlers
 
 import (
@@ -34,9 +34,9 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ orgs.Handler = (*Handlers)(nil)
 
-// orgID and storedID are the transport boundary (ADR-0003): the column holds a bare uuid and the wire carries
-// `org_` and the base32 form. They report rather than panic, because the generated validator and this call are
-// two places one spec edit can separate.
+// orgID and storedID are the transport boundary, per ADR-0003. The column holds a bare uuid, and the wire carries
+// `org_` and the base32 form. They return an error and do not panic, because one spec edit can make the generated
+// validator and this call disagree.
 func orgID(u pgtype.UUID) orgs.OrgId {
 	return orgs.OrgId(id.MustFrom("org", uuid.UUID(u.Bytes)).String())
 }
@@ -68,9 +68,9 @@ func (h *Handlers) GetOrg(ctx context.Context, params orgs.GetOrgParams) (*orgs.
 	return &orgs.Org{ID: orgID(row.ID), Name: row.Name}, nil
 }
 
-// OnIdentityCreated: The Kratos post-registration webhook (ADR-0304). It starts RegisterUser rather than writing
-// directly, because the personal org spans the orgs database and the OpenFGA owner tuple. The workflow id is derived
-// from the identity, so a duplicate delivery is a no-op.
+// OnIdentityCreated is the Kratos post-registration webhook, per ADR-0304. It starts RegisterUser and does not write
+// directly, because the personal org spans the orgs database and the OpenFGA owner tuple. The workflow id comes from
+// the identity, so a duplicate delivery is a no-op.
 func (h *Handlers) OnIdentityCreated(ctx context.Context, req *orgs.OnIdentityCreatedReq) error {
 	identityID, ok := req.IdentityID.Get()
 	if !ok || identityID == "" {
@@ -93,8 +93,8 @@ func (h *Handlers) OnIdentityCreated(ctx context.Context, req *orgs.OnIdentityCr
 }
 
 func (h *Handlers) ListOrgs(ctx context.Context) ([]orgs.Org, error) {
-	// Every org, not the caller's — a back-office view (`x-audience: internal`),
-	// so it is operator-gated rather than scoped.
+	// Every org, not only the caller's. It is a back-office view with
+	// `x-audience: internal`, so it is operator-gated and not scoped.
 	err := h.requireOperator(ctx, "listing every org")
 	if err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ func (h *Handlers) DeleteOrg(ctx context.Context, params orgs.DeleteOrgParams) e
 	return nil
 }
 
-// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// NewError maps a handler error onto the generated RFC 9457 response, per ADR-0303.
 func (h *Handlers) NewError(ctx context.Context, err error) *orgs.ErrorStatusCode {
 	e := apierr.Resolved(ctx, err)
 
@@ -171,8 +171,8 @@ func (h *Handlers) NewError(ctx context.Context, err error) *orgs.ErrorStatusCod
 	return &orgs.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
-// An unguessable identifier is not an access control (ADR-0003). `org#read` resolves the org's members and admins; an
-// operator reaches every org through the back-office grant.
+// An unguessable identifier is not an access control, per ADR-0003. `org#read` resolves the org's members and admins.
+// An operator reaches every org through the back-office grant.
 func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {
@@ -188,8 +188,8 @@ func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	return h.requireOperator(ctx, "reading an org they are not a member of")
 }
 
-// requireOperator gates a write on the shared Checker (ADR-0304). Reads and the registration webhook stay open; only
-// the operator-facing mutations are gated.
+// requireOperator gates a write on the shared Checker, per ADR-0304. Reads and the registration webhook stay open.
+// Only the operator-facing mutations are gated.
 func (h *Handlers) requireOperator(ctx context.Context, action string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {

@@ -9,8 +9,8 @@ func at(minute int) time.Time {
 	return time.Date(2026, 8, 19, 0, minute, 0, 0, time.UTC)
 }
 
-// The funnel under test, and its step names as constants: the tests repeat them
-// often enough that a typo in one would silently change what is being asserted.
+// The funnel under test, with its step names as constants. The tests repeat them
+// often, and a typo in one would change the assertion with no error.
 const (
 	stepViewed   = "viewed"
 	stepAdded    = "added"
@@ -35,9 +35,9 @@ func TestCountOrderedTraversal(t *testing.T) {
 	assertCounts(t, got, want)
 }
 
-// The case the whole package exists for: a session that reaches a later step
-// WITHOUT the earlier ones — a bookmark straight to checkout — must not be counted
-// there, or every funnel reports conversion it did not have.
+// This is the purpose of the package. A session that reaches a later step WITHOUT
+// the earlier ones, such as a bookmark to checkout, must not count there.
+// Otherwise every funnel reports conversion that it did not have.
 func TestCountRejectsSkippedSteps(t *testing.T) {
 	t.Parallel()
 	rows := []Step{
@@ -48,8 +48,8 @@ func TestCountRejectsSkippedSteps(t *testing.T) {
 	assertCounts(t, got, []int64{0, 0, 0, 0})
 }
 
-// Steps present but in the WRONG ORDER are not a traversal either. This session saw
-// every event, so a naive per-name count would report a perfect funnel.
+// Steps in the WRONG ORDER are not a traversal either. This session saw every
+// event, so a naive per-name count would report a perfect funnel.
 func TestCountRejectsOutOfOrderSteps(t *testing.T) {
 	t.Parallel()
 	rows := []Step{
@@ -87,8 +87,8 @@ func TestCountDropOffIsMonotonic(t *testing.T) {
 	}
 }
 
-// Same instant is a traversal, not a rejection: two events in the same millisecond
-// are ordered by the funnel's definition, because the clock cannot separate them.
+// The same instant is a traversal, not a rejection. The funnel's definition orders
+// two events in the same millisecond, because the clock cannot separate them.
 func TestCountAcceptsSimultaneousSteps(t *testing.T) {
 	t.Parallel()
 	rows := []Step{
@@ -99,7 +99,7 @@ func TestCountAcceptsSimultaneousSteps(t *testing.T) {
 	assertCounts(t, got, []int64{1, 1, 0, 0})
 }
 
-// A step nothing reached is a zero, never a missing entry.
+// A step that nothing reached is a zero, never a missing entry.
 func TestCountAlwaysReturnsOnePerStep(t *testing.T) {
 	t.Parallel()
 	got := Count(steps, nil)
@@ -117,8 +117,8 @@ func TestBucketsAlignToMidnightUTC(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("want 2 buckets, got %d", len(got))
 	}
-	// The first bucket starts at midnight, NOT at 03:30 — otherwise the same day
-	// lands in a different bucket depending on when the pass ran.
+	// The first bucket starts at midnight, NOT at 03:30. Otherwise the same day
+	// goes into a different bucket, depending on when the pass ran.
 	want := time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)
 	if !got[0][0].Equal(want) {
 		t.Fatalf("first bucket starts at %s, want %s", got[0][0], want)
@@ -146,7 +146,7 @@ func assertCounts(t *testing.T, got, want []int64) {
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("step %d: got %d, want %d (full: %v)", i, got[i], want[i], got)
+			t.Fatalf("step %d: got %d, want %d, full result %v", i, got[i], want[i], got)
 		}
 	}
 }

@@ -1,15 +1,15 @@
 openapi: 3.1.0
 info: { title: payment, version: 0.1.0, description: Payment charge and settlement service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
-# `x-admin: crud` marks the resource group the admin generator (ADR-0401, tools/admin-gen)
-# scaffolds pages for. Charges are workflow-created and immutable, so the surface
-# is list/detail (read) plus the `refund` action below — no edit/delete.
+servers: [{ url: /api }]   # flat resource namespace, per ADR-0306. Paths are globally unique
+# `x-admin: crud` marks the resource group for the admin generator in tools/admin-gen, per
+# ADR-0401. A workflow creates charges, and they are immutable. So the generator makes only
+# the list and detail read pages and the `refund` action below, with no edit or delete.
 tags: [{ name: charges, x-admin: crud }]
 paths:
   /charges:
     get:
       operationId: listCharges
-      # Listing every charge is a back-office view, kept out of public docs (ADR-0303).
+      # Listing every charge is a back-office view. The public docs leave it out, per ADR-0303.
       x-audience: internal
       description: List all charges.
       tags: [charges]
@@ -21,8 +21,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Charge" }
-                # Served verbatim by the API mock (ADR-0600); the statuses vary so the
-                # UI has to render every one of them.
+                # The API mock serves this exactly as written, per ADR-0600. The statuses
+                # vary, so the UI must render every one of them.
                 example:
                   - { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount: { amount: "2598.00", currency: EUR }, status: settled }
                   - { id: charge_01kztp2xh8e6nr9gh2xr7ryye5, order_id: order_01kztnpc5gfx2a9kkhxe1h4ar3, amount: { amount: "899.00", currency: EUR }, status: pending }
@@ -32,8 +32,8 @@ paths:
       operationId: createCharge
       tags: [charges]
       description: |
-        Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header.
-        Returns a workflow handle (ADR-0302).
+        Starts the Charge Temporal workflow. It is idempotent on the Idempotency-Key header.
+        Returns a workflow handle, per ADR-0302.
       parameters:
         - { name: Idempotency-Key, in: header, required: true, description: Client-generated key that makes the charge request idempotent., schema: { type: string } }
       requestBody:
@@ -61,10 +61,10 @@ paths:
   /charges/{id}/refund:
     post:
       operationId: refundCharge
-      # An operator action, emitted as a button rather than a CRUD page (ADR-0401), and kept out of the public docs as `internal` (ADR-0303).
+      # An operator action, emitted as a button and not a CRUD page, per ADR-0401. As `internal`, it stays out of the public docs, per ADR-0303.
       x-admin: action
       x-audience: internal
-      description: Refund a settled charge. Starts the Refund workflow (ADR-0302).
+      description: Refund a settled charge. Starts the Refund workflow, per ADR-0302.
       tags: [charges]
       parameters: [{ name: id, in: path, required: true, description: Id of the charge to refund., schema: { $ref: "#/components/schemas/ChargeId" } }]
       requestBody:
@@ -80,7 +80,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
-    # >>> shared-components: responses — generated from tools/codegen/shared-components.yaml, do not edit
+    # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
     Error:
       description: An error, as RFC 9457 problem details.
       content:
@@ -88,53 +88,52 @@ components:
           schema: {$ref: "#/components/schemas/Problem"}
     # <<< shared-components
   schemas:
-    # >>> shared-components: schemas — generated from tools/codegen/shared-components.yaml, do not edit
-    # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
-    # identifies the occurrence, and it reaches the trace where an instance URL
-    # reaches nothing.
+    # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
+    # RFC 9457 problem details. `instance` is absent on purpose: `trace_id` identifies the occurrence and leads to the trace.
+    # An instance URL leads nowhere.
     Problem:
       type: object
       description: |
-        RFC 9457 problem details. Served as `application/problem+json` by services and
-        by the edge alike, so a generated client has one error branch rather than two.
+        RFC 9457 problem details. Services and the edge both serve it as
+        `application/problem+json`, so a generated client has one error branch, not two.
       required: [type, title, status]
       properties:
         type:
           type: string
           description: |
             `about:blank`, except where two errors share a status code and a client
-            handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-            URN — never a dereferenceable URL, which would put an error taxonomy into
+            handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+            URN. It is never a dereferenceable URL, which would put an error taxonomy into
             the flat public URL namespace.
           default: "about:blank"
           example: "about:blank"
         title:
           type: string
-          description: A stable, human-readable summary. Does not vary with the instance.
+          description: A stable, human-readable summary. It does not change with the instance.
           example: Not Found
         status:
           type: integer
-          description: The HTTP status, duplicated in the body.
+          description: The HTTP status, repeated in the body.
           minimum: 100
           maximum: 599
           example: 404
         detail:
           type: string
           description: |
-            Instance-specific and safe to show a user. Never a stack trace, a query, or
-            an internal hostname.
+            Specific to the instance and safe to show a user. Never a stack trace, a query,
+            or an internal hostname.
           example: No product with that identifier.
         trace_id:
           type: string
           description: |
-            The W3C Trace Context trace-id of the failing request, so a user-reported
-            error reaches its trace. Supplied from the active span, not by the handler.
+            The W3C Trace Context trace-id of the failing request, so an error that a user
+            reports leads to its trace. The active span supplies it, not the handler.
           pattern: "^[0-9a-f]{32}$"
           example: 4bf92f3577b34da6a3ce929d0e0e4736
         errors:
           type: array
           description: |
-            Field-level validation failures, populated from the generated validator.
+            Field-level validation failures, filled from the generated validator.
             Absent when the failure is not a validation failure.
           items:
             type: object
@@ -142,7 +141,7 @@ components:
             properties:
               pointer:
                 type: string
-                description: RFC 6901 JSON Pointer to the offending member.
+                description: RFC 6901 JSON Pointer to the member that failed.
                 example: /price/amount
               message:
                 type: string
@@ -153,21 +152,20 @@ components:
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
-    # A monetary amount. `string`, never `number`: a JSON number is parsed as an
-    # IEEE-754 double by every TypeScript client, and a double cannot represent a
-    # decimal amount exactly. A `type: number` monetary field is a contract defect.
+    # A monetary amount. `string`, never `number`: every TypeScript client parses a JSON number as an IEEE-754 double.
+    # A double cannot hold a decimal amount exactly. A `type: number` monetary field is a contract defect.
     Money:
       type: object
       description: |
-        A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-        double in the TypeScript client, and a double cannot hold a decimal amount
-        exactly. Currency travels with the amount, because an amount without one is
+        A monetary amount. The amount is a decimal string, because a JSON number becomes
+        a double in the TypeScript client, and a double cannot hold a decimal amount
+        exactly. The currency goes with the amount, because an amount without one is
         not a quantity of anything.
       required: [amount, currency]
       properties:
         amount:
           type: string
-          description: Decimal amount, sign-prefixed when negative. No thousands separators.
+          description: Decimal amount, with a leading sign when negative. No thousands separators.
           pattern: '^-?[0-9]+(\.[0-9]+)?$'
           example: "1299.00"
         currency:
@@ -179,23 +177,23 @@ components:
         amount: "1299.00"
         currency: EUR
     # <<< shared-components
-    # Wire identifiers (ADR-0003). The stored columns stay bare `uuid`; this form
-    # exists so a value in a log line, a ticket, or a URL says what it is.
+    # Wire identifiers, per ADR-0003. The stored columns stay bare `uuid`. This form
+    # exists so that a value in a log line, a ticket, or a URL names its type.
     ChargeId:
       type: string
       description: |
         A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford
-        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
-        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+        base32. The first character is at most 7, because 26 characters hold 130 bits and
+        a UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.
       pattern: '^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
       example: charge_01kztnyqr0f13shqqnx8028xx5
-    # Minted by orders and carried here, so the prefix names the owning service's
-    # resource rather than this one's.
+    # orders mints it and this service carries it. So the prefix names the owning
+    # service's resource, not a resource of this service.
     OrderId:
       type: string
       description: |
         An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
-        base32. Opaque to a consumer: nothing parses, orders, or constructs one.
+        base32. It is opaque to a consumer: nothing parses, orders, or builds one.
       pattern: '^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
       example: order_01kztnj6c8e0jt7vzw0cn1wxvd
     WorkflowHandle:
@@ -206,10 +204,10 @@ components:
         id:     { type: string }
         run_id: { type: string }
         status: { type: string, enum: [running, completed, failed, cancelled] }
-        # uri-reference, not uri: the value is a path on this origin, and `format: uri` means an absolute URI, so the committed example would fail its own schema.
-        result_url: { type: string, format: uri-reference, description: "GET to fetch terminal status + result" }
-      # See orders: `running` is what the real 202 returns, and the mock's poll never
-      # progresses past it (ADR-0600).
+        # uri-reference, not uri. The value is a path on this origin, and `format: uri` means an absolute URI. Then the committed example would fail its own schema.
+        result_url: { type: string, format: uri-reference, description: "GET it to fetch the terminal status and result" }
+      # As in orders, the real 202 returns `running`, and the mock's poll never moves
+      # past it, per ADR-0600.
       example: { id: charge-charge_01kztnyqr0f13shqqnx8028xx5, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e002, status: running, result_url: /api/charges/charge_01kztnyqr0f13shqqnx8028xx5 }
     ChargeInput:
       type: object

@@ -1,6 +1,6 @@
 //go:build _template
 
-// Server entry point for the template service; new-service.sh strips the build tag and rewrites _template.
+// Server entry point for the template service. new-service.sh strips the build tag and rewrites _template.
 package main
 
 import (

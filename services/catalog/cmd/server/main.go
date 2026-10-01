@@ -1,4 +1,5 @@
-// catalog is product CRUD over HTTP and Postgres, with no workflows: the OpenAPI → ogen → handlers → sqlc path.
+// catalog is product CRUD over HTTP and Postgres, with no workflows. It shows the path from OpenAPI to ogen to
+// handlers to sqlc.
 package main
 
 import (
@@ -45,8 +46,8 @@ func run() error {
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
-	// Authz plane (ADR-0304): the shared OpenFGA Checker for write authorization.
-	// Lazily dialed — OPENFGA_PRESHARED_KEY (envFrom openfga-creds) must be set.
+	// Authz plane, per ADR-0304: the shared OpenFGA Checker for write authorization.
+	// It dials on first use. OPENFGA_PRESHARED_KEY, from the openfga-creds envFrom, must be set.
 	checker, err := authz.New()
 	if err != nil {
 		return fmt.Errorf("authz: %w", err)

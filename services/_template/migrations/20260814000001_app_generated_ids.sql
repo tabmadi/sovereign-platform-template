@@ -1,11 +1,11 @@
 -- migrate:up
--- The service mints the primary key, not the column (ADR-0003). Two things follow
--- from the default being gone: the identifier exists BEFORE the insert, so a
--- handler can log it, tag its span, and report it on a write that never lands; and
--- the value is a UUIDv7 from `libs/go/id` rather than the UUIDv4 `gen_random_uuid`
--- returns, so the key carries a time prefix and the index appends instead of
--- scattering. A default of any kind would be a second generator with neither
--- property, reached by exactly the inserts that forgot to pass an id.
+-- The service mints the primary key, not the column, per ADR-0003. With no default,
+-- two things are true. First, the identifier exists BEFORE the insert. So a handler
+-- can log it, tag its span, and report it on a write that fails. Second, the value
+-- is a UUIDv7 from `libs/go/id`, not the UUIDv4 that `gen_random_uuid` returns. So
+-- the key has a time prefix, and the index appends and does not scatter. Any default
+-- would be a second generator with neither property. Only the inserts that forgot
+-- to pass an id would use it.
 alter table items alter column id drop default;
 
 -- migrate:down

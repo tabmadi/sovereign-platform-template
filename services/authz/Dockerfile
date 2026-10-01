@@ -8,8 +8,8 @@ COPY libs/go ./libs/go
 ARG APP_CMD=server
 ARG SERVICE=authz
 COPY services/${SERVICE} ./services/${SERVICE}
-# Build identity baked into the binary (ADR-0103) so the running pod self-reports
-# its git SHA / release; passed by the build scripts + CI, VCS-stamp fallback when absent.
+# The build identity goes into the binary, per ADR-0103, so the running pod reports its
+# git SHA and release. The build scripts and CI pass it. Without it, the VCS stamp is used.
 ARG GIT_SHA=""
 ARG BUILD_VERSION=dev
 ARG BUILD_TIME=""

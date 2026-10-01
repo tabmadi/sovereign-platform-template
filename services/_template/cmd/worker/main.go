@@ -1,6 +1,6 @@
 //go:build _template
 
-// Worker entry point for the template service; copy it and strip the build tag.
+// Worker entry point for the template service. Copy it and strip the build tag.
 package main
 
 import (
@@ -35,8 +35,8 @@ func main() {
 	defer tc.Close()
 
 	w := temporalmw.NewWorker(tc, serviceName+"-queue")
-	// Register this service's workflows and activities here, before Run. lint:activity-register catches an activity a
-	// workflow calls and no worker registers (ADR-0302).
+	// Register this service's workflows and activities here, before Run. lint:activity-register finds an activity that a
+	// workflow calls and no worker registers, per ADR-0302.
 
 	if err := w.Run(worker_interrupt(ctx)); err != nil {
 		slog.Error("worker", "err", err)

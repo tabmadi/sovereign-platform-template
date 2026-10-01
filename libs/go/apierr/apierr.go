@@ -1,4 +1,4 @@
-// Package apierr defines the platform-wide HTTP error format (ADR-0303).
+// Package apierr defines the platform-wide HTTP error format, per ADR-0303.
 package apierr
 
 import (
@@ -12,13 +12,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// TypeBlank is the default problem type. RFC 9457 gives it the meaning "the status
-// code is the whole of the machine-readable semantics".
+// TypeBlank is the default problem type. RFC 9457 defines it to mean that the status
+// code carries all of the machine-readable meaning.
 const TypeBlank = "about:blank"
 
 // ValidationError is one field-level failure, as the errors extension carries it.
 type ValidationError struct {
-	// Pointer is an RFC 6901 JSON Pointer to the offending member.
+	// Pointer is an RFC 6901 JSON Pointer to the member that failed.
 	Pointer string `json:"pointer"`
 	Message string `json:"message"`
 }
@@ -41,22 +41,22 @@ func (e *Error) Error() string {
 	return e.Title + ": " + e.Detail
 }
 
-// WithType sets a problem-type URN, for the case where two errors share a status
-// code and a client handles them differently.
+// WithType sets a problem-type URN. Use it when two errors share a status code
+// and a client handles them differently.
 func (e *Error) WithType(urn string) *Error {
 	e.Type = urn
 	return e
 }
 
-// WithValidation attaches field-level failures. Populated from the generated
-// validator rather than assembled by hand in a handler.
+// WithValidation attaches field-level failures. The generated validator fills them.
+// A handler does not build them by hand.
 func (e *Error) WithValidation(errs ...ValidationError) *Error {
 	e.Errors = append(e.Errors, errs...)
 	return e
 }
 
-// WithTrace stamps the trace-id of the active span, and is a no-op outside a recording span.
-// It lives here because a handler that forgets it produces an error nobody can find, with no signal it was forgotten.
+// WithTrace adds the trace-id of the active span. Outside a recording span it does nothing.
+// It is here because a handler that forgets it produces an error that nobody can find, and nothing shows the omission.
 func (e *Error) WithTrace(ctx context.Context) *Error {
 	sc := trace.SpanContextFromContext(ctx)
 	if sc.HasTraceID() {
@@ -65,8 +65,8 @@ func (e *Error) WithTrace(ctx context.Context) *Error {
 	return e
 }
 
-// Write serialises the error to w. Callers inside a request should prefer
-// WriteContext, which stamps the trace-id.
+// Write serialises the error to w. Inside a request, use WriteContext instead,
+// because it adds the trace-id.
 func (e *Error) Write(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(e.Status)
@@ -90,9 +90,8 @@ func New(status int, detail string) *Error {
 	}
 }
 
-// Helpers for the common cases. Service code calls these rather than building the
-// struct by hand, so `title` stays identical for a given status across services —
-// which is the property that makes it switchable.
+// Service code calls these helpers and does not build the struct by hand. Then `title`
+// is the same for a given status in every service, so a client can switch on it.
 
 func BadRequest(detail string) *Error { return New(http.StatusBadRequest, detail) }
 
@@ -108,16 +107,16 @@ func NotFound(resource string) *Error {
 
 func Conflict(detail string) *Error { return New(http.StatusConflict, detail) }
 
-// Internal is the one helper whose detail is not safe to pass through: a driver message routinely carries a query,
-// a hostname, or a credential. The cause is logged and never reaches the body.
+// Internal is the one helper whose detail is not safe to pass through. A driver message often carries a query,
+// a hostname, or a credential. The cause goes to the log and never reaches the body.
 func Internal(cause string) *Error {
 	slog.Error("apierr: internal", "cause", cause)
 	return New(http.StatusInternalServerError, "an internal error occurred")
 }
 
-// Resolved returns err as an *Error carrying the active trace-id, falling back to Internal for anything the
-// handlers did not raise. The trace-id is stamped here rather than in each handler: a handler that forgets it
-// produces an error nobody can correlate, and nothing signals the omission.
+// Resolved returns err as an *Error with the active trace-id. It uses Internal for any error the handlers did not
+// raise. The trace-id is added here and not in each handler. A handler that forgets it produces an error that
+// nobody can correlate, and nothing shows the omission.
 func Resolved(ctx context.Context, err error) *Error {
 	e, ok := As(err)
 	if !ok {
@@ -126,8 +125,8 @@ func Resolved(ctx context.Context, err error) *Error {
 	return e.WithTrace(ctx)
 }
 
-// ServeError is the ogen server's ErrorHandler, answering a request the generated server rejected before any
-// handler ran. Without it ogen writes a bare 500, so a client sees a server fault for its own mistake.
+// ServeError is the ogen server's ErrorHandler. It answers a request that the generated server rejected before any
+// handler ran. Without it, ogen writes a bare 500, and a client sees a server fault for its own mistake.
 func ServeError(ctx context.Context, w http.ResponseWriter, _ *http.Request, err error) {
 	e, ok := As(err)
 	if !ok {
@@ -136,8 +135,8 @@ func ServeError(ctx context.Context, w http.ResponseWriter, _ *http.Request, err
 	e.WriteContext(ctx, w)
 }
 
-// As unwraps err to an *Error, and recognises the errors the generated server produces before a handler is
-// reached. Those are the client's mistake and belong in the 4xx range; unrecognised, they would be answered 500.
+// As unwraps err to an *Error. It also recognises the errors that the generated server produces before a handler
+// runs. Those are the client's mistake and belong in the 4xx range. Without this, they get a 500.
 func As(err error) (*Error, bool) {
 	var e *Error
 	if errors.As(err, &e) {

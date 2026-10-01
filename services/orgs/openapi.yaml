@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info: { title: orgs, version: 0.1.0, description: Organization and membership service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
-# `x-admin: crud` marks the resource group the admin generator (ADR-0401, tools/admin-gen)
-# scaffolds list/detail/create/edit pages for, from the operations present below.
+servers: [{ url: /api }]   # flat resource namespace, per ADR-0306. Paths are globally unique
+# `x-admin: crud` marks the resource group for the admin generator in tools/admin-gen, per ADR-0401. It
+# scaffolds list, detail, create, and edit pages from the operations below.
 tags: [{ name: orgs, x-admin: crud }, { name: cluster }]
 paths:
   /orgs:
     get:
       operationId: listOrgs
-      # Listing every org is a back-office view, kept out of public docs (ADR-0303).
+      # Listing every org is a back-office view. The public docs leave it out, per ADR-0303.
       x-audience: internal
       description: List all organizations.
       tags: [orgs]
@@ -20,14 +20,13 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Org" }
-                # Served verbatim by the API mock (ADR-0600).
+                # The API mock serves this exactly as written, per ADR-0600.
                 example:
                   - { id: org_01kztn9tsrea7b1597q3yjdeav, name: Northwind Trading }
                   - { id: org_01kztne0k0e96sgmrw4bd27ydx, name: Contoso Rail }
         default: { $ref: "#/components/responses/Error" }
-    # There is no POST: an org is created by the registration flow, whose webhook writes the org, the membership and
-    # the OpenFGA admin tuple as one dual write (ADR-0304). A bare insert produced an org with no admin.
-    # It returns when there is a second way to be in an org, and then as a workflow returning a handle.
+    # There is no POST. The registration flow creates an org. Its webhook writes the org, the membership, and the
+    # OpenFGA admin tuple as one dual write, per ADR-0304. A bare insert would produce an org with no admin.
   /orgs/{id}:
     get:
       operationId: getOrg
@@ -62,8 +61,8 @@ paths:
   /identity-created:
     post:
       operationId: onIdentityCreated
-      # East-west webhook (Kratos → orgs, in-cluster): bypasses the edge, gated by
-      # NetworkPolicy. `x-audience: cluster` keeps it off both docs portals (ADR-0303).
+      # East-west webhook from Kratos to orgs in the cluster. It skips the edge, and a
+      # NetworkPolicy gates it. `x-audience: cluster` keeps it off both docs portals, per ADR-0303.
       x-audience: cluster
       tags: [cluster]
       description: Kratos post-registration webhook. Creates a personal org for the new identity.
@@ -83,7 +82,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
-    # >>> shared-components: responses — generated from tools/codegen/shared-components.yaml, do not edit
+    # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
     Error:
       description: An error, as RFC 9457 problem details.
       content:
@@ -91,53 +90,52 @@ components:
           schema: {$ref: "#/components/schemas/Problem"}
     # <<< shared-components
   schemas:
-    # >>> shared-components: schemas — generated from tools/codegen/shared-components.yaml, do not edit
-    # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
-    # identifies the occurrence, and it reaches the trace where an instance URL
-    # reaches nothing.
+    # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
+    # RFC 9457 problem details. `instance` is absent on purpose: `trace_id` identifies the occurrence and leads to the trace.
+    # An instance URL leads nowhere.
     Problem:
       type: object
       description: |
-        RFC 9457 problem details. Served as `application/problem+json` by services and
-        by the edge alike, so a generated client has one error branch rather than two.
+        RFC 9457 problem details. Services and the edge both serve it as
+        `application/problem+json`, so a generated client has one error branch, not two.
       required: [type, title, status]
       properties:
         type:
           type: string
           description: |
             `about:blank`, except where two errors share a status code and a client
-            handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-            URN — never a dereferenceable URL, which would put an error taxonomy into
+            handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+            URN. It is never a dereferenceable URL, which would put an error taxonomy into
             the flat public URL namespace.
           default: "about:blank"
           example: "about:blank"
         title:
           type: string
-          description: A stable, human-readable summary. Does not vary with the instance.
+          description: A stable, human-readable summary. It does not change with the instance.
           example: Not Found
         status:
           type: integer
-          description: The HTTP status, duplicated in the body.
+          description: The HTTP status, repeated in the body.
           minimum: 100
           maximum: 599
           example: 404
         detail:
           type: string
           description: |
-            Instance-specific and safe to show a user. Never a stack trace, a query, or
-            an internal hostname.
+            Specific to the instance and safe to show a user. Never a stack trace, a query,
+            or an internal hostname.
           example: No product with that identifier.
         trace_id:
           type: string
           description: |
-            The W3C Trace Context trace-id of the failing request, so a user-reported
-            error reaches its trace. Supplied from the active span, not by the handler.
+            The W3C Trace Context trace-id of the failing request, so an error that a user
+            reports leads to its trace. The active span supplies it, not the handler.
           pattern: "^[0-9a-f]{32}$"
           example: 4bf92f3577b34da6a3ce929d0e0e4736
         errors:
           type: array
           description: |
-            Field-level validation failures, populated from the generated validator.
+            Field-level validation failures, filled from the generated validator.
             Absent when the failure is not a validation failure.
           items:
             type: object
@@ -145,7 +143,7 @@ components:
             properties:
               pointer:
                 type: string
-                description: RFC 6901 JSON Pointer to the offending member.
+                description: RFC 6901 JSON Pointer to the member that failed.
                 example: /price/amount
               message:
                 type: string
@@ -157,14 +155,14 @@ components:
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
     # <<< shared-components
-    # A wire identifier (ADR-0003). The stored column stays a bare `uuid`; this form
-    # exists so a value in a log line, a ticket, or a URL says what it is.
+    # A wire identifier, per ADR-0003. The stored column stays a bare `uuid`. This form
+    # exists so that a value in a log line, a ticket, or a URL names its type.
     OrgId:
       type: string
       description: |
         An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford
-        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
-        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+        base32. The first character is at most 7, because 26 characters hold 130 bits and
+        a UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.
       pattern: '^org_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
       example: org_01kztn9tsrea7b1597q3yjdeav
     Org:

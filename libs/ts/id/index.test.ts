@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { formatId, InvalidIdError, isId, isValidPrefix, parseId, prefixOf } from "./index";
 
-// The published TypeID vectors, identical to the ones libs/go/id asserts. Checking both against the standard
-// rather than against each other is what makes them interoperable.
+// The published TypeID vectors, the same ones that libs/go/id asserts. Both sides check against the standard,
+// not against each other, so they are interoperable.
 const VECTORS: ReadonlyArray<readonly [uuid: string, suffix: string]> = [
   ["00000000-0000-0000-0000-000000000000", "00000000000000000000000000"],
   ["00000000-0000-0000-0000-000000000001", "00000000000000000000000001"],
@@ -28,7 +28,7 @@ describe("parseId", () => {
     expect(parsed.uuid).toBe("01890a5d-ac96-774b-bcce-b302099a8057");
   });
 
-  // The whole reason the prefix exists.
+  // This is the purpose of the prefix.
   test("rejects the wrong type", () => {
     const order = formatId("order", "01890a5d-ac96-774b-bcce-b302099a8057");
     expect(() => parseId(order, "product")).toThrow(InvalidIdError);
@@ -43,7 +43,7 @@ describe("parseId", () => {
     ["uppercase suffix", "order_01J8XK7M3Q0000000000000000"],
     ["uppercase prefix", "Order_01j8xk7m3q0000000000000000"],
     ["digit in prefix", "order2_01j8xk7m3q0000000000000000"],
-    // 26 characters hold 130 bits; a leading character above 7 does not fit in 128.
+    // 26 characters hold 130 bits. A first character above 7 does not fit in 128 bits.
     ["overflows 128 bits", "order_81j8xk7m3q0000000000000000"],
   ])("rejects %s", (_name, value) => {
     expect(() => parseId(value)).toThrow(InvalidIdError);
@@ -84,8 +84,8 @@ describe("isValidPrefix", () => {
   });
 });
 
-// UUIDv7 is time-ordered, and the encoding has to preserve that at the boundary or
-// the reason for choosing v7 is lost the moment a value is serialised.
+// UUIDv7 is time-ordered. The encoding must keep that order at the boundary, or a
+// serialised value loses the reason for choosing v7.
 test("encoding preserves the ordering of the underlying value", () => {
   const earlier = formatId("order", "01890a5d-ac96-774b-bcce-b302099a8057");
   const later = formatId("order", "01890a5d-ac96-774b-bcce-b302099a8058");

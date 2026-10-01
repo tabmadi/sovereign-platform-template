@@ -1,5 +1,5 @@
-// Package authmw turns the identity headers the edge injects — X-User-Id, X-Org-Id, X-Roles — into a typed Principal
-// on the request context (ADR-0305, ADR-0304).
+// Package authmw turns the identity headers that the edge injects into a typed Principal on the request context.
+// The headers are X-User-Id, X-Org-Id, and X-Roles, per ADR-0305 and ADR-0304.
 package authmw
 
 import (
@@ -9,17 +9,17 @@ import (
 	"strings"
 )
 
-// Canonical identity header names. The edge is the only authority that sets
-// them; any client-supplied copies are stripped before the request arrives.
+// Canonical identity header names. The edge is the only authority that sets them.
+// The edge strips any copies from the client before the request arrives.
 const (
 	HeaderUserID = "X-User-Id"
 	HeaderOrgID  = "X-Org-Id"
 	HeaderRoles  = "X-Roles"
 )
 
-// What the edge's anonymous authenticator puts in X-User-Id for a caller with no session. It arrives in the same
-// header a real identity does, so checking the header is non-empty treats every guest as a signed-in user.
-// The value lives in infra/auth/oathkeeper/values.yaml; the two are one decision.
+// The edge's anonymous authenticator puts this in X-User-Id for a caller with no session. It uses the same header
+// as a real identity, so a check for a non-empty header treats every guest as a signed-in user.
+// infra/auth/oathkeeper/values.yaml holds the same value. The two are one decision.
 const anonymousSubject = "guest"
 
 type ctxKey int
@@ -44,9 +44,9 @@ func (p *Principal) HasRole(role string) bool {
 	return slices.Contains(p.Roles, role)
 }
 
-// Subject renders the principal as an OpenFGA user string ("user:<id>") for the
-// authz Checker (ADR-0304). A guest has no subject, so a tuple can never be
-// written for one by accident.
+// Subject renders the principal as an OpenFGA user string, `user:<id>`, for the
+// authz Checker, per ADR-0304. A guest has no subject, so nobody can write a tuple
+// for a guest by accident.
 func (p *Principal) Subject() string {
 	if !p.Authenticated() {
 		return ""
@@ -55,8 +55,8 @@ func (p *Principal) Subject() string {
 }
 
 // Read parses the trusted identity headers from h into a Principal. An absent
-// user id yields an unauthenticated (guest) principal — the edge admits guests
-// and each service decides per route whether a real principal is required.
+// user id gives an unauthenticated guest principal. The edge admits guests, and
+// each service decides per route if it needs a real principal.
 func Read(h http.Header) *Principal {
 	return &Principal{
 		UserID: h.Get(HeaderUserID),
@@ -71,15 +71,15 @@ func FromContext(ctx context.Context) (*Principal, bool) {
 	return p, ok
 }
 
-// NewContext returns ctx with p attached — the inverse of FromContext. Handlers
-// receive a principal via Middleware; tests inject one directly with this.
+// NewContext returns ctx with p attached. It is the inverse of FromContext. Handlers
+// get a principal from Middleware, and tests inject one directly with this.
 func NewContext(ctx context.Context, p *Principal) context.Context {
 	return context.WithValue(ctx, principalKey, p)
 }
 
 // Middleware attaches the parsed principal to the request context. It never
-// rejects: validation already happened at the edge, and authorisation is the
-// handler's job via the authz Checker.
+// rejects: the edge already validated the request, and the handler does
+// authorisation with the authz Checker.
 func Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(
@@ -91,9 +91,9 @@ func Middleware() func(http.Handler) http.Handler {
 	}
 }
 
-// ParseRoles splits the X-Roles header into roles. It tolerates both the
-// comma-separated form and Go's bracketed slice rendering ("[admin member]"),
-// so it survives however the edge mutator stringifies the roles claim.
+// ParseRoles splits the X-Roles header into roles. It accepts the comma-separated
+// form and Go's bracketed slice form, `[admin member]`. So it works with either
+// way the edge mutator turns the roles claim into a string.
 func ParseRoles(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	raw = strings.TrimPrefix(raw, "[")

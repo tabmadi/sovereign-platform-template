@@ -11,8 +11,8 @@ import (
 	"os"
 )
 
-// kratosAdminURL is where the identity record lives. The same in-cluster address
-// services/authz uses; neither reaches Kratos through the edge.
+// kratosAdminURL is where the identity record lives. services/authz uses the same
+// in-cluster address. Neither reaches Kratos through the edge.
 func kratosAdminURL() string {
 	v := os.Getenv("KRATOS_ADMIN_URL")
 	if v != "" {
@@ -21,9 +21,9 @@ func kratosAdminURL() string {
 	return "http://ory-kratos-admin.platform.svc.cluster.local"
 }
 
-// SetIdentityOrgActivity: This is where X-Org-Id comes from (ADR-0304): the edge templates that header out of
-// `metadata_public.org_id`, so an identity without it reaches every service belonging to no org. The org existing in
-// the database and in OpenFGA is not enough — the edge reads neither. The value is the wire form (ADR-0003).
+// SetIdentityOrgActivity is the source of X-Org-Id, per ADR-0304. The edge builds it from `metadata_public.org_id`,
+// so an identity without it reaches every service with no org. The edge reads neither the database nor OpenFGA.
+// The value is the wire form, per ADR-0003.
 func (a *Activities) SetIdentityOrgActivity(ctx context.Context, identityID, orgID string) error {
 	metadata, err := a.identityMetadata(ctx, identityID)
 	if err != nil {
@@ -34,7 +34,7 @@ func (a *Activities) SetIdentityOrgActivity(ctx context.Context, identityID, org
 	}
 	metadata["org_id"] = orgID
 
-	// One op replacing the whole object: a patch on `/metadata_public/org_id` fails when the identity has no metadata,
+	// One op replaces the whole object. A patch on `/metadata_public/org_id` fails when the identity has no metadata,
 	// and a bare `add` would drop `roles`.
 	patch := []map[string]any{{"op": "add", "path": "/metadata_public", "value": metadata}}
 	err = a.kratosJSON(ctx, http.MethodPatch, a.identityURL(identityID), patch, http.StatusOK, nil)
@@ -45,7 +45,7 @@ func (a *Activities) SetIdentityOrgActivity(ctx context.Context, identityID, org
 }
 
 // identityMetadata reads an identity's public metadata, or an empty map when it has
-// none. Only this object is read; the rest of the record is never touched.
+// none. It reads only this object and never touches the rest of the record.
 func (a *Activities) identityMetadata(ctx context.Context, identityID string) (map[string]any, error) {
 	var identity struct {
 		MetadataPublic map[string]any `json:"metadata_public"`
@@ -64,8 +64,8 @@ func (a *Activities) identityURL(identityID string) string {
 	return a.KratosAdmin + "/admin/identities/" + url.PathEscape(identityID)
 }
 
-// kratosJSON performs a JSON request against the Kratos admin API and asserts the
-// expected status. A nil body sends none; a nil out skips decoding.
+// kratosJSON sends a JSON request to the Kratos admin API and checks for the
+// expected status. A nil body sends no body, and a nil out skips decoding.
 func (a *Activities) kratosJSON(ctx context.Context, method, u string, body any, wantStatus int, out any) error {
 	var reader io.Reader
 	if body != nil {

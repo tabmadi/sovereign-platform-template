@@ -42,7 +42,7 @@ func (UnimplementedHandler) GetIdentity(ctx context.Context, params GetIdentityP
 
 // ListIdentities implements listIdentities operation.
 //
-// List identities (product users and operators) from Kratos, paginated.
+// List identities from Kratos, both product users and operators, paginated.
 //
 // GET /identities
 func (UnimplementedHandler) ListIdentities(ctx context.Context, params ListIdentitiesParams) (r []Identity, _ error) {

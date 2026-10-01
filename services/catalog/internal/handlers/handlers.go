@@ -1,4 +1,4 @@
-// Package handlers implement the ogen-generated catalog.Handler interface (ADR-0303).
+// Package handlers implement the ogen-generated catalog.Handler interface, per ADR-0303.
 package handlers
 
 import (
@@ -37,16 +37,16 @@ func New(db *pgxpool.Pool, checker authz.Checker) *Handlers {
 
 var _ catalog.Handler = (*Handlers)(nil)
 
-// productID and storedID are the transport boundary (ADR-0003): the column holds a bare uuid and the wire
-// carries `product_` and the base32 form. Both report rather than panic, because the generated validator and
-// this call are two places one spec edit can separate.
+// productID and storedID are the transport boundary, per ADR-0003. The column holds a bare uuid, and the wire
+// carries `product_` and the base32 form. Both return an error and do not panic, because one spec edit can
+// make the generated validator and this call disagree.
 func productID(u pgtype.UUID) catalog.ProductId {
 	return catalog.ProductId(id.MustFrom("product", uuid.UUID(u.Bytes)).String())
 }
 
-// mintID is where an identifier enters the system (ADR-0003). The service holds it
-// before the insert rather than reading it back from a column default, so a write
-// that never lands still has an identifier to log and to name in the failure.
+// mintID is where an identifier enters the system, per ADR-0003. The service holds it
+// before the insert and does not read it back from a column default. So a failed
+// write still has an identifier to log and to name in the failure.
 func mintID() (pgtype.UUID, error) {
 	v, err := id.New("product")
 	if err != nil {
@@ -55,8 +55,8 @@ func mintID() (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
 }
 
-// wirePrice goes through money.Amount rather than formatting the numeric directly, so the wire value is the one the
-// shared type would produce anywhere else (ADR-0300).
+// wirePrice goes through money.Amount and does not format the numeric directly. So the wire value is the same as the
+// shared type produces everywhere else, per ADR-0300.
 func wirePrice(price pgtype.Numeric, currency string) (catalog.Money, error) {
 	raw, err := price.Value()
 	if err != nil {
@@ -73,8 +73,8 @@ func wirePrice(price pgtype.Numeric, currency string) (catalog.Money, error) {
 	return catalog.Money{Amount: amount.String(), Currency: amount.Currency()}, nil
 }
 
-// storedPrice is the inverse, and the validation: an amount the shared type refuses
-// is a bad request, not a 500 — the client sent it.
+// storedPrice is the inverse, and it validates. An amount that the shared type refuses
+// is a bad request and not a 500, because the client sent it.
 func storedPrice(m catalog.Money) (pgtype.Numeric, string, error) {
 	amount, err := money.Parse(m.Amount, m.Currency)
 	if err != nil {
@@ -229,7 +229,7 @@ func (h *Handlers) DeleteProduct(ctx context.Context, params catalog.DeleteProdu
 	return nil
 }
 
-// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// NewError maps a handler error onto the generated RFC 9457 response, per ADR-0303.
 func (h *Handlers) NewError(ctx context.Context, err error) *catalog.ErrorStatusCode {
 	e := apierr.Resolved(ctx, err)
 
@@ -246,9 +246,9 @@ func (h *Handlers) NewError(ctx context.Context, err error) *catalog.ErrorStatus
 	return &catalog.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
-// requireOperator gates a write on the shared OpenFGA Checker (ADR-0304): the
-// caller must be an authenticated operator. Reads (List/Get) stay open; only
-// writes to the global catalog are gated (x-audience: internal, ADR-0303).
+// requireOperator gates a write on the shared OpenFGA Checker, per ADR-0304. The
+// caller must be an authenticated operator. Reads with List and Get stay open. Only
+// writes to the global catalog are gated, with `x-audience: internal`, per ADR-0303.
 func (h *Handlers) requireOperator(ctx context.Context, action string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {

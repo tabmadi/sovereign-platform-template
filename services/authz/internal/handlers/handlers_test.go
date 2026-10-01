@@ -26,9 +26,9 @@ const (
 	stateValue = "active"
 )
 
-// fakeChecker returns canned answers keyed by "permission resource". It also
-// records whether it was called, so tests can assert the coarse gate never
-// touches OpenFGA.
+// fakeChecker returns fixed answers keyed by `permission resource`. It also
+// records if it was called, so tests can assert that the coarse gate never
+// calls OpenFGA.
 type fakeChecker struct {
 	answers map[string]bool
 	called  bool
@@ -44,7 +44,7 @@ func req(subject, tool, aal, operator string) *authzsdk.AuthorizeRequest {
 }
 
 // decideStatus runs Authorize and reduces the response variant to its HTTP status:
-// 200 for allow (AuthorizeOK), 403 for deny (Problem).
+// 200 for allow with AuthorizeOK, 403 for deny with Problem.
 func decideStatus(t *testing.T, h *Handlers, r *authzsdk.AuthorizeRequest) int {
 	t.Helper()
 	res, err := h.Authorize(context.Background(), r)
@@ -62,12 +62,12 @@ func decideStatus(t *testing.T, h *Handlers, r *authzsdk.AuthorizeRequest) int {
 	}
 }
 
-// The coarse gate is a claim check: operator flag + AAL2, and — critically — no
-// OpenFGA call, so a product-authz outage cannot lock operators out (ADR-0306).
+// The coarse gate is a claim check on the operator flag and AAL2. It makes no
+// OpenFGA call, so a product-authz outage cannot lock operators out, per ADR-0306.
 func TestCoarseClaimGate(t *testing.T) {
 	t.Parallel()
 	checker := &fakeChecker{}
-	h := New(checker, nil, false, nil, nil) // coarse-only (fine layer off)
+	h := New(checker, nil, false, nil, nil) // coarse gate only, with the fine layer off
 
 	cases := []struct {
 		name string
@@ -95,7 +95,7 @@ func TestCoarseClaimGate(t *testing.T) {
 	}
 
 	if checker.called {
-		t.Fatal("coarse gate called OpenFGA; it must not (break-glass independence, ADR-0306)")
+		t.Fatal("coarse gate called OpenFGA, and it must not: break-glass independence, per ADR-0306")
 	}
 }
 
@@ -112,15 +112,15 @@ func TestFineGrainedGate(t *testing.T) {
 	if ungranted != 403 {
 		t.Fatalf("ungranted tool status = %d, want 403", ungranted)
 	}
-	// The coarse gate still applies first: a non-operator is denied before the fine check.
+	// The coarse gate still runs first: a non-operator is denied before the fine check.
 	nonOperator := decideStatus(t, h, req(subjectBob, toolGrafana, aalLevel2, "false"))
 	if nonOperator != 403 {
 		t.Fatalf("non-operator status = %d, want 403", nonOperator)
 	}
 }
 
-// fakeKratos stands in for the Kratos admin identity API: list returns a fixed page, get returns one full identity,
-// and put echoes the body it received.
+// fakeKratos stands in for the Kratos admin identity API. list returns a fixed page, get returns one full identity,
+// and put returns the body it received.
 func fakeKratos(t *testing.T, gotPut *map[string]any) *httptest.Server {
 	t.Helper()
 	full := map[string]any{
@@ -148,7 +148,7 @@ func fakeKratos(t *testing.T, gotPut *map[string]any) *httptest.Server {
 		case r.Method == http.MethodPut && r.URL.Path == "/admin/identities/id-1":
 			body, _ := io.ReadAll(r.Body)
 			_ = json.Unmarshal(body, gotPut)
-			_, _ = w.Write(body) // echo the updated identity back
+			_, _ = w.Write(body) // return the updated identity
 		default:
 			t.Errorf("unexpected kratos call %s %s", r.Method, r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -163,8 +163,8 @@ func newKratosHandlers(url string) *Handlers {
 	return h
 }
 
-// ListIdentities flattens each Kratos identity, reading the operator flag from metadata_public and defaulting a
-// missing one to false.
+// ListIdentities flattens each Kratos identity. It reads the operator flag from metadata_public, and a missing flag
+// is false.
 func TestListIdentities(t *testing.T) {
 	t.Parallel()
 	srv := fakeKratos(t, &map[string]any{})
@@ -182,12 +182,12 @@ func TestListIdentities(t *testing.T) {
 		t.Errorf("identity[0] = %+v, want operator op@example.com", ids[0])
 	}
 	if ids[1].Operator.Value {
-		t.Errorf("identity[1] operator = true, want false (flag absent)")
+		t.Errorf("identity[1] operator = true, want false because the flag is absent")
 	}
 }
 
-// UpdateIdentity overlays only the changed fields onto the current identity, so a Kratos PUT (which replaces the
-// whole record) keeps schema_id, state, email, and the metadata_public keys the edge reads.
+// UpdateIdentity puts only the changed fields onto the current identity. A Kratos PUT replaces the whole record, so
+// this keeps schema_id, state, email, and the metadata_public keys that the edge reads.
 func TestUpdateIdentityPreservesRecord(t *testing.T) {
 	t.Parallel()
 	got := map[string]any{}
@@ -195,7 +195,7 @@ func TestUpdateIdentityPreservesRecord(t *testing.T) {
 	defer srv.Close()
 	h := newKratosHandlers(srv.URL)
 
-	// The operator value is the current one, so no workflow starts: this handler has no Temporal client to start it on.
+	// The operator value does not change, so no workflow starts. This handler has no Temporal client to start one.
 	body := &authzsdk.IdentityUpdate{Name: authzsdk.NewOptString("Renamed"), Operator: authzsdk.NewOptBool(true)}
 	updated, err := h.UpdateIdentity(context.Background(), body, authzsdk.UpdateIdentityParams{ID: "id-1"})
 	if err != nil {

@@ -85,16 +85,16 @@ func (s *Consent) SetDecidedAt(val time.Time) {
 	s.DecidedAt = val
 }
 
-// A consent decision, as it is recorded for later demonstration (GDPR Art. 7(1)).
+// A consent decision, recorded so that it can be proved later, per GDPR Art. 7(1).
 // Ref: #/components/schemas/ConsentInput
 type ConsentInput struct {
 	SessionID  string            `json:"session_id"`
 	IdentityID OptString         `json:"identity_id"`
 	State      ConsentInputState `json:"state"`
 	// The version of the purpose text shown. Consent is to a stated purpose, so a changed purpose is a new
-	// consent rather than a continuing one.
+	// consent and not a continuing one.
 	PurposeVersion string `json:"purpose_version"`
-	// `gpc` is a Global Privacy Control signal — a refusal nobody was prompted for.
+	// `gpc` is a Global Privacy Control signal: a refusal with no prompt.
 	Source ConsentInputSource `json:"source"`
 }
 
@@ -148,7 +148,7 @@ func (s *ConsentInput) SetSource(val ConsentInputSource) {
 	s.Source = val
 }
 
-// `gpc` is a Global Privacy Control signal — a refusal nobody was prompted for.
+// `gpc` is a Global Privacy Control signal: a refusal with no prompt.
 type ConsentInputSource string
 
 const (
@@ -353,8 +353,8 @@ func (s *ErrorStatusCode) SetResponse(val Problem) {
 	s.Response = val
 }
 
-// One marketing event. The name carries no `marketing.` prefix — that is how the collector routed
-// it, not what it is.
+// One marketing event. The name has no `marketing.` prefix. The collector uses the prefix to route the
+// event, and it is not part of the name.
 // Ref: #/components/schemas/Event
 type Event struct {
 	Name       string             `json:"name"`
@@ -512,7 +512,7 @@ func (s *EventProperties) init() EventProperties {
 type EventSummary struct {
 	Name        string `json:"name"`
 	Occurrences int    `json:"occurrences"`
-	// Distinct sessions, which is the number that answers "how many people" rather than "how many times".
+	// Distinct sessions. This number counts people, not times.
 	Sessions int `json:"sessions"`
 }
 
@@ -555,8 +555,8 @@ type FunnelRollupRow struct {
 	StepName    string    `json:"step_name"`
 	BucketStart time.Time `json:"bucket_start"`
 	BucketEnd   time.Time `json:"bucket_end"`
-	// Sessions that reached this step IN ORDER — having reached every earlier step first. A session that
-	// arrives at a later step directly is not counted, because it did not traverse the funnel.
+	// Sessions that reached this step IN ORDER, after every earlier step. A session that arrives at a
+	// later step directly is not counted, because it did not traverse the funnel.
 	Sessions int `json:"sessions"`
 }
 
@@ -758,25 +758,26 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
-// RFC 9457 problem details. Served as `application/problem+json` by services and by the edge alike, so
-// a generated client has one error branch rather than two.
+// RFC 9457 problem details. Services and the edge both serve it as `application/problem+json`, so a
+// generated client has one error branch, not two.
 // Ref: #/components/schemas/Problem
 type Problem struct {
 	// `about:blank`, except where two errors share a status code and a client handles them differently.
-	// That case takes a `urn:problem-type:<service>:<slug>` URN — never a dereferenceable URL, which
+	// That case uses a `urn:problem-type:<service>:<slug>` URN. It is never a dereferenceable URL, which
 	// would put an error taxonomy into the flat public URL namespace.
 	Type string `json:"type"`
-	// A stable, human-readable summary. Does not vary with the instance.
+	// A stable, human-readable summary. It does not change with the instance.
 	Title string `json:"title"`
-	// The HTTP status, duplicated in the body.
+	// The HTTP status, repeated in the body.
 	Status int `json:"status"`
-	// Instance-specific and safe to show a user. Never a stack trace, a query, or an internal hostname.
+	// Specific to the instance and safe to show a user. Never a stack trace, a query, or an internal
+	// hostname.
 	Detail OptString `json:"detail"`
-	// The W3C Trace Context trace-id of the failing request, so a user-reported error reaches its trace.
-	// Supplied from the active span, not by the handler.
+	// The W3C Trace Context trace-id of the failing request, so an error that a user reports leads to its
+	// trace. The active span supplies it, not the handler.
 	TraceID OptString `json:"trace_id"`
-	// Field-level validation failures, populated from the generated validator. Absent when the failure is
-	// not a validation failure.
+	// Field-level validation failures, filled from the generated validator. Absent when the failure is not
+	// a validation failure.
 	Errors []ProblemErrorsItem `json:"errors"`
 }
 
@@ -841,7 +842,7 @@ func (s *Problem) SetErrors(val []ProblemErrorsItem) {
 }
 
 type ProblemErrorsItem struct {
-	// RFC 6901 JSON Pointer to the offending member.
+	// RFC 6901 JSON Pointer to the member that failed.
 	Pointer string `json:"pointer"`
 	Message string `json:"message"`
 }
@@ -870,8 +871,8 @@ func (s *ProblemErrorsItem) SetMessage(val string) {
 // Ref: #/components/schemas/RecordResult
 type RecordResult struct {
 	Stored int `json:"stored"`
-	// Events discarded for want of a recorded grant. A non-zero value here is a client emitting without
-	// consent, which is worth seeing.
+	// Events dropped because no grant is recorded. A non-zero value shows a client that emits without
+	// consent.
 	Dropped int `json:"dropped"`
 }
 
@@ -935,9 +936,9 @@ func (s *RollupResult) SetRows(val int) {
 	s.Rows = val
 }
 
-// The window to recompute, half-open. Bucketed by day, which is the only bucket the panel asks for —
-// an hourly funnel is noise at this platform's volume, and a weekly one hides the day a release broke
-// a step.
+// The window to recompute, half-open. Buckets are one day, the only bucket size that the panel uses.
+// An hourly funnel is noise at this platform's volume, and a weekly one hides the day when a release
+// broke a step.
 // Ref: #/components/schemas/RollupWindow
 type RollupWindow struct {
 	// Inclusive start.

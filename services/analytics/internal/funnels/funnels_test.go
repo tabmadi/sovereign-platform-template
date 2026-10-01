@@ -21,8 +21,8 @@ func write(t *testing.T, body string) string {
 
 func TestLoadsTheCommittedDefinitions(t *testing.T) {
 	t.Parallel()
-	// The real file, so a change to it that breaks the rules fails here rather
-	// than at the first rollup in a deployed environment.
+	// The real file. A change to it that breaks the rules then fails here, and not
+	// at the first rollup in a deployed environment.
 	set, err := funnels.Load(filepath.Join("..", "..", "..", "..", "infra", "analytics", "funnels.yaml"))
 	if err != nil {
 		t.Fatalf("the committed definitions do not load: %v", err)
@@ -39,8 +39,8 @@ func TestLoadsTheCommittedDefinitions(t *testing.T) {
 	}
 }
 
-// A one-step funnel is not a funnel, it is a count — and it would report a 100%
-// conversion rate forever, which is worse than reporting nothing.
+// A one-step funnel is not a funnel but a count. It would always report a 100%
+// conversion rate, which is worse than no report.
 func TestRejectsFunnelWithOneStep(t *testing.T) {
 	t.Parallel()
 	path := write(t, "funnels:\n  - id: thin\n    steps: [only_one]\n")
@@ -53,8 +53,8 @@ func TestRejectsFunnelWithOneStep(t *testing.T) {
 	}
 }
 
-// A repeated step counts the same event twice and makes the funnel appear to hold
-// at 100% through the duplicate.
+// A repeated step counts the same event twice. The funnel then shows 100% through
+// the duplicate.
 func TestRejectsRepeatedStep(t *testing.T) {
 	t.Parallel()
 	path := write(t, "funnels:\n  - id: dup\n    steps: [a, b, a]\n")

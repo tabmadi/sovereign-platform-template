@@ -1,4 +1,4 @@
-// Package handlers implement the ogen-generated payment.Handler interface (ADR-0303).
+// Package handlers implement the ogen-generated payment.Handler interface, per ADR-0303.
 package handlers
 
 import (
@@ -43,9 +43,9 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ payment.Handler = (*Handlers)(nil)
 
-// These four are the transport boundary (ADR-0003). An order id is minted by orders and only carried here, so it
-// is encoded under that service's prefix.
-// They report rather than panic: the generated validator and these calls are two places one spec edit can separate.
+// These four are the transport boundary, per ADR-0003. orders mints an order id, and this service only carries it,
+// so it is encoded under the orders prefix. They return an error and do not panic, because one spec edit can make
+// the generated validator and these calls disagree.
 func chargeID(u pgtype.UUID) payment.ChargeId {
 	return payment.ChargeId(id.MustFrom("charge", uuid.UUID(u.Bytes)).String())
 }
@@ -54,8 +54,8 @@ func orderID(u pgtype.UUID) payment.OrderId {
 	return payment.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
 }
 
-// mintChargeID is where an identifier enters the system (ADR-0003). The service holds it before the insert, so a
-// write that never lands still has an identifier to name in the failure.
+// mintChargeID is where an identifier enters the system, per ADR-0003. The service holds it before the insert, so a
+// failed write still has an identifier to name in the failure.
 func mintChargeID() (pgtype.UUID, error) {
 	v, err := id.New("charge")
 	if err != nil {
@@ -91,9 +91,9 @@ func (h *Handlers) CreateCharge(
 	if params.IdempotencyKey == "" {
 		return nil, apierr.BadRequest("Idempotency-Key required")
 	}
-	// The amount is validated by the shared money type rather than by a range check:
-	// a `numeric(19,4)` column has no int32 ceiling to guard, and what can actually
-	// arrive wrong is the decimal form or the currency.
+	// The shared money type validates the amount, not a range check. A `numeric(19,4)`
+	// column has no int32 limit to guard. Only the decimal form or the currency can
+	// arrive wrong.
 	amount, err := money.Parse(req.Amount.Amount, req.Amount.Currency)
 	if err != nil {
 		return nil, apierr.BadRequest(err.Error())
@@ -102,7 +102,7 @@ func (h *Handlers) CreateCharge(
 		return nil, apierr.BadRequest("amount must be positive")
 	}
 
-	// Idempotency lookup before anything else (ADR-0302).
+	// The idempotency lookup runs before anything else, per ADR-0302.
 	existing, err := h.q.GetByIdempotencyKey(ctx, params.IdempotencyKey)
 	if err == nil {
 		cid := string(chargeID(existing.ID))
@@ -182,8 +182,8 @@ func (h *Handlers) RefundCharge(
 }
 
 func (h *Handlers) ListCharges(ctx context.Context) ([]payment.Charge, error) {
-	// Every charge, not the caller's — a back-office view (`x-audience: internal`),
-	// so it is operator-gated rather than scoped.
+	// Every charge, not only the caller's. It is a back-office view with
+	// `x-audience: internal`, so it is operator-gated and not scoped.
 	err := h.requireOperator(ctx, "listing every charge")
 	if err != nil {
 		return nil, err
@@ -246,7 +246,7 @@ func handle(workflowID, chargeID string) *payment.WorkflowHandle {
 	}
 }
 
-// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// NewError maps a handler error onto the generated RFC 9457 response, per ADR-0303.
 func (h *Handlers) NewError(ctx context.Context, err error) *payment.ErrorStatusCode {
 	e := apierr.Resolved(ctx, err)
 
@@ -263,8 +263,8 @@ func (h *Handlers) NewError(ctx context.Context, err error) *payment.ErrorStatus
 	return &payment.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
-// wireAmount goes through money.Amount so the value matches what the shared type produces anywhere else, rather than
-// whatever the driver formats a numeric as (ADR-0300).
+// wireAmount goes through money.Amount, so the value matches what the shared type produces everywhere else. It does
+// not use the driver's format for a numeric, per ADR-0300.
 func wireAmount(amount pgtype.Numeric, currency string) (payment.Money, error) {
 	raw, err := amount.Value()
 	if err != nil {
@@ -281,9 +281,9 @@ func wireAmount(amount pgtype.Numeric, currency string) (payment.Money, error) {
 	return payment.Money{Amount: parsed.String(), Currency: parsed.Currency()}, nil
 }
 
-// insertCharge puts the row on the two identifiers it needs: the order's, decoded
-// from the wire, and its own, minted here (ADR-0003). The amount arrives already
-// parsed, so the validation stays with the request it belongs to.
+// insertCharge writes the row with the two identifiers it needs: the order's, decoded
+// from the wire, and its own, minted here, per ADR-0003. The amount arrives already
+// parsed, so the validation stays with its request.
 func (h *Handlers) insertCharge(
 	ctx context.Context,
 	order payment.OrderId,
@@ -319,7 +319,7 @@ func (h *Handlers) insertCharge(
 	return created, nil
 }
 
-// An unguessable identifier is not an access control (ADR-0003). `charge#read` resolves through the charge's order,
+// An unguessable identifier is not an access control, per ADR-0003. `charge#read` resolves through the charge's order,
 // so the buyer and the owning org's admins reach it.
 func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	principal, _ := authmw.FromContext(ctx)
@@ -336,7 +336,7 @@ func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	return h.requireOperator(ctx, "reading a charge against someone else's order")
 }
 
-// requireOperator gates a write on the shared Checker (ADR-0304). Reads and creating a charge stay open; only the
+// requireOperator gates a write on the shared Checker, per ADR-0304. Reads and creating a charge stay open. Only the
 // destructive refund is gated.
 func (h *Handlers) requireOperator(ctx context.Context, action string) error {
 	principal, _ := authmw.FromContext(ctx)

@@ -13,8 +13,8 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/apierr"
 )
 
-// Asserting the marshalled JSON rather than the struct: a renamed tag is invisible to a struct-level assertion and
-// breaks every consumer (ADR-0303).
+// The test asserts the marshalled JSON and not the struct. A struct-level assertion cannot see a renamed tag, and a
+// renamed tag breaks every consumer, per ADR-0303.
 func TestProblemWireShape(t *testing.T) {
 	t.Parallel()
 
@@ -32,26 +32,26 @@ func TestProblemWireShape(t *testing.T) {
 		}
 	}
 
-	// instance is omitted by decision: trace_id identifies the occurrence.
+	// instance is left out on purpose: trace_id identifies the occurrence.
 	if _, present := body["instance"]; present {
-		t.Error("instance is present; ADR-0303 omits it")
+		t.Error("instance is present, but ADR-0303 omits it")
 	}
-	// The pre-RFC-9457 members must not survive anywhere.
+	// No member from before RFC 9457 may remain.
 	for _, gone := range []string{"code", "message", "details"} {
 		if _, present := body[gone]; present {
-			t.Errorf("%q is present; it is not an RFC 9457 member", gone)
+			t.Errorf("%q is present, but it is not an RFC 9457 member", gone)
 		}
 	}
-	// Absent extensions stay absent rather than serialising as null.
+	// An absent extension stays absent. It does not serialise as null.
 	for _, k := range []string{"trace_id", "errors"} {
 		if _, present := body[k]; present {
-			t.Errorf("%q serialised while empty; it should be omitted", k)
+			t.Errorf("%q serialised while empty, but it must be omitted", k)
 		}
 	}
 }
 
-// title is stable per status and detail is not. A client switching on title must
-// not have to care which resource was missing.
+// title is stable per status, and detail is not. A client that switches on title
+// does not need to know which resource was missing.
 func TestTitleIsStableAcrossInstances(t *testing.T) {
 	t.Parallel()
 
@@ -62,13 +62,13 @@ func TestTitleIsStableAcrossInstances(t *testing.T) {
 		t.Errorf("title varies with the instance: %v vs %v", product["title"], order["title"])
 	}
 	if product["detail"] == order["detail"] {
-		t.Error("detail does not vary with the instance; it is supposed to")
+		t.Error("detail does not vary with the instance, but it must")
 	}
 }
 
-// The rule that is easiest to break: a driver or client error routinely carries a
-// query, a hostname, or a credential, and passing it through puts that in a
-// response body (ADR-0303, ADR-0503).
+// This rule is the easiest to break. A driver or client error often carries a query,
+// a hostname, or a credential. Passing it through puts that value in a response body,
+// per ADR-0303 and ADR-0503.
 func TestInternalDoesNotLeakItsCause(t *testing.T) {
 	t.Parallel()
 
@@ -103,8 +103,8 @@ func TestWithTraceStampsTheActiveSpan(t *testing.T) {
 	}
 }
 
-// Constructing an error outside a request must not require a tracer, or every unit
-// test would have to build one.
+// Building an error outside a request must not need a tracer. Otherwise every unit
+// test has to build one.
 func TestWithTraceOutsideASpanIsANoOp(t *testing.T) {
 	t.Parallel()
 

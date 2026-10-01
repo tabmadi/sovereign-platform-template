@@ -1,4 +1,4 @@
-// analytics — the marketing event store and the consent record (ADR-0700).
+// analytics is the marketing event store and the consent record, per ADR-0700.
 package main
 
 import (
@@ -49,19 +49,19 @@ func run() error {
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
-	// Loaded at start, not per request: a malformed definition should stop the service coming up rather than surface as
-	// a rollup that is quietly wrong.
+	// Loaded at start, not per request. A malformed definition must stop the service from starting. Otherwise it shows
+	// up as a wrong rollup with no error.
 	defs, err := funnels.Load(envOr("FUNNELS_PATH", defaultFunnelsPath))
 	if err != nil {
 		return fmt.Errorf("funnels: %w", err)
 	}
 	slog.Info("funnel definitions loaded", "count", defs.Len())
 
-	// The store's growth, as a gauge (ADR-0700) — the series the deferral register's ClickHouse trigger waits on.
+	// The store's growth as a gauge, per ADR-0700. The deferral register's ClickHouse trigger waits on this series.
 	registerStorageGauge(store.New(db))
 
-	// No OpenFGA client: the panel is authorised in its render layer (ADR-0700), and the write path here is east-west
-	// with the consent record as its gate.
+	// No OpenFGA client. The panel's render layer authorises it, per ADR-0700. The write path here is east-west, and
+	// the consent record is its gate.
 	api, err := analytics.NewServer(
 		handlers.New(db, defs, slog.Default()),
 		analytics.WithErrorHandler(apierr.ServeError),
@@ -98,11 +98,10 @@ func run() error {
 	return nil
 }
 
-// defaultFunnelsPath is where the Dockerfile bakes the definitions. Running
-// natively overrides it with FUNNELS_PATH, because the repo path is not this one.
+// defaultFunnelsPath is where the Dockerfile puts the definitions in the image. A
+// native run overrides it with FUNNELS_PATH, because the repo path is different.
 const defaultFunnelsPath = "/etc/analytics/funnels.yaml"
 
-// envOr reads an environment variable, falling back to a default.
 func envOr(key, fallback string) string {
 	v := os.Getenv(key)
 	if v == "" {
@@ -112,7 +111,7 @@ func envOr(key, fallback string) string {
 }
 
 // registerStorageGauge publishes the current month's event-row count. `events` is partitioned by month, so this reads
-// one partition rather than every month ever written.
+// one partition and not every month ever written.
 func registerStorageGauge(q *store.Queries) {
 	observability.ObservableGauge(
 		"analytics_events_rows_current_month",

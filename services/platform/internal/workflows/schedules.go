@@ -1,4 +1,4 @@
-// Package workflows holds the platform's periodic obligations (ADR-0302).
+// Package workflows holds the platform's periodic obligations, per ADR-0302.
 package workflows
 
 import (
@@ -9,12 +9,12 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-// How far back each funnel pass recomputes. Events arrive late, so a bucket is not final when its day ends; three
-// days is longer than any plausible delivery delay.
+// How far back each funnel pass recomputes. Events arrive late, so a bucket is not final when its day ends. Three
+// days is longer than any likely delivery delay.
 const rollupTrailingDays = 3
 
-// Periodic work is not latency sensitive and its dependencies are occasionally slow, so the timeout is generous and
-// the retry count high.
+// Periodic work is not latency sensitive, and its dependencies are sometimes slow. So the timeout is long and the
+// retry count is high.
 func activityOptions(ctx workflow.Context) workflow.Context {
 	return workflow.WithActivityOptions(
 		ctx,
@@ -28,15 +28,15 @@ func activityOptions(ctx workflow.Context) workflow.Context {
 	)
 }
 
-// DisasterRecoveryDrill: It opens an issue rather than performing a restore (ADR-0207): the drill is a rehearsal
-// people carry out, and a workflow claiming to have tested a restore would be worse than none.
+// DisasterRecoveryDrill opens an issue and does not do a restore, per ADR-0207. People do the drill as a rehearsal.
+// A workflow that claims to have tested a restore would be worse than no workflow.
 func DisasterRecoveryDrill(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
-	title := "Quarterly restore rehearsal (ADR-0200, ADR-0207)"
-	body := "The backup restore is rehearsed quarterly, and the rehearsal is what " +
-		"makes the recovery objectives measurements rather than intentions. " +
-		"Restore the most recent base backup into a scratch namespace, confirm it " +
-		"is byte-exact, and record the elapsed time against the stated RTO."
+	title := "Quarterly restore rehearsal, per ADR-0200 and ADR-0207"
+	body := "The backup restore is rehearsed quarterly. The rehearsal makes the " +
+		"recovery objectives measurements and not intentions. " +
+		"Restore the most recent base backup into a scratch namespace, confirm that it " +
+		"is byte-exact, and record the time it took against the stated RTO."
 	err := workflow.ExecuteActivity(ctx, "OpenTrackingIssueActivity", title, body).Get(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("dr drill: open issue: %w", err)
@@ -44,14 +44,14 @@ func DisasterRecoveryDrill(ctx workflow.Context) error {
 	return nil
 }
 
-// TriggerReview: Covers the deferral register's `query` rows and the ASVS cadence (ADR-0000). Both decay silently —
-// nothing breaks when a review is skipped — which is why the reminder is mechanical.
+// TriggerReview covers the deferral register's `query` rows and the ASVS cadence, per ADR-0000. Both go stale with no
+// signal, because nothing breaks when a review is skipped. So the reminder is mechanical.
 func TriggerReview(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
-	title := "Quarterly deferral and verification review (ADR-0000, ADR-0203)"
-	body := "Walk the `query` rows in docs/reference/deferral-register.md and the " +
-		"cadence rows in docs/reference/asvs-verification.md. A query row walked " +
-		"without its answer being recorded has not been walked."
+	title := "Quarterly deferral and verification review, per ADR-0000 and ADR-0203"
+	body := "Review the `query` rows in docs/reference/deferral-register.md and the " +
+		"cadence rows in docs/reference/asvs-verification.md. A query row counts as " +
+		"reviewed only when its answer is recorded."
 	err := workflow.ExecuteActivity(ctx, "OpenTrackingIssueActivity", title, body).Get(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("trigger review: open issue: %w", err)
@@ -59,8 +59,8 @@ func TriggerReview(ctx workflow.Context) error {
 	return nil
 }
 
-// CardinalityAudit: A query rather than a rule: the interesting answer is which labels are growing, and an alert can
-// only say a total crossed a line. `ActiveSeriesNearCeiling` covers the line (ADR-0500).
+// CardinalityAudit is a query, not a rule. The useful answer is which labels grow, and an alert can only say that a
+// total crossed a line. `ActiveSeriesNearCeiling` covers the line, per ADR-0500.
 func CardinalityAudit(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
 	err := workflow.ExecuteActivity(ctx, "AuditCardinalityActivity").Get(ctx, nil)
@@ -70,15 +70,15 @@ func CardinalityAudit(ctx workflow.Context) error {
 	return nil
 }
 
-// FunnelRollup: A trailing window rather than "since the last run" (ADR-0700): events arrive late, and recomputing
-// the recent past costs nothing because a bucket is replaced rather than added to. One activity per funnel, so a
-// funnel naming an event nothing emits does not stop the others.
+// FunnelRollup uses a trailing window, not the time since the last run, per ADR-0700. Events arrive late, and a
+// recompute of the recent past is cheap, because a bucket is replaced and not added to. One activity per funnel, so
+// a funnel that names an event nothing emits does not stop the others.
 func FunnelRollup(ctx workflow.Context, funnels []string) error {
 	ctx = activityOptions(ctx)
 
-	// `workflow.Now`, never `time.Now`: a workflow must be deterministic, and a
-	// replay that read the wall clock would compute a different window than the
-	// original run and write different buckets.
+	// `workflow.Now`, never `time.Now`. A workflow must be deterministic. A replay
+	// that read the wall clock would compute a different window than the original
+	// run and write different buckets.
 	end := workflow.Now(ctx).UTC().Truncate(24 * time.Hour).Add(24 * time.Hour)
 	start := end.AddDate(0, 0, -rollupTrailingDays)
 
@@ -86,7 +86,7 @@ func FunnelRollup(ctx workflow.Context, funnels []string) error {
 	for _, funnel := range funnels {
 		err := workflow.ExecuteActivity(ctx, "ComputeFunnelRollupActivity", funnel, start, end).Get(ctx, nil)
 		if err != nil {
-			// Recorded and carried on. Returning here would leave the funnels after
+			// Record the error and continue. A return here would leave the funnels after
 			// this one uncomputed because of a problem with this one.
 			workflow.GetLogger(ctx).Error("funnel rollup failed", "funnel", funnel, "err", err)
 			failed = append(failed, funnel)
@@ -98,9 +98,9 @@ func FunnelRollup(ctx workflow.Context, funnels []string) error {
 	return nil
 }
 
-// RestoreVerification runs weekly, because quarterly is the detection latency for an unrestorable backup: one
-// that stopped being valid in January is found in April (ADR-0207). It asserts row counts, not "the restore
-// succeeded" — a restore producing an empty database succeeds. It does not page.
+// RestoreVerification runs weekly. A quarterly run would find a bad backup from January only in April, per ADR-0207.
+// It asserts row counts and not only restore success, because a restore that gives an empty database succeeds.
+// It does not page.
 func RestoreVerification(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
 
@@ -111,14 +111,14 @@ func RestoreVerification(ctx workflow.Context) error {
 	}
 
 	// Teardown runs whether or not the assertion passes, and its failure does not
-	// mask the assertion's. A scratch namespace left behind holds a full copy of
-	// production data, which is a worse outcome than a failed check.
+	// hide the assertion's. A scratch namespace that stays behind holds a full copy
+	// of production data, which is worse than a failed check.
 	assertErr := workflow.ExecuteActivity(ctx, "AssertRestoredRowCountsActivity", restored).Get(ctx, nil)
 
 	teardownErr := workflow.ExecuteActivity(ctx, "TeardownScratchRestoreActivity", restored).Get(ctx, nil)
 	if teardownErr != nil {
 		workflow.GetLogger(ctx).Error(
-			"scratch restore not torn down — it holds a copy of production data",
+			"scratch restore not torn down and holds a copy of production data",
 			"namespace",
 			restored,
 			"err",

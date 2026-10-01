@@ -18,15 +18,15 @@ import (
 
 const SchemaUserV1 = "user_v1"
 
-// Admin is the admin-API client. The zero value is not usable; call New.
+// Admin is the admin-API client. The zero value is not usable, so call New.
 type Admin struct {
 	baseURL string
 	log     *slog.Logger
 }
 
-// New reads the admin URL from the environment, falling back to the in-cluster
-// Service. The fallback is the deployed case, so a missing variable is a local
-// run rather than a misconfiguration.
+// New reads the admin URL from the environment. Without it, New uses the in-cluster
+// Service. The fallback is the deployed case, so a missing variable means a local
+// run and not a misconfiguration.
 func New(log *slog.Logger) *Admin {
 	base := os.Getenv("KRATOS_ADMIN_URL")
 	if base == "" {
@@ -35,9 +35,9 @@ func New(log *slog.Logger) *Admin {
 	return NewAt(base, log)
 }
 
-// NewAt builds a client against an explicit base URL. It exists so a test can
-// point at an httptest server without setting a process-wide environment
-// variable, which parallel tests cannot share.
+// NewAt builds a client for an explicit base URL. A test uses it to point at an
+// httptest server without a process-wide environment variable, because parallel
+// tests cannot share one.
 func NewAt(baseURL string, log *slog.Logger) *Admin {
 	if log == nil {
 		log = slog.Default()
@@ -45,13 +45,13 @@ func NewAt(baseURL string, log *slog.Logger) *Admin {
 	return &Admin{baseURL: baseURL, log: log}
 }
 
-// operatorKey is the metadata_public key the ops gate reads (ADR-0306). Metadata, not a trait: self-service
-// registration and settings write traits, and only the admin API writes metadata.
+// operatorKey is the metadata_public key that the ops gate reads, per ADR-0306. It is metadata, not a trait.
+// Self-service registration and settings write traits, and only the admin API writes metadata.
 const operatorKey = "operator"
 
-// Identity is the subset this service reads and writes. schema_id, state and metadata_public are carried through
-// unmodified: Kratos PUT replaces the whole record, and the edge builds X-Org-Id and X-Roles out of
-// metadata_public (ADR-0304), so writing it back without them would unassign an operator's org.
+// Identity is the subset that this service reads and writes. schema_id, state, and metadata_public pass through
+// with no change. Kratos PUT replaces the whole record, and the edge builds X-Org-Id and X-Roles from metadata_public,
+// per ADR-0304. A write without them would remove an operator's org.
 type Identity struct {
 	ID             string          `json:"id,omitempty"`
 	SchemaID       string          `json:"schema_id,omitempty"`
@@ -63,7 +63,7 @@ type Identity struct {
 	} `json:"traits"`
 }
 
-// Operator reports the ops-gate flag. Metadata that does not parse reads as not an operator.
+// Operator reports the ops-gate flag. Metadata that does not parse means not an operator.
 func (k *Identity) Operator() bool {
 	var meta map[string]any
 	if json.Unmarshal(k.MetadataPublic, &meta) != nil {
@@ -73,7 +73,7 @@ func (k *Identity) Operator() bool {
 	return op
 }
 
-// SetOperator writes the ops-gate flag into metadata_public, keeping every other key the edge reads.
+// SetOperator writes the ops-gate flag into metadata_public, and keeps every other key that the edge reads.
 func (k *Identity) SetOperator(op bool) error {
 	meta := map[string]any{}
 	if len(k.MetadataPublic) > 0 && string(k.MetadataPublic) != "null" {
@@ -99,8 +99,8 @@ func (k *Identity) Flatten() authzsdk.Identity {
 	return id
 }
 
-// ListIdentities: Only per_page is forwarded: this Kratos paginates by keyset, where `page` is an opaque token and a
-// numeric page returns an empty set.
+// ListIdentities forwards only per_page. This Kratos paginates by keyset: `page` is an opaque token, and a numeric
+// page returns an empty set.
 func (a *Admin) ListIdentities(ctx context.Context, perPage int) ([]authzsdk.Identity, error) {
 	u := a.baseURL + "/admin/identities"
 	q := url.Values{}
@@ -142,8 +142,8 @@ func (a *Admin) PutIdentity(ctx context.Context, ident *Identity) (*Identity, er
 	return &out, nil
 }
 
-// SetOperatorFlag writes metadata_public.operator and nothing else. A patch of the one object rather than a PUT of the
-// record, so an edit landing between the read and the write keeps every other field.
+// SetOperatorFlag writes metadata_public.operator and nothing else. It patches the one object and does not PUT the
+// record, so an edit between the read and the write keeps every other field.
 func (a *Admin) SetOperatorFlag(ctx context.Context, id string, op bool) error {
 	ident, err := a.GetIdentity(ctx, id)
 	if err != nil {
@@ -157,14 +157,13 @@ func (a *Admin) SetOperatorFlag(ctx context.Context, id string, op bool) error {
 	return a.do(ctx, http.MethodPatch, a.identityURL(id), patch, nil)
 }
 
-// identityURL is the Kratos admin URL for one identity.
 func (a *Admin) identityURL(id string) string {
 	return a.baseURL + "/admin/identities/" + url.PathEscape(id)
 }
 
-// kratosJSON performs a JSON request to the Kratos admin API and decodes a JSON
-// response, asserting a 200. reqBody nil sends no body; out nil skips
-// decoding. It is the shared transport for the identity read/write helpers.
+// kratosJSON sends a JSON request to the Kratos admin API and decodes a JSON
+// response. It requires a 200. A nil reqBody sends no body, and a nil out skips
+// decoding.
 func (a *Admin) do(ctx context.Context, method, u string, reqBody any, out any) error {
 	var reader io.Reader
 	if reqBody != nil {

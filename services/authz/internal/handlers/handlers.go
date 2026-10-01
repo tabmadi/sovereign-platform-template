@@ -1,5 +1,5 @@
-// Package handlers implements the ogen-generated authz.Handler interface: spec-first like every HTTP service, though
-// it owns no database (ADR-0303, ADR-0306).
+// Package handlers implements the ogen-generated authz.Handler interface. It is spec-first like every HTTP service,
+// but it owns no database, per ADR-0303 and ADR-0306.
 package handlers
 
 import (
@@ -18,12 +18,12 @@ import (
 )
 
 const (
-	aalLevel2        = "aal2" // operator MFA assurance level (ADR-0304)
+	aalLevel2        = "aal2" // operator MFA assurance level, per ADR-0304
 	operatorFlagTrue = "true" // metadata_public.operator, when set
-	// The task queue this service's worker serves. Named for the service, like
-	// every other queue on the platform.
+	// The task queue that this service's worker serves. Its name is the service
+	// name, like every other queue on the platform.
 	taskQueue = "authz-queue"
-	// Both legs are single calls; the bound covers their retries without holding a console request open for long.
+	// Both legs are single calls. The limit covers their retries and does not hold a console request open for long.
 	setOperatorTimeout = 30 * time.Second
 )
 
@@ -58,7 +58,7 @@ func New(
 
 var _ authzsdk.Handler = (*Handlers)(nil)
 
-// Authorize answers in two layers (ADR-0306). Coarse is a claim check — metadata_public.operator and AAL2 — and
+// Authorize answers in two layers, per ADR-0306. Coarse is a claim check on metadata_public.operator and AAL2. It
 // makes no OpenFGA call, so a product-authz outage cannot lock operators out of the dashboards that diagnose it.
 // Fine is `dashboard:<tool>#view`, enabled per project. A bare authenticated session never grants tool access.
 func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest) (authzsdk.AuthorizeRes, error) {
@@ -66,7 +66,7 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 	if err != nil {
 		return nil, apierr.Internal(err.Error())
 	}
-	// Auth audit event (ADR-0306): who reached which tool, and the outcome.
+	// Auth audit event, per ADR-0306: who reached which tool, and the outcome.
 	h.log.LogAttrs(
 		ctx,
 		slog.LevelInfo,
@@ -78,8 +78,8 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 	)
 	if !allowed {
 		// A deny is the expected answer here, not a failure: Oathkeeper reads the
-		// body. It still carries the platform error shape (ADR-0303) so a client
-		// parses one thing whatever produced it.
+		// body. It still has the platform error shape, per ADR-0303, so a client
+		// parses one shape from every source.
 		denied := apierr.Forbidden(reason).WithTrace(ctx)
 		return &authzsdk.Problem{
 			Type:   denied.Type,
@@ -91,9 +91,9 @@ func (h *Handlers) Authorize(ctx context.Context, req *authzsdk.AuthorizeRequest
 	return &authzsdk.AuthorizeOK{}, nil
 }
 
-// CheckRelation is the non-Go door to the same Checker the services use (ADR-0304, ADR-0700).
-// A deny is a 200 with `allowed: false`, not an error: an exception would make "you may not see this"
-// indistinguishable from "authz is down".
+// CheckRelation gives non-Go callers the same Checker that the services use, per ADR-0304 and ADR-0700.
+// A deny is a 200 with `allowed: false`, not an error. An error would make a deny look the same as an
+// authz outage.
 func (h *Handlers) CheckRelation(
 	ctx context.Context, req *authzsdk.RelationCheck,
 ) (*authzsdk.RelationDecision, error) {
@@ -114,8 +114,8 @@ func (h *Handlers) CheckRelation(
 	return &authzsdk.RelationDecision{Allowed: allowed}, nil
 }
 
-// ListIdentities: Only authz may reach the Kratos admin API (network-policies/30-ory.yaml), so the console fetches
-// through here rather than talking to Kratos directly (ADR-0401).
+// ListIdentities exists because only authz may reach the Kratos admin API, per network-policies/30-ory.yaml. So the
+// console fetches through here and does not call Kratos directly, per ADR-0401.
 func (h *Handlers) ListIdentities(
 	ctx context.Context, params authzsdk.ListIdentitiesParams,
 ) ([]authzsdk.Identity, error) {
@@ -127,7 +127,7 @@ func (h *Handlers) ListIdentities(
 	return ids, nil
 }
 
-// GetIdentity returns one identity by id — the console's edit-form prefill (ADR-0401).
+// GetIdentity returns one identity by id. The console fills its edit form with it, per ADR-0401.
 func (h *Handlers) GetIdentity(ctx context.Context, params authzsdk.GetIdentityParams) (*authzsdk.Identity, error) {
 	full, err := h.identities.GetIdentity(ctx, params.ID)
 	if err != nil {
@@ -138,8 +138,8 @@ func (h *Handlers) GetIdentity(ctx context.Context, params authzsdk.GetIdentityP
 	return &id, nil
 }
 
-// UpdateIdentity: a name is a PUT of the whole record; operator is the SetOperator dual write, the one way to become
-// an operator (ADR-0304), and runs after the PUT so the PUT cannot overwrite the flag it writes.
+// UpdateIdentity writes a name as a PUT of the whole record. It writes operator with the SetOperator dual write, the
+// one way to become an operator, per ADR-0304. That runs after the PUT, so the PUT cannot overwrite the flag.
 func (h *Handlers) UpdateIdentity(
 	ctx context.Context, req *authzsdk.IdentityUpdate, params authzsdk.UpdateIdentityParams,
 ) (*authzsdk.Identity, error) {
@@ -173,7 +173,7 @@ func (h *Handlers) UpdateIdentity(
 	return &id, nil
 }
 
-// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// NewError maps a handler error onto the generated RFC 9457 response, per ADR-0303.
 func (h *Handlers) NewError(ctx context.Context, err error) *authzsdk.ErrorStatusCode {
 	e := apierr.Resolved(ctx, err)
 
@@ -191,7 +191,7 @@ func (h *Handlers) NewError(ctx context.Context, err error) *authzsdk.ErrorStatu
 }
 
 // setOperator runs SetOperator to completion. The workflow id names the identity, so two concurrent edits of one
-// identity share a run rather than racing two dual writes.
+// identity share a run and do not race two dual writes.
 func (h *Handlers) setOperator(ctx context.Context, identityID string, op bool) error {
 	ctx, cancel := context.WithTimeout(ctx, setOperatorTimeout)
 	defer cancel()
@@ -211,21 +211,21 @@ func (h *Handlers) setOperator(ctx context.Context, identityID string, op bool) 
 	return nil
 }
 
-// decide returns the allow/deny decision and its reason. The error is non-nil only
-// on an infrastructure failure (a OpenFGA call error), never on a plain deny.
+// decide returns the allow or deny decision and its reason. The error is non-nil
+// only on an infrastructure failure, such as an OpenFGA call error, never on a deny.
 func (h *Handlers) decide(ctx context.Context, req *authzsdk.AuthorizeRequest) (bool, string, error) {
 	if req.Subject == "" {
 		return false, "no session", nil
 	}
-	// Coarse gate — a CLAIM, not a Checker call: AAL2 session and the operator flag in metadata_public, which only the
-	// admin API writes. No OpenFGA is consulted, so a product-authz outage never locks operators out.
+	// Coarse gate: a CLAIM, not a Checker call. It needs an AAL2 session and the operator flag in metadata_public, which
+	// only the admin API writes. It makes no OpenFGA call, so a product-authz outage never locks operators out.
 	if req.Aal != aalLevel2 {
 		return false, "aal2 required", nil
 	}
 	if req.Operator != operatorFlagTrue {
 		return false, "not an operator", nil
 	}
-	// Fine gate (optional): per-tool grant in OpenFGA. Skipped unless enabled.
+	// Optional fine gate: a per-tool grant in OpenFGA. It runs only when enabled.
 	if h.fineGrained {
 		ok, err := h.checker.Allowed(ctx, "user:"+req.Subject, "view", "dashboard:"+req.Tool)
 		if err != nil {

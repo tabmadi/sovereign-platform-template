@@ -1,4 +1,4 @@
-// Package authz is the shared OpenFGA client wrapper (ADR-0304); a depguard rule confines the SDK to this package.
+// Package authz is the shared OpenFGA client wrapper, per ADR-0304. A depguard rule keeps the SDK in this package.
 package authz
 
 import (
@@ -13,8 +13,8 @@ import (
 	"github.com/openfga/go-sdk/credentials"
 )
 
-// storeName is the single platform store the seed Job creates; the library
-// discovers its ID by name (no ConfigMap plumbing required).
+// storeName is the one platform store that the seed Job creates. The library
+// discovers its ID by name, so no ConfigMap is needed.
 const storeName = "platform"
 
 // Checker is the only authz surface service code uses.
@@ -29,14 +29,14 @@ type Granter interface {
 
 type fga struct {
 	c      *client.OpenFgaClient
-	envID  string // OPENFGA_STORE_ID if pinned; else discovered lazily
+	envID  string // OPENFGA_STORE_ID when pinned, otherwise discovered on first use
 	mu     sync.Mutex
-	pinned bool // store ID successfully pinned; discovery is retried until then
+	pinned bool // the store ID is pinned, and discovery retries until it is
 	err    error
 }
 
-// New: OPENFGA_API_URL and the preshared key drive the connection (ADR-0202). The store ID comes from
-// OPENFGA_STORE_ID if set, else is discovered by name on first use, so New never blocks on OpenFGA at startup.
+// New connects with OPENFGA_API_URL and the preshared key, per ADR-0202. The store ID comes from OPENFGA_STORE_ID
+// when set. Otherwise it is discovered by name on first use, so New never blocks on OpenFGA at startup.
 func New() (Checker, error) {
 	return dial()
 }
@@ -50,14 +50,14 @@ func dial() (*fga, error) {
 	if apiURL == "" {
 		apiURL = "http://openfga.platform.svc.cluster.local:8080"
 	}
-	// Fall back to the SOPS secret's native key name (openfga-creds.preshared_key,
-	// ADR-0202) so a consumer can mount that Secret with envFrom unmodified.
+	// Fall back to the SOPS secret's own key name, openfga-creds.preshared_key, per ADR-0202.
+	// Then a consumer can mount that Secret with envFrom and no changes.
 	key := os.Getenv("OPENFGA_PRESHARED_KEY")
 	if key == "" {
 		key = os.Getenv("preshared_key")
 	}
 	if key == "" {
-		return nil, errors.New("OPENFGA_PRESHARED_KEY (or preshared_key) not set")
+		return nil, errors.New("neither OPENFGA_PRESHARED_KEY nor preshared_key is set")
 	}
 
 	c, err := client.NewSdkClient(
@@ -75,7 +75,7 @@ func dial() (*fga, error) {
 	return &fga{c: c, envID: os.Getenv("OPENFGA_STORE_ID")}, nil
 }
 
-// Allowed runs a Check against OpenFGA. Its user and object strings are already "type:id", so the
+// Allowed runs a Check against OpenFGA. Its user and object strings already have the form `type:id`, so the
 // platform's tuple strings pass through with no splitting.
 func (f *fga) Allowed(ctx context.Context, subject, permission, resource string) (bool, error) {
 	err := f.ensureStore(ctx)
@@ -95,8 +95,8 @@ func (f *fga) Allowed(ctx context.Context, subject, permission, resource string)
 	return resp.GetAllowed(), nil
 }
 
-// Grant writes a relationship tuple. OpenFGA rejects a write of an existing tuple, and the platform only writes
-// fixed-shape ones, so that error means the grant is already present and is treated as idempotent success.
+// Grant writes a relationship tuple. OpenFGA rejects a write of an existing tuple. The platform only writes
+// fixed-shape tuples, so that error means the grant exists. Grant treats it as idempotent success.
 func (f *fga) Grant(ctx context.Context, subject, relation, resource string) error {
 	err := f.ensureStore(ctx)
 	if err != nil {
@@ -120,8 +120,8 @@ func (f *fga) Grant(ctx context.Context, subject, relation, resource string) err
 	return nil
 }
 
-// Revoke deletes a relationship tuple. OpenFGA rejects deleting one that does not exist, which is the state the call
-// asks for, so that error is idempotent success like Grant's.
+// Revoke deletes a relationship tuple. OpenFGA rejects a delete of a tuple that does not exist. That is the state
+// the call asks for, so Revoke treats that error as idempotent success, like Grant.
 func (f *fga) Revoke(ctx context.Context, subject, relation, resource string) error {
 	err := f.ensureStore(ctx)
 	if err != nil {
@@ -145,8 +145,8 @@ func (f *fga) Revoke(ctx context.Context, subject, relation, resource string) er
 	return nil
 }
 
-// Deferred to first use so startup never blocks on OpenFGA readiness. A failed discovery is not cached — the seed
-// Job may still be creating the store — and a pinned store is never re-discovered.
+// This runs on first use, so startup never blocks on OpenFGA readiness. A failed discovery is not cached, because
+// the seed Job can still be creating the store. A pinned store is never discovered again.
 func (f *fga) ensureStore(ctx context.Context) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -170,8 +170,8 @@ func (f *fga) ensureStore(ctx context.Context) error {
 }
 
 // discoverStore finds the platform store's ID by name. The seed Job creates
-// exactly one store named `platform`; a check omitting the model ID uses that
-// store's latest model, which is all the template needs.
+// exactly one store named `platform`. A check with no model ID uses that store's
+// latest model, and the template needs nothing more.
 func (f *fga) discoverStore(ctx context.Context) (string, error) {
 	resp, err := f.c.ListStores(ctx).Execute()
 	if err != nil {
@@ -182,5 +182,5 @@ func (f *fga) discoverStore(ctx context.Context) (string, error) {
 			return s.GetId(), nil
 		}
 	}
-	return "", fmt.Errorf("openfga store %q not found (has the seed Job run?)", storeName)
+	return "", fmt.Errorf("openfga store %q not found: check that the seed Job ran", storeName)
 }

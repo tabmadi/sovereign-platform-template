@@ -37,9 +37,8 @@ func (c *codeRecorder) Unwrap() http.ResponseWriter {
 //
 // Recompute a funnel's rollup over a window, one bucket per day.
 //
-// Idempotent by construction: a bucket is replaced rather than added to, so re-running over a window
-// that is still filling is the normal case rather than a hazard. The most recent bucket is always
-// incomplete.
+// Idempotent by design: a bucket is replaced and not added to. So a new run over a window that is
+// still filling is normal and safe. The most recent bucket is always incomplete.
 //
 // POST /analytics/funnels/{funnel}/rollup
 func (s *Server) handleComputeFunnelRollupRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -362,7 +361,7 @@ func (s *Server) handleGetConsentRequest(args [0]string, argsEscaped bool, w htt
 
 // handleGetFunnelRollupRequest handles getFunnelRollup operation.
 //
-// Read a funnel's computed rollup, in bucket then step order.
+// Read a funnel's computed rollup, in bucket and then step order.
 //
 // GET /analytics/funnels/{funnel}/rollup
 func (s *Server) handleGetFunnelRollupRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -832,7 +831,7 @@ func (s *Server) handleRecordEventsRequest(args [0]string, argsEscaped bool, w h
 
 // handleSummariseEventsRequest handles summariseEvents operation.
 //
-// Event counts over a window, the aggregate every funnel question starts from.
+// Event counts over a window. Every funnel question starts from this aggregate.
 //
 // GET /analytics/summary
 func (s *Server) handleSummariseEventsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

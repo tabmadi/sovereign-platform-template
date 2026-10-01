@@ -1,4 +1,4 @@
-// Package observability is the single entry point for logs, metrics, traces, and continuous profiles (ADR-0500).
+// Package observability is the single entry point for logs, metrics, traces, and continuous profiles, per ADR-0500.
 package observability
 
 import (
@@ -31,16 +31,16 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/buildinfo"
 )
 
-// Config is read from environment variables when omitted. Service code provides
-// only the service name; everything else defaults.
+// Config reads an omitted field from environment variables. Service code gives only the service name, and every
+// other field has a default.
 type Config struct {
 	ServiceName  string
 	OTLPEndpoint string // default: $OTEL_EXPORTER_OTLP_ENDPOINT
 	AdminAddr    string // default: :9090
 }
 
-// Init wires up tracing, metrics, logs, pprof, and slog. The returned shutdown function must be called from main to
-// flush all signals.
+// Init wires up tracing, metrics, logs, pprof, and slog. main must call the returned shutdown function to flush all
+// signals.
 //
 //nolint:funlen // ADR-0500: the single documented wiring point; kept linear on purpose.
 func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) {
@@ -51,15 +51,15 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		cfg.AdminAddr = ":9090"
 	}
 
-	// otelhttp reads the global propagator, which otherwise defaults to a no-op — every service would then start a
-	// fresh root span per hop. Set unconditionally, so context threads through HTTP even with exporters disabled.
+	// otelhttp reads the global propagator, which defaults to a no-op. Then every service starts a new root span per
+	// hop. It is always set, so context passes through HTTP even with exporters disabled.
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}),
 	)
 
-	// OTEL_SDK_DISABLED=true (OTel spec env) makes Init a no-op for exporters:
-	// no OTLP connections are opened, so a service can run locally without the
-	// Collector stack. Logs still go to stdout and pprof is still served.
+	// OTEL_SDK_DISABLED=true, from the OTel spec, makes Init a no-op for exporters.
+	// It opens no OTLP connections, so a service can run locally without the
+	// Collector stack. Logs still go to stdout, and pprof is still served.
 	disabled, _ := strconv.ParseBool(os.Getenv("OTEL_SDK_DISABLED"))
 	if disabled {
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
@@ -67,16 +67,16 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		return func(context.Context) error { return nil }, nil
 	}
 
-	// In local dev the OTel Collector is reached over plaintext (no TLS), so the
-	// OTLP exporters must opt out of their default https/TLS behavior.
+	// In local dev, the OTel Collector uses plaintext with no TLS. So the OTLP
+	// exporters must turn off their default HTTPS and TLS behaviour.
 	var local bool
 	switch os.Getenv("DEPLOY_ENV") {
 	case "", "dev", "local":
 		local = true
 	}
 
-	// service.version and service.build.sha come from the baked-in build identity (ADR-0103), so every signal
-	// self-reports which binary emitted it.
+	// service.version and service.build.sha come from the build identity in the binary, per ADR-0103. So every
+	// signal reports which binary emitted it.
 	res, err := resource.New(
 		ctx,
 		resource.WithAttributes(
@@ -91,8 +91,8 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		return nil, fmt.Errorf("resource: %w", err)
 	}
 
-	// All three signals share one OTLP/gRPC endpoint. Logs use otlploggrpc, not otlploghttp, which would POST to the
-	// gRPC port and fail every export with "malformed HTTP response".
+	// All three signals share one OTLP gRPC endpoint. Logs use otlploggrpc, not otlploghttp. otlploghttp POSTs to the
+	// gRPC port, and every export fails with `malformed HTTP response`.
 	var traceOpts []otlptracegrpc.Option
 	var metricOpts []otlpmetricgrpc.Option
 	var logOpts []otlploggrpc.Option
@@ -147,8 +147,8 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 	return shutdown, nil
 }
 
-// fanout is a slog.Handler that dispatches every record to all wrapped handlers,
-// so logs reach both stdout (visible in local runs) and the OTLP pipeline.
+// fanout is a slog.Handler that sends every record to all wrapped handlers. So
+// logs reach stdout, which local runs show, and the OTLP pipeline.
 type fanout []slog.Handler
 
 func (f fanout) Enabled(ctx context.Context, level slog.Level) bool {
@@ -199,15 +199,15 @@ func StartSpan(ctx context.Context, name string) (context.Context, trace.Span) {
 func Counter(name string, opts ...metric.Int64CounterOption) metric.Int64Counter {
 	c, err := otel.Meter("service").Int64Counter(name, opts...)
 	if err != nil {
-		// Counter creation is a programmer error; surface it loudly during dev.
+		// A failed counter creation is a programmer error. Panic, so it shows during dev.
 		panic("observability.Counter(" + name + "): " + err.Error())
 	}
 	return c
 }
 
-// ObservableGauge registers a gauge read on each export rather than pushed, which is right for a quantity that
-// already exists and is expensive to compute. The callback runs on the exporter's goroutine with the export
-// context, so it must not block: a slow callback delays every metric in the batch.
+// ObservableGauge registers a gauge that is read on each export, not pushed. This fits a quantity that already
+// exists and costs a lot to compute. The callback runs on the exporter's goroutine with the export context. It
+// must not block, because a slow callback delays every metric in the batch.
 func ObservableGauge(
 	name string,
 	observe func(context.Context) (int64, error),
@@ -222,9 +222,9 @@ func ObservableGauge(
 		func(ctx context.Context, o metric.Observer) error {
 			v, err := observe(ctx)
 			if err != nil {
-				// Reported, not returned: returning an error from a callback
-				// aborts the whole export batch, so one unreadable gauge would
-				// take every other metric in the process with it.
+				// Reported, not returned. An error returned from a callback
+				// stops the whole export batch, so one unreadable gauge would
+				// lose every other metric in the process.
 				RecordError(ctx, err, KindDependency)
 				return nil
 			}
@@ -240,12 +240,12 @@ func ObservableGauge(
 
 func serveAdmin(addr string) {
 	mux := http.NewServeMux()
-	// Liveness is SHALLOW — "the process is running", never a dependency check.
-	// (A dep-aware liveness turns a dependency blip into a self-inflicted restart.)
+	// Liveness is SHALLOW: it checks that the process runs, never a dependency.
+	// A liveness check on a dependency turns a short dependency fault into a restart.
 	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	// Readiness is DEEP — "can I serve?" — 200 only if every registered dependency
-	// check passes; on failure the pod leaves Service rotation WITHOUT restarting,
-	// and rejoins when the dependency recovers (see readiness.go).
+	// Readiness is DEEP: it returns 200 only if every registered dependency check
+	// passes. On failure, the pod leaves Service rotation WITHOUT a restart. It
+	// rejoins when the dependency recovers, per readiness.go.
 	mux.HandleFunc(
 		"/readyz",
 		func(w http.ResponseWriter, r *http.Request) {
@@ -257,8 +257,8 @@ func serveAdmin(addr string) {
 			w.WriteHeader(http.StatusOK)
 		},
 	)
-	// Build identity of the running binary (ADR-0103): scriptable/curl-able per pod,
-	// so "is this pod the version I released?" is answerable directly, not inferred.
+	// Build identity of the running binary, per ADR-0103. A script or curl can read
+	// it per pod, so it shows directly if a pod runs the released version.
 	mux.HandleFunc(
 		"/version",
 		func(w http.ResponseWriter, _ *http.Request) {
@@ -274,7 +274,7 @@ func serveAdmin(addr string) {
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	err := srv.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		// Runs in a goroutine, so the error can't be returned
+		// This runs in a goroutine, so it cannot return the error.
 		slog.Error("admin server failed", "error", err)
 	}
 }

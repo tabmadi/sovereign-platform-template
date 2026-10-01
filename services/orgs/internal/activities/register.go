@@ -1,4 +1,4 @@
-// Package activities holds the two legs of the register-user dual write (ADR-0302, ADR-0304).
+// Package activities holds the two legs of the register-user dual write, per ADR-0302 and ADR-0304.
 package activities
 
 import (
@@ -32,12 +32,12 @@ func New(db *pgxpool.Pool, granter authz.Granter) *Activities {
 	}
 }
 
-// Deliberately generic, not the user's email: an org may later hold a team, its `name` is shown to every member
-// (ADR-0301), and email is mutable.
+// Generic on purpose, not the user's email. An org can later hold a team, every member sees its `name`, per
+// ADR-0301, and an email can change.
 const personalOrgName = "Personal workspace"
 
-// CreatePersonalOrgActivity: Dual-write leg 1 (ADR-0304): the org and its admin membership in one transaction.
-// Returns the org id in the wire form (ADR-0003), since it leaves this process.
+// CreatePersonalOrgActivity is dual-write leg 1, per ADR-0304: the org and its admin membership in one transaction.
+// It returns the org id in the wire form, per ADR-0003, because the id leaves this process.
 func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID string) (string, error) {
 	tx, err := a.db.Begin(ctx)
 	if err != nil {
@@ -45,8 +45,8 @@ func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID s
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// Minted here rather than by a column default, and here rather than in the workflow: `id.New` reads the clock and
-	// the entropy pool, which a workflow function may not (ADR-0003).
+	// Minted here, not by a column default and not in the workflow. `id.New` reads the clock and the entropy pool, and
+	// a workflow function must not, per ADR-0003.
 	key, err := id.New("org")
 	if err != nil {
 		return "", fmt.Errorf("create personal org: mint id: %w", err)
@@ -74,9 +74,9 @@ func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID s
 	return key.String(), nil
 }
 
-// GrantOrgAdminActivity is dual-write leg 2 (ADR-0304): the OpenFGA write. Grants
-// the identity the `admin` relation on their personal org (org:<id>#admin@user:<id>,
-// model.fga) so ReBAC ownership matches the app-DB membership.
+// GrantOrgAdminActivity is dual-write leg 2, per ADR-0304: the OpenFGA write. It grants
+// the identity the `admin` relation on their personal org, `org:<id>#admin@user:<id>` in
+// model.fga. So ReBAC ownership matches the app-DB membership.
 func (a *Activities) GrantOrgAdminActivity(ctx context.Context, orgID, identityID string) error {
 	err := a.granter.Grant(ctx, "user:"+identityID, "admin", "org:"+orgID)
 	if err != nil {

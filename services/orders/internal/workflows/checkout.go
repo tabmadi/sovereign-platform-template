@@ -1,4 +1,4 @@
-// Package workflows holds the checkout saga (ADR-0302). orders owns it by the process-owner rule, though the data
+// Package workflows holds the checkout saga, per ADR-0302. orders owns it by the process-owner rule, but the data
 // lives in catalog and payment.
 package workflows
 
@@ -12,24 +12,24 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/money"
 )
 
-// statusFailed is the terminal status of an order the saga could not complete.
+// statusFailed is the terminal status of an order that the saga could not complete.
 const statusFailed = "failed"
 
 type CheckoutInput struct {
 	OrderID   string
 	ProductID string
 	Quantity  int32
-	// OwnerID is the buyer's Kratos identity; OrgID is the org they act through
-	// (ADR-0304). Both are what the order's OpenFGA tuples are written from.
+	// OwnerID is the buyer's Kratos identity. OrgID is the org they act through, per
+	// ADR-0304. The order's OpenFGA tuples are written from both.
 	OwnerID string
 	OrgID   string
-	// IdempotencyKey is the client's, carried into the row so a retried checkout
-	// finds the order the first one created (ADR-0003).
+	// IdempotencyKey comes from the client. It goes into the row, so a retried
+	// checkout finds the order that the first one created, per ADR-0003.
 	IdempotencyKey string
 }
 
 type CheckoutResult struct {
-	Status   string // "confirmed" | "failed"
+	Status   string // `confirmed` or `failed`
 	Total    money.Amount
 	ChargeID string
 }
@@ -45,8 +45,8 @@ func Checkout(ctx workflow.Context, in CheckoutInput) (CheckoutResult, error) {
 	if err != nil {
 		return CheckoutResult{Status: statusFailed}, fmt.Errorf("checkout: create order: %w", err)
 	}
-	// Before any step that can fail the order: a row whose status a later activity
-	// marks `failed` still has to be readable by the buyer it belongs to.
+	// This runs before any step that can fail the order. A later activity can mark
+	// the row `failed`, and its buyer must still be able to read it.
 	err = workflow.ExecuteActivity(ctx, "GrantOrderAccessActivity", in.OrderID, in.OwnerID, in.OrgID).Get(ctx, nil)
 	if err != nil {
 		return CheckoutResult{Status: statusFailed}, fmt.Errorf("checkout: grant order access: %w", err)
@@ -58,8 +58,8 @@ func Checkout(ctx workflow.Context, in CheckoutInput) (CheckoutResult, error) {
 		_ = workflow.ExecuteActivity(ctx, "MarkOrderStatusActivity", in.OrderID, statusFailed).Get(ctx, nil)
 		return CheckoutResult{Status: statusFailed}, fmt.Errorf("checkout: lookup product: %w", err)
 	}
-	// Money multiplication, not a bare integer product: the shared type carries the currency and scale (ADR-0300).
-	// Deterministic — integer arithmetic with no clock and no rounding mode.
+	// Money multiplication, not a bare integer product: the shared type carries the currency and scale, per ADR-0300.
+	// It is deterministic: integer arithmetic with no clock and no rounding mode.
 	total := price.Mul(int64(in.Quantity))
 
 	err = workflow.ExecuteActivity(ctx, "SetOrderTotalActivity", in.OrderID, total).Get(ctx, nil)

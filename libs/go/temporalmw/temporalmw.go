@@ -1,5 +1,5 @@
-// Package temporalmw is the platform-default Temporal client and worker wiring, with tracing, data converters and
-// identity pre-configured (ADR-0302).
+// Package temporalmw is the platform-default Temporal client and worker wiring. It sets up tracing, data converters,
+// and identity, per ADR-0302.
 package temporalmw
 
 import (
@@ -28,7 +28,7 @@ func Address() string {
 	return "temporal-frontend.platform.svc.cluster.local:7233"
 }
 
-// Namespace resolves $TEMPORAL_NAMESPACE, defaulting to "default".
+// Namespace resolves $TEMPORAL_NAMESPACE. The default is `default`.
 func Namespace() string {
 	v := os.Getenv("TEMPORAL_NAMESPACE")
 	if v != "" {
@@ -48,11 +48,11 @@ func NewClient(serviceName string) (client.Client, error) {
 		Identity:     serviceName,
 		Interceptors: []interceptor.ClientInterceptor{tracingInterceptor},
 		// The default Temporal logger writes to the stdlib log package, so a worker's lines never reach Loki.
-		// Callers run obs.Init before NewClient, so slog.Default() is the OTLP fan-out by the time we dial.
+		// Callers run obs.Init before NewClient, so slog.Default() is the OTLP fan-out when the client dials.
 		Logger: tlog.NewStructuredLogger(slog.Default()),
 	}
-	// Bounded startup retry: on a cold cluster the frontend may not be reachable yet, and the caller panics on error.
-	// Runtime blips are the SDK's reconnection and the /readyz gate, not this.
+	// A bounded startup retry. On a cold cluster, the frontend can be unreachable, and the caller panics on error.
+	// The SDK's reconnection and the /readyz gate handle short faults at runtime, not this retry.
 	var c client.Client
 	err = retry(
 		func() error {
@@ -67,7 +67,7 @@ func NewClient(serviceName string) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Auto-register the /readyz check for this dependency (ADR-0500).
+	// Register the /readyz check for this dependency, per ADR-0500.
 	observability.RegisterReadinessCheck(
 		"temporal",
 		func(ctx context.Context) error {
@@ -81,8 +81,8 @@ func NewClient(serviceName string) (client.Client, error) {
 	return c, nil
 }
 
-// retry calls fn until it succeeds or a ~60s budget elapses, backing off 500ms→5s
-// between attempts. Returns fn's last error on give-up.
+// retry calls fn until it succeeds or a budget of about 60s ends. The wait between
+// attempts grows from 500ms to 5s. When it stops, it returns fn's last error.
 func retry(fn func() error) error {
 	const budget = 60 * time.Second
 	deadline := time.Now().Add(budget)
@@ -102,9 +102,9 @@ func retry(fn func() error) error {
 	}
 }
 
-// The SDK default is 0s, so every Activity still executing when a pod is rolled is abandoned until its
-// StartToCloseTimeout expires. The chart derives terminationGracePeriodSeconds from this, so kubelet always
-// waits strictly longer than the worker does.
+// The SDK default is 0s. Then every Activity that still runs during a pod roll is abandoned until its
+// StartToCloseTimeout expires. The chart derives terminationGracePeriodSeconds from this value, so kubelet
+// always waits longer than the worker.
 func stopTimeout() time.Duration {
 	v := os.Getenv("TEMPORAL_WORKER_STOP_TIMEOUT")
 	if v == "" {
@@ -118,9 +118,9 @@ func stopTimeout() time.Duration {
 	return d
 }
 
-// Versioning is on whenever both $TEMPORAL_DEPLOYMENT_NAME and $TEMPORAL_WORKER_BUILD_ID are set (ADR-0302).
-// DefaultVersioningBehavior is Pinned, so a deploy cannot break a Workflow already in flight. A workflow that
-// must follow the newest code returns AutoUpgrade, and owes a versioning plan and replay tests.
+// Versioning is on when $TEMPORAL_DEPLOYMENT_NAME and $TEMPORAL_WORKER_BUILD_ID are both set, per ADR-0302.
+// DefaultVersioningBehavior is Pinned, so a deploy cannot break a running Workflow. A workflow that must follow
+// the newest code returns AutoUpgrade and needs a versioning plan and replay tests.
 func deploymentOptions() worker.DeploymentOptions {
 	name, buildID := os.Getenv("TEMPORAL_DEPLOYMENT_NAME"), os.Getenv("TEMPORAL_WORKER_BUILD_ID")
 	if name == "" || buildID == "" {
@@ -136,8 +136,8 @@ func deploymentOptions() worker.DeploymentOptions {
 	}
 }
 
-// NewWorker: EnableSessionWorker is deliberately not set: the SDK forbids combining it with Worker Deployment
-// Versioning, so a service that needs sessions opts out of versioning explicitly rather than inheriting both.
+// NewWorker leaves EnableSessionWorker unset on purpose. The SDK forbids it together with Worker Deployment
+// Versioning. A service that needs sessions turns off versioning explicitly and does not inherit both.
 func NewWorker(c client.Client, taskQueue string) worker.Worker {
 	return worker.New(
 		c,

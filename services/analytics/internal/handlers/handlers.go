@@ -1,4 +1,4 @@
-// Package handlers implements the ogen-generated analytics.Handler interface (ADR-0303, ADR-0700).
+// Package handlers implements the ogen-generated analytics.Handler interface, per ADR-0303 and ADR-0700.
 package handlers
 
 import (
@@ -23,12 +23,12 @@ import (
 )
 
 // stateGranted is the one consent state that permits storing an event. Withdrawn
-// and refused both stop emission, and the difference between them is a record of
-// what the visitor did rather than a difference in what may be stored.
+// and refused both stop emission. The difference between them records what the
+// visitor did. It does not change what may be stored.
 const stateGranted = "granted"
 
-// maxRollupBuckets bounds one pass, so a drifted schedule cannot ask the rollup to scan the whole events table.
-// Roughly a quarter.
+// maxRollupBuckets limits one pass, so a drifted schedule cannot make the rollup scan the whole events table.
+// It is about a quarter of a year.
 const maxRollupBuckets = 92
 
 type Handlers struct {
@@ -46,8 +46,8 @@ func New(db *pgxpool.Pool, defs *funnels.Set, log *slog.Logger) *Handlers {
 
 var _ analytics.Handler = (*Handlers)(nil)
 
-// RecordEvents stores a batch, and drops it whole if the session has no grant — ADR-0700's second enforcement
-// point, because the first runs on a client the platform does not control.
+// RecordEvents stores a batch, and drops the whole batch if the session has no grant. This is ADR-0700's second
+// enforcement point, because the first runs on a client that the platform does not control.
 // A drop is not an error: the collector cannot fix a missing grant and must not retry.
 func (h *Handlers) RecordEvents(ctx context.Context, req *analytics.EventBatch) (*analytics.RecordResult, error) {
 	granted, err := h.hasGrant(ctx, req.SessionID)
@@ -73,8 +73,8 @@ func (h *Handlers) RecordEvents(ctx context.Context, req *analytics.EventBatch) 
 	return &analytics.RecordResult{Stored: stored, Dropped: 0}, nil
 }
 
-// SummariseEvents: Read-only and carrying no authorization of its own (ADR-0700): the panel performs the
-// authoritative check in its render layer, and this service is not reachable from a browser.
+// SummariseEvents is read-only and has no authorization of its own, per ADR-0700. The panel does the
+// authoritative check in its render layer, and a browser cannot reach this service.
 func (h *Handlers) SummariseEvents(
 	ctx context.Context, params analytics.SummariseEventsParams,
 ) ([]analytics.EventSummary, error) {
@@ -97,8 +97,8 @@ func (h *Handlers) SummariseEvents(
 	return out, nil
 }
 
-// RecordConsent: Every field makes the consent demonstrable later (GDPR Art. 7(1)): the purpose version, because a
-// changed purpose is a new consent, and the source, because a `gpc` row is a refusal nobody was prompted for.
+// RecordConsent stores every field that proves the consent later, per GDPR Art. 7(1). The purpose version matters,
+// because a changed purpose is a new consent. The source matters, because a `gpc` row is a refusal with no prompt.
 func (h *Handlers) RecordConsent(ctx context.Context, req *analytics.ConsentInput) (*analytics.Consent, error) {
 	params := store.UpsertConsentParams{
 		SessionID:      req.SessionID,
@@ -123,8 +123,8 @@ func (h *Handlers) RecordConsent(ctx context.Context, req *analytics.ConsentInpu
 	}, nil
 }
 
-// GetConsent: A session with no row has not answered, which is a 404 rather than an invented refusal: the control
-// prompts for one and must never prompt for the other.
+// GetConsent returns a 404 for a session with no row, because that session has not answered. It does not invent a
+// refusal: the control prompts for a missing answer and must never prompt after a refusal.
 func (h *Handlers) GetConsent(ctx context.Context, params analytics.GetConsentParams) (*analytics.Consent, error) {
 	row, err := h.q.GetConsent(ctx, params.SessionID)
 	if err != nil {
@@ -140,7 +140,7 @@ func (h *Handlers) GetConsent(ctx context.Context, params analytics.GetConsentPa
 	}, nil
 }
 
-// NewError renders any handler error as RFC 9457 problem details (ADR-0303).
+// NewError renders any handler error as RFC 9457 problem details, per ADR-0303.
 func (h *Handlers) NewError(ctx context.Context, err error) *analytics.ErrorStatusCode {
 	e := apierr.Resolved(ctx, err)
 
@@ -172,9 +172,9 @@ func fromText(v pgtype.Text) analytics.OptString {
 	return analytics.NewOptString(v.String)
 }
 
-// ComputeFunnelRollup: Driven by a Temporal Schedule and idempotent by construction: each bucket is replaced, so a
-// pass over a window that is still filling is the normal case (ADR-0700, ADR-0302). The window is bounded here rather
-// than trusted from the caller.
+// ComputeFunnelRollup runs from a Temporal Schedule and is idempotent by design. Each bucket is replaced, so a pass
+// over a window that is still filling is normal, per ADR-0700 and ADR-0302. The window is limited here and not
+// trusted from the caller.
 func (h *Handlers) ComputeFunnelRollup(
 	ctx context.Context, req *analytics.RollupWindow, params analytics.ComputeFunnelRollupParams,
 ) (*analytics.RollupResult, error) {
@@ -188,7 +188,7 @@ func (h *Handlers) ComputeFunnelRollup(
 	buckets := rollup.Buckets(req.From, req.To)
 	if len(buckets) > maxRollupBuckets {
 		detail := fmt.Sprintf(
-			"the window covers %d days; the limit is %d",
+			"the window covers %d days, and the limit is %d",
 			len(buckets),
 			maxRollupBuckets,
 		)
@@ -248,8 +248,8 @@ func (h *Handlers) GetFunnelRollup(
 	return out, nil
 }
 
-// A session with no row never answered, and the answer is a plain no. Any other error is the database being
-// unreachable, and reading that as "no consent" would discard every event during an outage.
+// A session with no row never answered, so the answer is no. Any other error means the database is unreachable.
+// Reading that as no consent would drop every event during an outage.
 func (h *Handlers) hasGrant(ctx context.Context, sessionID string) (bool, error) {
 	row, err := h.q.GetConsent(ctx, sessionID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -295,7 +295,7 @@ func (h *Handlers) insert(ctx context.Context, batch *analytics.EventBatch, even
 	return nil
 }
 
-// rollupBucket computes and writes one bucket, returning the rows written.
+// rollupBucket computes and writes one bucket, and returns the rows written.
 func (h *Handlers) rollupBucket(
 	ctx context.Context, fn funnels.Funnel, b [2]time.Time,
 ) (int, error) {
@@ -326,9 +326,9 @@ func (h *Handlers) rollupBucket(
 	}
 	counts := rollup.Count(fn.Steps, steps)
 
-	// Every step is written, including the zeroes. A bucket missing its later steps
-	// would render as a funnel that ends early rather than one nobody completed, and
-	// those are different findings.
+	// Every step is written, including the zeroes. A bucket without its later steps
+	// would show a funnel that ends early, not one that nobody completed. Those are
+	// different findings.
 	written := 0
 	for i, name := range fn.Steps {
 		err = h.q.UpsertFunnelRollup(

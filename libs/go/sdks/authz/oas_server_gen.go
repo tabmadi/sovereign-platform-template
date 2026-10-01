@@ -28,7 +28,7 @@ type Handler interface {
 	GetIdentity(ctx context.Context, params GetIdentityParams) (*Identity, error)
 	// ListIdentities implements listIdentities operation.
 	//
-	// List identities (product users and operators) from Kratos, paginated.
+	// List identities from Kratos, both product users and operators, paginated.
 	//
 	// GET /identities
 	ListIdentities(ctx context.Context, params ListIdentitiesParams) ([]Identity, error)

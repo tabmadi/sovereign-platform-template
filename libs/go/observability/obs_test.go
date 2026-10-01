@@ -8,8 +8,8 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
-// otelhttp reads the global propagator, which defaults to a no-op, so a forgotten TraceContext propagator stops
-// cross-service traces stitching silently. Run in the exporter-disabled path, so no collector is needed.
+// otelhttp reads the global propagator, which defaults to a no-op. A missing TraceContext propagator breaks
+// cross-service traces with no error. The test runs with exporters disabled, so it needs no collector.
 func TestInitSetsGlobalPropagator(t *testing.T) {
 	t.Setenv("OTEL_SDK_DISABLED", "true")
 
@@ -30,14 +30,14 @@ func TestInitSetsGlobalPropagator(t *testing.T) {
 		}
 	}
 	if !hasTraceparent {
-		t.Errorf("global propagator missing 'traceparent'; fields=%v", prop.Fields())
+		t.Errorf("global propagator missing `traceparent`: fields=%v", prop.Fields())
 	}
 	if !hasBaggage {
-		t.Errorf("global propagator missing 'baggage'; fields=%v", prop.Fields())
+		t.Errorf("global propagator missing `baggage`: fields=%v", prop.Fields())
 	}
 
 	// Round-trip: a span context injected on the way out must be extractable on the
-	// way in — the exact behavior a downstream service's otelhttp handler relies on.
+	// way in. A downstream service's otelhttp handler depends on this behaviour.
 	carrier := propagation.MapCarrier{
 		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
 	}
@@ -45,6 +45,6 @@ func TestInitSetsGlobalPropagator(t *testing.T) {
 	out := propagation.MapCarrier{}
 	prop.Inject(ctx, out)
 	if out["traceparent"] == "" {
-		t.Errorf("propagator did not round-trip traceparent; got %v", out)
+		t.Errorf("propagator did not round-trip traceparent: got %v", out)
 	}
 }

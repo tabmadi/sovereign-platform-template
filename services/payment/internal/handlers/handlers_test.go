@@ -18,14 +18,14 @@ import (
 
 const statusSettled = "settled"
 
-// A well-formed wire identifier (ADR-0003), so the cases below exercise the
-// handler's logic rather than its identifier decoding — which has its own case.
+// A well-formed wire identifier, per ADR-0003. The cases below then test the
+// handler's logic and not its identifier decoding, which has its own case.
 const testChargeID = payment.ChargeId("charge_01kztnyqr0f13shqqnx8028xx5")
 
 const testOrderID = payment.OrderId("order_01kztnj6c8e0jt7vzw0cn1wxvd")
 
-// fakeQ embeds store.Querier so only the methods a test exercises need stubbing;
-// any other call would nil-panic, which is the desired "unexpected query" signal.
+// fakeQ embeds store.Querier, so only the methods that a test uses need stubs.
+// Any other call panics on nil, and that is the wanted signal for an unexpected query.
 type fakeQ struct {
 	store.Querier
 
@@ -43,8 +43,8 @@ func (f fakeQ) ListCharges(context.Context) ([]store.ListChargesRow, error) {
 	return f.list, f.listErr
 }
 
-// fakeTemporal embeds client.Client; only ExecuteWorkflow is reached by the
-// handler (its returned run is ignored, so a nil run is fine).
+// fakeTemporal embeds client.Client. The handler calls only ExecuteWorkflow and
+// ignores the returned run, so a nil run works.
 type fakeTemporal struct {
 	client.Client
 
@@ -57,8 +57,8 @@ func (f fakeTemporal) ExecuteWorkflow(
 	return nil, f.err
 }
 
-// fakeChecker stands in for the OpenFGA Checker so the operator gate can be
-// exercised without a cluster (ADR-0304).
+// fakeChecker stands in for the OpenFGA Checker, so a test can run the operator
+// gate without a cluster, per ADR-0304.
 type fakeChecker struct {
 	allowed bool
 	err     error
@@ -68,7 +68,7 @@ func (f fakeChecker) Allowed(context.Context, string, string, string) (bool, err
 	return f.allowed, f.err
 }
 
-// opCtx is an authenticated-operator request context — the happy path past the
+// opCtx is an authenticated-operator request context. It passes the
 // requireOperator gate, so the business-logic cases below reach the store.
 func opCtx() context.Context {
 	return authmw.NewContext(context.Background(), &authmw.Principal{UserID: "alice"})
@@ -76,8 +76,8 @@ func opCtx() context.Context {
 
 func okChecker() authz.Checker { return fakeChecker{allowed: true} }
 
-// RefundCharge is operator-gated (ADR-0304): the gate rejects before any DB
-// access, so a nil store is fine for these cases.
+// RefundCharge is operator-gated, per ADR-0304. The gate rejects before any DB
+// access, so a nil store works for these cases.
 func TestRefundChargeAuthz(t *testing.T) {
 	t.Parallel()
 	req := &payment.RefundInput{Reason: "duplicate"}
@@ -147,8 +147,8 @@ func TestRefundCharge(t *testing.T) {
 		},
 	)
 
-	// The generated validator rejects a malformed id before the handler sees it, so
-	// this reaches the handler only if a spec edit ever separates the two.
+	// The generated validator rejects a malformed id before the handler sees it. So
+	// this reaches the handler only if a spec edit makes the two disagree.
 	t.Run(
 		"a malformed charge id is a bad request",
 		func(t *testing.T) {
@@ -175,20 +175,20 @@ func TestRefundCharge(t *testing.T) {
 	)
 }
 
-// Answers per resource: a buyer holds `charge#read` on their own order's charge and nothing on `group:operator`, and
-// an operator is the other way round.
+// It answers per resource. A buyer holds `charge#read` on their own order's charge and nothing on `group:operator`.
+// An operator is the reverse.
 type resourceChecker map[string]bool
 
 func (c resourceChecker) Allowed(_ context.Context, _, _, resource string) (bool, error) {
 	return c[resource], nil
 }
 
-// testCurrency is the currency every fixture here is denominated in; which one it
-// is does not matter, only that it travels with the amount.
+// testCurrency is the currency of every fixture here. The currency itself does not
+// matter. It only needs to travel with the amount.
 const testCurrency = "EUR"
 
-// numeric is a stored `numeric(19,4)`, which the zero pgtype.Numeric is not — a
-// handler that renders money needs a row that has some.
+// numeric is a stored `numeric(19,4)`. The zero pgtype.Numeric is not, and a
+// handler that renders money needs a row with money in it.
 func numeric(t *testing.T, v string) pgtype.Numeric {
 	t.Helper()
 	var n pgtype.Numeric
@@ -199,7 +199,7 @@ func numeric(t *testing.T, v string) pgtype.Numeric {
 	return n
 }
 
-// chargeObject is the OpenFGA object the read gate checks.
+// chargeObject is the OpenFGA object that the read gate checks.
 var chargeObject = "charge:" + string(testChargeID)
 
 func TestGetChargeAuthz(t *testing.T) {
@@ -240,9 +240,9 @@ func TestGetChargeAuthz(t *testing.T) {
 	}
 }
 
-// The amount is validated by the shared money type, and a value it refuses is the
-// client's mistake rather than a 500 — these are the shapes a generated validator
-// cannot catch, because the wire form of an amount is just a string.
+// The shared money type validates the amount, and a value that it refuses is the
+// client's mistake, not a 500. A generated validator cannot catch these shapes,
+// because the wire form of an amount is only a string.
 func TestCreateChargeAmount(t *testing.T) {
 	t.Parallel()
 
@@ -276,8 +276,8 @@ func TestCreateChargeAmount(t *testing.T) {
 func TestListCharges(t *testing.T) {
 	t.Parallel()
 
-	// Listing every charge is the back-office view (ADR-0303's `x-audience:
-	// internal`), so it is operator-gated: an anonymous caller is refused before the
+	// Listing every charge is the back-office view with `x-audience: internal`, per
+	// ADR-0303. So it is operator-gated, and an anonymous caller is refused before the
 	// store is reached.
 	t.Run(
 		"an anonymous caller is unauthorized",
@@ -321,7 +321,7 @@ func TestListCharges(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			// The stored numeric reaches the wire as a decimal string with its
-			// currency, never as a number and never as minor units (ADR-0300).
+			// currency, never as a number and never as minor units, per ADR-0300.
 			if len(got) != 1 || got[0].Amount.Amount != "9.99" ||
 				got[0].Amount.Currency != testCurrency || got[0].Status != payment.ChargeStatusSettled {
 				t.Fatalf("mapping = %+v", got)

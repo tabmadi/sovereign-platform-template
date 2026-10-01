@@ -1,12 +1,12 @@
 openapi: 3.1.0
-info: { title: authz, version: 0.1.0, description: Ops-tier edge authorizer and operator admin (ADR-0304/0012/0017)., x-audience: cluster }
-servers: [{ url: / }]   # east-west control-plane service; no /api edge route (ADR-0305)
+info: { title: authz, version: 0.1.0, description: "Ops-tier edge authorizer and operator admin, per ADR-0304, ADR-0012, and ADR-0017.", x-audience: cluster }
+servers: [{ url: / }]   # east-west control-plane service with no /api edge route, per ADR-0305
 tags: [{ name: authorize }, { name: identities, x-admin: crud }]
 paths:
   /authorize:
     post:
       operationId: authorize
-      # Ops-tier decision for Oathkeeper's remote_json authorizer: 200 allows, 403 denies. The caller's contract is infra/auth/oathkeeper/access-rules.json.
+      # Ops-tier decision for Oathkeeper's remote_json authorizer: 200 allows, and 403 denies. infra/auth/oathkeeper/access-rules.json holds the caller's contract.
       description: Ops-tier authorization decision for Oathkeeper's remote_json authorizer.
       tags: [authorize]
       requestBody:
@@ -22,13 +22,13 @@ paths:
   /identities:
     get:
       operationId: listIdentities
-      # The console's Users page (ADR-0401). Only authz may reach Kratos admin (network-policies/30-ory.yaml), so the
-      # console fetches through here. list + get + update only — a create op would scaffold an "add user" page, and an
-      # operator is a registered user the update's operator toggle promotes (ADR-0304).
-      description: List identities (product users and operators) from Kratos, paginated.
+      # The console's Users page, per ADR-0401. Only authz may reach Kratos admin, per network-policies/30-ory.yaml, so the
+      # console fetches through here. Only list, get, and update exist. A create op would scaffold an add-user page, and an
+      # operator is a registered user that the update's operator toggle promotes, per ADR-0304.
+      description: List identities from Kratos, both product users and operators, paginated.
       tags: [identities]
-      # per_page caps the Kratos admin page; the changelist paginates client-side within that window.
-      # No page offset: this Kratos uses keyset pagination, so forwarding a numeric page returns an empty set.
+      # per_page limits the Kratos admin page. The changelist paginates on the client inside that page.
+      # No page offset: this Kratos uses keyset pagination, so a forwarded numeric page returns an empty set.
       parameters:
         - { name: per_page, in: query, required: false, description: Page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 250 } }
       responses:
@@ -39,8 +39,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Identity" }
-                # An unconstrained array generates an empty list, which is the one
-                # answer a changelist cannot be built against (ADR-0600).
+                # An unconstrained array generates an empty list. Nobody can build a
+                # changelist against an empty list, per ADR-0600.
                 example:
                   - { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b001, email: operator@e2e.localtest.me, name: Test Operator, operator: true }
                   - { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b002, email: user@e2e.localtest.me, name: Test User, operator: false }
@@ -48,7 +48,7 @@ paths:
   /identities/{id}:
     get:
       operationId: getIdentity
-      # Prefills the console's edit form (admin-gen loads GET /{id} on mount).
+      # Fills the console's edit form. admin-gen loads GET /{id} on mount.
       description: Fetch one identity by id.
       tags: [identities]
       parameters:
@@ -58,8 +58,8 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     put:
       operationId: updateIdentity
-      # Edit target (ADR-0401): the console's per-row change page. Updates the editable
-      # traits only; email is the login identifier and is intentionally not editable.
+      # Edit target, per ADR-0401: the console's per-row change page. It updates only the
+      # editable traits. Email is the login identifier and is not editable, on purpose.
       description: Update an identity's editable traits.
       tags: [identities]
       parameters:
@@ -74,9 +74,9 @@ paths:
   /authorize/relation:
     post:
       operationId: checkRelation
-      # East-west only: this answers "may this subject do this to this object" for a first-party caller that has
-      # already established who the subject is, and at the edge a client could ask about a subject that is not itself.
-      # It exists because a Checker is a Go library and the frontend is not Go (ADR-0700).
+      # East-west only. It answers whether a subject may do an action to an object, for a first-party caller that
+      # already knows the subject. At the edge, a client could ask about a subject that is not itself.
+      # It exists because a Checker is a Go library and the frontend is not Go, per ADR-0700.
       x-audience: cluster
       description: Check one relation for one subject against one object.
       tags: [authorize]
@@ -91,7 +91,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
-    # >>> shared-components: responses — generated from tools/codegen/shared-components.yaml, do not edit
+    # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
     Error:
       description: An error, as RFC 9457 problem details.
       content:
@@ -99,53 +99,52 @@ components:
           schema: {$ref: "#/components/schemas/Problem"}
     # <<< shared-components
   schemas:
-    # >>> shared-components: schemas — generated from tools/codegen/shared-components.yaml, do not edit
-    # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
-    # identifies the occurrence, and it reaches the trace where an instance URL
-    # reaches nothing.
+    # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
+    # RFC 9457 problem details. `instance` is absent on purpose: `trace_id` identifies the occurrence and leads to the trace.
+    # An instance URL leads nowhere.
     Problem:
       type: object
       description: |
-        RFC 9457 problem details. Served as `application/problem+json` by services and
-        by the edge alike, so a generated client has one error branch rather than two.
+        RFC 9457 problem details. Services and the edge both serve it as
+        `application/problem+json`, so a generated client has one error branch, not two.
       required: [type, title, status]
       properties:
         type:
           type: string
           description: |
             `about:blank`, except where two errors share a status code and a client
-            handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-            URN — never a dereferenceable URL, which would put an error taxonomy into
+            handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+            URN. It is never a dereferenceable URL, which would put an error taxonomy into
             the flat public URL namespace.
           default: "about:blank"
           example: "about:blank"
         title:
           type: string
-          description: A stable, human-readable summary. Does not vary with the instance.
+          description: A stable, human-readable summary. It does not change with the instance.
           example: Not Found
         status:
           type: integer
-          description: The HTTP status, duplicated in the body.
+          description: The HTTP status, repeated in the body.
           minimum: 100
           maximum: 599
           example: 404
         detail:
           type: string
           description: |
-            Instance-specific and safe to show a user. Never a stack trace, a query, or
-            an internal hostname.
+            Specific to the instance and safe to show a user. Never a stack trace, a query,
+            or an internal hostname.
           example: No product with that identifier.
         trace_id:
           type: string
           description: |
-            The W3C Trace Context trace-id of the failing request, so a user-reported
-            error reaches its trace. Supplied from the active span, not by the handler.
+            The W3C Trace Context trace-id of the failing request, so an error that a user
+            reports leads to its trace. The active span supplies it, not the handler.
           pattern: "^[0-9a-f]{32}$"
           example: 4bf92f3577b34da6a3ce929d0e0e4736
         errors:
           type: array
           description: |
-            Field-level validation failures, populated from the generated validator.
+            Field-level validation failures, filled from the generated validator.
             Absent when the failure is not a validation failure.
           items:
             type: object
@@ -153,7 +152,7 @@ components:
             properties:
               pointer:
                 type: string
-                description: RFC 6901 JSON Pointer to the offending member.
+                description: RFC 6901 JSON Pointer to the member that failed.
                 example: /price/amount
               message:
                 type: string
@@ -170,10 +169,10 @@ components:
       description: The remote_json payload Oathkeeper POSTs per ops-dashboard request.
       required: [subject, tool, aal, operator]
       properties:
-        subject:  { type: string, description: Kratos identity id; empty for anonymous. }
+        subject:  { type: string, description: Kratos identity id. Empty for an anonymous caller. }
         tool:     { type: string, description: Ops dashboard slug such as grafana or hubble. }
         aal:      { type: string, description: authenticator_assurance_level from the session. }
-        operator: { type: string, description: The identity's metadata_public.operator flag; "true" when set. }
+        operator: { type: string, description: The identity's metadata_public.operator flag. It is `true` when set. }
     RelationCheck:
       type: object
       description: A single OpenFGA relation question, in the model's own vocabulary.
@@ -182,12 +181,12 @@ components:
         subject:
           type: string
           minLength: 1
-          description: "The subject, prefixed by its type — `user:<identity-id>`."
+          description: "The subject, with its type as a prefix: `user:<identity-id>`."
         relation: { type: string, minLength: 1, description: The relation to test, such as `view`. }
         object:
           type: string
           minLength: 1
-          description: "The object, prefixed by its type — `analytics_panel:funnels`."
+          description: "The object, with its type as a prefix: `analytics_panel:funnels`."
     RelationDecision:
       type: object
       description: The answer to one relation check.
@@ -207,7 +206,7 @@ components:
       example: { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b002, email: user@e2e.localtest.me, name: Test User, operator: false }
     IdentityUpdate:
       type: object
-      description: The editable fields of an identity. Email is the login identifier and is not editable here; operator promotes or demotes through a dual write (ADR-0304).
+      description: The editable fields of an identity. Email is the login identifier and is not editable here. operator promotes or demotes through a dual write, per ADR-0304.
       properties:
         name:     { type: string }
         operator: { type: boolean }

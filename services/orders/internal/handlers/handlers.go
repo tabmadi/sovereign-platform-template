@@ -1,4 +1,4 @@
-// Package handlers implement the ogen-generated orders.Handler interface (ADR-0303).
+// Package handlers implement the ogen-generated orders.Handler interface, per ADR-0303.
 package handlers
 
 import (
@@ -45,9 +45,9 @@ func New(db *pgxpool.Pool, tc client.Client, checker authz.Checker) *Handlers {
 
 var _ orders.Handler = (*Handlers)(nil)
 
-// These three are the transport boundary (ADR-0003). A product id is minted by catalog and only carried here,
-// so it is encoded under catalog's prefix; decoding one is the checkout saga's job.
-// They report rather than panic: the generated validator and these calls are two places one spec edit can separate.
+// These three are the transport boundary, per ADR-0003. catalog mints a product id, and this service only carries it.
+// So it is encoded under catalog's prefix, and the checkout saga decodes it. They return an error and do not panic,
+// because one spec edit can make the generated validator and these calls disagree.
 func orderID(u pgtype.UUID) orders.OrderId {
 	return orders.OrderId(id.MustFrom("order", uuid.UUID(u.Bytes)).String())
 }
@@ -56,8 +56,8 @@ func productID(u pgtype.UUID) orders.ProductId {
 	return orders.ProductId(id.MustFrom("product", uuid.UUID(u.Bytes)).String())
 }
 
-// mintOrderID is where an identifier enters the system (ADR-0003). The service holds it before the insert, so a write
-// that never lands still has an identifier to name in the failure.
+// mintOrderID is where an identifier enters the system, per ADR-0003. The service holds it before the insert, so a
+// failed write still has an identifier to name in the failure.
 func mintOrderID() (pgtype.UUID, error) {
 	v, err := id.New("order")
 	if err != nil {
@@ -66,9 +66,9 @@ func mintOrderID() (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: v.UUID(), Valid: true}, nil
 }
 
-// wireTotal renders the stored total for the wire (ADR-0300): the column is
-// `numeric` and the wire is a decimal string with its currency. Through
-// money.Amount, so the value matches what the shared type produces anywhere else.
+// wireTotal renders the stored total for the wire, per ADR-0300. The column is
+// `numeric`, and the wire is a decimal string with its currency. It goes through
+// money.Amount, so the value matches what the shared type produces everywhere else.
 func wireTotal(total pgtype.Numeric, currency string) (orders.Money, error) {
 	raw, err := total.Value()
 	if err != nil {
@@ -93,9 +93,9 @@ func storedOrderID(v orders.OrderId) (pgtype.UUID, error) {
 	return pgtype.UUID{Bytes: parsed.UUID(), Valid: true}, nil
 }
 
-// requireBuyerWithOrg: an order belongs to a buyer and to the org they act through (ADR-0304), so checkout has no
-// anonymous form — without both there is nobody to write the order's read tuples for, and the row would be
-// readable by operators alone.
+// requireBuyerWithOrg exists because an order belongs to a buyer and to the org they act through, per ADR-0304. So
+// checkout has no anonymous form. Without both, nobody gets the order's read tuples, and only operators could read
+// the row.
 func requireBuyerWithOrg(ctx context.Context) (*authmw.Principal, error) {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {
@@ -139,8 +139,8 @@ func (h *Handlers) Checkout(
 		return nil, err
 	}
 	oid := string(orderID(key))
-	// Tags the root span so a checkout is addressable in Tempo by TraceQL. The wire form is what a reader has in hand,
-	// so it is what the attribute carries.
+	// Tag the root span, so TraceQL can find a checkout in Tempo. A reader has the wire form, so the attribute
+	// carries the wire form.
 	span.SetAttributes(attribute.String("order.id", oid))
 	_, err = h.tc.ExecuteWorkflow(
 		ctx,
@@ -165,8 +165,8 @@ func (h *Handlers) Checkout(
 	return checkoutHandle(oid), nil
 }
 
-// checkoutHandle is the 202 body, built the same way whether the checkout was just
-// started or is being replayed from an earlier one.
+// checkoutHandle is the 202 body. It is built the same way for a new checkout and
+// for a replay of an earlier one.
 func checkoutHandle(oid string) *orders.WorkflowHandle {
 	return &orders.WorkflowHandle{
 		ID:        "checkout-" + oid,
@@ -206,8 +206,8 @@ func (h *Handlers) GetOrder(ctx context.Context, params orders.GetOrderParams) (
 }
 
 func (h *Handlers) ListOrders(ctx context.Context) ([]orders.Order, error) {
-	// Every order, not the caller's — a back-office view (`x-audience: internal`),
-	// so it is operator-gated rather than scoped.
+	// Every order, not only the caller's. It is a back-office view with
+	// `x-audience: internal`, so it is operator-gated and not scoped.
 	err := h.requireOperator(ctx, "listing every order")
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (h *Handlers) CancelOrder(ctx context.Context, params orders.CancelOrderPar
 	}, nil
 }
 
-// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// NewError maps a handler error onto the generated RFC 9457 response, per ADR-0303.
 func (h *Handlers) NewError(ctx context.Context, err error) *orders.ErrorStatusCode {
 	e := apierr.Resolved(ctx, err)
 
@@ -297,9 +297,9 @@ func (h *Handlers) NewError(ctx context.Context, err error) *orders.ErrorStatusC
 	return &orders.ErrorStatusCode{StatusCode: e.Status, Response: problem}
 }
 
-// replayedCheckout: a retry returns the order the first attempt created rather than placing a second (ADR-0003).
-// This read is the fast path; the unique index on the column is what actually holds, because two concurrent
-// retries both miss it.
+// replayedCheckout makes a retry return the order that the first attempt created, and not place a second one, per
+// ADR-0003. This read is the fast path. The unique index on the column is the real guarantee, because two
+// concurrent retries both miss this read.
 func (h *Handlers) replayedCheckout(
 	ctx context.Context, key string,
 ) (*orders.WorkflowHandle, bool, error) {
@@ -314,8 +314,8 @@ func (h *Handlers) replayedCheckout(
 	}
 }
 
-// An unguessable identifier is not an access control, so holding one grants nothing (ADR-0003). `order#read`
-// resolves the buyer and the owning org's admins; both are Checker calls, and neither reads a role from a header.
+// An unguessable identifier is not an access control, so holding one grants nothing, per ADR-0003. `order#read`
+// resolves the buyer and the owning org's admins. Both are Checker calls, and neither reads a role from a header.
 func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	principal, _ := authmw.FromContext(ctx)
 	if !principal.Authenticated() {
@@ -331,7 +331,7 @@ func (h *Handlers) requireReader(ctx context.Context, object string) error {
 	return h.requireOperator(ctx, "reading an order placed by someone else")
 }
 
-// requireOperator gates a write on the shared Checker (ADR-0304). Reads and starting a checkout stay open; only the
+// requireOperator gates a write on the shared Checker, per ADR-0304. Reads and starting a checkout stay open. Only the
 // destructive cancel is gated.
 func (h *Handlers) requireOperator(ctx context.Context, action string) error {
 	principal, _ := authmw.FromContext(ctx)

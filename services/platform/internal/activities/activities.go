@@ -1,4 +1,4 @@
-// Package activities holds the platform worker's activities (ADR-0302).
+// Package activities holds the platform worker's activities, per ADR-0302.
 package activities
 
 import (
@@ -17,15 +17,15 @@ import (
 
 type Activities struct {
 	log *slog.Logger
-	// forgeAPI is where tracking issues are opened. Empty until a forge exists,
-	// which is the honest state: ADR-0207 says the drill "opens a tracking issue",
-	// and there is nowhere to open one yet.
+	// forgeAPI is where tracking issues are opened. It is empty when no forge
+	// exists. ADR-0207 says that the drill opens a tracking issue, and with no
+	// forge there is no place to open one.
 	forgeAPI string
-	// The analytics service, east-west. Unlike the forge it exists, so an activity that needs it fails rather than
-	// logging: a rollup that silently did not run is a panel showing stale numbers.
+	// The analytics service, east-west. Unlike the forge, it always exists, so an activity that needs it fails and does
+	// not only log. A rollup that did not run with no error gives a panel with old numbers.
 	analyticsAPI string
-	// One client, reused: a client per call leaks a connection pool per call. The timeout stops an activity hanging
-	// until Temporal's StartToClose fires.
+	// One reused client, because a client per call leaks a connection pool per call. The timeout stops an activity from
+	// hanging until Temporal's StartToClose fires.
 	http *http.Client
 }
 
@@ -41,13 +41,13 @@ func New(log *slog.Logger) *Activities {
 	}
 }
 
-// OpenTrackingIssueActivity: With no forge configured it logs the issue at warn and succeeds: failing would make
-// every scheduled run red for a reason nobody can fix from here, and silence would make the schedule a decoration.
+// OpenTrackingIssueActivity logs the issue at warn and succeeds when no forge is configured. A failure would make
+// every scheduled run red for a reason that nobody can fix here. Silence would make the schedule useless.
 func (a *Activities) OpenTrackingIssueActivity(ctx context.Context, title, body string) error {
 	if a.forgeAPI == "" {
 		a.log.WarnContext(
 			ctx,
-			"no forge configured — tracking issue not filed",
+			"no forge configured so tracking issue not filed",
 			slog.String("title", title),
 			slog.String("body", body),
 		)
@@ -56,15 +56,15 @@ func (a *Activities) OpenTrackingIssueActivity(ctx context.Context, title, body 
 	return a.openIssue(ctx, title, body)
 }
 
-// AuditCardinalityActivity: A report rather than a threshold: `ActiveSeriesNearCeiling` already alerts on the total,
-// and which labels are growing is a ranking (ADR-0500).
+// AuditCardinalityActivity is a report, not a threshold. `ActiveSeriesNearCeiling` already alerts on the total, and
+// the growing labels are a ranking, per ADR-0500.
 func (a *Activities) AuditCardinalityActivity(ctx context.Context) error {
 	a.log.InfoContext(ctx, "cardinality audit: not yet reading Prometheus")
 	return nil
 }
 
-// EraseServiceDataActivity: Per service rather than one query across every database (ADR-0301): each service owns its
-// schema, and the delete-versus-anonymise decision is per data class.
+// EraseServiceDataActivity runs per service, not as one query across every database, per ADR-0301. Each service owns
+// its schema, and the choice to delete or anonymise is per data class.
 func (a *Activities) EraseServiceDataActivity(ctx context.Context, service, identityID string) error {
 	a.log.InfoContext(ctx, "erase service data", "service", service, "identity", identityID)
 	return nil
@@ -75,14 +75,14 @@ func (a *Activities) EraseIdentityActivity(ctx context.Context, identityID strin
 	return nil
 }
 
-// EraseAuthzTuplesActivity: Last in the workflow: while the tuples exist the services can still answer questions
-// about the subject, which is what makes a failed run safe to retry.
+// EraseAuthzTuplesActivity runs last in the workflow. While the tuples exist, the services can still answer questions
+// about the subject, so a failed run is safe to retry.
 func (a *Activities) EraseAuthzTuplesActivity(ctx context.Context, identityID string) error {
 	a.log.InfoContext(ctx, "erase authz tuples", "identity", identityID)
 	return nil
 }
 
-// ExportSubjectDataActivity assembles a subject-access export and returns where it
+// ExportSubjectDataActivity builds a subject-access export and returns where it
 // was written.
 func (a *Activities) ExportSubjectDataActivity(ctx context.Context, identityID string) (string, error) {
 	a.log.InfoContext(ctx, "export subject data", "identity", identityID)
@@ -94,9 +94,9 @@ func (a *Activities) ApplyRetentionActivity(ctx context.Context) error {
 	return nil
 }
 
-// ComputeFunnelRollupActivity calls the service, not the database: the events are analytics' store, and a worker
-// holding a second connection to someone else's schema is the coupling the ownership rule prevents (ADR-0700).
-// Unlike the stubs above this has a real body, because the endpoint is east-west and reachable from this pod.
+// ComputeFunnelRollupActivity calls the service, not the database. The events are the analytics store. A worker with a
+// second connection to another service's schema is the coupling that the ownership rule prevents, per ADR-0700.
+// Unlike the stubs above, this has a real body, because this pod can reach the east-west endpoint.
 func (a *Activities) ComputeFunnelRollupActivity(
 	ctx context.Context, funnel string, from, to time.Time,
 ) error {
@@ -130,9 +130,9 @@ func (a *Activities) ComputeFunnelRollupActivity(
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// The response body is read on the error path and discarded otherwise. A
-	// rollup's result is a count this activity has nothing to do with — the record
-	// that it ran is the workflow's event history.
+	// The response body is read on the error path and dropped otherwise. A
+	// rollup's result is a count that this activity does not use. The workflow's
+	// event history records that it ran.
 	if resp.StatusCode != http.StatusOK {
 		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		return fmt.Errorf("analytics rollup %s: %s: %s", funnel, resp.Status, bytes.TrimSpace(detail))
@@ -141,32 +141,32 @@ func (a *Activities) ComputeFunnelRollupActivity(
 	return nil
 }
 
-// RestoreToScratchActivity: Stubbed, and the stub fails rather than succeeding quietly: a restore verification that
-// reports success without restoring anything converts "we do not know" into "we believe" (ADR-0207).
+// RestoreToScratchActivity is a stub, and the stub fails and does not succeed with no warning. A restore verification
+// that reports success with no restore turns an unknown state into a false belief, per ADR-0207.
 func (a *Activities) RestoreToScratchActivity(ctx context.Context) (string, error) {
 	a.log.ErrorContext(ctx, "restore verification is scheduled but not implemented")
 	return "", errors.New(
 		"RestoreToScratchActivity is not implemented: it must create a CNPG Cluster " +
-			"with a recovery bootstrap from the backup object store (ADR-0207)",
+			"with a recovery bootstrap from the backup object store, per ADR-0207",
 	)
 }
 
-// AssertRestoredRowCountsActivity checks the restored database is not merely
-// present but populated (ADR-0207).
+// AssertRestoredRowCountsActivity checks that the restored database exists and
+// also has data, per ADR-0207.
 func (a *Activities) AssertRestoredRowCountsActivity(ctx context.Context, namespace string) error {
 	a.log.ErrorContext(ctx, "restore assertion is scheduled but not implemented", "namespace", namespace)
 	return errors.New("AssertRestoredRowCountsActivity is not implemented")
 }
 
-// TeardownScratchRestoreActivity: A scratch namespace left behind holds a full copy of production data, so this
-// activity's failure is worth logging loudly even when the run otherwise succeeded.
+// TeardownScratchRestoreActivity: a scratch namespace that stays behind holds a full copy of production data. So log
+// this activity's failure clearly, even when the rest of the run succeeded.
 func (a *Activities) TeardownScratchRestoreActivity(ctx context.Context, namespace string) error {
 	a.log.ErrorContext(ctx, "scratch teardown is scheduled but not implemented", "namespace", namespace)
 	return errors.New("TeardownScratchRestoreActivity is not implemented")
 }
 
-// openIssue posts to the forge's issue API. Shared by every periodic obligation
-// that produces a task for a person rather than a change to the platform.
+// openIssue posts to the forge's issue API. Every periodic obligation that gives a
+// person a task, and not a change to the platform, uses it.
 func (a *Activities) openIssue(ctx context.Context, title, body string) error {
 	a.log.InfoContext(
 		ctx,
@@ -175,7 +175,6 @@ func (a *Activities) openIssue(ctx context.Context, title, body string) error {
 		slog.String("body", body),
 		slog.String("forge", a.forgeAPI),
 	)
-	// Not implemented against a specific forge: ADR-0102 is mid-migration, and GitHub and Forgejo differ in exactly this
-	// endpoint.
+	// It targets no specific forge, because GitHub and Forgejo differ in exactly this endpoint, per ADR-0102.
 	return fmt.Errorf("forge issue API not implemented for %s", a.forgeAPI)
 }

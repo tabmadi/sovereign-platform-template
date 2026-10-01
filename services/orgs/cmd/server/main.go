@@ -1,4 +1,4 @@
-// orgs — B2B multi-tenancy on top of Kratos identities (ADR-0304).
+// orgs provides B2B multi-tenancy on top of Kratos identities, per ADR-0304.
 package main
 
 import (
@@ -46,9 +46,9 @@ func run() error {
 	db := dbmw.MustOpen(ctx, os.Getenv("DATABASE_URL"))
 	defer db.Close()
 
-	// The webhook handler only enqueues the RegisterUser workflow; the worker
-	// (cmd/worker) runs the dual-write. The server still dials OpenFGA for the
-	// operator gate on the Update/Delete org mutations (ADR-0304).
+	// The webhook handler only enqueues the RegisterUser workflow, and the worker in
+	// cmd/worker runs the dual-write. The server still dials OpenFGA for the operator
+	// gate on the Update and Delete org mutations, per ADR-0304.
 	tc, err := temporalmw.NewClient(serviceName)
 	if err != nil {
 		return fmt.Errorf("temporal: %w", err)

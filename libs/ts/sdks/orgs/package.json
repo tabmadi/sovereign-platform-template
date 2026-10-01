@@ -2,7 +2,7 @@
   "name": "@sdks/orgs",
   "version": "0.0.0",
   "private": true,
-  "description": "Generated TypeScript client types for orgs (ADR-0303). Do not edit.",
+  "description": "Generated TypeScript client types for orgs, per ADR-0303. Do not edit.",
   "type": "module",
   "exports": {
     ".": "./index.d.ts"

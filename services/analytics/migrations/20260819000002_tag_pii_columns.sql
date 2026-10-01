@@ -1,16 +1,15 @@
 -- migrate:up
--- Every column, classified (ADR-0301, ADR-0700). The analytics store is the one
--- place on this platform where saying "no personal data here" would be false for
--- the whole table, so each column states its class and the ones that carry nothing
--- say so explicitly.
+-- Every column has a class, per ADR-0301 and ADR-0700. In the analytics store, a
+-- claim of no personal data would be false for the whole table. So each column
+-- states its class, and the columns with no personal data say so explicitly.
 comment on column events.session_id is 'pii:identifier';
 comment on column events.identity_id is 'pii:identifier';
--- The event's own fields. A funnel step's properties are written by first-party
--- code and are not meant to carry personal data — but the column cannot enforce
--- that, and a field a caller fills is a field that may hold anything.
+-- The event's own fields. First-party code writes a funnel step's properties, and
+-- they must not carry personal data. But the column cannot enforce that, and a
+-- field that a caller fills can hold anything.
 comment on column events.properties is 'pii:free_text';
--- A class, not a user agent. Tagged `device` because it is derived from one, which
--- is what an erasure request needs to know.
+-- A class, not a user agent. It is tagged `device` because it comes from a user
+-- agent, and an erasure request needs to know that.
 comment on column events.device_class is 'pii:device';
 comment on column events.name is 'pii:none';
 

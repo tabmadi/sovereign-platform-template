@@ -11,29 +11,29 @@ import (
 )
 
 type Querier interface {
-	// Rows in the events table from a point in time, for the deferral trigger watching the store's growth (ADR-0700).
-	// Bounded by `occurred_at`: `events` is partitioned by month, so a `count(*)` over everything would scan every
-	// month ever written, on every scrape.
+	// Rows in the events table from a point in time, for the deferral trigger that watches the store's growth, per
+	// ADR-0700. `occurred_at` limits it. `events` is partitioned by month, so a `count(*)` over all rows would scan
+	// every month ever written, on every scrape.
 	CountEventsSince(ctx context.Context, occurredAt pgtype.Timestamptz) (int64, error)
-	// Each session's first occurrence of each named step in the window; the caller walks them in definition order,
-	// because in SQL the query's shape would depend on the number of steps. `name = any($3::text[])` rather than a
-	// join: the funnels are committed configuration, not a table (infra/analytics/funnels.yaml).
+	// Each session's first occurrence of each named step in the window. The caller walks them in definition order,
+	// because in SQL the query's shape would depend on the number of steps. It uses `name = any($3::text[])` and not
+	// a join. The funnels are committed configuration in infra/analytics/funnels.yaml, not a table.
 	FunnelStepFirstSeen(ctx context.Context, arg FunnelStepFirstSeenParams) ([]FunnelStepFirstSeenRow, error)
 	GetConsent(ctx context.Context, sessionID string) (GetConsentRow, error)
-	// The panel's read: one funnel over a range of buckets, in bucket then step order,
-	// which is the order it renders.
+	// The panel's read: one funnel over a range of buckets, in bucket and then step
+	// order. The panel renders in this order.
 	GetFunnelRollup(ctx context.Context, arg GetFunnelRollupParams) ([]GetFunnelRollupRow, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) error
-	// One row per event name over a window with its distinct sessions — a plain aggregate, because the first
-	// question a panel answers is what is happening at all.
+	// One row per event name over a window, with its distinct sessions. It is a plain aggregate, because a panel
+	// first shows what is happening.
 	SummariseEvents(ctx context.Context, occurredAt pgtype.Timestamptz) ([]SummariseEventsRow, error)
-	// A decision replaces the previous one for the session and keeps the row, because
-	// withdrawal is a state rather than a deletion: erasing it would erase the evidence
-	// that consent was once given, which is what GDPR Art. 7(1) asks to be demonstrable.
+	// A decision replaces the previous one for the session and keeps the row. Withdrawal
+	// is a state and not a deletion. Erasing it would erase the evidence that consent
+	// was once given, and GDPR Art. 7(1) requires proof of that.
 	UpsertConsent(ctx context.Context, arg UpsertConsentParams) (UpsertConsentRow, error)
-	// Recomputing a bucket REPLACES it. A pass over a window that is still filling is
-	// therefore safe to re-run, and re-running is the normal case: the most recent
-	// bucket is always incomplete.
+	// A recompute REPLACES a bucket. So a pass over a window that is still filling is
+	// safe to run again. That is the normal case, because the most recent bucket is
+	// always incomplete.
 	UpsertFunnelRollup(ctx context.Context, arg UpsertFunnelRollupParams) error
 }
 

@@ -1,4 +1,4 @@
-// Package funnels loads the committed funnel definitions (ADR-0700).
+// Package funnels loads the committed funnel definitions, per ADR-0700.
 package funnels
 
 import (
@@ -22,8 +22,8 @@ type Set struct {
 	byID map[string]Funnel
 }
 
-// Load: Validation at load, not at use, so a malformed definition stops the service starting. A one-step funnel is a
-// count, and would report 100% conversion forever.
+// Load validates at load time, not at use, so a malformed definition stops the service from starting. A one-step
+// funnel is a count, and it would always report 100% conversion.
 func Load(path string) (*Set, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -45,14 +45,14 @@ func Load(path string) (*Set, error) {
 		}
 		if len(fn.Steps) < 2 {
 			return nil, fmt.Errorf(
-				"%s: funnel %q has %d steps; a funnel needs at least two",
+				"%s: funnel %q has %d steps, and a funnel needs at least two",
 				path,
 				fn.ID,
 				len(fn.Steps),
 			)
 		}
-		// A repeated step would count the same event twice and make the funnel
-		// appear to hold at 100% through the duplicate.
+		// A repeated step would count the same event twice. The funnel would then
+		// show 100% through the duplicate.
 		seen := make(map[string]bool, len(fn.Steps))
 		for _, step := range fn.Steps {
 			if seen[step] {

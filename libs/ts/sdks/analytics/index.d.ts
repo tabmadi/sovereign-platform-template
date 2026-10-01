@@ -28,7 +28,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Event counts over a window, the aggregate every funnel question starts from. */
+        /** @description Event counts over a window. Every funnel question starts from this aggregate. */
         get: operations["summariseEvents"];
         put?: never;
         post?: never;
@@ -45,15 +45,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Read a funnel's computed rollup, in bucket then step order. */
+        /** @description Read a funnel's computed rollup, in bucket and then step order. */
         get: operations["getFunnelRollup"];
         put?: never;
         /**
          * @description Recompute a funnel's rollup over a window, one bucket per day.
          *
-         *     Idempotent by construction: a bucket is replaced rather than added to, so
-         *     re-running over a window that is still filling is the normal case rather
-         *     than a hazard. The most recent bucket is always incomplete.
+         *     Idempotent by design: a bucket is replaced and not added to. So a new run
+         *     over a window that is still filling is normal and safe. The most recent
+         *     bucket is always incomplete.
          */
         post: operations["computeFunnelRollup"];
         delete?: never;
@@ -85,8 +85,8 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
-         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @description RFC 9457 problem details. Services and the edge both serve it as
+         *     `application/problem+json`, so a generated client has one error branch, not two.
          * @example {
          *       "type": "about:blank",
          *       "title": "Not Found",
@@ -98,42 +98,42 @@ export interface components {
         Problem: {
             /**
              * @description `about:blank`, except where two errors share a status code and a client
-             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+             *     URN. It is never a dereferenceable URL, which would put an error taxonomy into
              *     the flat public URL namespace.
              * @default about:blank
              * @example about:blank
              */
             type: string;
             /**
-             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @description A stable, human-readable summary. It does not change with the instance.
              * @example Not Found
              */
             title: string;
             /**
-             * @description The HTTP status, duplicated in the body.
+             * @description The HTTP status, repeated in the body.
              * @example 404
              */
             status: number;
             /**
-             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
-             *     an internal hostname.
+             * @description Specific to the instance and safe to show a user. Never a stack trace, a query,
+             *     or an internal hostname.
              * @example No product with that identifier.
              */
             detail?: string;
             /**
-             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
-             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @description The W3C Trace Context trace-id of the failing request, so an error that a user
+             *     reports leads to its trace. The active span supplies it, not the handler.
              * @example 4bf92f3577b34da6a3ce929d0e0e4736
              */
             trace_id?: string;
             /**
-             * @description Field-level validation failures, populated from the generated validator.
+             * @description Field-level validation failures, filled from the generated validator.
              *     Absent when the failure is not a validation failure.
              */
             errors?: {
                 /**
-                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @description RFC 6901 JSON Pointer to the member that failed.
                  * @example /price/amount
                  */
                 pointer: string;
@@ -149,7 +149,7 @@ export interface components {
             device_class?: "mobile" | "tablet" | "desktop" | "unknown";
             events: components["schemas"]["Event"][];
         };
-        /** @description One marketing event. The name carries no `marketing.` prefix — that is how the collector routed it, not what it is. */
+        /** @description One marketing event. The name has no `marketing.` prefix. The collector uses the prefix to route the event, and it is not part of the name. */
         Event: {
             name: string;
             /** Format: date-time */
@@ -167,7 +167,7 @@ export interface components {
          */
         RecordResult: {
             stored: number;
-            /** @description Events discarded for want of a recorded grant. A non-zero value here is a client emitting without consent, which is worth seeing. */
+            /** @description Events dropped because no grant is recorded. A non-zero value shows a client that emits without consent. */
             dropped: number;
         };
         /**
@@ -181,13 +181,13 @@ export interface components {
         EventSummary: {
             name: string;
             occurrences: number;
-            /** @description Distinct sessions, which is the number that answers "how many people" rather than "how many times". */
+            /** @description Distinct sessions. This number counts people, not times. */
             sessions: number;
         };
         /**
-         * @description The window to recompute, half-open. Bucketed by day, which is the only
-         *     bucket the panel asks for — an hourly funnel is noise at this platform's
-         *     volume, and a weekly one hides the day a release broke a step.
+         * @description The window to recompute, half-open. Buckets are one day, the only bucket
+         *     size that the panel uses. An hourly funnel is noise at this platform's
+         *     volume, and a weekly one hides the day when a release broke a step.
          * @example {
          *       "from": "2026-08-13T00:00:00Z",
          *       "to": "2026-08-20T00:00:00Z"
@@ -241,22 +241,22 @@ export interface components {
             /** Format: date-time */
             bucket_end: string;
             /**
-             * @description Sessions that reached this step IN ORDER — having reached every earlier
-             *     step first. A session that arrives at a later step directly is not
-             *     counted, because it did not traverse the funnel.
+             * @description Sessions that reached this step IN ORDER, after every earlier step. A
+             *     session that arrives at a later step directly is not counted, because it
+             *     did not traverse the funnel.
              */
             sessions: number;
         };
-        /** @description A consent decision, as it is recorded for later demonstration (GDPR Art. 7(1)). */
+        /** @description A consent decision, recorded so that it can be proved later, per GDPR Art. 7(1). */
         ConsentInput: {
             session_id: string;
             identity_id?: string;
             /** @enum {string} */
             state: "granted" | "withdrawn" | "refused";
-            /** @description The version of the purpose text shown. Consent is to a stated purpose, so a changed purpose is a new consent rather than a continuing one. */
+            /** @description The version of the purpose text shown. Consent is to a stated purpose, so a changed purpose is a new consent and not a continuing one. */
             purpose_version: string;
             /**
-             * @description `gpc` is a Global Privacy Control signal — a refusal nobody was prompted for.
+             * @description `gpc` is a Global Privacy Control signal: a refusal with no prompt.
              * @enum {string}
              */
             source: "control" | "gpc";
@@ -316,10 +316,10 @@ export interface operations {
         };
         responses: {
             /**
-             * @description Accepted. The count that was STORED, which is not necessarily the count
-             *     that was sent: an event whose session has no recorded consent is dropped
-             *     here (ADR-0700's second enforcement point), because the first one runs on
-             *     a client this platform does not control.
+             * @description Accepted. The count that was STORED, which can differ from the count that
+             *     was sent. An event whose session has no recorded consent is dropped here.
+             *     This is the second enforcement point of ADR-0700, because the first runs on
+             *     a client that this platform does not control.
              */
             202: {
                 headers: {

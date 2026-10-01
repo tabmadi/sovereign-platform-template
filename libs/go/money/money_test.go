@@ -41,8 +41,8 @@ func TestParseAndString(t *testing.T) {
 	}
 }
 
-// Precision the caller supplied must not be silently dropped: a rate with five
-// decimal places is a rate someone meant, and truncating it is a wrong total.
+// Precision that the caller gave must not be dropped with no error. A rate with
+// five decimal places is intended, and truncating it gives a wrong total.
 func TestParseRejectsExcessPrecision(t *testing.T) {
 	t.Parallel()
 
@@ -74,8 +74,8 @@ func TestCurrencyValidation(t *testing.T) {
 	}
 }
 
-// The property the type exists for. A mismatch is reachable from request data, so
-// it is an error rather than a panic.
+// This is the purpose of the type. Request data can cause a mismatch, so it is an
+// error and not a panic.
 func TestArithmeticRejectsCurrencyMismatch(t *testing.T) {
 	t.Parallel()
 
@@ -94,7 +94,7 @@ func TestArithmeticRejectsCurrencyMismatch(t *testing.T) {
 	if !errors.Is(err, money.ErrCurrencyMismatch) {
 		t.Errorf("Cmp across currencies = %v, want ErrCurrencyMismatch", err)
 	}
-	// Equal is the exception: the answer is simply false.
+	// Equal is the exception: the answer is false.
 	if eur.Equal(usd) {
 		t.Error("Equal returned true across currencies")
 	}
@@ -123,8 +123,8 @@ func TestAddAndSub(t *testing.T) {
 	}
 }
 
-// The operation a naive division gets wrong: the parts must sum back exactly, and
-// the indivisible remainder is money that has to land somewhere.
+// A naive division gets this wrong. The parts must sum back exactly, and the
+// remainder is money that must go to one part.
 func TestSplitSumsBackExactly(t *testing.T) {
 	t.Parallel()
 
@@ -160,15 +160,15 @@ func TestSplitSumsBackExactly(t *testing.T) {
 					}
 				}
 				if !total.Equal(original) {
-					t.Errorf("parts sum to %q, want %q — the remainder evaporated", total, original)
+					t.Errorf("parts sum to %q, want %q: the remainder is lost", total, original)
 				}
 			},
 		)
 	}
 }
 
-// HalfEven does not drift; HalfUp biases every tie away from zero, which across
-// many rows is a real sum rather than a rounding artefact.
+// HalfEven does not drift. HalfUp moves every tie away from zero, and over many
+// rows that bias adds up to a real sum.
 func TestRoundingModes(t *testing.T) {
 	t.Parallel()
 
@@ -179,8 +179,8 @@ func TestRoundingModes(t *testing.T) {
 		want     string
 		modeName string
 	}{
-		{one, halfOfUnit, money.HalfEven, "0", "HalfEven ties to even (0)"},
-		{"3.00", halfOfUnit, money.HalfEven, "0.0002", "HalfEven ties to even (2)"},
+		{one, halfOfUnit, money.HalfEven, "0", "HalfEven ties to even: 0"},
+		{"3.00", halfOfUnit, money.HalfEven, "0.0002", "HalfEven ties to even: 2"},
 		{one, halfOfUnit, money.HalfUp, "0.0001", "HalfUp ties away"},
 		{one, "0.00009", money.Down, "0", "Down truncates"},
 	}
@@ -222,8 +222,8 @@ func TestFromMinorUnits(t *testing.T) {
 	}
 }
 
-// The wire form is a string. A JSON number would be a double by the time a
-// TypeScript client read it, whatever the Go type is.
+// The wire form is a string. A TypeScript client reads a JSON number as a double,
+// whatever the Go type is.
 func TestJSONUsesAStringAmount(t *testing.T) {
 	t.Parallel()
 
@@ -282,15 +282,15 @@ func TestSQLRoundTrip(t *testing.T) {
 	}
 }
 
-// A float8 column is the schema defect ADR-0100 forbids. Accepting the scan would
-// make it invisible until a total came out wrong.
+// A float8 column is the schema defect that ADR-0100 forbids. Accepting the scan
+// hides it until a total comes out wrong.
 func TestScanRefusesAFloat(t *testing.T) {
 	t.Parallel()
 
 	var a money.Amount
 	err := a.Scan(1299.75)
 	if err == nil {
-		t.Fatal("Scan accepted a float64; the column must be numeric")
+		t.Fatal("Scan accepted a float64, but the column must be numeric")
 	}
 }
 

@@ -7,18 +7,18 @@ import (
 )
 
 type EraseSubjectInput struct {
-	// IdentityID is the Kratos identity — the `user:<id>` subject every store keys
-	// personal data by.
+	// IdentityID is the Kratos identity: the `user:<id>` subject that every store uses
+	// as the key for personal data.
 	IdentityID string
 }
 
-// EraseSubject runs a right-to-erasure request across every store holding the subject's data (GDPR Art. 17).
-// The authz tuples go last: while they exist the services can still answer questions about the subject, which is
-// what lets a failed run be retried. Each store is its own activity, so a failure names the store that failed.
+// EraseSubject runs a right-to-erasure request across every store with the subject's data, per GDPR Art. 17.
+// The authz tuples go last. While they exist, the services can still answer questions about the subject, so a failed
+// run can be retried. Each store is its own activity, so a failure names the store that failed.
 func EraseSubject(ctx workflow.Context, in EraseSubjectInput) error {
 	ctx = activityOptions(ctx)
 
-	// Each activity decides delete-versus-anonymise from the column's declared class. That decision is per category and
+	// Each activity chooses to delete or anonymise from the column's declared class. That choice is per category and
 	// never per request, because a request that could choose could erase an audit obligation.
 	for _, service := range []string{"orgs", "orders", "payment", "catalog", "analytics"} {
 		err := workflow.ExecuteActivity(ctx, "EraseServiceDataActivity", service, in.IdentityID).
@@ -28,7 +28,7 @@ func EraseSubject(ctx workflow.Context, in EraseSubjectInput) error {
 		}
 	}
 
-	// The identity itself, which is what makes the subject unable to sign in again.
+	// The identity itself. Its erasure stops the subject from signing in again.
 	err := workflow.ExecuteActivity(ctx, "EraseIdentityActivity", in.IdentityID).Get(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("erase subject: identity: %w", err)
@@ -42,8 +42,9 @@ func EraseSubject(ctx workflow.Context, in EraseSubjectInput) error {
 	return nil
 }
 
-// ExportSubject reads the same stores erasure writes, in the same order (GDPR Art. 15 and 20, ADR-0301): the tuples
-// describe what the subject could reach, and reading them first would describe a state the export does not match.
+// ExportSubject reads the same stores that erasure writes, in the same order, per GDPR Art. 15 and 20 and ADR-0301.
+// The tuples describe what the subject could reach. Reading them first would describe a state that the export does
+// not match.
 func ExportSubject(ctx workflow.Context, in EraseSubjectInput) (string, error) {
 	ctx = activityOptions(ctx)
 	var location string
@@ -55,8 +56,8 @@ func ExportSubject(ctx workflow.Context, in EraseSubjectInput) (string, error) {
 	return location, nil
 }
 
-// RetentionPass: Driven by the registry rather than a list here (ADR-0301): docs/reference/data-classes.md is
-// generated from the migrations' tags, so a newly tagged column is covered without anyone adding it.
+// RetentionPass reads the registry and not a list here, per ADR-0301. docs/reference/data-classes.md is generated
+// from the migrations' tags, so a newly tagged column is covered and nobody needs to add it.
 func RetentionPass(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
 	err := workflow.ExecuteActivity(ctx, "ApplyRetentionActivity").Get(ctx, nil)

@@ -10,14 +10,15 @@ import (
 type Handler interface {
 	// CancelOrder implements cancelOrder operation.
 	//
-	// Cancel an order. Starts the CancelOrder workflow (ADR-0302).
+	// Cancel an order. Starts the CancelOrder workflow, per ADR-0302.
 	//
 	// POST /orders/{id}/cancel
 	CancelOrder(ctx context.Context, params CancelOrderParams) (*WorkflowHandle, error)
 	// Checkout implements checkout operation.
 	//
-	// Starts the Checkout Temporal saga (ADR-0302). Idempotent on the Idempotency-Key header: a retry of
-	// the same request returns the order the first one created rather than placing a second.
+	// Starts the Checkout Temporal saga, per ADR-0302. It is idempotent on the Idempotency-Key header: a
+	// retry of the same request returns the order that the first one created and does not place a second
+	// order.
 	//
 	// POST /orders
 	Checkout(ctx context.Context, req *CheckoutInput, params CheckoutParams) (*WorkflowHandle, error)

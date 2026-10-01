@@ -18,13 +18,13 @@ func (*AuthorizeOK) authorizeRes() {}
 // The remote_json payload Oathkeeper POSTs per ops-dashboard request.
 // Ref: #/components/schemas/AuthorizeRequest
 type AuthorizeRequest struct {
-	// Kratos identity id; empty for anonymous.
+	// Kratos identity id. Empty for an anonymous caller.
 	Subject string `json:"subject"`
 	// Ops dashboard slug such as grafana or hubble.
 	Tool string `json:"tool"`
 	// Authenticator_assurance_level from the session.
 	Aal string `json:"aal"`
-	// The identity's metadata_public.operator flag; "true" when set.
+	// The identity's metadata_public.operator flag. It is `true` when set.
 	Operator string `json:"operator"`
 }
 
@@ -143,8 +143,8 @@ func (s *Identity) SetOperator(val OptBool) {
 	s.Operator = val
 }
 
-// The editable fields of an identity. Email is the login identifier and is not editable here; operator
-// promotes or demotes through a dual write (ADR-0304).
+// The editable fields of an identity. Email is the login identifier and is not editable here. operator
+// promotes or demotes through a dual write, per ADR-0304.
 // Ref: #/components/schemas/IdentityUpdate
 type IdentityUpdate struct {
 	Name     OptString `json:"name"`
@@ -309,25 +309,26 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
-// RFC 9457 problem details. Served as `application/problem+json` by services and by the edge alike, so
-// a generated client has one error branch rather than two.
+// RFC 9457 problem details. Services and the edge both serve it as `application/problem+json`, so a
+// generated client has one error branch, not two.
 // Ref: #/components/schemas/Problem
 type Problem struct {
 	// `about:blank`, except where two errors share a status code and a client handles them differently.
-	// That case takes a `urn:problem-type:<service>:<slug>` URN — never a dereferenceable URL, which
+	// That case uses a `urn:problem-type:<service>:<slug>` URN. It is never a dereferenceable URL, which
 	// would put an error taxonomy into the flat public URL namespace.
 	Type string `json:"type"`
-	// A stable, human-readable summary. Does not vary with the instance.
+	// A stable, human-readable summary. It does not change with the instance.
 	Title string `json:"title"`
-	// The HTTP status, duplicated in the body.
+	// The HTTP status, repeated in the body.
 	Status int `json:"status"`
-	// Instance-specific and safe to show a user. Never a stack trace, a query, or an internal hostname.
+	// Specific to the instance and safe to show a user. Never a stack trace, a query, or an internal
+	// hostname.
 	Detail OptString `json:"detail"`
-	// The W3C Trace Context trace-id of the failing request, so a user-reported error reaches its trace.
-	// Supplied from the active span, not by the handler.
+	// The W3C Trace Context trace-id of the failing request, so an error that a user reports leads to its
+	// trace. The active span supplies it, not the handler.
 	TraceID OptString `json:"trace_id"`
-	// Field-level validation failures, populated from the generated validator. Absent when the failure is
-	// not a validation failure.
+	// Field-level validation failures, filled from the generated validator. Absent when the failure is not
+	// a validation failure.
 	Errors []ProblemErrorsItem `json:"errors"`
 }
 
@@ -394,7 +395,7 @@ func (s *Problem) SetErrors(val []ProblemErrorsItem) {
 func (*Problem) authorizeRes() {}
 
 type ProblemErrorsItem struct {
-	// RFC 6901 JSON Pointer to the offending member.
+	// RFC 6901 JSON Pointer to the member that failed.
 	Pointer string `json:"pointer"`
 	Message string `json:"message"`
 }
@@ -422,11 +423,11 @@ func (s *ProblemErrorsItem) SetMessage(val string) {
 // A single OpenFGA relation question, in the model's own vocabulary.
 // Ref: #/components/schemas/RelationCheck
 type RelationCheck struct {
-	// The subject, prefixed by its type — `user:<identity-id>`.
+	// The subject, with its type as a prefix: `user:<identity-id>`.
 	Subject string `json:"subject"`
 	// The relation to test.
 	Relation string `json:"relation"`
-	// The object, prefixed by its type — `analytics_panel:funnels`.
+	// The object, with its type as a prefix: `analytics_panel:funnels`.
 	Object string `json:"object"`
 }
 

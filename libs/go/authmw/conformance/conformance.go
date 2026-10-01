@@ -1,4 +1,4 @@
-// Package conformance exercises the edge→service identity contract (ADR-0305, ADR-0304).
+// Package conformance tests the identity contract from the edge to a service, per ADR-0305 and ADR-0304.
 package conformance
 
 import (
@@ -36,7 +36,7 @@ func Fixtures() ([]Fixture, error) {
 	return fs, nil
 }
 
-// RoleAllowed is the hermetic stand-in for the OpenFGA Checker (ADR-0304); real services delegate to libs/go/authz.
+// RoleAllowed is the hermetic stand-in for the OpenFGA Checker, per ADR-0304. Real services delegate to libs/go/authz.
 func RoleAllowed(p *authmw.Principal, requiredRole string) bool {
 	return p.Authenticated() && p.HasRole(requiredRole)
 }

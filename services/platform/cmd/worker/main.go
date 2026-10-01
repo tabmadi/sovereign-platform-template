@@ -1,4 +1,4 @@
-// The platform worker (ADR-0302, ADR-0301).
+// The platform worker, per ADR-0302 and ADR-0301.
 package main
 
 import (
@@ -25,8 +25,8 @@ func main() {
 	}
 }
 
-// No database and no OpenFGA client. This worker owns no schema — every store it
-// touches belongs to someone else, and it reaches them through activities.
+// No database and no OpenFGA client. This worker owns no schema. Every store it
+// uses belongs to another service, and it reaches them through activities.
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

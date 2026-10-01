@@ -30,8 +30,8 @@ func trimTrailingSlashes(u *url.URL) {
 type Invoker interface {
 	// CreateCharge invokes createCharge operation.
 	//
-	// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
-	// (ADR-0302).
+	// Starts the Charge Temporal workflow. It is idempotent on the Idempotency-Key header. Returns a
+	// workflow handle, per ADR-0302.
 	//
 	// POST /charges
 	CreateCharge(ctx context.Context, request *ChargeInput, params CreateChargeParams) (*WorkflowHandle, error)
@@ -49,7 +49,7 @@ type Invoker interface {
 	ListCharges(ctx context.Context) ([]Charge, error)
 	// RefundCharge invokes refundCharge operation.
 	//
-	// Refund a settled charge. Starts the Refund workflow (ADR-0302).
+	// Refund a settled charge. Starts the Refund workflow, per ADR-0302.
 	//
 	// POST /charges/{id}/refund
 	RefundCharge(ctx context.Context, request *RefundInput, params RefundChargeParams) (*WorkflowHandle, error)
@@ -96,8 +96,8 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 
 // CreateCharge invokes createCharge operation.
 //
-// Starts the Charge Temporal workflow. Idempotent on Idempotency-Key header. Returns a workflow handle
-// (ADR-0302).
+// Starts the Charge Temporal workflow. It is idempotent on the Idempotency-Key header. Returns a
+// workflow handle, per ADR-0302.
 //
 // POST /charges
 func (c *Client) CreateCharge(ctx context.Context, request *ChargeInput, params CreateChargeParams) (*WorkflowHandle, error) {
@@ -375,7 +375,7 @@ func (c *Client) sendListCharges(ctx context.Context) (res []Charge, err error) 
 
 // RefundCharge invokes refundCharge operation.
 //
-// Refund a settled charge. Starts the Refund workflow (ADR-0302).
+// Refund a settled charge. Starts the Refund workflow, per ADR-0302.
 //
 // POST /charges/{id}/refund
 func (c *Client) RefundCharge(ctx context.Context, request *RefundInput, params RefundChargeParams) (*WorkflowHandle, error) {

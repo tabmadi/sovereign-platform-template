@@ -1,16 +1,16 @@
-// Package buildinfo exposes the identity of the running binary — git SHA, release version, build time — so what is
-// deployed is answered from the artifact (ADR-0103).
+// Package buildinfo exposes the identity of the running binary: git SHA, release version, and build time. The
+// artifact then states what is deployed, per ADR-0103.
 package buildinfo
 
 import "runtime/debug"
 
-// Set via -ldflags "-X .../libs/go/buildinfo.SHA=<sha> ...". Do not assign at runtime.
+// The build sets these with `-ldflags "-X .../libs/go/buildinfo.SHA=<sha>"`. Do not assign them at runtime.
 var (
-	// Version is the release tag (CalVer, ADR-0103), e.g. v2026.07.0; "dev" off-release.
+	// Version is the CalVer release tag, per ADR-0103, for example `v2026.07.0`. It is `dev` outside a release.
 	Version = "dev"
 	// SHA is the git commit the binary was built from.
 	SHA = ""
-	// BuiltAt is the build timestamp (RFC 3339).
+	// BuiltAt is the build timestamp in RFC 3339 format.
 	BuiltAt = ""
 )
 

@@ -1,9 +1,6 @@
-// The generated schemas, exercised (ADR-0400, ADR-0601).
-//
-// These tests are deliberately about the GENERATOR rather than about zod. Each
-// one asserts a property that a weaker generator would silently lose — and losing
-// it produces a form that accepts what the API refuses, which is a defect nothing
-// else in the pipeline can see.
+// These tests check the generator, not zod, per ADR-0400 and ADR-0601. Each one asserts a property that a
+// weaker generator loses without an error. The form then accepts what the API refuses, and nothing else in
+// the pipeline sees that defect.
 import { describe, expect, test } from "bun:test";
 
 import { createProductSchema, moneySchema } from "./catalog";

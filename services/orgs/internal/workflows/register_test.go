@@ -13,8 +13,8 @@ import (
 
 const testID = "id_1"
 
-// registerEnv registers stub activities under the names RegisterUser executes, so
-// the test env resolves and mocks them without the real orgs DB / OpenFGA writer.
+// registerEnv registers stub activities under the names that RegisterUser runs. The
+// test env then resolves and mocks them without the real orgs DB or OpenFGA writer.
 func registerEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnvironment {
 	env := ts.NewTestWorkflowEnvironment()
 	env.RegisterActivityWithOptions(
@@ -73,8 +73,8 @@ func TestRegisterUserWorkflow(t *testing.T) {
 		},
 	)
 
-	// The identity is where X-Org-Id comes from (ADR-0304), so an org the edge never
-	// learns about is the same as no org at all — the workflow has to fail on it.
+	// X-Org-Id comes from the identity, per ADR-0304. An org that the edge never
+	// learns about is the same as no org, so the workflow must fail on it.
 	t.Run(
 		"identity metadata failure fails the workflow",
 		func(t *testing.T) {

@@ -11,8 +11,8 @@ import (
 	"go.temporal.io/sdk/testsuite"
 )
 
-// cancelEnv registers a stub MarkOrderStatusActivity under the name CancelOrder
-// executes, so the test env resolves and mocks it without the real store.
+// cancelEnv registers a stub MarkOrderStatusActivity under the name that CancelOrder
+// runs. The test env then resolves and mocks it without the real store.
 func cancelEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnvironment {
 	env := ts.NewTestWorkflowEnvironment()
 	env.RegisterActivityWithOptions(

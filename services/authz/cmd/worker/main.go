@@ -1,4 +1,4 @@
-// Temporal worker for authz.SetOperator — the operator promotion and demotion dual write (ADR-0302, ADR-0304).
+// Temporal worker for authz.SetOperator: the operator promotion and demotion dual write, per ADR-0302 and ADR-0304.
 package main
 
 import (
@@ -26,8 +26,8 @@ func main() {
 	}
 }
 
-// No database. authz owns no schema — its state is Kratos identities and OpenFGA
-// tuples — so this worker is the one on the platform that opens no pool.
+// No database. authz owns no schema: its state is Kratos identities and OpenFGA
+// tuples. So this worker is the one on the platform that opens no pool.
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

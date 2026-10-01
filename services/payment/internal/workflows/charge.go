@@ -1,5 +1,5 @@
-// Package workflows holds the Charge workflow: an idempotent activity sequence with compensation on failure, settled
-// by a mock processor (ADR-0302).
+// Package workflows holds the Charge workflow: an idempotent activity sequence with compensation on failure. A mock
+// processor settles it, per ADR-0302.
 package workflows
 
 import (
@@ -12,7 +12,7 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/money"
 )
 
-// statusFailed is the terminal status of a charge the workflow could not complete.
+// statusFailed is the terminal status of a charge that the workflow could not complete.
 const statusFailed = "failed"
 
 type ChargeInput struct {
@@ -22,11 +22,11 @@ type ChargeInput struct {
 }
 
 type ChargeResult struct {
-	Status string // "settled" | "failed"
+	Status string // `settled` or `failed`
 }
 
-// Charge is the workflow body. Activities are looked up by name string so this
-// file can compile without depending on the activities package.
+// Charge is the workflow body. Activities are looked up by name string, so this
+// file compiles without the activities package.
 func Charge(ctx workflow.Context, in ChargeInput) (ChargeResult, error) {
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: 15 * time.Second,
@@ -34,9 +34,9 @@ func Charge(ctx workflow.Context, in ChargeInput) (ChargeResult, error) {
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	// The tuple that makes the charge readable comes first, before anything that can fail: `charge#read` resolves
-	// through the order, so this is what lets the buyer see a charge that did not settle. The row itself is inserted
-	// by the handler, because payment's deduplication key is a client header enforced by a unique constraint.
+	// The tuple that makes the charge readable comes first, before anything that can fail. `charge#read` resolves
+	// through the order, so the buyer can see a charge that did not settle. The handler inserts the row, because
+	// payment's deduplication key is a client header that a unique constraint enforces.
 	err := workflow.ExecuteActivity(ctx, "GrantChargeAccessActivity", in.ChargeID, in.OrderID).Get(ctx, nil)
 	if err != nil {
 		return ChargeResult{Status: statusFailed}, fmt.Errorf("charge: grant charge access: %w", err)

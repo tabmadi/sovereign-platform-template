@@ -1,15 +1,15 @@
 openapi: 3.1.0
 info: { title: analytics, version: 0.1.0, description: Marketing event store and consent record., x-audience: cluster }
-servers: [{ url: /api }]   # flat resource namespace (ADR-0306); paths are globally unique
-# `x-audience: cluster` — east-west only, with no /api edge route (ADR-0303): a public write path to the event
-# store would be an unauthenticated way to fill the table.
-# No `x-admin` marker: ADR-0700 puts the panel on the product origin, not in the operator console.
+servers: [{ url: /api }]   # flat resource namespace, per ADR-0306. Paths are globally unique
+# `x-audience: cluster` means east-west only, with no /api edge route, per ADR-0303. A public write path to the
+# event store would let anyone fill the table without authentication.
+# No `x-admin` marker, because ADR-0700 puts the panel on the product origin, not in the operator console.
 tags: [{ name: analytics }, { name: consent }]
 paths:
   /analytics/events:
     post:
       operationId: recordEvents
-      # Written by the collector's routing connector, never by a browser (ADR-0700), which is what keeps marketing events out of Loki.
+      # The collector's routing connector writes this, never a browser, per ADR-0700. This keeps marketing events out of Loki.
       description: Record a batch of marketing events.
       tags: [analytics]
       requestBody:
@@ -19,16 +19,16 @@ paths:
       responses:
         "202":
           description: |
-            Accepted. The count that was STORED, which is not necessarily the count
-            that was sent: an event whose session has no recorded consent is dropped
-            here (ADR-0700's second enforcement point), because the first one runs on
-            a client this platform does not control.
+            Accepted. The count that was STORED, which can differ from the count that
+            was sent. An event whose session has no recorded consent is dropped here.
+            This is the second enforcement point of ADR-0700, because the first runs on
+            a client that this platform does not control.
           content: { application/json: { schema: { $ref: "#/components/schemas/RecordResult" } } }
         default: { $ref: "#/components/responses/Error" }
   /analytics/summary:
     get:
       operationId: summariseEvents
-      description: Event counts over a window, the aggregate every funnel question starts from.
+      description: Event counts over a window. Every funnel question starts from this aggregate.
       tags: [analytics]
       parameters:
         - name: since
@@ -44,7 +44,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/EventSummary" }
-                # Served verbatim by the API mock (ADR-0600).
+                # The API mock serves this exactly as written, per ADR-0600.
                 example:
                   - { name: signup.started, occurrences: 128, sessions: 96 }
                   - { name: signup.completed, occurrences: 71, sessions: 68 }
@@ -52,13 +52,13 @@ paths:
   /analytics/funnels/{funnel}/rollup:
     post:
       operationId: computeFunnelRollup
-      # Driven by a Temporal Schedule (ADR-0302), and it belongs here because the events are this service's store and no other service reads it directly.
+      # A Temporal Schedule calls this, per ADR-0302. It belongs here, because the events are this service's store and no other service reads it directly.
       description: |
         Recompute a funnel's rollup over a window, one bucket per day.
 
-        Idempotent by construction: a bucket is replaced rather than added to, so
-        re-running over a window that is still filling is the normal case rather
-        than a hazard. The most recent bucket is always incomplete.
+        Idempotent by design: a bucket is replaced and not added to. So a new run
+        over a window that is still filling is normal and safe. The most recent
+        bucket is always incomplete.
       tags: [analytics]
       parameters:
         - name: funnel
@@ -77,7 +77,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     get:
       operationId: getFunnelRollup
-      description: Read a funnel's computed rollup, in bucket then step order.
+      description: Read a funnel's computed rollup, in bucket and then step order.
       tags: [analytics]
       parameters:
         - { name: funnel, in: path, required: true, description: The funnel's id., schema: { type: string, minLength: 1 } }
@@ -122,7 +122,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
-    # >>> shared-components: responses — generated from tools/codegen/shared-components.yaml, do not edit
+    # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
     Error:
       description: An error, as RFC 9457 problem details.
       content:
@@ -130,53 +130,52 @@ components:
           schema: {$ref: "#/components/schemas/Problem"}
     # <<< shared-components
   schemas:
-    # >>> shared-components: schemas — generated from tools/codegen/shared-components.yaml, do not edit
-    # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
-    # identifies the occurrence, and it reaches the trace where an instance URL
-    # reaches nothing.
+    # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
+    # RFC 9457 problem details. `instance` is absent on purpose: `trace_id` identifies the occurrence and leads to the trace.
+    # An instance URL leads nowhere.
     Problem:
       type: object
       description: |
-        RFC 9457 problem details. Served as `application/problem+json` by services and
-        by the edge alike, so a generated client has one error branch rather than two.
+        RFC 9457 problem details. Services and the edge both serve it as
+        `application/problem+json`, so a generated client has one error branch, not two.
       required: [type, title, status]
       properties:
         type:
           type: string
           description: |
             `about:blank`, except where two errors share a status code and a client
-            handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-            URN — never a dereferenceable URL, which would put an error taxonomy into
+            handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+            URN. It is never a dereferenceable URL, which would put an error taxonomy into
             the flat public URL namespace.
           default: "about:blank"
           example: "about:blank"
         title:
           type: string
-          description: A stable, human-readable summary. Does not vary with the instance.
+          description: A stable, human-readable summary. It does not change with the instance.
           example: Not Found
         status:
           type: integer
-          description: The HTTP status, duplicated in the body.
+          description: The HTTP status, repeated in the body.
           minimum: 100
           maximum: 599
           example: 404
         detail:
           type: string
           description: |
-            Instance-specific and safe to show a user. Never a stack trace, a query, or
-            an internal hostname.
+            Specific to the instance and safe to show a user. Never a stack trace, a query,
+            or an internal hostname.
           example: No product with that identifier.
         trace_id:
           type: string
           description: |
-            The W3C Trace Context trace-id of the failing request, so a user-reported
-            error reaches its trace. Supplied from the active span, not by the handler.
+            The W3C Trace Context trace-id of the failing request, so an error that a user
+            reports leads to its trace. The active span supplies it, not the handler.
           pattern: "^[0-9a-f]{32}$"
           example: 4bf92f3577b34da6a3ce929d0e0e4736
         errors:
           type: array
           description: |
-            Field-level validation failures, populated from the generated validator.
+            Field-level validation failures, filled from the generated validator.
             Absent when the failure is not a validation failure.
           items:
             type: object
@@ -184,7 +183,7 @@ components:
             properties:
               pointer:
                 type: string
-                description: RFC 6901 JSON Pointer to the offending member.
+                description: RFC 6901 JSON Pointer to the member that failed.
                 example: /price/amount
               message:
                 type: string
@@ -209,7 +208,7 @@ components:
           items: { $ref: "#/components/schemas/Event" }
     Event:
       type: object
-      description: One marketing event. The name carries no `marketing.` prefix — that is how the collector routed it, not what it is.
+      description: One marketing event. The name has no `marketing.` prefix. The collector uses the prefix to route the event, and it is not part of the name.
       required: [name, occurred_at]
       properties:
         name: { type: string, minLength: 1 }
@@ -223,7 +222,7 @@ components:
         stored: { type: integer }
         dropped:
           type: integer
-          description: Events discarded for want of a recorded grant. A non-zero value here is a client emitting without consent, which is worth seeing.
+          description: Events dropped because no grant is recorded. A non-zero value shows a client that emits without consent.
       example: { stored: 3, dropped: 0 }
     EventSummary:
       type: object
@@ -234,14 +233,14 @@ components:
         occurrences: { type: integer }
         sessions:
           type: integer
-          description: Distinct sessions, which is the number that answers "how many people" rather than "how many times".
+          description: Distinct sessions. This number counts people, not times.
       example: { name: signup.started, occurrences: 128, sessions: 96 }
     RollupWindow:
       type: object
       description: |
-        The window to recompute, half-open. Bucketed by day, which is the only
-        bucket the panel asks for — an hourly funnel is noise at this platform's
-        volume, and a weekly one hides the day a release broke a step.
+        The window to recompute, half-open. Buckets are one day, the only bucket
+        size that the panel uses. An hourly funnel is noise at this platform's
+        volume, and a weekly one hides the day when a release broke a step.
       required: [from, to]
       properties:
         from: { type: string, format: date-time, description: Inclusive start. }
@@ -269,13 +268,13 @@ components:
         sessions:
           type: integer
           description: |
-            Sessions that reached this step IN ORDER — having reached every earlier
-            step first. A session that arrives at a later step directly is not
-            counted, because it did not traverse the funnel.
+            Sessions that reached this step IN ORDER, after every earlier step. A
+            session that arrives at a later step directly is not counted, because it
+            did not traverse the funnel.
       example: { funnel: checkout, step_index: 0, step_name: product_viewed, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 412 }
     ConsentInput:
       type: object
-      description: A consent decision, as it is recorded for later demonstration (GDPR Art. 7(1)).
+      description: A consent decision, recorded so that it can be proved later, per GDPR Art. 7(1).
       required: [session_id, state, purpose_version, source]
       properties:
         session_id: { type: string, minLength: 1 }
@@ -284,11 +283,11 @@ components:
         purpose_version:
           type: string
           minLength: 1
-          description: The version of the purpose text shown. Consent is to a stated purpose, so a changed purpose is a new consent rather than a continuing one.
+          description: The version of the purpose text shown. Consent is to a stated purpose, so a changed purpose is a new consent and not a continuing one.
         source:
           type: string
           enum: [control, gpc]
-          description: "`gpc` is a Global Privacy Control signal — a refusal nobody was prompted for."
+          description: "`gpc` is a Global Privacy Control signal: a refusal with no prompt."
     Consent:
       type: object
       description: A recorded consent decision.
@@ -300,7 +299,7 @@ components:
         purpose_version: { type: string }
         source: { type: string, enum: [control, gpc] }
         decided_at: { type: string, format: date-time }
-      # A `gpc` refusal is the honest example: the visitor was never prompted, which
-      # is the point of honouring the signal (ADR-0700).
+      # A `gpc` refusal is the accurate example. The visitor never saw a prompt, and
+      # that is the purpose of honouring the signal, per ADR-0700.
       example:
         { session_id: 4f3b9c22, state: refused, purpose_version: "2026-08-01", source: gpc, decided_at: "2026-08-19T10:00:00Z" }

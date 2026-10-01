@@ -1,5 +1,5 @@
-// Package httpmw provides the default HTTP middleware: a tracing span, RED metrics, and a structured access log
-// (ADR-0500).
+// Package httpmw provides the default HTTP middleware: a tracing span, RED metrics, and a structured access log,
+// per ADR-0500.
 package httpmw
 
 import (
@@ -14,17 +14,17 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/buildinfo"
 )
 
-// Chain wraps h with tracing, RED metrics, and access logging. RED is owned by otelhttp's stable
-// http.server.request.duration histogram, which the dashboards and the availability alert read.
-// otelhttp must wrap access, not the reverse: it creates the server span the access log reads to stamp trace_id.
+// Chain wraps h with tracing, RED metrics, and access logging. otelhttp's stable http.server.request.duration
+// histogram owns RED, and the dashboards and the availability alert read it. otelhttp must wrap access, not the
+// reverse: it creates the server span that the access log reads to add trace_id.
 func Chain(h http.Handler, serviceName string) http.Handler {
 	traced := otelhttp.NewHandler(access(h), "http", otelhttp.WithServerName(serviceName))
 	return version(traced)
 }
 
-// version stamps the running binary's identity on every response (ADR-0103), so a
-// client — the frontend, a curl, DevOps — can confirm which build answered without
-// trusting the deploy pipeline. Set outermost so the headers land before any write.
+// version adds the running binary's identity to every response, per ADR-0103. A client,
+// such as the frontend, a curl, or DevOps, can then confirm which build answered without
+// trusting the deploy pipeline. It is outermost, so the headers are set before any write.
 func version(next http.Handler) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
@@ -62,9 +62,9 @@ func access(next http.Handler) http.Handler {
 	)
 }
 
-// ListenAddr is ":8080" in-cluster — the chart's containerPort, the edge IngressRoute and the NetworkPolicies
-// all assume it. PORT overrides it for host-native runs, where each service binds its registered port
-// (scripts/lib/ports.sh, ADR-0205) so more than one can run at a time.
+// ListenAddr is `:8080` in the cluster. The chart's containerPort, the edge IngressRoute, and the NetworkPolicies
+// all assume it. PORT overrides it for host-native runs. There each service binds its registered port from
+// scripts/lib/ports.sh, per ADR-0205, so more than one service can run at a time.
 func ListenAddr() string {
 	p := os.Getenv("PORT")
 	if p != "" {

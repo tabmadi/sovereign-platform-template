@@ -11,7 +11,7 @@ import (
 )
 
 type Querier interface {
-	// The order starts at a zero total; the saga sets it once the price is known.
+	// The order starts with a zero total. The saga sets it when the price is known.
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error)
 	GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, error)
 	GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.Text) (GetOrderByIdempotencyKeyRow, error)

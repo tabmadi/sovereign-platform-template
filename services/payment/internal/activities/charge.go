@@ -21,8 +21,8 @@ func New(db *pgxpool.Pool, granter authz.Granter) *Activities {
 	return &Activities{DB: db, Granter: granter}
 }
 
-// GrantChargeAccessActivity: The OpenFGA leg of the charge write (ADR-0304). One tuple: `charge#read` is `read from
-// order`, so a change to who may read an order cannot leave the charge behind.
+// GrantChargeAccessActivity is the OpenFGA leg of the charge write, per ADR-0304. It writes one tuple. `charge#read`
+// is `read from order`, so a change to who may read an order also applies to the charge.
 func (a *Activities) GrantChargeAccessActivity(ctx context.Context, chargeID, orderID string) error {
 	err := a.Granter.Grant(ctx, "order:"+orderID, "order", "charge:"+chargeID)
 	if err != nil {
@@ -36,7 +36,7 @@ func (a *Activities) SettleActivity(_ context.Context, _ workflows.ChargeInput) 
 func (a *Activities) RefundActivity(_ context.Context, _ workflows.RefundInput) error { return nil }
 
 // MarkChargeStatusActivity writes the terminal status of a charge. The workflow
-// carries the wire form, and the column holds the bare uuid (ADR-0003), so this is
+// carries the wire form, and the column holds the bare uuid, per ADR-0003. This is
 // where the two meet.
 func (a *Activities) MarkChargeStatusActivity(ctx context.Context, chargeID, status string) error {
 	parsed, err := id.Parse("charge", chargeID)

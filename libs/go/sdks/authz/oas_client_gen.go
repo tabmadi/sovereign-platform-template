@@ -48,7 +48,7 @@ type Invoker interface {
 	GetIdentity(ctx context.Context, params GetIdentityParams) (*Identity, error)
 	// ListIdentities invokes listIdentities operation.
 	//
-	// List identities (product users and operators) from Kratos, paginated.
+	// List identities from Kratos, both product users and operators, paginated.
 	//
 	// GET /identities
 	ListIdentities(ctx context.Context, params ListIdentitiesParams) ([]Identity, error)
@@ -365,7 +365,7 @@ func (c *Client) sendGetIdentity(ctx context.Context, params GetIdentityParams) 
 
 // ListIdentities invokes listIdentities operation.
 //
-// List identities (product users and operators) from Kratos, paginated.
+// List identities from Kratos, both product users and operators, paginated.
 //
 // GET /identities
 func (c *Client) ListIdentities(ctx context.Context, params ListIdentitiesParams) ([]Identity, error) {

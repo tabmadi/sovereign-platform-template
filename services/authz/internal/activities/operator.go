@@ -1,4 +1,4 @@
-// Package activities holds the two legs of the operator dual write (ADR-0302, ADR-0304).
+// Package activities holds the two legs of the operator dual write, per ADR-0302 and ADR-0304.
 package activities
 
 import (
@@ -19,7 +19,8 @@ func New(granter authz.Granter, log *slog.Logger) *Activities {
 	return &Activities{identities: kratos.New(log), granter: granter}
 }
 
-// SetOperatorFlagActivity: leg 1, metadata_public.operator, the coarse ops-tier claim (ADR-0306). Idempotent.
+// SetOperatorFlagActivity is leg 1: metadata_public.operator, the coarse ops-tier claim, per ADR-0306. It is
+// idempotent.
 func (a *Activities) SetOperatorFlagActivity(ctx context.Context, identityID string, op bool) error {
 	err := a.identities.SetOperatorFlag(ctx, identityID, op)
 	if err != nil {
@@ -28,8 +29,8 @@ func (a *Activities) SetOperatorFlagActivity(ctx context.Context, identityID str
 	return nil
 }
 
-// SetOperatorGrantActivity: leg 2, `group:operator#member`, which the fine per-tool gate and the admin console read
-// (ADR-0401). This is the leg whose silent failure the workflow exists to prevent. Idempotent either way.
+// SetOperatorGrantActivity is leg 2: `group:operator#member`, which the fine per-tool gate and the admin console read,
+// per ADR-0401. The workflow exists to prevent a silent failure of this leg. It is idempotent in both directions.
 func (a *Activities) SetOperatorGrantActivity(ctx context.Context, identityID string, op bool) error {
 	subject := "user:" + identityID
 	var err error

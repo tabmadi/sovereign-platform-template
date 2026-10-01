@@ -14,12 +14,12 @@ type RefundInput struct {
 }
 
 type RefundResult struct {
-	Status string // "refunded" | "failed"
+	Status string // `refunded` or `failed`
 }
 
-// Refund reverses a settled charge (ADR-0302). Mirrors Charge: a mock PSP
-// activity followed by the shared status write. Activities are looked up by name
-// so this file has no dependency on the activities package.
+// Refund reverses a settled charge, per ADR-0302. It has the same shape as Charge:
+// a mock PSP activity, then the shared status write. Activities are looked up by
+// name, so this file does not depend on the activities package.
 func Refund(ctx workflow.Context, in RefundInput) (RefundResult, error) {
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: 15 * time.Second,

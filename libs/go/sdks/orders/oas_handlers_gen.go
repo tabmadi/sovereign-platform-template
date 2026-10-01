@@ -35,7 +35,7 @@ func (c *codeRecorder) Unwrap() http.ResponseWriter {
 
 // handleCancelOrderRequest handles cancelOrder operation.
 //
-// Cancel an order. Starts the CancelOrder workflow (ADR-0302).
+// Cancel an order. Starts the CancelOrder workflow, per ADR-0302.
 //
 // POST /orders/{id}/cancel
 func (s *Server) handleCancelOrderRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -189,8 +189,9 @@ func (s *Server) handleCancelOrderRequest(args [1]string, argsEscaped bool, w ht
 
 // handleCheckoutRequest handles checkout operation.
 //
-// Starts the Checkout Temporal saga (ADR-0302). Idempotent on the Idempotency-Key header: a retry of
-// the same request returns the order the first one created rather than placing a second.
+// Starts the Checkout Temporal saga, per ADR-0302. It is idempotent on the Idempotency-Key header: a
+// retry of the same request returns the order that the first one created and does not place a second
+// order.
 //
 // POST /orders
 func (s *Server) handleCheckoutRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

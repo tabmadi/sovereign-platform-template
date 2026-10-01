@@ -1,5 +1,5 @@
-// Package workflows holds the authz Temporal workflows: promoting or demoting an operator, a dual write across two
-// systems that share no transaction (ADR-0302, ADR-0304).
+// Package workflows holds the authz Temporal workflows. They promote or demote an operator with a dual write across
+// two systems that share no transaction, per ADR-0302 and ADR-0304.
 package workflows
 
 import (
@@ -15,8 +15,8 @@ type SetOperatorInput struct {
 	Operator   bool
 }
 
-// SetOperator runs the operator dual write: the metadata flag, then the OpenFGA grant. Both legs are retried, and a
-// run that exhausts its attempts is a failed workflow someone can find. The flag goes first so a demotion closes the
+// SetOperator runs the operator dual write: the metadata flag, then the OpenFGA grant. Both legs retry. A run that
+// uses all its attempts is a failed workflow that someone can find. The flag goes first, so a demotion closes the
 // coarse gate before the grant is revoked.
 func SetOperator(ctx workflow.Context, in SetOperatorInput) error {
 	ctx = workflow.WithActivityOptions(

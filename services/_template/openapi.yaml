@@ -2,15 +2,15 @@ openapi: 3.1.0
 info:
   title: Template service
   version: 0.1.0
-  # Audience ladder (ADR-0303): cluster → internal → public, fail-closed at `cluster`. Raise it here or per operation, and declare a matching `ingress.resources` route.
+  # Audience ladder, per ADR-0303: `cluster`, then `internal`, then `public`. It fails closed at `cluster`. Raise it here or per operation, and declare a matching `ingress.resources` route.
   x-audience: cluster
   description: |
-    Skeleton OpenAPI spec. Copy this file when scaffolding a new service
-    (see scripts/new-service.sh) and replace `_template` with the new name.
+    Skeleton OpenAPI spec. Copy this file when you scaffold a new service with
+    scripts/new-service.sh, and replace `_template` with the new name.
 servers:
-  # Flat resource namespace (ADR-0306): the server prefix is the shared /api, and
-  # paths are globally-unique resource nouns — replace /items with this service's
-  # own resource(s). No two services may own the same top-level resource (CI-linted).
+  # Flat resource namespace, per ADR-0306. The server prefix is the shared /api, and
+  # paths are globally-unique resource nouns. Replace /items with this service's own
+  # resources. No two services may own the same top-level resource, and CI checks this.
   - url: /api
 tags:
   - name: items
@@ -28,7 +28,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: "#/components/schemas/Item" }
-                # Every 2xx response schema carries an `example` (ADR-0600): it is what the API mock serves and what the portal renders. A list needs its own.
+                # Every 2xx response schema carries an `example`, per ADR-0600. The API mock serves it, and the portal renders it. A list needs its own example.
                 example:
                   - { id: item_01kztpb93repgs8w9k8cj837vr, name: First item, created_at: "2026-08-12T09:30:00Z" }
                   - { id: item_01kztpfex0ew4atkhwb6zev40b, name: Second item, created_at: "2026-08-12T09:31:00Z" }
@@ -55,7 +55,7 @@ paths:
 
 components:
   responses:
-    # >>> shared-components: responses — generated from tools/codegen/shared-components.yaml, do not edit
+    # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
     Error:
       description: An error, as RFC 9457 problem details.
       content:
@@ -63,53 +63,52 @@ components:
           schema: {$ref: "#/components/schemas/Problem"}
     # <<< shared-components
   schemas:
-    # >>> shared-components: schemas — generated from tools/codegen/shared-components.yaml, do not edit
-    # RFC 9457 problem details. `instance` is deliberately absent: `trace_id`
-    # identifies the occurrence, and it reaches the trace where an instance URL
-    # reaches nothing.
+    # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
+    # RFC 9457 problem details. `instance` is absent on purpose: `trace_id` identifies the occurrence and leads to the trace.
+    # An instance URL leads nowhere.
     Problem:
       type: object
       description: |
-        RFC 9457 problem details. Served as `application/problem+json` by services and
-        by the edge alike, so a generated client has one error branch rather than two.
+        RFC 9457 problem details. Services and the edge both serve it as
+        `application/problem+json`, so a generated client has one error branch, not two.
       required: [type, title, status]
       properties:
         type:
           type: string
           description: |
             `about:blank`, except where two errors share a status code and a client
-            handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-            URN — never a dereferenceable URL, which would put an error taxonomy into
+            handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+            URN. It is never a dereferenceable URL, which would put an error taxonomy into
             the flat public URL namespace.
           default: "about:blank"
           example: "about:blank"
         title:
           type: string
-          description: A stable, human-readable summary. Does not vary with the instance.
+          description: A stable, human-readable summary. It does not change with the instance.
           example: Not Found
         status:
           type: integer
-          description: The HTTP status, duplicated in the body.
+          description: The HTTP status, repeated in the body.
           minimum: 100
           maximum: 599
           example: 404
         detail:
           type: string
           description: |
-            Instance-specific and safe to show a user. Never a stack trace, a query, or
-            an internal hostname.
+            Specific to the instance and safe to show a user. Never a stack trace, a query,
+            or an internal hostname.
           example: No product with that identifier.
         trace_id:
           type: string
           description: |
-            The W3C Trace Context trace-id of the failing request, so a user-reported
-            error reaches its trace. Supplied from the active span, not by the handler.
+            The W3C Trace Context trace-id of the failing request, so an error that a user
+            reports leads to its trace. The active span supplies it, not the handler.
           pattern: "^[0-9a-f]{32}$"
           example: 4bf92f3577b34da6a3ce929d0e0e4736
         errors:
           type: array
           description: |
-            Field-level validation failures, populated from the generated validator.
+            Field-level validation failures, filled from the generated validator.
             Absent when the failure is not a validation failure.
           items:
             type: object
@@ -117,7 +116,7 @@ components:
             properties:
               pointer:
                 type: string
-                description: RFC 6901 JSON Pointer to the offending member.
+                description: RFC 6901 JSON Pointer to the member that failed.
                 example: /price/amount
               message:
                 type: string
@@ -128,24 +127,24 @@ components:
         status: 404
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
-    # An RFC 3339 timestamp. UTC always, with a literal `Z`; an offset other than `Z`
-    # is rejected rather than converted, so one wire format survives round-tripping.
+    # An RFC 3339 timestamp, always UTC with a literal `Z`. Another offset is rejected, not converted,
+    # so one wire format survives a round trip.
     Timestamp:
       type: string
       format: date-time
       description: |
         RFC 3339 timestamp in UTC with a literal `Z`. An offset other than `Z` is
-        rejected rather than converted. Columns behind these are Postgres `timestamptz`.
+        rejected, not converted. The columns behind these are Postgres `timestamptz`.
       pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$'
       example: "2026-08-12T09:30:00Z"
     # <<< shared-components
-    # A wire identifier (ADR-0003): the singular collection noun, an underscore, and the UUIDv7 in Crockford base32. The stored column stays a bare `uuid`.
+    # A wire identifier, per ADR-0003: the singular collection noun, an underscore, and the UUIDv7 in Crockford base32. The stored column stays a bare `uuid`.
     ItemId:
       type: string
       description: |
         An item identifier: `item_` and the UUIDv7 in 26 characters of Crockford
-        base32. The leading character is capped at 7 — 26 characters hold 130 bits and
-        a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+        base32. The first character is at most 7, because 26 characters hold 130 bits and
+        a UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.
       pattern: '^item_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
       example: item_01kztpb93repgs8w9k8cj837vr
     Item:
@@ -155,11 +154,11 @@ components:
       properties:
         id:   { $ref: "#/components/schemas/ItemId" }
         name: { type: string, minLength: 1 }
-        # Every table carries created_at (ADR-0300), and a resource that exposes it
-        # uses the shared component rather than restating the format — one wire
-        # shape for every timestamp on the platform (ADR-0003).
+        # Every table carries created_at, per ADR-0300. A resource that exposes it uses
+        # the shared component and does not restate the format. So every timestamp on
+        # the platform has one wire shape, per ADR-0003.
         created_at: { $ref: "#/components/schemas/Timestamp" }
-      # On the schema, so every response referencing it inherits one example.
+      # The example is on the schema, so every response that references it gets one example.
       example: { id: item_01kztpb93repgs8w9k8cj837vr, name: First item, created_at: "2026-08-12T09:30:00Z" }
     ItemInput:
       type: object

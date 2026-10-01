@@ -37,7 +37,7 @@ type CreateOrderRow struct {
 	Status    string         `json:"status"`
 }
 
-// The order starts at a zero total; the saga sets it once the price is known.
+// The order starts with a zero total. The saga sets it when the price is known.
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error) {
 	row := q.db.QueryRow(ctx, createOrder,
 		arg.ID,

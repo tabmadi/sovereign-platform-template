@@ -28,7 +28,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description List identities (product users and operators) from Kratos, paginated. */
+        /** @description List identities from Kratos, both product users and operators, paginated. */
         get: operations["listIdentities"];
         put?: never;
         post?: never;
@@ -78,8 +78,8 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
-         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @description RFC 9457 problem details. Services and the edge both serve it as
+         *     `application/problem+json`, so a generated client has one error branch, not two.
          * @example {
          *       "type": "about:blank",
          *       "title": "Not Found",
@@ -91,42 +91,42 @@ export interface components {
         Problem: {
             /**
              * @description `about:blank`, except where two errors share a status code and a client
-             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+             *     URN. It is never a dereferenceable URL, which would put an error taxonomy into
              *     the flat public URL namespace.
              * @default about:blank
              * @example about:blank
              */
             type: string;
             /**
-             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @description A stable, human-readable summary. It does not change with the instance.
              * @example Not Found
              */
             title: string;
             /**
-             * @description The HTTP status, duplicated in the body.
+             * @description The HTTP status, repeated in the body.
              * @example 404
              */
             status: number;
             /**
-             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
-             *     an internal hostname.
+             * @description Specific to the instance and safe to show a user. Never a stack trace, a query,
+             *     or an internal hostname.
              * @example No product with that identifier.
              */
             detail?: string;
             /**
-             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
-             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @description The W3C Trace Context trace-id of the failing request, so an error that a user
+             *     reports leads to its trace. The active span supplies it, not the handler.
              * @example 4bf92f3577b34da6a3ce929d0e0e4736
              */
             trace_id?: string;
             /**
-             * @description Field-level validation failures, populated from the generated validator.
+             * @description Field-level validation failures, filled from the generated validator.
              *     Absent when the failure is not a validation failure.
              */
             errors?: {
                 /**
-                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @description RFC 6901 JSON Pointer to the member that failed.
                  * @example /price/amount
                  */
                 pointer: string;
@@ -136,22 +136,22 @@ export interface components {
         };
         /** @description The remote_json payload Oathkeeper POSTs per ops-dashboard request. */
         AuthorizeRequest: {
-            /** @description Kratos identity id; empty for anonymous. */
+            /** @description Kratos identity id. Empty for an anonymous caller. */
             subject: string;
             /** @description Ops dashboard slug such as grafana or hubble. */
             tool: string;
             /** @description authenticator_assurance_level from the session. */
             aal: string;
-            /** @description The identity's metadata_public.operator flag; "true" when set. */
+            /** @description The identity's metadata_public.operator flag. It is `true` when set. */
             operator: string;
         };
         /** @description A single OpenFGA relation question, in the model's own vocabulary. */
         RelationCheck: {
-            /** @description The subject, prefixed by its type — `user:<identity-id>`. */
+            /** @description The subject, with its type as a prefix: `user:<identity-id>`. */
             subject: string;
             /** @description The relation to test */
             relation: string;
-            /** @description The object, prefixed by its type — `analytics_panel:funnels`. */
+            /** @description The object, with its type as a prefix: `analytics_panel:funnels`. */
             object: string;
         };
         /**
@@ -178,7 +178,7 @@ export interface components {
             name?: string;
             operator?: boolean;
         };
-        /** @description The editable fields of an identity. Email is the login identifier and is not editable here; operator promotes or demotes through a dual write (ADR-0304). */
+        /** @description The editable fields of an identity. Email is the login identifier and is not editable here. operator promotes or demotes through a dual write, per ADR-0304. */
         IdentityUpdate: {
             name?: string;
             operator?: boolean;

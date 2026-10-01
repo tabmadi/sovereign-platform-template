@@ -497,7 +497,7 @@ func (s *Server) handleGetIdentityRequest(args [1]string, argsEscaped bool, w ht
 
 // handleListIdentitiesRequest handles listIdentities operation.
 //
-// List identities (product users and operators) from Kratos, paginated.
+// List identities from Kratos, both product users and operators, paginated.
 //
 // GET /identities
 func (s *Server) handleListIdentitiesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

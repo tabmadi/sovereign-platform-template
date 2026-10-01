@@ -14,8 +14,8 @@ import (
 
 const testID = "019a3f8c-6d21-7c4b-8e55-0f27f7f0b001"
 
-// setOperatorEnv registers stub activities under the names SetOperator executes,
-// so the test env resolves and mocks them without a real Kratos or OpenFGA.
+// setOperatorEnv registers stub activities under the names that SetOperator runs.
+// The test env then resolves and mocks them without a real Kratos or OpenFGA.
 func setOperatorEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnvironment {
 	env := ts.NewTestWorkflowEnvironment()
 	env.RegisterActivityWithOptions(
@@ -69,8 +69,8 @@ func TestSetOperatorWorkflow(t *testing.T) {
 	)
 
 	t.Run(
-		// The state the workflow exists to prevent: a flag and a grant that disagree. A grant failure must fail the run
-		// so it is visible, rather than returning success with half the write done.
+		// The workflow exists to prevent this state: a flag and a grant that disagree. A grant failure must fail the run,
+		// so it is visible. The run must not return success with half the write done.
 		"a grant failure fails the run rather than leaving the legs disagreeing",
 		func(t *testing.T) {
 			t.Parallel()

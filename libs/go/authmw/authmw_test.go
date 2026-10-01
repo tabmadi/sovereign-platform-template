@@ -7,7 +7,7 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
 )
 
-// The edge admits guests with a real value in X-User-Id. Both halves are pinned here because the value lives in
+// The edge admits guests with a real value in X-User-Id. The test pins both halves, because the value is in
 // infra/auth/oathkeeper/values.yaml and nothing else connects the two.
 func TestGuestIsNotAuthenticated(t *testing.T) {
 	t.Parallel()
@@ -41,7 +41,7 @@ func TestGuestIsNotAuthenticated(t *testing.T) {
 	}
 }
 
-// The zero Principal is what a handler holds when the middleware never ran.
+// A handler holds the zero Principal when the middleware did not run.
 func TestNilPrincipal(t *testing.T) {
 	t.Parallel()
 

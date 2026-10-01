@@ -1,9 +1,9 @@
 /**
- * Entity identifiers on the TypeScript side (ADR-0003): a UUIDv7 carried in TypeID form.
- * Checked against the published TypeID vectors, never against libs/go/id, so neither can drift into a private encoding.
- * A consumer treats an identifier as opaque (AIP-122): parsing exists to validate what arrived and name its type.
+ * Entity identifiers on the TypeScript side, per ADR-0003: a UUIDv7 carried in TypeID form.
+ * Tests check it against the published TypeID vectors, never against libs/go/id. So neither can drift into a private encoding.
+ * A consumer treats an identifier as opaque, per AIP-122. Parsing only validates the value that arrived and names its type.
  */
-/** Crockford base32 in TypeID's ordering: no i, l, o, or u. */
+/** Crockford base32 in TypeID's order: no i, l, o, or u. */
 const ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
 
 const ENCODED_LENGTH = 26;
@@ -29,12 +29,12 @@ export class InvalidIdError extends Error {
   }
 }
 
-/** Reports whether a prefix is well-formed: lowercase a–z and underscores, not at either end. */
+/** Reports whether a prefix is well-formed: lowercase `a-z` and underscores, with no underscore at either end. */
 export function isValidPrefix(prefix: string): boolean {
   if (prefix.length === 0 || prefix.length > MAX_PREFIX_LENGTH) {
     return false;
   }
-  // The LAST underscore separates prefix from suffix, so a trailing one would make
+  // The LAST underscore separates prefix from suffix, so a trailing one makes
   // the prefix ambiguous.
   if (prefix.startsWith("_") || prefix.endsWith("_")) {
     return false;
@@ -43,8 +43,8 @@ export function isValidPrefix(prefix: string): boolean {
 }
 
 /**
- * Parse a wire identifier, requiring the expected type. Passing `expectedPrefix` is what stops an `order_`
- * reaching a function that wanted a `product_`; omit it only where the type is not known ahead of time.
+ * Parse a wire identifier and require the expected type. `expectedPrefix` stops an `order_` from reaching a
+ * function that wants a `product_`. Omit it only where the type is not known in advance.
  */
 export function parseId(value: string, expectedPrefix?: string): ParsedId {
   const separator = value.lastIndexOf("_");
@@ -85,9 +85,9 @@ export function prefixOf(value: string): string | null {
 }
 
 /**
- * Render a UUID in the wire form. Present for the rare boundary that holds a bare
- * UUID — a log processor, a migration script — not for application code, which
- * receives identifiers already encoded.
+ * Render a UUID in the wire form. It is for a rare boundary that holds a bare UUID,
+ * such as a log processor or a migration script. Application code does not use it,
+ * because it receives identifiers already encoded.
  */
 export function formatId(prefix: string, uuid: string): string {
   if (!isValidPrefix(prefix)) {
@@ -106,8 +106,8 @@ function decodeSuffix(suffix: string): string {
   if (first === undefined) {
     throw new InvalidIdError("suffix is not Crockford base32");
   }
-  // 26 characters hold 130 bits and a UUID is 128, so a leading value above 7 does
-  // not fit — rejecting it is what stops a silent wrap.
+  // 26 characters hold 130 bits and a UUID has 128, so a first value above 7 does
+  // not fit. The rejection stops a wrap that gives no error.
   if (first > 7) {
     throw new InvalidIdError("suffix overflows 128 bits");
   }

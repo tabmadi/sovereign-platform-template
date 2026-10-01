@@ -32,9 +32,8 @@ type Invoker interface {
 	//
 	// Recompute a funnel's rollup over a window, one bucket per day.
 	//
-	// Idempotent by construction: a bucket is replaced rather than added to, so re-running over a window
-	// that is still filling is the normal case rather than a hazard. The most recent bucket is always
-	// incomplete.
+	// Idempotent by design: a bucket is replaced and not added to. So a new run over a window that is
+	// still filling is normal and safe. The most recent bucket is always incomplete.
 	//
 	// POST /analytics/funnels/{funnel}/rollup
 	ComputeFunnelRollup(ctx context.Context, request *RollupWindow, params ComputeFunnelRollupParams) (*RollupResult, error)
@@ -46,7 +45,7 @@ type Invoker interface {
 	GetConsent(ctx context.Context, params GetConsentParams) (*Consent, error)
 	// GetFunnelRollup invokes getFunnelRollup operation.
 	//
-	// Read a funnel's computed rollup, in bucket then step order.
+	// Read a funnel's computed rollup, in bucket and then step order.
 	//
 	// GET /analytics/funnels/{funnel}/rollup
 	GetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) ([]FunnelRollupRow, error)
@@ -64,7 +63,7 @@ type Invoker interface {
 	RecordEvents(ctx context.Context, request *EventBatch) (*RecordResult, error)
 	// SummariseEvents invokes summariseEvents operation.
 	//
-	// Event counts over a window, the aggregate every funnel question starts from.
+	// Event counts over a window. Every funnel question starts from this aggregate.
 	//
 	// GET /analytics/summary
 	SummariseEvents(ctx context.Context, params SummariseEventsParams) ([]EventSummary, error)
@@ -113,9 +112,8 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 //
 // Recompute a funnel's rollup over a window, one bucket per day.
 //
-// Idempotent by construction: a bucket is replaced rather than added to, so re-running over a window
-// that is still filling is the normal case rather than a hazard. The most recent bucket is always
-// incomplete.
+// Idempotent by design: a bucket is replaced and not added to. So a new run over a window that is
+// still filling is normal and safe. The most recent bucket is always incomplete.
 //
 // POST /analytics/funnels/{funnel}/rollup
 func (c *Client) ComputeFunnelRollup(ctx context.Context, request *RollupWindow, params ComputeFunnelRollupParams) (*RollupResult, error) {
@@ -315,7 +313,7 @@ func (c *Client) sendGetConsent(ctx context.Context, params GetConsentParams) (r
 
 // GetFunnelRollup invokes getFunnelRollup operation.
 //
-// Read a funnel's computed rollup, in bucket then step order.
+// Read a funnel's computed rollup, in bucket and then step order.
 //
 // GET /analytics/funnels/{funnel}/rollup
 func (c *Client) GetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) ([]FunnelRollupRow, error) {
@@ -612,7 +610,7 @@ func (c *Client) sendRecordEvents(ctx context.Context, request *EventBatch) (res
 
 // SummariseEvents invokes summariseEvents operation.
 //
-// Event counts over a window, the aggregate every funnel question starts from.
+// Event counts over a window. Every funnel question starts from this aggregate.
 //
 // GET /analytics/summary
 func (c *Client) SummariseEvents(ctx context.Context, params SummariseEventsParams) ([]EventSummary, error) {

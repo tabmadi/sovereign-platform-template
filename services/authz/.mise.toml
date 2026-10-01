@@ -1,20 +1,20 @@
 [env]
-# The registered local port (scripts/lib/ports.sh), committed so a sibling's <SVC>_URL default can rely on it. The chart sets no PORT, so pods still bind :8080.
+# The registered local port from scripts/lib/ports.sh. It is committed, so a sibling's <SVC>_URL default can depend on it. The chart sets no PORT, so pods still bind :8080.
 PORT = "8085"
 _.file = ".env"
 
 [tasks.env]
-description = "Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why it stops rather than continuing)."
+description = "Create .env from .env.example on a fresh clone. It then stops and does not continue, and scripts/env-ensure.sh states why."
 hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
 [tasks.server]
-description = "Dependency components this service needs in the cluster (ADR-0205, ADR-0600)."
+description = "Run the HTTP server with the dependency components it needs in the cluster, per ADR-0205 and ADR-0600."
 depends = ["env", "dep:openfga", "dep:temporal"]
 run = "go run ./cmd/server"
 
 [tasks.worker]
-description = "Serves the authz-queue: the operator-registration dual write (ADR-0304)."
+description = "Run the Temporal worker for the authz-queue: the operator-registration dual write, per ADR-0304."
 depends = ["env", "dep:openfga", "dep:temporal"]
 run = "go run ./cmd/worker"
 
@@ -25,7 +25,7 @@ run = "go test ./..."
 run = "golangci-lint run ./..."
 
 [tasks.generate]
-description = "No sqlc pass: this service owns no schema (see [tasks.worker])."
+description = "Regenerate the OpenAPI server and client. There is no sqlc pass, because this service owns no schema."
 run = "bash ../../scripts/gen-openapi.sh"
 
 [tasks.build]

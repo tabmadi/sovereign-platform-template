@@ -1,4 +1,4 @@
-// Error fingerprinting, browser side (ADR-0503).
+// Error fingerprinting on the browser side, per ADR-0503.
 
 const ALNUM = /^[0-9a-zA-Z]$/;
 const NAMED_FRAME = /^at\s+([^\s(]+)\s*\(/;
@@ -6,9 +6,9 @@ const AT_PREFIX = /^at\s+/;
 const LOCATION_SUFFIX = /:\d+:\d+\)?$/;
 
 /**
- * Removes the parts of a message that vary per occurrence. Two rules, matching the Go side exactly: a run of
- * digits becomes `<n>`, and a run of letters and digits four or longer becomes `<x>`.
- * Not a hex rule: the wire form of an identifier is Crockford base32, whose alphabet a hex run shreds.
+ * Removes the parts of a message that vary per occurrence. It has two rules, the same as the Go side. A run of
+ * digits becomes `<n>`, and a run of four or more letters and digits becomes `<x>`.
+ * It is not a hex rule. An identifier's wire form is Crockford base32, and a hex rule breaks it into fragments.
  */
 export function normalise(message: string): string {
   let out = "";
@@ -56,9 +56,9 @@ function consumeRun(message: string, start: number, emit: (piece: string) => voi
 }
 
 /**
- * The application frames of a stack trace, in order, with locations stripped. Line and column numbers move on a
- * cosmetic edit, and vendor frames are identical for every caller, so keeping either merges unrelated faults.
- * In a browser bundle "vendor" is what came from `node_modules`, which the build records in the source path.
+ * The application frames of a stack trace, in order, with locations removed. Line and column numbers change on a
+ * cosmetic edit, and vendor frames are the same for every caller. Keeping either merges unrelated faults.
+ * In a browser bundle, a vendor frame comes from `node_modules`, and the build records that in the source path.
  */
 export function appFrames(stack: string | undefined, limit = 8): string[] {
   if (!stack) {
@@ -77,8 +77,8 @@ function isVendorFrame(line: string): boolean {
 }
 
 /**
- * The name of one stack frame, with its location stripped: `at fn (host/x.js:1:2)`
- * keeps `fn`. An anonymous frame keeps its path, minus the line and column.
+ * The name of one stack frame, with its location removed: `at fn (host/x.js:1:2)`
+ * keeps `fn`. An anonymous frame keeps its path, without the line and column.
  */
 function frameName(line: string): string {
   const named = NAMED_FRAME.exec(line);
@@ -89,9 +89,9 @@ function frameName(line: string): string {
 }
 
 /**
- * A stable identifier for the fault rather than the occurrence, hashing the error type, the normalised message
- * and the application frames — the same three inputs, in the same order, as the Go side.
- * FNV-1a rather than SHA-256: `crypto.subtle.digest` is async and would make error reporting a promise chain.
+ * A stable identifier for the fault, not the occurrence. It hashes the error type, the normalised message, and
+ * the application frames: the same three inputs in the same order as the Go side.
+ * It uses FNV-1a, not SHA-256, because `crypto.subtle.digest` is async and makes error reporting a promise chain.
  */
 // biome-ignore-start lint/suspicious/noBitwiseOperators: FNV-1a is defined in terms of xor and a 32-bit multiply
 export function fingerprint(error: { name?: string; message?: string; stack?: string }): string {
@@ -100,11 +100,11 @@ export function fingerprint(error: { name?: string; message?: string; stack?: st
   for (const part of parts) {
     for (let i = 0; i < part.length; i += 1) {
       hash ^= part.charCodeAt(i);
-      // FNV prime, via shifts: `Math.imul` keeps the multiply in 32 bits, which
-      // plain `*` does not once the value exceeds 2^53.
+      // FNV prime, with shifts. `Math.imul` keeps the multiply in 32 bits. Plain
+      // `*` does not, when the value is above 2^53.
       hash = Math.imul(hash, 0x01_00_01_93) >>> 0;
     }
-    // A separator between parts, so ["ab","c"] and ["a","bc"] do not collide.
+    // A separator between parts, so `["ab","c"]` and `["a","bc"]` do not collide.
     hash ^= 0;
     hash = Math.imul(hash, 0x01_00_01_93) >>> 0;
   }

@@ -22,13 +22,13 @@ import (
 
 const statusPending = "pending"
 
-// testCurrency is the currency every fixture here is denominated in; which one it
-// is does not matter, only that it travels with the amount.
+// testCurrency is the currency of every fixture here. The currency itself does not
+// matter. It only needs to travel with the amount.
 const testCurrency = "EUR"
 
-// pendingOrder is a row that can actually be rendered: the total is a valid
-// numeric with a currency, which the zero pgtype.Numeric is not — a handler that
-// renders money needs a row that has some.
+// pendingOrder is a row that can be rendered: the total is a valid numeric with
+// a currency. The zero pgtype.Numeric is not, and a handler that renders money
+// needs a row with money in it.
 func pendingOrder() store.GetOrderRow {
 	var total pgtype.Numeric
 	err := total.Scan("30.00")
@@ -38,15 +38,15 @@ func pendingOrder() store.GetOrderRow {
 	return store.GetOrderRow{Status: statusPending, Total: total, Currency: testCurrency}
 }
 
-// testUser is the principal every authenticated case acts as.
+// testUser is the principal of every authenticated case.
 const testUser = "alice"
 
-// A well-formed wire identifier (ADR-0003), so the cases below exercise the
-// handler's logic rather than its identifier decoding — which has its own case.
+// A well-formed wire identifier, per ADR-0003. The cases below then test the
+// handler's logic and not its identifier decoding, which has its own case.
 const testOrderID = orders.OrderId("order_01kztnj6c8e0jt7vzw0cn1wxvd")
 
-// fakeQ embeds store.Querier so only the methods a test exercises need stubbing;
-// any other call would nil-panic, which is the desired "unexpected query" signal.
+// fakeQ embeds store.Querier, so only the methods that a test uses need stubs.
+// Any other call panics on nil, and that is the wanted signal for an unexpected query.
 type fakeQ struct {
 	store.Querier
 
@@ -61,8 +61,8 @@ func (f fakeQ) GetOrder(context.Context, pgtype.UUID) (store.GetOrderRow, error)
 	return f.order, f.getErr
 }
 
-// An unset byKey means "no order carries this key", which is the first-attempt
-// path — the zero value would otherwise read as a hit on every test.
+// An unset byKey means that no order carries this key, which is the first-attempt
+// path. Otherwise the zero value would count as a hit in every test.
 func (f fakeQ) GetOrderByIdempotencyKey(
 	context.Context, pgtype.Text,
 ) (store.GetOrderByIdempotencyKeyRow, error) {
@@ -76,8 +76,8 @@ func (f fakeQ) ListOrders(context.Context) ([]store.ListOrdersRow, error) {
 	return f.list, f.listErr
 }
 
-// fakeTemporal embeds client.Client; only ExecuteWorkflow is reached by the
-// handler (its returned run is ignored, so a nil run is fine).
+// fakeTemporal embeds client.Client. The handler calls only ExecuteWorkflow and
+// ignores the returned run, so a nil run works.
 type fakeTemporal struct {
 	client.Client
 
@@ -90,8 +90,8 @@ func (f fakeTemporal) ExecuteWorkflow(
 	return nil, f.err
 }
 
-// fakeChecker stands in for the OpenFGA Checker so the operator gate can be
-// exercised without a cluster (ADR-0304).
+// fakeChecker stands in for the OpenFGA Checker, so a test can run the operator
+// gate without a cluster, per ADR-0304.
 type fakeChecker struct {
 	allowed bool
 	err     error
@@ -101,7 +101,7 @@ func (f fakeChecker) Allowed(context.Context, string, string, string) (bool, err
 	return f.allowed, f.err
 }
 
-// opCtx is an authenticated-operator request context — the happy path past the
+// opCtx is an authenticated-operator request context. It passes the
 // requireOperator gate, so the business-logic cases below reach the store.
 func opCtx() context.Context {
 	return authmw.NewContext(context.Background(), &authmw.Principal{UserID: testUser})
@@ -109,22 +109,22 @@ func opCtx() context.Context {
 
 func okChecker() authz.Checker { return fakeChecker{allowed: true} }
 
-// noopCounter is the metric a handler increments on the happy path. The global
-// meter is a no-op until observability.Init runs, so this is the real thing with
-// nowhere to export to rather than a stub.
+// noopCounter is the metric that a handler increments on the happy path. The global
+// meter is a no-op until observability.Init runs. So this is a real counter with no
+// export target, not a stub.
 func noopCounter() metric.Int64Counter { return observability.Counter("test.checkouts_started") }
 
-// resourceChecker answers per resource, which is what the read gate needs: a buyer
-// holds `order#read` on their own order and nothing on `group:operator`, and an
-// operator is the other way round. A single bool cannot express either.
+// resourceChecker answers per resource, as the read gate needs. A buyer holds
+// `order#read` on their own order and nothing on `group:operator`. An operator is
+// the reverse. A single bool cannot express either.
 type resourceChecker map[string]bool
 
 func (c resourceChecker) Allowed(_ context.Context, _, _, resource string) (bool, error) {
 	return c[resource], nil
 }
 
-// buyerCtx is an authenticated buyer acting through their personal org — the
-// principal every checkout needs (ADR-0304).
+// buyerCtx is an authenticated buyer who acts through their personal org. Every
+// checkout needs this principal, per ADR-0304.
 func buyerCtx() context.Context {
 	return authmw.NewContext(
 		context.Background(),
@@ -132,7 +132,7 @@ func buyerCtx() context.Context {
 	)
 }
 
-// orderObject is the OpenFGA object the read gate checks.
+// orderObject is the OpenFGA object that the read gate checks.
 var orderObject = "order:" + string(testOrderID)
 
 func TestGetOrderAuthz(t *testing.T) {
@@ -188,13 +188,13 @@ func TestGetOrderAuthz(t *testing.T) {
 	}
 }
 
-// Checkout writes the tuples that decide who may read the order, so it cannot run
-// without a principal to write them for (ADR-0304).
+// Checkout writes the tuples that decide who may read the order. So it cannot run
+// without a principal to write them for, per ADR-0304.
 func TestCheckoutRequiresAnOwner(t *testing.T) {
 	t.Parallel()
 
 	req := &orders.CheckoutInput{ProductID: "product_01kztmx9e0fq1r13w5d1aerqw6", Quantity: 1}
-	// The header the client sends to make a retry safe (ADR-0003).
+	// The header that the client sends to make a retry safe, per ADR-0003.
 	params := orders.CheckoutParams{IdempotencyKey: "checkout-" + t.Name()}
 
 	t.Run(
@@ -207,8 +207,8 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 		},
 	)
 
-	// An identity whose org never reached the edge (ADR-0304: the header is built
-	// from the Kratos identity) would produce an order belonging to nobody.
+	// The edge builds the header from the Kratos identity, per ADR-0304. An identity
+	// whose org never reached the edge would produce an order that belongs to nobody.
 	t.Run(
 		"an identity with no org is forbidden",
 		func(t *testing.T) {
@@ -219,8 +219,8 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 		},
 	)
 
-	// Without the header a retry cannot be recognised, so it is refused rather than
-	// quietly placing a second order.
+	// Without the header, a retry cannot be recognised. So the request is refused and
+	// does not place a second order with no warning.
 	t.Run(
 		"a missing Idempotency-Key is a bad request",
 		func(t *testing.T) {
@@ -231,8 +231,8 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 		},
 	)
 
-	// The replay path: an order already carrying this key means the first attempt
-	// landed, so the same handle comes back and no second workflow starts.
+	// The replay path. An order with this key means that the first attempt
+	// succeeded, so the same handle comes back and no second workflow starts.
 	t.Run(
 		"a repeated key replays the first order",
 		func(t *testing.T) {
@@ -273,8 +273,8 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 	)
 }
 
-// CancelOrder is operator-gated (ADR-0304): the gate rejects before any DB
-// access, so a nil store is fine for these cases.
+// CancelOrder is operator-gated, per ADR-0304. The gate rejects before any DB
+// access, so a nil store works for these cases.
 func TestCancelOrderAuthz(t *testing.T) {
 	t.Parallel()
 
@@ -344,8 +344,8 @@ func TestCancelOrder(t *testing.T) {
 		},
 	)
 
-	// The generated validator rejects a malformed id before the handler sees it, so
-	// this reaches the handler only if a spec edit ever separates the two.
+	// The generated validator rejects a malformed id before the handler sees it. So
+	// this reaches the handler only if a spec edit makes the two disagree.
 	t.Run(
 		"a malformed order id is a bad request",
 		func(t *testing.T) {
@@ -375,8 +375,8 @@ func TestCancelOrder(t *testing.T) {
 func TestListOrders(t *testing.T) {
 	t.Parallel()
 
-	// Listing every order is the back-office view (ADR-0303's `x-audience:
-	// internal`), so it is operator-gated: an anonymous caller is refused before the
+	// Listing every order is the back-office view with `x-audience: internal`, per
+	// ADR-0303. So it is operator-gated, and an anonymous caller is refused before the
 	// store is reached.
 	t.Run(
 		"an anonymous caller is unauthorized",
@@ -425,7 +425,7 @@ func TestListOrders(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			// The stored numeric reaches the wire as a decimal string with its
-			// currency, never as a number and never as minor units (ADR-0300).
+			// currency, never as a number and never as minor units, per ADR-0300.
 			if len(got) != 1 || got[0].Quantity != 2 || got[0].Total.Amount != "5" ||
 				got[0].Total.Currency != testCurrency || got[0].Status != orders.OrderStatusPending {
 				t.Fatalf("mapping = %+v", got)

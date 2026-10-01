@@ -26,8 +26,8 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-// The encoding must cover the whole 128-bit space, not just the values a v7
-// generator happens to produce — a read path parses whatever is in the column.
+// The encoding must cover the whole 128-bit space, not only the values that a v7
+// generator produces. A read path parses any value that is in the column.
 func TestRoundTripAcrossTheValueSpace(t *testing.T) {
 	t.Parallel()
 
@@ -75,7 +75,7 @@ func TestWireForm(t *testing.T) {
 	}
 }
 
-// The whole reason the prefix exists: a generated client cannot pass an order_
+// This is the purpose of the prefix: a generated client cannot pass an order_
 // where a product_ belongs.
 func TestParseRejectsTheWrongType(t *testing.T) {
 	t.Parallel()
@@ -99,8 +99,8 @@ func TestParseRejectsMalformed(t *testing.T) {
 		"uppercase suffix": "order_01J8XK7M3Q0000000000000000",
 		"uppercase prefix": "Order_01j8xk7m3q0000000000000000",
 		"digit in prefix":  "order2_01j8xk7m3q0000000000000000",
-		// 26 characters hold 130 bits; a leading character above 7 does not fit in
-		// 128 and must be rejected rather than silently truncated.
+		// 26 characters hold 130 bits. A first character above 7 does not fit in 128
+		// bits, and it must be rejected, not truncated with no error.
 		"overflows 128 bits": "order_81j8xk7m3q0000000000000000",
 	}
 	for name, s := range cases {
@@ -117,8 +117,8 @@ func TestParseRejectsMalformed(t *testing.T) {
 	}
 }
 
-// UUIDv7 is time-ordered, and the encoding must preserve that ordering or the
-// reason for choosing v7 is lost at the boundary.
+// UUIDv7 is time-ordered. The encoding must keep that order, or the boundary
+// loses the reason for choosing v7.
 func TestEncodingPreservesTimeOrdering(t *testing.T) {
 	t.Parallel()
 
@@ -158,9 +158,9 @@ func TestJSONUsesTheWireForm(t *testing.T) {
 	}
 }
 
-// Vectors from the TypeID specification. Checking the encoding against the standard
-// rather than only against itself is what makes the surface form interoperable: a
-// round-trip test passes just as happily on a private encoding.
+// Vectors from the TypeID specification. The test checks the encoding against the
+// standard, not only against itself, so the wire form is interoperable. A round-trip
+// test also passes on a private encoding.
 func TestTypeIDSpecVectors(t *testing.T) {
 	t.Parallel()
 
@@ -210,9 +210,9 @@ func TestPrefixValidation(t *testing.T) {
 	}
 }
 
-// MustFrom is what every transport read path calls, so both its outcomes are
-// pinned: the value it returns must match From's, and a bad prefix must panic
-// rather than yield an identifier whose type nothing checked.
+// Every transport read path calls MustFrom, so the test pins both outcomes. The
+// value it returns must match From's. A bad prefix must panic and not give an
+// identifier whose type nothing checked.
 func TestMustFrom(t *testing.T) {
 	t.Parallel()
 

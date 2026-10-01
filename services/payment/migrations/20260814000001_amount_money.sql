@@ -1,6 +1,6 @@
 -- migrate:up
--- The charge amount joins the shared money type (ADR-0300, ADR-0003), for the same
--- reasons as catalog's price and orders' total.
+-- The charge amount uses the shared money type, per ADR-0300 and ADR-0003, for the
+-- same reasons as catalog's price and orders' total.
 alter table charges add column amount numeric(19, 4);
 alter table charges add column currency text;
 

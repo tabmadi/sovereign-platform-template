@@ -6,12 +6,12 @@ import (
 	"fmt"
 )
 
-// The database and wire surfaces (ADR-0100, ADR-0303). Both carry the amount as a string and never a float.
-// The currency is not part of the scanned value: a Postgres numeric holds only the amount, so [Amount.Scan]
-// produces an amount whose currency the caller supplies through [Amount.WithCurrency].
+// The database and wire surfaces, per ADR-0100 and ADR-0303. Both carry the amount as a string and never a float.
+// The scanned value has no currency, because a Postgres numeric holds only the amount. The caller adds the
+// currency to the result of [Amount.Scan] with [Amount.WithCurrency].
 
-// Value implements driver.Valuer: the amount as a decimal string, which pgx sends
-// to a numeric column without an intermediate float.
+// Value implements driver.Valuer. It returns the amount as a decimal string, and pgx
+// sends that to a numeric column with no float in between.
 func (a Amount) Value() (driver.Value, error) {
 	if !a.Valid() {
 		return nil, nil //nolint:nilnil // a NULL numeric column is the zero Amount
@@ -19,8 +19,8 @@ func (a Amount) Value() (driver.Value, error) {
 	return a.String(), nil
 }
 
-// Scan implements sql.Scanner for a numeric column. The result carries no currency
-// — see [Amount.WithCurrency].
+// Scan implements sql.Scanner for a numeric column. The result carries no currency.
+// Add it with [Amount.WithCurrency].
 func (a *Amount) Scan(src any) error {
 	switch v := src.(type) {
 	case nil:
@@ -31,18 +31,18 @@ func (a *Amount) Scan(src any) error {
 	case []byte:
 		return a.scanString(string(v))
 	case float64:
-		// Reachable only if a column is float8 rather than numeric, which ADR-0100
-		// forbids. Failing loudly here is the point: silently accepting it would make
-		// the schema defect invisible until a total came out wrong.
-		return fmt.Errorf("money: refusing to scan a float64 (%v) — the column must be numeric, not float8", v)
+		// This runs only if a column is float8 and not numeric, which ADR-0100 forbids.
+		// The scan fails here on purpose. Accepting it hides the schema defect until a
+		// total comes out wrong.
+		return fmt.Errorf("money: refusing to scan float64 %v: the column must be numeric, not float8", v)
 	default:
 		return fmt.Errorf("money: cannot scan %T", src)
 	}
 }
 
 func (a *Amount) scanString(s string) error {
-	// A placeholder currency is used because Parse requires one and the column does
-	// not carry it; WithCurrency replaces it before the value is used.
+	// The code uses a placeholder currency, because Parse needs one and the column
+	// does not carry it. WithCurrency replaces it before the value is used.
 	parsed, err := Parse(s, "XXX")
 	if err != nil {
 		return fmt.Errorf("money: scan %q: %w", s, err)
@@ -51,8 +51,8 @@ func (a *Amount) scanString(s string) error {
 	return nil
 }
 
-// WithCurrency returns the amount with its currency set, which is how a store
-// reassembles a value from the amount and currency columns.
+// WithCurrency returns the amount with its currency set. A store uses it to build
+// a value from the amount and currency columns.
 func (a Amount) WithCurrency(currency string) (Amount, error) {
 	err := ValidateCurrency(currency)
 	if err != nil {
@@ -68,8 +68,8 @@ type wire struct {
 	Currency string `json:"currency"`
 }
 
-// MarshalJSON writes {"amount": "1299.00", "currency": "EUR"}. The amount is a string: a JSON number is an IEEE-754
-// double by the time a TypeScript client reads it.
+// MarshalJSON writes `{"amount": "1299.00", "currency": "EUR"}`. The amount is a string, because a TypeScript client
+// reads a JSON number as an IEEE-754 double.
 func (a Amount) MarshalJSON() ([]byte, error) {
 	if !a.Valid() {
 		return []byte("null"), nil
@@ -81,8 +81,8 @@ func (a Amount) MarshalJSON() ([]byte, error) {
 	return data, nil
 }
 
-// UnmarshalJSON reads the same shape, rejecting a JSON number outright: accepting
-// one would silently take the precision loss the string form exists to prevent.
+// UnmarshalJSON reads the same shape and rejects any JSON number. Accepting one
+// takes the precision loss that the string form prevents, with no error.
 func (a *Amount) UnmarshalJSON(data []byte) error {
 	if string(data) == "null" {
 		*a = Amount{}

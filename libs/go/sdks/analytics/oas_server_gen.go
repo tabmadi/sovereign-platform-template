@@ -12,9 +12,8 @@ type Handler interface {
 	//
 	// Recompute a funnel's rollup over a window, one bucket per day.
 	//
-	// Idempotent by construction: a bucket is replaced rather than added to, so re-running over a window
-	// that is still filling is the normal case rather than a hazard. The most recent bucket is always
-	// incomplete.
+	// Idempotent by design: a bucket is replaced and not added to. So a new run over a window that is
+	// still filling is normal and safe. The most recent bucket is always incomplete.
 	//
 	// POST /analytics/funnels/{funnel}/rollup
 	ComputeFunnelRollup(ctx context.Context, req *RollupWindow, params ComputeFunnelRollupParams) (*RollupResult, error)
@@ -26,7 +25,7 @@ type Handler interface {
 	GetConsent(ctx context.Context, params GetConsentParams) (*Consent, error)
 	// GetFunnelRollup implements getFunnelRollup operation.
 	//
-	// Read a funnel's computed rollup, in bucket then step order.
+	// Read a funnel's computed rollup, in bucket and then step order.
 	//
 	// GET /analytics/funnels/{funnel}/rollup
 	GetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) ([]FunnelRollupRow, error)
@@ -44,7 +43,7 @@ type Handler interface {
 	RecordEvents(ctx context.Context, req *EventBatch) (*RecordResult, error)
 	// SummariseEvents implements summariseEvents operation.
 	//
-	// Event counts over a window, the aggregate every funnel question starts from.
+	// Event counts over a window. Every funnel question starts from this aggregate.
 	//
 	// GET /analytics/summary
 	SummariseEvents(ctx context.Context, params SummariseEventsParams) ([]EventSummary, error)

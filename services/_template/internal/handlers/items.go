@@ -1,6 +1,6 @@
 //go:build _template
 
-// Handlers implement the ogen-generated server Handler interface (ADR-0303).
+// Handlers implement the ogen-generated server Handler interface, per ADR-0303.
 package handlers
 
 import (
@@ -24,9 +24,9 @@ func New(db *pgxpool.Pool) *Handlers { return &Handlers{q: store.New(db)} }
 
 var _ tmpl.Handler = (*Handlers)(nil)
 
-// itemID and mintID are the transport boundary (ADR-0003): the column holds a bare uuid and the wire carries
-// `item_` and the base32 form. Minting here rather than in a column default is what lets a handler log the
-// identifier of a write that never lands.
+// itemID and mintID are the transport boundary, per ADR-0003. The column holds a bare uuid, and the wire carries
+// `item_` and the base32 form. The id is minted here and not in a column default, so a handler can log the
+// identifier of a write that fails.
 func itemID(u pgtype.UUID) tmpl.ItemId {
 	return tmpl.ItemId(id.MustFrom("item", uuid.UUID(u.Bytes)).String())
 }
@@ -66,7 +66,7 @@ func (h *Handlers) CreateItem(ctx context.Context, req *tmpl.ItemInput) (*tmpl.I
 	return &tmpl.Item{ID: itemID(row.ID), Name: row.Name, CreatedAt: tmpl.Timestamp(row.CreatedAt.Time)}, nil
 }
 
-// NewError maps a handler error onto the generated RFC 9457 response (ADR-0303).
+// NewError maps a handler error onto the generated RFC 9457 response, per ADR-0303.
 func (h *Handlers) NewError(ctx context.Context, err error) *tmpl.ErrorStatusCode {
 	e := apierr.Resolved(ctx, err)
 

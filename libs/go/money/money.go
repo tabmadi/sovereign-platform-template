@@ -1,4 +1,4 @@
-// Package money is the platform's monetary type (ADR-0100, ADR-0003).
+// Package money is the platform's monetary type, per ADR-0100 and ADR-0003.
 package money
 
 import (
@@ -12,9 +12,9 @@ import (
 type Rounding int
 
 const (
-	// HalfEven — banker's rounding. The default for a monetary split because it does
-	// not drift: half-up biases every tie upward, and across many rows that bias is
-	// a real sum, not a rounding artefact.
+	// HalfEven is banker's rounding. It is the default for a monetary split because it
+	// does not drift. Half-up moves every tie upward, and over many rows that bias adds
+	// up to a real sum.
 	HalfEven Rounding = iota
 	// HalfUp rounds a tie away from zero. Some tax and invoicing rules require it.
 	HalfUp
@@ -22,15 +22,15 @@ const (
 	Down
 )
 
-// scale is the number of decimal places held internally. Four covers unit prices
-// and tax rates, which routinely need more precision than the two places a
-// currency's minor unit has, while staying exact in the int64-backed big.Int.
+// scale is the number of decimal places held internally. Four covers unit prices and
+// tax rates, which often need more than the two places of a currency's minor unit.
+// The value also stays exact in the int64-backed big.Int.
 const scale = 4
 
 var scaleFactor = big.NewInt(10000) // 10^scale
 
-// rateScale is finer than the amount scale: 0.00005 is a real tax rate, and parsing it at four places would reject it
-// as excess precision.
+// rateScale is finer than the amount scale. 0.00005 is a real tax rate, and a parse at four places rejects it as
+// excess precision.
 const rateScale = 8
 
 var rateScaleFactor = big.NewInt(100000000) // 10^rateScale
@@ -49,7 +49,7 @@ var (
 )
 
 // Amount is a monetary value: a fixed-point quantity and its currency. The zero value has no currency, so an
-// amount cannot silently join a total it does not belong in.
+// amount cannot join a wrong total without an error.
 //
 //nolint:recvcheck // sql.Scanner and json.Unmarshaler require the pointer receiver
 type Amount struct {
@@ -71,7 +71,7 @@ func Parse(amount, currency string) (Amount, error) {
 	whole, frac, _ := strings.Cut(digits, ".")
 
 	// Pad or truncate the fraction to the internal scale. Truncation loses precision
-	// the caller supplied, so it is rejected rather than silently applied.
+	// that the caller gave, so Parse rejects it and does not apply it.
 	if len(frac) > scale {
 		return Amount{}, fmt.Errorf("%w: more than %d decimal places in %q", ErrBadAmount, scale, amount)
 	}
@@ -87,8 +87,8 @@ func Parse(amount, currency string) (Amount, error) {
 	return Amount{units: *units, currency: currency}, nil
 }
 
-// MustParse is Parse for constants and tests, where a failure is a programming
-// error rather than a runtime condition.
+// MustParse is Parse for constants and tests. There a failure is a programming
+// error, not a runtime condition.
 func MustParse(amount, currency string) Amount {
 	v, err := Parse(amount, currency)
 	if err != nil {
@@ -97,8 +97,8 @@ func MustParse(amount, currency string) Amount {
 	return v
 }
 
-// FromMinorUnits builds an amount from a currency's smallest unit — cents, pence —
-// which is how an integer column or a payment processor usually carries one.
+// FromMinorUnits builds an amount from a currency's smallest unit, such as cents or
+// pence. An integer column or a payment processor usually carries an amount this way.
 // minorDigits is that currency's exponent: 2 for EUR, 0 for JPY.
 func FromMinorUnits(value int64, minorDigits int, currency string) (Amount, error) {
 	err := ValidateCurrency(currency)
@@ -106,7 +106,7 @@ func FromMinorUnits(value int64, minorDigits int, currency string) (Amount, erro
 		return Amount{}, err
 	}
 	if minorDigits < 0 || minorDigits > scale {
-		return Amount{}, fmt.Errorf("%w: minor digits must be 0..%d", ErrBadAmount, scale)
+		return Amount{}, fmt.Errorf("%w: minor digits must be 0 to %d", ErrBadAmount, scale)
 	}
 	units := big.NewInt(value)
 	factor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale-minorDigits)), nil)
@@ -127,10 +127,10 @@ func ValidateCurrency(currency string) error {
 func (a Amount) Currency() string { return a.currency }
 
 // IsZero reports whether the amount is zero. A zero amount still carries its
-// currency; the zero VALUE of the struct does not, and [Amount.Valid] separates them.
+// currency. The zero VALUE of the struct does not, and [Amount.Valid] tells them apart.
 func (a Amount) IsZero() bool { return a.units.Sign() == 0 }
 
-// Valid reports whether this is a usable amount rather than the struct's zero value.
+// Valid reports whether this is a usable amount and not the struct's zero value.
 func (a Amount) Valid() bool { return a.currency != "" }
 
 func (a Amount) Sign() int { return a.units.Sign() }
@@ -178,23 +178,23 @@ func (a Amount) Sub(b Amount) (Amount, error) {
 	return Amount{units: diff, currency: a.currency}, nil
 }
 
-// Mul multiplies by an integer factor — a quantity, not a rate. It cannot change
-// the currency and cannot lose precision, so it does not need a rounding mode.
+// Mul multiplies by an integer factor: a quantity, not a rate. It cannot change
+// the currency and cannot lose precision, so it needs no rounding mode.
 func (a Amount) Mul(factor int64) Amount {
 	var product big.Int
 	product.Mul(&a.units, big.NewInt(factor))
 	return Amount{units: product, currency: a.currency}
 }
 
-// MulRate multiplies by a decimal rate and rounds to the internal scale. The mode is a parameter because the correct
-// one is a property of the calculation.
+// MulRate multiplies by a decimal rate and rounds to the internal scale. The mode is a parameter, because the
+// calculation decides the correct mode.
 func (a Amount) MulRate(rate string, mode Rounding) (Amount, error) {
 	rateUnits, err := parseRate(rate)
 	if err != nil {
 		return Amount{}, err
 	}
-	// The amount is scaled by 10^scale and the rate by 10^rateScale, so the product
-	// carries both and the rate's factor is divided back out.
+	// The amount is scaled by 10^scale and the rate by 10^rateScale. The product
+	// carries both factors, so the code divides the rate's factor back out.
 	var product big.Int
 	product.Mul(&a.units, rateUnits)
 	rounded := divRound(&product, rateScaleFactor, mode)
@@ -223,8 +223,8 @@ func parseRate(rate string) (*big.Int, error) {
 	return units, nil
 }
 
-// Div divides into n equal parts, rounding each. Prefer [Amount.Split] when the parts must sum back: the remainder is
-// money.
+// Div divides into n equal parts and rounds each part. Use [Amount.Split] when the parts must sum back to the total,
+// because the remainder is money.
 func (a Amount) Div(n int64, mode Rounding) (Amount, error) {
 	if n == 0 {
 		return Amount{}, ErrDivideByZero
@@ -233,8 +233,8 @@ func (a Amount) Div(n int64, mode Rounding) (Amount, error) {
 	return Amount{units: *quotient, currency: a.currency}, nil
 }
 
-// Split divides into n parts that sum exactly back to the original, distributing the indivisible remainder one
-// minor unit at a time. Splitting 10.00 three ways gives 9.99, and the missing cent has to land somewhere.
+// Split divides into n parts that sum exactly to the original. It gives out the remainder one minor unit at a time.
+// Three equal parts of 10.00 sum to 9.99, and the missing cent must go to one part.
 func (a Amount) Split(n int) ([]Amount, error) {
 	if n <= 0 {
 		return nil, ErrDivideByZero
@@ -247,7 +247,7 @@ func (a Amount) Split(n int) ([]Amount, error) {
 	base.QuoRem(&a.units, divisor, remainder)
 
 	// QuoRem truncates toward zero, so a negative amount leaves a negative
-	// remainder; the leading parts then absorb it in the same direction.
+	// remainder. The first parts then take it in the same direction.
 	step := big.NewInt(1)
 	if remainder.Sign() < 0 {
 		step = big.NewInt(-1)
@@ -273,8 +273,8 @@ func (a Amount) Cmp(b Amount) (int, error) {
 }
 
 // Equal reports exact equality, currency included. Two amounts in different
-// currencies are never equal, and this is the one comparison that does not error
-// on a mismatch — the answer is simply false.
+// currencies are never equal. This is the one comparison that does not return an
+// error on a mismatch: the answer is false.
 func (a Amount) Equal(b Amount) bool {
 	return a.currency == b.currency && a.units.Cmp(&b.units) == 0
 }
@@ -312,7 +312,7 @@ func divRound(numerator, denominator *big.Int, mode Rounding) *big.Int {
 		return quotient // QuoRem already truncates toward zero
 	}
 
-	// Compare |remainder|*2 against |denominator| to classify the tie.
+	// Compare |remainder|*2 with |denominator| to classify the tie.
 	twice := new(big.Int).Abs(remainder)
 	twice.Lsh(twice, 1)
 	comparison := twice.Cmp(new(big.Int).Abs(denominator))

@@ -1,14 +1,14 @@
-# Service level objectives for analytics (ADR-0500). The mechanics and why the objective ships unset are in services/_template/slo.yaml.
+# Service level objectives for analytics, per ADR-0500. services/_template/slo.yaml states the mechanics and why the objective ships unset.
 
-window: 30d # rolling (ADR-0500)
+window: 30d # rolling, per ADR-0500
 
 availability:
   # Good event: a response that is not 5xx.
-  objective: null # set per project — docs/reference/detection-latency.md bounds it
+  objective: null # set per project, within the bound in docs/reference/detection-latency.md
 
 latency:
-  # Event ingest plus the funnel reads the marketing panel makes.
-  threshold: 0.5 # seconds, and an `le` bucket boundary the histogram has
+  # Event ingest and the funnel reads of the marketing panel.
+  threshold: 0.5 # seconds, and an `le` bucket boundary of the histogram
   objective: null # set per project
 
 exclude:

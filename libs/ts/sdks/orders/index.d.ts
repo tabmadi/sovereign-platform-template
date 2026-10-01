@@ -15,9 +15,9 @@ export interface paths {
         get: operations["listOrders"];
         put?: never;
         /**
-         * @description Starts the Checkout Temporal saga (ADR-0302). Idempotent on the
-         *     Idempotency-Key header: a retry of the same request returns the order the
-         *     first one created rather than placing a second.
+         * @description Starts the Checkout Temporal saga, per ADR-0302. It is idempotent on the
+         *     Idempotency-Key header: a retry of the same request returns the order that the
+         *     first one created and does not place a second order.
          */
         post: operations["checkout"];
         delete?: never;
@@ -52,7 +52,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Cancel an order. Starts the CancelOrder workflow (ADR-0302). */
+        /** @description Cancel an order. Starts the CancelOrder workflow, per ADR-0302. */
         post: operations["cancelOrder"];
         delete?: never;
         options?: never;
@@ -65,8 +65,8 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description RFC 9457 problem details. Served as `application/problem+json` by services and
-         *     by the edge alike, so a generated client has one error branch rather than two.
+         * @description RFC 9457 problem details. Services and the edge both serve it as
+         *     `application/problem+json`, so a generated client has one error branch, not two.
          * @example {
          *       "type": "about:blank",
          *       "title": "Not Found",
@@ -78,42 +78,42 @@ export interface components {
         Problem: {
             /**
              * @description `about:blank`, except where two errors share a status code and a client
-             *     handles them differently. That case takes a `urn:problem-type:<service>:<slug>`
-             *     URN — never a dereferenceable URL, which would put an error taxonomy into
+             *     handles them differently. That case uses a `urn:problem-type:<service>:<slug>`
+             *     URN. It is never a dereferenceable URL, which would put an error taxonomy into
              *     the flat public URL namespace.
              * @default about:blank
              * @example about:blank
              */
             type: string;
             /**
-             * @description A stable, human-readable summary. Does not vary with the instance.
+             * @description A stable, human-readable summary. It does not change with the instance.
              * @example Not Found
              */
             title: string;
             /**
-             * @description The HTTP status, duplicated in the body.
+             * @description The HTTP status, repeated in the body.
              * @example 404
              */
             status: number;
             /**
-             * @description Instance-specific and safe to show a user. Never a stack trace, a query, or
-             *     an internal hostname.
+             * @description Specific to the instance and safe to show a user. Never a stack trace, a query,
+             *     or an internal hostname.
              * @example No product with that identifier.
              */
             detail?: string;
             /**
-             * @description The W3C Trace Context trace-id of the failing request, so a user-reported
-             *     error reaches its trace. Supplied from the active span, not by the handler.
+             * @description The W3C Trace Context trace-id of the failing request, so an error that a user
+             *     reports leads to its trace. The active span supplies it, not the handler.
              * @example 4bf92f3577b34da6a3ce929d0e0e4736
              */
             trace_id?: string;
             /**
-             * @description Field-level validation failures, populated from the generated validator.
+             * @description Field-level validation failures, filled from the generated validator.
              *     Absent when the failure is not a validation failure.
              */
             errors?: {
                 /**
-                 * @description RFC 6901 JSON Pointer to the offending member.
+                 * @description RFC 6901 JSON Pointer to the member that failed.
                  * @example /price/amount
                  */
                 pointer: string;
@@ -122,9 +122,9 @@ export interface components {
             }[];
         };
         /**
-         * @description A monetary amount. The amount is a decimal STRING — a JSON number becomes a
-         *     double in the TypeScript client, and a double cannot hold a decimal amount
-         *     exactly. Currency travels with the amount, because an amount without one is
+         * @description A monetary amount. The amount is a decimal string, because a JSON number becomes
+         *     a double in the TypeScript client, and a double cannot hold a decimal amount
+         *     exactly. The currency goes with the amount, because an amount without one is
          *     not a quantity of anything.
          * @example {
          *       "amount": "1299.00",
@@ -133,7 +133,7 @@ export interface components {
          */
         Money: {
             /**
-             * @description Decimal amount, sign-prefixed when negative. No thousands separators.
+             * @description Decimal amount, with a leading sign when negative. No thousands separators.
              * @example 1299.00
              */
             amount: string;
@@ -145,14 +145,14 @@ export interface components {
         };
         /**
          * @description An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
-         *     base32. The leading character is capped at 7 — 26 characters hold 130 bits and
-         *     a UUID is 128. Opaque to a consumer: nothing parses, orders, or constructs one.
+         *     base32. The first character is at most 7, because 26 characters hold 130 bits and
+         *     a UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.
          * @example order_01kztnj6c8e0jt7vzw0cn1wxvd
          */
         OrderId: string;
         /**
          * @description A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
-         *     base32. Opaque to a consumer: nothing parses, orders, or constructs one.
+         *     base32. It is opaque to a consumer: nothing parses, orders, or builds one.
          * @example product_01kztmx9e0fq1r13w5d1aerqw6
          */
         ProductId: string;
@@ -172,7 +172,7 @@ export interface components {
             status: "running" | "completed" | "failed" | "cancelled";
             /**
              * Format: uri-reference
-             * @description GET to fetch terminal status + result
+             * @description GET it to fetch the terminal status and result
              */
             result_url?: string;
         };

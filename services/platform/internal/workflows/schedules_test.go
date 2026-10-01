@@ -32,8 +32,8 @@ func erasureEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnvironm
 	return env
 }
 
-// The ordering is the property worth pinning: while the tuples exist the services can still answer questions about
-// the subject, which is what makes a failed run safe to retry.
+// The test pins the order. While the tuples exist, the services can still answer questions about the subject, so a
+// failed run is safe to retry.
 func TestEraseSubjectRemovesTuplesLast(t *testing.T) {
 	t.Parallel()
 	var ts testsuite.WorkflowTestSuite
@@ -54,9 +54,8 @@ func TestEraseSubjectRemovesTuplesLast(t *testing.T) {
 	require.Equal(t, "EraseAuthzTuplesActivity", order[len(order)-1])
 }
 
-// A store that fails must stop the run rather than let it continue: a partial
-// erasure that reports success is the failure ADR-0301 names as worse than an
-// unstarted one.
+// A store that fails must stop the run. ADR-0301 says that a partial erasure
+// that reports success is worse than one that never started.
 func TestEraseSubjectStopsOnFailure(t *testing.T) {
 	t.Parallel()
 	var ts testsuite.WorkflowTestSuite
@@ -71,8 +70,8 @@ func TestEraseSubjectStopsOnFailure(t *testing.T) {
 	env.AssertNotCalled(t, "EraseAuthzTuplesActivity", mock.Anything, mock.Anything)
 }
 
-// storeError stands in for a store that is unreachable, which is the failure the
-// workflow must stop on rather than continue past.
+// storeError stands in for an unreachable store. The workflow must stop on this
+// failure and not continue.
 type storeError struct{}
 
 func (storeError) Error() string { return "store unavailable" }

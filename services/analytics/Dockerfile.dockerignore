@@ -1,9 +1,9 @@
-# Per-service build-context filter (ADR-0101, ADR-0200). BuildKit reads this file
-# (next to the Dockerfile) in preference to any root .dockerignore, so each build
-# states its own context rules — there is no hidden repo-wide default. A Go service
-# image compiles ONLY Go sources (go.mod/go.sum, libs/go, services/*); everything
-# else is kept out of the build context. The frontend, which needs apps/ + libs/ts,
-# has its own filter (apps/frontend/Dockerfile.dockerignore).
+# Per-service build-context filter, per ADR-0101 and ADR-0200. BuildKit reads this file
+# next to the Dockerfile before any root .dockerignore. So each build states its own
+# context rules, and no hidden repo-wide default exists. A Go service image compiles
+# ONLY Go sources: go.mod, go.sum, libs/go, and services/*. The build context leaves out
+# everything else. The frontend needs apps/ and libs/ts, so it has its own filter in
+# apps/frontend/Dockerfile.dockerignore.
 **/.git
 **/.DS_Store
 **/node_modules
@@ -12,26 +12,26 @@
 apps/
 libs/ts/
 
-# Repo plumbing not needed to compile a service.
+# Repo plumbing that a service build does not need.
 docs/
 infra/
-# …except the funnel definitions, which this image BAKES IN (see the Dockerfile's
-# COPY of infra/analytics/funnels.yaml). An exclusion that swallows a file the
-# Dockerfile copies does not fail at review or at lint — it fails at build, as
+# The exception is the funnel definitions, which this image INCLUDES through the
+# Dockerfile's COPY of infra/analytics/funnels.yaml. If an exclusion hides a file that
+# the Dockerfile copies, review and lint do not catch it. The build fails with
 # `failed to compute cache key: failed to calculate checksum`, which names neither
-# the file nor this list. Re-include what is needed rather than narrowing `infra/`,
-# so a new plumbing directory stays out by default.
+# the file nor this list. Include the needed path again, and do not narrow `infra/`.
+# Then a new plumbing directory stays out by default.
 !infra/analytics/
 scripts/
 tools/
 .github/
 
-# Root tooling/config not needed to compile a service.
+# Root tooling and config that a service build does not need.
 biome.jsonc
 package.json
 cog.toml
 .golangci.yml
 .rumdl.toml
 
-# Markdown anywhere (incl. per-service READMEs).
+# Markdown in any directory, including per-service READMEs.
 **/*.md

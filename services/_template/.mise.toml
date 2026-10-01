@@ -1,22 +1,21 @@
-# Service-local tasks. These are the standard task names (ADR-0101) that
-# every service exposes.
+# Service-local tasks. Every service exposes these standard task names, per ADR-0101.
 
-# Inner-loop config comes from .env (copy .env.example). Absent, tasks still run —
-# the service just falls back to its in-cluster defaults.
+# Inner-loop config comes from .env, a copy of .env.example. Without it, tasks still run,
+# and the service uses its in-cluster defaults.
 [env]
-# The port this service binds natively. Register it in scripts/lib/ports.sh first and copy the number here; `mise run lint:ports` fails if the two disagree.
+# The port that this service binds in a native run. Register it in scripts/lib/ports.sh first, and copy the number here. `mise run lint:ports` fails if the two differ.
 PORT = "80XX"
 _.file = ".env"
 
 [tasks.env]
-description = "Seed .env from .env.example on a fresh clone (see scripts/env-ensure.sh for why it stops rather than continuing)."
+description = "Create .env from .env.example on a fresh clone. It then stops and does not continue, and scripts/env-ensure.sh states why."
 hide = true
 run = "bash ../../scripts/env-ensure.sh"
 
-# Dependency components this service needs in the cluster (ADR-0205, ADR-0600). Trim to what the service reads.
-# Add `svc:<other>` for every other service this one calls over HTTP, which is what makes the callee answer on the local port <OTHER>_URL defaults to.
+# The dependency components this service needs in the cluster, per ADR-0205 and ADR-0600. Keep only what the service reads.
+# Add `svc:<other>` for each service that this one calls over HTTP. Then the callee answers on the local port that <OTHER>_URL defaults to.
 [tasks.server]
-description = "Run the HTTP server against the locally port-forwarded deps"
+description = "Run the HTTP server with the deps port-forwarded to localhost"
 depends = ["env", "dep:postgres", "dep:openfga", "dep:temporal"]
 run = "go run ./cmd/server"
 
@@ -37,7 +36,7 @@ depends = ["env", "dep:postgres"]
 run = "dbmate --no-dump-schema up"
 
 [tasks.generate]
-description = "Regenerate sqlc + OpenAPI server/client for this service"
+description = "Regenerate the sqlc code and the OpenAPI server and client for this service"
 run = "sqlc generate && bash ../../scripts/gen-openapi.sh"
 
 [tasks.build]

@@ -1,4 +1,4 @@
-// Package id generates and encodes entity identifiers (ADR-0003).
+// Package id generates and encodes entity identifiers, per ADR-0003.
 package id
 
 import (
@@ -9,16 +9,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// alphabet is Crockford base32 in TypeID's ordering: lowercase, and without i, l,
-// o, or u, so a transcribed identifier cannot be misread as a digit or an obscenity.
+// alphabet is Crockford base32 in TypeID's order: lowercase, with no i, l, o, or u.
+// So a copied identifier cannot be misread as a digit or form a rude word.
 const alphabet = "0123456789abcdefghjkmnpqrstvwxyz"
 
-// encodedLen is 26: 128 bits at 5 bits per character needs 25.6 characters, and the
-// leading one carries the 3 spare bits.
+// encodedLen is 26: 128 bits at 5 bits per character needs 25.6 characters. The
+// first character carries the 3 extra bits.
 const encodedLen = 26
 
-// maxPrefixLen bounds the prefix at the same 63 characters a DNS label allows,
-// which is the tightest bound any downstream consumer of these strings imposes.
+// maxPrefixLen limits the prefix to 63 characters, the same as a DNS label. No
+// downstream consumer of these strings sets a tighter limit.
 const maxPrefixLen = 63
 
 var (
@@ -32,7 +32,7 @@ var (
 	ErrPrefixMismatch = errors.New("id: prefix does not match the expected type")
 )
 
-// decodeTable maps a base32 character to its value; 0xff marks an invalid one.
+// decodeTable maps a base32 character to its value. 0xff marks an invalid character.
 var decodeTable = func() [256]byte {
 	var t [256]byte
 	for i := range t {
@@ -44,7 +44,7 @@ var decodeTable = func() [256]byte {
 	return t
 }()
 
-// ID is a type-prefixed UUIDv7, and the zero value is not a valid identifier. The receivers are mixed so that
+// ID is a type-prefixed UUIDv7, and the zero value is not a valid identifier. The receivers are mixed, so
 // id.MustNew("order").String() works on a non-addressable result.
 //
 //nolint:recvcheck // encoding.TextUnmarshaler requires the pointer receiver
@@ -54,7 +54,7 @@ type ID struct {
 }
 
 // New mints a new identifier of the given type. The prefix is the singular
-// snake_case form of the resource's collection noun — /orders yields "order".
+// snake_case form of the resource's collection noun: /orders gives `order`.
 func New(prefix string) (ID, error) {
 	err := ValidatePrefix(prefix)
 	if err != nil {
@@ -67,8 +67,8 @@ func New(prefix string) (ID, error) {
 	return ID{prefix: prefix, uuid: u}, nil
 }
 
-// MustNew is New for package-level initialisation and tests, where a failure is a
-// programming error rather than a runtime condition.
+// MustNew is New for package-level initialisation and tests. There a failure is a
+// programming error, not a runtime condition.
 func MustNew(prefix string) ID {
 	v, err := New(prefix)
 	if err != nil {
@@ -77,8 +77,8 @@ func MustNew(prefix string) ID {
 	return v
 }
 
-// From wraps an existing UUID — the read path, where storage returns the bare
-// column and the transport boundary adds the prefix back.
+// From wraps an existing UUID. It serves the read path: storage returns the bare
+// column, and the transport boundary adds the prefix back.
 func From(prefix string, u uuid.UUID) (ID, error) {
 	err := ValidatePrefix(prefix)
 	if err != nil {
@@ -87,9 +87,9 @@ func From(prefix string, u uuid.UUID) (ID, error) {
 	return ID{prefix: prefix, uuid: u}, nil
 }
 
-// MustFrom is From for a prefix that is a literal in the calling code, where the
-// only failure is a malformed constant — a programming error the first request
-// surfaces, not a condition a handler can act on.
+// MustFrom is From for a prefix that is a literal in the calling code. The only
+// failure is a malformed constant. That is a programming error that the first
+// request shows, not a condition that a handler can act on.
 func MustFrom(prefix string, u uuid.UUID) ID {
 	v, err := From(prefix, u)
 	if err != nil {
@@ -98,9 +98,9 @@ func MustFrom(prefix string, u uuid.UUID) ID {
 	return v
 }
 
-// Parse decodes a wire-form identifier and checks it carries the expected prefix.
-// Passing the expected type is the point: it is what stops an order_ being accepted
-// where a product_ belongs, which a bare UUID cannot express.
+// Parse decodes a wire-form identifier and checks that it has the expected prefix.
+// The expected type stops an order_ from being accepted where a product_ belongs.
+// A bare UUID cannot express this.
 func Parse(prefix, s string) (ID, error) {
 	got, err := ParseAny(s)
 	if err != nil {
@@ -113,7 +113,7 @@ func Parse(prefix, s string) (ID, error) {
 }
 
 // ParseAny decodes a wire-form identifier without checking its type. Use it only
-// where the type genuinely is not known ahead of time, such as a log processor.
+// where the type is not known in advance, such as in a log processor.
 func ParseAny(s string) (ID, error) {
 	sep := strings.LastIndex(s, "_")
 	if sep < 0 {
@@ -139,9 +139,9 @@ func ValidatePrefix(prefix string) error {
 	case len(prefix) > maxPrefixLen:
 		return ErrPrefixTooLong
 	}
-	// An underscore is allowed inside the prefix but not at either end: the LAST
-	// underscore separates prefix from suffix, so a trailing one would make the
-	// prefix ambiguous.
+	// An underscore is allowed inside the prefix but not at either end. The LAST
+	// underscore separates prefix from suffix, so a trailing one makes the prefix
+	// ambiguous.
 	if strings.HasPrefix(prefix, "_") || strings.HasSuffix(prefix, "_") {
 		return ErrPrefixCharset
 	}
@@ -158,7 +158,6 @@ func (i ID) Prefix() string { return i.prefix }
 // UUID is the stored value: what goes in the uuid column, and nowhere else.
 func (i ID) UUID() uuid.UUID { return i.uuid }
 
-// IsZero reports whether this is the zero value rather than a real identifier.
 func (i ID) IsZero() bool { return i.prefix == "" && i.uuid == uuid.Nil }
 
 // String is the wire form.
@@ -169,12 +168,12 @@ func (i ID) String() string {
 	return i.prefix + "_" + encode(i.uuid)
 }
 
-// MarshalText makes ID work anywhere encoding/json reaches, so a handler never
-// converts by hand.
+// MarshalText makes ID work everywhere that encoding/json reaches, so a handler
+// never converts by hand.
 func (i ID) MarshalText() ([]byte, error) { return []byte(i.String()), nil }
 
-// UnmarshalText accepts any well-formed identifier. The TYPE check lives in Parse,
-// because a struct field's expected prefix is not visible from here.
+// UnmarshalText accepts any well-formed identifier. The TYPE check is in Parse,
+// because this method cannot see a struct field's expected prefix.
 func (i *ID) UnmarshalText(b []byte) error {
 	v, err := ParseAny(string(b))
 	if err != nil {
@@ -187,11 +186,11 @@ func (i *ID) UnmarshalText(b []byte) error {
 // encode renders the 128-bit value as 26 base32 characters, most significant first.
 func encode(u uuid.UUID) string {
 	var out [encodedLen]byte
-	// The first character carries the top 3 bits; the remaining 25 carry 5 each.
+	// The first character carries the top 3 bits. The other 25 carry 5 bits each.
 	out[0] = alphabet[(u[0]&0xe0)>>5]
 
-	// Walk the 128 bits as a bit offset so the 5-bit groups cross byte boundaries
-	// without a special case per group.
+	// Walk the 128 bits by bit offset, so the 5-bit groups cross byte boundaries
+	// with no special case per group.
 	bit := 3
 	for i := 1; i < encodedLen; i++ {
 		var v byte
@@ -205,14 +204,13 @@ func encode(u uuid.UUID) string {
 	return string(out[:])
 }
 
-// decode is encode's inverse.
 func decode(s string) (uuid.UUID, error) {
 	if len(s) != encodedLen {
 		return uuid.Nil, ErrSuffixLength
 	}
-	// 26 characters hold 130 bits and a UUID is 128, so the first character cannot
-	// exceed 7 — anything larger is a value that does not fit and would silently
-	// wrap if the bits were simply shifted in.
+	// 26 characters hold 130 bits and a UUID has 128, so the first character cannot
+	// be above 7. A larger value does not fit, and shifting its bits in wraps it
+	// with no error.
 	first := decodeTable[s[0]]
 	if first == 0xff {
 		return uuid.Nil, ErrSuffixCharset

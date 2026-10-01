@@ -11,8 +11,8 @@ import (
 	"go.temporal.io/sdk/testsuite"
 )
 
-// refundEnv registers stub activities under the names Refund executes, so the
-// test env resolves and mocks them without the real PSP/DB implementations.
+// refundEnv registers stub activities under the names that Refund runs. The test
+// env then resolves and mocks them without the real PSP or DB implementations.
 func refundEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnvironment {
 	env := ts.NewTestWorkflowEnvironment()
 	env.RegisterActivityWithOptions(

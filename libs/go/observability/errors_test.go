@@ -9,8 +9,8 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
 )
 
-// These pin the fingerprint's stability (ADR-0503). Nothing else can see a break: a drifted fingerprint looks like a
-// new fault.
+// These tests pin the fingerprint's stability, per ADR-0503. Nothing else can see a break, because a changed
+// fingerprint looks like a new fault.
 
 func failOne() error           { return errors.New("boom") }
 func failTwo() error           { return errors.New("boom") }
@@ -27,8 +27,8 @@ func TestFingerprintIsStableForTheSameFault(t *testing.T) {
 	}
 }
 
-// The varying part of a message must not reach the hash. This is the difference
-// between one fault and one fault per request.
+// The varying part of a message must not reach the hash. Otherwise one fault
+// becomes one fault per request.
 func TestFingerprintIgnoresTheMessagePayload(t *testing.T) {
 	t.Parallel()
 	first := observability.Fingerprint(failWith("order_1"))
@@ -38,8 +38,8 @@ func TestFingerprintIgnoresTheMessagePayload(t *testing.T) {
 	}
 }
 
-// Different faults get different fingerprints. This is the half that stops one
-// dashboard row from standing for the whole platform.
+// Different faults get different fingerprints. This half stops one dashboard row
+// from standing for the whole platform.
 func TestFingerprintSeparatesDistinctFaults(t *testing.T) {
 	t.Parallel()
 	if observability.Fingerprint(failOne()) == observability.Fingerprint(failElsewhere()) {
@@ -47,8 +47,8 @@ func TestFingerprintSeparatesDistinctFaults(t *testing.T) {
 	}
 }
 
-// A known merge: two errors with the same normalised message from the same place are one fault, because Go's
-// errors carry no creation stack. Asserted so a change to the frame rule has to decide about it deliberately.
+// A known merge: two errors with the same normalised message from the same place are one fault. Go's errors
+// carry no creation stack. The test asserts it, so a change to the frame rule must decide about it on purpose.
 func TestIdenticalMessagesFromOneRecordSiteMerge(t *testing.T) {
 	t.Parallel()
 	if observability.Fingerprint(failOne()) != observability.Fingerprint(failTwo()) {
@@ -56,7 +56,7 @@ func TestIdenticalMessagesFromOneRecordSiteMerge(t *testing.T) {
 	}
 }
 
-// The normaliser earns its place here: an id in a message must not mint a fault.
+// This is why the normaliser exists: an id in a message must not make a new fault.
 func TestFingerprintNormalisesIdentifiers(t *testing.T) {
 	t.Parallel()
 	first := observability.Fingerprint(failWith("order_01kztmx9e0fq1r13w5d1aerqw6"))
@@ -66,9 +66,9 @@ func TestFingerprintNormalisesIdentifiers(t *testing.T) {
 	}
 }
 
-// Wrapping must not change the fault. Every layer wraps with fmt.Errorf, so a
-// fingerprint that moved on each wrap would depend on how deep the error was
-// caught rather than on where it came from.
+// Wrapping must not change the fault. Every layer wraps with fmt.Errorf. If each
+// wrap changed the fingerprint, it would depend on where the error was caught,
+// not on where it came from.
 func TestFingerprintSurvivesWrapping(t *testing.T) {
 	t.Parallel()
 	if observability.Fingerprint(wrapOne()) == "" {
@@ -94,16 +94,16 @@ func TestFingerprintOfNilIsEmpty(t *testing.T) {
 	}
 }
 
-// The normaliser is the tuned part, so its rules are pinned directly rather than
-// only through fingerprints. A change here changes what merges with what.
+// The normaliser is the tuned part, so the test pins its rules directly and not
+// only through fingerprints. A change here changes which messages merge.
 func TestNormaliseRules(t *testing.T) {
 	t.Parallel()
 	cases := []struct{ in, want string }{
 		{"order order_01kztmx9e0fq1r13w5d1aerqw6 not found", "order order_<x> not found"},
 		{"retry 3 of 5", "retry <n> of <n>"},
 		{"dial postgres-rw:5432: connection refused", "dial postgres-rw:<n>: connection refused"},
-		// Words that happen to be hex are words. An earlier hex-run rule turned
-		// `dead` and `add` into placeholders and shredded base32 ids into fragments.
+		// Words that are also hex are words. A hex-run rule turns `dead` and `add`
+		// into placeholders and breaks base32 ids into fragments.
 		{"deadlock detected", "deadlock detected"},
 		{"add failed", "add failed"},
 		// No varying part means nothing changes.

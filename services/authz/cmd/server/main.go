@@ -1,5 +1,5 @@
-// authz is the ops-tier edge authorizer Oathkeeper's remote_json authorizer calls: no database, no edge route
-// (ADR-0306).
+// authz is the ops-tier edge authorizer that Oathkeeper's remote_json authorizer calls. It has no database and no
+// edge route, per ADR-0306.
 package main
 
 import (
@@ -51,22 +51,22 @@ func run() error {
 		return fmt.Errorf("authz granter: %w", err)
 	}
 
-	// Coarse claim gate is always on; the optional fine per-tool OpenFGA layer is
-	// enabled per-project (ADR-0306). Default off keeps the coarse gate free of any
-	// OpenFGA dependency.
+	// The coarse claim gate is always on. Each project can enable the optional fine
+	// per-tool OpenFGA layer, per ADR-0306. It is off by default, so the coarse gate
+	// has no OpenFGA dependency.
 	fineGrained := os.Getenv("OPS_FINE_GRAINED") == "true"
 
-	// A hard dependency of startup rather than a lazy dial: a promotion accepted and then found to have no workflow
-	// engine to run on has already told the console yes.
+	// A hard startup dependency, not a dial on first use. If a promotion is accepted and then has no workflow engine
+	// to run on, the console has already received a yes.
 	tc, err := temporalmw.NewClient(serviceName)
 	if err != nil {
 		return fmt.Errorf("temporal: %w", err)
 	}
 	defer tc.Close()
 
-	// authz is spec-first like every HTTP service (ADR-0303): the ogen server routes
-	// and validates; the handlers implement the generated interface. No authmw — the
-	// caller is Oathkeeper (remote_json), not a user session.
+	// authz is spec-first like every HTTP service, per ADR-0303. The ogen server routes
+	// and validates, and the handlers implement the generated interface. There is no
+	// authmw, because the caller is Oathkeeper's remote_json, not a user session.
 	api, err := authzsdk.NewServer(
 		handlers.New(checker, granter, fineGrained, tc, slog.Default()),
 		authzsdk.WithErrorHandler(apierr.ServeError),

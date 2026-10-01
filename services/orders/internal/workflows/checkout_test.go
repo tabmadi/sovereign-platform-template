@@ -21,9 +21,9 @@ var testCheckout = CheckoutInput{
 	OrgID:     "org_01kztn9tsrea7b1597q3yjdeav",
 }
 
-// checkoutEnv registers a stub for each activity Checkout executes, under the names
-// it executes them by, so the test env resolves them without the real store, the
-// real OpenFGA, or the two services the saga calls.
+// checkoutEnv registers a stub for each activity that Checkout runs, under the names
+// that it uses. The test env then resolves them without the real store, the real
+// OpenFGA, or the two services that the saga calls.
 func checkoutEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnvironment {
 	env := ts.NewTestWorkflowEnvironment()
 	env.RegisterActivityWithOptions(
@@ -103,16 +103,16 @@ func TestCheckoutWorkflow(t *testing.T) {
 			var res CheckoutResult
 			require.NoError(t, env.GetWorkflowResult(&res))
 			require.Equal(t, "confirmed", res.Status)
-			// The saga multiplied the unit price by the quantity through the shared
-			// money type, so the total carries its currency and not just a scale.
+			// The saga multiplied the unit price by the quantity with the shared
+			// money type, so the total carries its currency and not only a scale.
 			require.Equal(t, "30", res.Total.String())
 			require.Equal(t, "EUR", res.Total.Currency())
 			env.AssertExpectations(t)
 		},
 	)
 
-	// The DB write and the OpenFGA write are the two legs of one dual write
-	// (ADR-0304), so a failed insert must not leave tuples pointing at a row that
+	// The DB write and the OpenFGA write are the two legs of one dual write, per
+	// ADR-0304. So a failed insert must not leave tuples that point at a row that
 	// does not exist.
 	t.Run(
 		"a failed insert never grants access",
@@ -138,8 +138,8 @@ func TestCheckoutWorkflow(t *testing.T) {
 		},
 	)
 
-	// An order nobody can read is the failure the dual write exists to prevent, so
-	// the saga stops rather than charging for something the buyer cannot see.
+	// The dual write exists to prevent an order that nobody can read. So the saga
+	// stops and does not charge for something that the buyer cannot see.
 	t.Run(
 		"a failed grant stops the saga before it charges",
 		func(t *testing.T) {

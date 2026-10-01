@@ -1,25 +1,24 @@
-# Service level objectives for this service (ADR-0500), computed from the RED histogram it already emits.
-# The objective is deliberately unset: a target inherited from a template is a target nobody chose.
-# Setting one is bounded by how long a fault takes to notice — see docs/reference/detection-latency.md.
+# Service level objectives for this service, per ADR-0500. They come from the RED histogram that it already emits.
+# The objective is unset on purpose: a target inherited from a template is a target that nobody chose.
+# The time to notice a fault limits the choice, per docs/reference/detection-latency.md.
 
-window: 30d # rolling (ADR-0500). Prometheus retention must cover it.
+window: 30d # rolling, per ADR-0500. Prometheus retention must cover it.
 
 availability:
   # Good event: a response that is not 5xx. A 4xx is the caller's fault and does
-  # not spend the budget.
-  objective: null # e.g. 0.995 — set it, or this service has no budget
-  # Publishing the objective turns the burn-rate rules on; they read a series, not this file. See docs/reference/slo-recording-rules.md.
+  # not use the budget.
+  objective: null # for example 0.995. Without a value, this service has no budget
+  # A published objective turns the burn-rate rules on. They read a series, not this file, per docs/reference/slo-recording-rules.md.
 
 latency:
-  # Good event: a request completing under the threshold. The threshold is a
-  # default the template CAN ship, because it is a property of the request class
-  # rather than a promise to anyone.
+  # Good event: a request that completes under the threshold. The template CAN ship
+  # a default threshold, because it is a property of the request class and not a
+  # promise to anyone.
   threshold: 0.5 # seconds
-  objective: null # e.g. 0.99 of requests under the threshold
-  # Latency needs two recording rules per service where availability needs one, because PromQL cannot take an `le` label selector from a series. See docs/reference/slo-recording-rules.md.
-  # dashboard rather than an empty one.
+  objective: null # for example 0.99 of requests under the threshold
+  # Latency needs two recording rules per service, and availability needs one. PromQL cannot take an `le` label selector from a series, per docs/reference/slo-recording-rules.md.
 
-# Excluded from both SLIs: anything with no live caller.
+# Both SLIs leave out anything with no live caller.
 exclude:
   - /livez
   - /readyz

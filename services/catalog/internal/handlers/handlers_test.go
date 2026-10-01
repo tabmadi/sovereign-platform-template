@@ -11,8 +11,8 @@ import (
 	catalog "github.com/tabmadi/sovereign-platform-template/libs/go/sdks/catalog"
 )
 
-// fakeChecker stands in for the OpenFGA Checker so the authz gate can be
-// exercised without a cluster (ADR-0304).
+// fakeChecker stands in for the OpenFGA Checker, so a test can run the authz
+// gate without a cluster, per ADR-0304.
 type fakeChecker struct {
 	allowed bool
 	err     error
@@ -22,8 +22,8 @@ func (f fakeChecker) Allowed(context.Context, string, string, string) (bool, err
 	return f.allowed, f.err
 }
 
-// CreateProduct is operator-gated (x-audience: internal, ADR-0303). The gate
-// rejects before any DB access, so a nil store is fine for these cases.
+// CreateProduct is operator-gated with `x-audience: internal`, per ADR-0303. The
+// gate rejects before any DB access, so a nil store works for these cases.
 func TestCreateProductAuthz(t *testing.T) {
 	t.Parallel()
 	req := &catalog.ProductInput{Name: "widget", Price: catalog.Money{Amount: "1.00", Currency: "EUR"}}
@@ -61,8 +61,8 @@ func TestCreateProductAuthz(t *testing.T) {
 	}
 }
 
-// UpdateProduct and DeleteProduct (ADR-0302) run the same operator gate as
-// CreateProduct, before any DB access — so a nil store is fine for these cases.
+// UpdateProduct and DeleteProduct run the same operator gate as CreateProduct, per
+// ADR-0302. It runs before any DB access, so a nil store works for these cases.
 func TestWriteAuthz(t *testing.T) {
 	t.Parallel()
 	input := &catalog.ProductInput{Name: "widget", Price: catalog.Money{Amount: "1.00", Currency: "EUR"}}

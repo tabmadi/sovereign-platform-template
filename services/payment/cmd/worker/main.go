@@ -1,4 +1,4 @@
-// Temporal worker for payment.Charge (ADR-0302).
+// Temporal worker for payment.Charge, per ADR-0302.
 package main
 
 import (

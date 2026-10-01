@@ -1,4 +1,4 @@
-// The consent gate's rules, pinned (ADR-0700).
+// These tests pin the consent gate's rules, per ADR-0700.
 import { describe, expect, test } from "bun:test";
 
 import { type ConsentDecision, gpcDecision, mayEmitMarketing, shouldPrompt } from "./consent";
@@ -11,7 +11,7 @@ describe("mayEmitMarketing", () => {
     expect(mayEmitMarketing(granted)).toBe(true);
   });
 
-  // The load-bearing one: a visitor who has not answered has not consented.
+  // The key rule: a visitor who has not answered has not consented.
   test("no decision is not a grant", () => {
     expect(mayEmitMarketing(null)).toBe(false);
   });
@@ -24,8 +24,8 @@ describe("mayEmitMarketing", () => {
     expect(mayEmitMarketing({ ...granted, state: "refused" })).toBe(false);
   });
 
-  // A grant to an older purpose text still permits emission; what it triggers is a
-  // re-prompt, not a silent stop. Stopping would lose data the visitor agreed to.
+  // A grant to an older purpose text still permits emission. It triggers a new
+  // prompt, not a silent stop. A stop would lose data that the visitor agreed to.
   test("a grant to an older purpose still permits emission", () => {
     expect(mayEmitMarketing({ ...granted, purposeVersion: "2026-01-01" })).toBe(true);
   });
@@ -40,12 +40,12 @@ describe("shouldPrompt", () => {
     expect(shouldPrompt(granted, VERSION)).toBe(false);
   });
 
-  // A changed purpose is a new question (GDPR Art. 7(1)).
+  // A changed purpose is a new question, per GDPR Art. 7(1).
   test("a changed purpose re-asks", () => {
     expect(shouldPrompt({ ...granted, purposeVersion: "2026-01-01" }, VERSION)).toBe(true);
   });
 
-  // Never re-ask someone who sent a prior signal, even across a purpose change.
+  // Never ask again a visitor who sent a signal before, even after a purpose change.
   test("a GPC refusal is never re-asked", () => {
     expect(shouldPrompt(gpcDecision("2026-01-01"), VERSION)).toBe(false);
   });
