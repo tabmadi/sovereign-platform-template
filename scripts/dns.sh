@@ -12,8 +12,12 @@ usage() { fail "usage: dns.sh <check|apply>"; }
 [ "$#" -eq 1 ] || usage
 
 # The template ships no provider, because a project chooses its own. The placeholder is not a provider that dnscontrol can run.
-[ "$(jq -r '.zone.TYPE' "$CREDS")" != "NONE" ] ||
-  fail "${CREDS} names no provider yet. Replace its 'zone' entry. See infra/dns/README.md"
+# A check then has nothing to compare, so the nightly job passes until the project names its provider.
+if [ "$(jq -r '.zone.TYPE' "$CREDS")" = "NONE" ]; then
+  [ "$1" = "check" ] || fail "${CREDS} names no provider yet. Replace its 'zone' entry. See infra/dns/README.md"
+  ok "${CREDS} names no provider yet. Nothing to compare"
+  exit 0
+fi
 
 # creds.json names environment variables, and the secret file holds their values. A project with no provider yet has no such file.
 if [ -f "$SECRET" ]; then

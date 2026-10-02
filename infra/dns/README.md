@@ -22,7 +22,7 @@ The template ships placeholders, because a project chooses its own provider and 
 4. In `dnsconfig.js`, replace each placeholder address with the environment's edge address and mail egress address.
 5. Run `mise run dns:check`, read the difference, then run `mise run dns:apply`.
 
-`mise run lint:dns` checks the declaration with no credential, so it runs in CI.
+`mise run lint:dns` checks the declaration with no credential, so it runs in CI. The `dns` workflow runs `mise run dns:check` every night and after each change to this directory.
 
 ## What a wildcard covers
 

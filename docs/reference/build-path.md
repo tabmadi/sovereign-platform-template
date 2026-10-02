@@ -77,6 +77,8 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `cluster:add` | One verb to put something in the cluster, per ADR-0600. | lighthouse.yml |
 | `cluster:down` | Delete the tier's cluster and its image cache. | e2e.yml, lighthouse.yml, perf.yml |
 | `cluster:up` | Create, resume, or repair a tier. | e2e.yml, lighthouse.yml, perf.yml |
+| `dns:apply` | Make the provider's zones match infra/dns/dnsconfig.js, per ADR-0206. It deletes the records that the file does not declare. | dns.yml |
+| `dns:check` | Report how the provider's zones differ from infra/dns/dnsconfig.js, per ADR-0206. It changes nothing. | dns.yml |
 | `e2e` | The full browser suite against a running full tier: acceptance, visual, and accessibility, per ADR-0601. | e2e.yml |
 | `e2e:install` | The e2e island's Node dependencies and its browser, per ADR-0601. | e2e.yml, lighthouse.yml, preview.yml |
 | `e2e:smoke` | The @smoke subset of the browser suite, for a labelled pull request, per ADR-0601. | e2e.yml, preview.yml |

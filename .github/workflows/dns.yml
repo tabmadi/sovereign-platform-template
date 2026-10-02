@@ -1,0 +1,30 @@
+# DNS drift, per ADR-0206. The repository declares the zone, and this job fails when the provider holds something else.
+# It changes nothing. A person runs `mise run dns:apply` to reconcile.
+name: dns
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # after the nightly suites
+  push:
+    branches: [master]
+    paths: ["infra/dns/**", "scripts/dns.sh"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Compare the zone with the provider
+        env:
+          # CI's age key, which is a recipient of the provider credential, per ADR-0202. It is unset on a fork.
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
+        run: mise run dns:check

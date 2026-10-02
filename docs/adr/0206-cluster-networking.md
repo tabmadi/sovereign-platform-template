@@ -173,5 +173,5 @@ Cilium covers CNI and mesh as one component. Its eBPF datapath without sidecars 
 - Cilium NetworkPolicy is the internal trust boundary between services, and each service declares its allowed callers. `(CI: lint:service-contract)`
 - No dedicated service mesh is deployed, with sidecars or ambient. A mesh runs over the CNI, not in place of it. So a mesh is a second component that provides encryption, identity, and L4 policy again, after Cilium. The edge and the app already cover its L7 layer.
 - Each environment has one wildcard `A` record and one wildcard certificate. `external-dns` is not used.
-- Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply.
+- Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. `(CI: dns.yml)`
 - An environment is provisioned only where the provider offers a DNS API that cert-manager supports and `PTR` delegation on the mail egress IP.

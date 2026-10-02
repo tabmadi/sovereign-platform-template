@@ -8,8 +8,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 183 |
-| Review-enforced | 341 |
+| Machine-enforced | 184 |
+| Review-enforced | 340 |
 | **Total** | **524** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
@@ -381,7 +381,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Cilium NetworkPolicy is the internal trust boundary between services, and each service declares its allowed callers. | `lint:service-contract` in CI |
 | No dedicated service mesh is deployed, with sidecars or ambient. A mesh runs over the CNI, not in place of it. So a mesh is a second component that provides encryption, identity, and L4 policy again, after Cilium. The edge and the app already cover its L7 layer. | review |
 | Each environment has one wildcard `A` record and one wildcard certificate. `external-dns` is not used. | review |
-| Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. | review |
+| Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. | `dns.yml` in CI |
 | An environment is provisioned only where the provider offers a DNS API that cert-manager supports and `PTR` delegation on the mail egress IP. | review |
 
 ## ADR-0207: Cluster Storage and Backups
