@@ -63,6 +63,14 @@ creation_rules:
       - *ci_placeholder
       - *ops_recovery
 
+  # The DNS provider credential, per ADR-0206. A person or CI reads it to apply the zone. No cluster does.
+  - path_regex: infra/dns/.*\.enc\.ya?ml$
+    encrypted_regex: ^(data|stringData)$
+    age:
+      - *eng_placeholder
+      - *ci_placeholder
+      - *ops_recovery
+
   # Every other encrypted file in the repo: engineers and ops-recovery only.
   - path_regex: .*\.enc\.ya?ml$
     age:

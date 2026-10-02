@@ -28,6 +28,7 @@ The second row is empty for a project that provisions its infrastructure through
 | The first operator's login of [ADR-0304](../adr/0304-identity-and-authorization.md) | the `first-operator` entry of `infra/gitops/platform/<env>/secrets/` | engineers, that cluster, ops-recovery |
 | Local-tier values | `infra/gitops/platform/local/secrets/` | the committed throwaway key |
 | The image-signing key of [ADR-0104](../adr/0104-supply-chain-security.md) | `infra/auth/cosign/` | engineers, CI, ops-recovery |
+| The DNS provider credential of [ADR-0206](../adr/0206-cluster-networking.md) | `infra/dns/secrets.enc.yaml` | engineers, CI, ops-recovery |
 
 The local tier is the one exemption in [ADR-0202](../adr/0202-secrets.md). Its private key is committed, because it opens only throwaway values.
 

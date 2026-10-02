@@ -14,6 +14,8 @@
       "!**/build",
       "!**/libs/ts/sdks",
       "!**/apps/admin/_generated",
+      // The configuration language of dnscontrol, per ADR-0206. It is JavaScript in syntax only: its globals belong to the tool.
+      "!**/infra/dns/dnsconfig.js",
       // scripts/gen-openapi-public.sh generates the merged devportal spec projections. ci:gen drift-checks them.
       "!**/apps/frontend/public/devportal",
       // The test/e2e/ Playwright workspace is the approved Node island with its own toolchain, per ADR-0601.

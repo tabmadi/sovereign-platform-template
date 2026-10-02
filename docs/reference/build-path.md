@@ -104,6 +104,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint:contrast` | Colour contrast, checked against the design-token file and not for each component, per ADR-0400. A token change moves every surface, so the token file is where a regression starts. | .lefthook.yml, ci.yml |
 | `lint:data-classes` | The drift check for the data-class registry. | .lefthook.yml, ci.yml |
 | `lint:determinism` | Temporal workflow determinism, per ADR-0302. | .lefthook.yml, ci.yml |
+| `lint:dns` | ADR-0206: infra/dns/dnsconfig.js is a valid zone declaration. It needs no credential. | .lefthook.yml, ci.yml |
 | `lint:floating-tags` | Image references pin a digest or an explicit version, never a moving tag, per ADR-0101 and ADR-0104. | .lefthook.yml, ci.yml |
 | `lint:gitops-env-scope` | ADR-0201 gate: an environment's bootstrap directory names only that environment. | .lefthook.yml, ci.yml |
 | `lint:go` | Go correctness and style: golangci-lint's configured analysers over every module, per ADR-0100. | .lefthook.yml, ci.yml |

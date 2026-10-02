@@ -58,6 +58,7 @@ The tool is a bounded swap behind a stable interface. The owning ADR has a short
 | age | encryption backend for SOPS | [0202](adr/0202-secrets.md) | BSD-3-Clause | maintainer-led | GPG, cloud KMS, Vault transit |
 | sops-secrets-operator | in-cluster decryption | [0202](adr/0202-secrets.md) | MPL-2.0 | maintainer-led | an init container, a CI-side decrypt, External Secrets Operator |
 | Terraform | infrastructure provisioning | [0200](adr/0200-cluster-topology.md) | BUSL-1.1 | HashiCorp and IBM, single-vendor | OpenTofu, Pulumi, Crossplane, provider CLIs |
+| dnscontrol | DNS as code | [0206](adr/0206-cluster-networking.md) | MIT | DNSControl org, community-led | OctoDNS, the Terraform provider of the DNS host, external-dns, a provider console |
 | zot | image registry | [0105](adr/0105-image-registry.md) | Apache-2.0 | CNCF | CNCF Distribution, Harbor, Quay, a provider registry |
 | oras | pushing and pulling non-image OCI artefacts | [0503](adr/0503-error-tracking.md) | Apache-2.0 | CNCF | `crane`, a plain object-store upload, a CI artefact store |
 | cosign | artefact signing | [0104](adr/0104-supply-chain-security.md) | Apache-2.0 | OpenSSF and Sigstore | notation or Notary v2, GPG, keyless with public Fulcio |
