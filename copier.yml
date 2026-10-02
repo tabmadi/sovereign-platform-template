@@ -5,7 +5,7 @@
 # There is no compatibility promise. The project resolves the conflict.
 #
 # Only `*.jinja` files are rendered. Helm charts and Go templates use `{{ }}` too, and Jinja would corrupt them.
-# scripts/project-rename.sh renames everything else once, at generation, as literal strings.
+# scripts/project-rename.sh renames everything else as literal strings, at generation and at every update.
 _min_copier_version: "9"
 _templates_suffix: ".jinja"
 _answers_file: .copier-answers.yml
@@ -32,13 +32,13 @@ _exclude:
   - "test/template"
 
 _tasks:
-  # Generation only. On an update the project already has its own names, and a second rename rewrites the merge result.
-  - command: "bash scripts/project-rename.sh {{ project_slug }} {{ module_path }} {{ apex_host }} {{ image_registry }}"
-    when: "{{ _copier_operation == 'copy' }}"
-  # A product repository does not keep a script that runs once, because it can still rename the chosen name later.
+  # At generation and at every update. An update renders the old template, the new template, and the project itself.
+  # All three must carry the project's names. Otherwise the 3-way merge reads the rename as a change, and every reworded line conflicts.
+  # An update from a release that renamed at generation only has no script here. That update merges as it did before.
+  - command: "[ ! -f scripts/project-rename.sh ] || bash scripts/project-rename.sh {{ project_slug }} {{ module_path }} {{ apex_host }} {{ image_registry }}"
+  # A product repository does not keep the script, because it can still rename the chosen name later.
   # The removal keeps this output identical to the output of `project:init`. The 3-way baseline of `copier update` depends on that.
   - command: "rm -f scripts/project-rename.sh"
-    when: "{{ _copier_operation == 'copy' }}"
 
 project_name:
   type: str

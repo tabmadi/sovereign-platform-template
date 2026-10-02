@@ -30,8 +30,9 @@ old_apex="example.com"
 # A generated project is not a git repository yet, because Copier runs this before the first commit. So grep must be told which directories are not source.
 # The identity gate and its test name the template's footprints, so the rename leaves them alone. A rename would turn the gate against the project it protects.
 step "renaming to ${slug}"
+# The answers file names the template's own URL, which is where `copier update` fetches from. A rename would point it at the project's forge.
 PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache
-  --exclude=lint-project-identity.sh --exclude=test-template.sh --binary-files=without-match)
+  --exclude=lint-project-identity.sh --exclude=test-template.sh --exclude=.copier-answers.yml --binary-files=without-match)
 
 replace() { # <from> <to>
   # `|` is the sed delimiter, so an argument cannot contain it unescaped. A module path, a host, and a registry namespace are URL-shaped,
@@ -63,6 +64,17 @@ for f in infra/talos/inventory/*/nodes.yml; do
   sed -i "s|example-|${slug}-|g" "$f"
 done
 detail "Talos inventory → ${slug}-<env>-<role>"
+
+# The allow-list is generated in byte order, and the registry namespace is one of its sort keys. So the rename sorts it again.
+allowlist="infra/gitops/platform/image-allowlist.yaml"
+if [ -f "$allowlist" ]; then
+  {
+    grep -v '^    - ' "$allowlist"
+    grep '^    - ' "$allowlist" | LC_ALL=C sort -u
+  } >"${allowlist}.sorted"
+  mv "${allowlist}.sorted" "$allowlist"
+  detail "image allow-list sorted for ${registry}"
+fi
 
 # A generated project does not keep the template's own tasks, per ADR-0106, so the table that includes them goes too.
 sed -i '/^# The template.s own tasks, per ADR-0106\./,/^$/d' .mise.toml

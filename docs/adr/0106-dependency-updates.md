@@ -96,6 +96,8 @@ A generated project tracks this repository through the Copier answers file, and 
 | **Compatibility promise** | none. A template update can conflict, and the project resolves it |
 | **Cadence** | set by the project, on its own schedule |
 
+**The rename runs at every update, not only at generation.** An update renders the old template and the new template, and it merges the difference into the project. Both renders carry the project's names. So the merge sees only what the template changed, and a reworded line that holds a name does not conflict.
+
 **Renovate updates the template pin.** The Copier answers file records the commit of the template. That makes it a dependency like any other. So the same weekly mechanism proposes the template bump, and the same gates judge it.
 
 ## Consequences
@@ -123,5 +125,6 @@ A generated project tracks this repository through the Copier answers file, and 
 - A failing update pull request stays open. The update is never disabled to clear the queue.
 - A CVE that Trivy gates on and that has a fixed version available is proposed at once, outside the batch. `(CI: ci:scan)`
 - A generated project tracks this template through the Copier answers file and updates by 3-way merge. The template makes no compatibility promise, and the project resolves each conflict.
+- The rename runs at generation and at every update. Both renders of an update carry the project's names.
 - A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name does not match its module path has not been renamed. `(CI: lint:project-identity)`
 - Copier and Renovate are pinned in `.mise.toml` like every other tool. Neither runs inside a cluster workload. `(CI: lint:node-scope)`

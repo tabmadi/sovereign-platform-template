@@ -130,12 +130,51 @@ if [ -d "$PATH_B" ]; then
   fi
 fi
 
+# The rename runs at an update too, so a new template line that carries the template's names merges with no conflict.
+# This step commits to the snapshot, so it runs after every step that reads the first commit.
+step "updating a generated project"
+UPDATED="$WORK/updated"
+COPIER="$(mise which copier)"
+if "$COPIER" copy --trust --defaults --data-file "$FIXTURES/valid/defaults.yml" "$SRC" "$UPDATED" >"$WORK/update-copy.log" 2>&1; then
+  git -C "$UPDATED" init -q .
+  git -C "$UPDATED" add -A
+  git -C "$UPDATED" -c user.email=test@local -c user.name=test commit -qm "generated project"
+  printf '\n// update probe\n' >>"$SRC/go.mod"
+  printf '%s\n' "probe: ${OLD_MODULE} ${OLD_APEX}" >"$SRC/infra/update-probe.txt"
+  git -C "$SRC" add -A
+  git -C "$SRC" -c user.email=test@local -c user.name=test commit -qm "template after an update"
+  if (cd "$UPDATED" && "$COPIER" update --trust --defaults --vcs-ref HEAD) >"$WORK/update.log" 2>&1; then
+    problems=()
+    if git -C "$UPDATED" status --porcelain | grep -qE '^(UU|AA|DU|UD) '; then problems+=("the update left conflicts"); fi
+    grep -q '^// update probe$' "$UPDATED/go.mod" || problems+=("the new template line did not arrive in go.mod")
+    if grep -qF -e "$OLD_MODULE" -e "$OLD_APEX" "$UPDATED/go.mod" "$UPDATED/infra/update-probe.txt" 2>/dev/null; then
+      problems+=("the update brought the template's names into the project")
+    fi
+    if [ -e "$UPDATED/scripts/project-rename.sh" ]; then problems+=("the update left project-rename.sh behind"); fi
+    if [ "${#problems[@]}" -eq 0 ]; then
+      detail "a new line next to the module path merged clean, with the project's names"
+    else
+      warn "✗ update:"
+      printf '      %s\n' "${problems[@]}" >&2
+      FAILED=1
+    fi
+  else
+    warn "✗ copier update failed: $(tail -3 "$WORK/update.log" | tr '\n' ' ')"
+    FAILED=1
+  fi
+else
+  warn "✗ generation for the update test failed: $(tail -3 "$WORK/update-copy.log" | tr '\n' ' ')"
+  FAILED=1
+fi
+
 # Minutes, not seconds, with no warm caches. Off by default. The nightly job sets DEEP.
 if [ -n "${DEEP:-}" ] && [ -d "$PATH_B" ]; then
   step "running the generated project's own gates, DEEP"
   if (
-    cd "$PATH_B" && mise trust --quiet >/dev/null 2>&1
-    mise run check
+    # The gates read the file list from git, so the project is a repository first, as it is after the first commit.
+    cd "$PATH_B" && git init -q . && mise trust --quiet >/dev/null 2>&1
+    # Its own lint cache. Every run has the same module path in a new directory, and a shared cache then reports stale paths.
+    GOLANGCI_LINT_CACHE="$WORK/golangci-lint" mise run check
   ) >"$WORK/deep.log" 2>&1; then
     detail "check passed inside the generated project"
   else
