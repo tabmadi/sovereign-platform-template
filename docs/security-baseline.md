@@ -88,6 +88,7 @@ These are the security controls that every project built from this template inhe
 | Cilium NetworkPolicy is the internal trust boundary between services, and each service declares its allowed callers. | `lint:service-contract` in CI |
 | No dedicated service mesh is deployed, with sidecars or ambient. A mesh runs over the CNI, not in place of it. So a mesh is a second component that provides encryption, identity, and L4 policy again, after Cilium. The edge and the app already cover its L7 layer. | review |
 | Each environment has one wildcard `A` record and one wildcard certificate. `external-dns` is not used. | review |
+| Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. | review |
 | An environment is provisioned only where the provider offers a DNS API that cert-manager supports and `PTR` delegation on the mail egress IP. | review |
 
 ## Durable data and recovery
@@ -138,7 +139,8 @@ These are the security controls that every project built from this template inhe
 | Inline role checks in handlers are not used. Every permission decision goes through `Checker`. | `lint:authz` in CI |
 | The edge gates operator dashboards by the coarse claim plus AAL2, with no OpenFGA call. Optional refinement per tool adds the `remote_json` authorizer. | review |
 | The coarse operator claim is `metadata_public.operator`, written only through the Kratos admin API. It is never an identity trait. Self-service registration and settings write traits, so any visitor can grant a trait claim to themselves. | review |
-| An operator is a registered user promoted in the admin console. The console toggle runs one workflow that writes the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. `mise run ops:grant` is the one path outside the console. It needs cluster credentials, and it exists for the first operator and for a console outage. | review |
+| An operator is a registered user promoted in the admin console. The console toggle runs one workflow that writes the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. Two paths exist outside the console: the first-operator Job and `mise run ops:grant`. `ops:grant` needs cluster credentials, and it exists for a console outage. | review |
+| Each environment seeds one first operator from the `first-operator` entry of its SOPS bundle. The Job seeds only while the environment has no operator. No chart carries a default password. | review |
 | A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine. | review |
 | The edge validates tokens once, with the algorithm pinned and `iss`, `aud`, and `exp` checked. Services do not validate tokens. | `lint:auth-inline` in CI, standard: RFC 8725 |
 | Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`. The edge injects these headers, and internal calls forward them unchanged. Services read identity only from these headers. | `lint:authz` in CI |

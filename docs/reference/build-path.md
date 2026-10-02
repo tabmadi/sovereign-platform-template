@@ -131,6 +131,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint:service-deps` | The inner loop's dependency graph, checked against the code, per ADR-0600 and ADR-0205. | .lefthook.yml, ci.yml |
 | `lint:shell` | shellcheck over every tracked *.sh, per ADR-0101. | .lefthook.yml, ci.yml |
 | `lint:sql` | SQL: sqruff over every migration and sqlc query. A column with personal data has its pii class, per ADR-0300 and ADR-0301. | .lefthook.yml, ci.yml |
+| `lint:tasks` | ADR-0600: every mise task has a command or a dependency. | .lefthook.yml, ci.yml |
 | `lint:template-build` | `go build ./...` cannot see services/_template. Every hand-written file there has a //go:build _template constraint, and scripts/new-service.sh removes it when it copies the tree. | .lefthook.yml, ci.yml |
 | `lint:thin-workflows` | ADR-0102: workflow YAML checks out, sets up the toolchain, and calls a mise task. | .lefthook.yml, ci.yml |
 | `lint:tool-register` | The four register Rules of ADR-0002: every Tier 1 or Tier 2 row names an owning ADR that exists, and that ADR has the comparison its tier needs. A Tier 1 row names a runner-up. | .lefthook.yml, ci.yml |

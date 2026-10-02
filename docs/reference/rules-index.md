@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 182 |
-| Review-enforced | 338 |
-| **Total** | **520** |
+| Machine-enforced | 183 |
+| Review-enforced | 341 |
+| **Total** | **524** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -257,6 +257,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A failing update pull request stays open. The update is never disabled to clear the queue. | review |
 | A CVE that Trivy gates on and that has a fixed version available is proposed at once, outside the batch. | `ci:scan` in CI |
 | A generated project tracks this template through the Copier answers file and updates by 3-way merge. The template makes no compatibility promise, and the project resolves each conflict. | review |
+| The rename runs at generation and at every update. Both renders of an update carry the project's names. | review |
 | A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name does not match its module path has not been renamed. | `lint:project-identity` in CI |
 | Copier and Renovate are pinned in `.mise.toml` like every other tool. Neither runs inside a cluster workload. | `lint:node-scope` in CI |
 
@@ -380,6 +381,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Cilium NetworkPolicy is the internal trust boundary between services, and each service declares its allowed callers. | `lint:service-contract` in CI |
 | No dedicated service mesh is deployed, with sidecars or ambient. A mesh runs over the CNI, not in place of it. So a mesh is a second component that provides encryption, identity, and L4 policy again, after Cilium. The edge and the app already cover its L7 layer. | review |
 | Each environment has one wildcard `A` record and one wildcard certificate. `external-dns` is not used. | review |
+| Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. | review |
 | An environment is provisioned only where the provider offers a DNS API that cert-manager supports and `PTR` delegation on the mail egress IP. | review |
 
 ## ADR-0207: Cluster Storage and Backups
@@ -502,7 +504,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Inline role checks in handlers are not used. Every permission decision goes through `Checker`. | `lint:authz` in CI |
 | The edge gates operator dashboards by the coarse claim plus AAL2, with no OpenFGA call. Optional refinement per tool adds the `remote_json` authorizer. | review |
 | The coarse operator claim is `metadata_public.operator`, written only through the Kratos admin API. It is never an identity trait. Self-service registration and settings write traits, so any visitor can grant a trait claim to themselves. | review |
-| An operator is a registered user promoted in the admin console. The console toggle runs one workflow that writes the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. `mise run ops:grant` is the one path outside the console. It needs cluster credentials, and it exists for the first operator and for a console outage. | review |
+| An operator is a registered user promoted in the admin console. The console toggle runs one workflow that writes the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. Two paths exist outside the console: the first-operator Job and `mise run ops:grant`. `ops:grant` needs cluster credentials, and it exists for a console outage. | review |
+| Each environment seeds one first operator from the `first-operator` entry of its SOPS bundle. The Job seeds only while the environment has no operator. No chart carries a default password. | review |
 | A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine. | review |
 | The edge validates tokens once, with the algorithm pinned and `iss`, `aud`, and `exp` checked. Services do not validate tokens. | `lint:auth-inline` in CI, standard: RFC 8725 |
 | Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`. The edge injects these headers, and internal calls forward them unchanged. Services read identity only from these headers. | `lint:authz` in CI |
@@ -714,6 +717,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation as a deployed environment, per [ADR-0105](../adr/0105-image-registry.md). So the local image path is not a second product. | review |
 | What runs locally is the floor plus the declared dependencies of the running services. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. | `lint:service-contract, lint:service-deps` in CI |
 | `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script for each component, and each script exits fast when its component is already ready. | review |
+| Every mise task has a command or a dependency. A task with neither passes and does nothing. | `lint:tasks` in CI |
 | Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`. `:8080` stays unassigned. | `lint:ports` in CI |
 | Every service ships a values file for each environment, or declares `# platform/not-deployed: <env>`. Absence is never inferred. | `lint:service-contract` in CI |
 | Argo CD is the engine for `cluster:up full` only. Uncommitted infra changes go through `cluster:add` or a branch `targetRevision`, never through direct edits to cluster state. | review |

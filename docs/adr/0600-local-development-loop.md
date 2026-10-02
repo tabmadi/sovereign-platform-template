@@ -397,6 +397,7 @@ A short, listed set of manifests has no production equivalent:
 - Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation as a deployed environment, per [ADR-0105](0105-image-registry.md). So the local image path is not a second product.
 - What runs locally is the floor plus the declared dependencies of the running services. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. `(CI: lint:service-contract, lint:service-deps)`
 - `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script for each component, and each script exits fast when its component is already ready.
+- Every mise task has a command or a dependency. A task with neither passes and does nothing. `(CI: lint:tasks)`
 - Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`. `:8080` stays unassigned. `(CI: lint:ports)`
 - Every service ships a values file for each environment, or declares `# platform/not-deployed: <env>`. Absence is never inferred. `(CI: lint:service-contract)`
 - Argo CD is the engine for `cluster:up full` only. Uncommitted infra changes go through `cluster:add` or a branch `targetRevision`, never through direct edits to cluster state.
