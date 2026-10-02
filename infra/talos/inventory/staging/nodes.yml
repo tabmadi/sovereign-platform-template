@@ -5,6 +5,6 @@ nodes:
   example-staging-cp-3: { address: 203.0.113.23, role: controlplane }
 
 # The address that `talosctl` and the Kubernetes clients dial. Use a load balancer over
-# all three, or DNS round-robin. Never use the address of one member. That makes the
+# all three, the virtual IP of `patches/vip.yaml`, or DNS round-robin. Never use the address of one member. That makes the
 # member a single point of failure for a cluster that has none.
 endpoint: https://kube.staging.example.com:6443

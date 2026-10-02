@@ -10,6 +10,7 @@ The result is that **node configuration drift is not reduced here. It is impossi
 | --- | --- |
 | `patches/common.yaml` | applied to every node, whatever its role |
 | `patches/controlplane.yaml` | the control-plane role, on top of `common.yaml` |
+| `patches/vip.yaml` | optional. A virtual IP for the control-plane endpoint, where no load balancer is in front of the API server |
 | `patches/worker.yaml` | the worker role, applied when the scaling trigger of [ADR-0200](../../docs/adr/0200-cluster-topology.md) fires |
 | `inventory/<env>/nodes.yml` | the addresses of pre-provided nodes, and the endpoint that clients dial |
 | `schematic.yaml` | the [Image Factory](https://docs.siderolabs.com/talos/latest/learn-more/image-factory) recipe for the custom installer image |

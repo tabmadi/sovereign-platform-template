@@ -1,0 +1,11 @@
+# A virtual IP for the control-plane endpoint, per ADR-0200. Optional: apply it where no load balancer is in front of the
+# API server, such as on a hypervisor that the project operates itself. The members hold the address in turn.
+machine:
+  network:
+    interfaces:
+      # By selector, not by name. The interface name depends on the hardware, such as `eth0` or `ens18`.
+      - deviceSelector:
+          physical: true
+        dhcp: true
+        vip:
+          ip: 203.0.113.10
