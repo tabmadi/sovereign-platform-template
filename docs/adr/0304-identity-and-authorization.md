@@ -277,6 +277,26 @@ The rule `the edge validates, services decide` assumes that a first-party servic
 
 This is the only sanctioned permission decision at the edge. Product surfaces decide inside the service through `Checker`.
 
+### The first operator
+
+The admin console promotes operators, and only an operator can reach the console. So every environment needs one operator that no console created.
+
+**Each environment seeds one first operator from a committed, encrypted credential.** The credential is the `first-operator` entry of the environment's SOPS bundle, per [ADR-0202](0202-secrets.md). It holds an email address and a random password. A Job in the identity chart imports that identity into Kratos with the operator claim. The Job also creates the identity's org and writes the `group:operator` grant. These are the same three facts that the console writes.
+
+| Option | What a new environment needs | Verdict |
+| --- | --- | --- |
+| **A seeded identity from the SOPS bundle** | an age key, to read the password | **Chosen.** The first login needs no cluster credential and no manual step *(reasoned)* |
+| Register, then promote with `mise run ops:grant` | a kubeconfig and a step on a workstation | Kept as the break-glass path. As the only path, it starts every new environment with a manual procedure |
+| A default password in the chart | nothing | Every environment that forgets to change it has the same known password |
+
+Three properties bound the credential:
+
+- **The Job seeds only while the environment has no operator.** A project can promote a named person and delete the seeded account. The account then does not come back.
+- **The password alone opens nothing on the ops tier.** The ops gate requires AAL2, and Kratos cannot import a second factor. So the first login enrols one. The person who enrols it holds the account from then on.
+- **The local tier uses the same mechanism**, per [ADR-0205](0205-environment-parity.md). Its password is committed, because the local SOPS key is the committed throwaway key.
+
+The account is permanent only if the project keeps it. To retire it, promote a named person, delete the identity in the console, and remove the entry from the bundle.
+
 ### Security verification: ASVS Level 2
 
 **The application security bar is [OWASP ASVS](https://owasp.org/www-project-application-security-verification-standard/) Level 2**, pinned to version 5.0. ASVS describes L2 as right for an application that handles significant transactions and personal data. That is the default posture of this platform.
@@ -342,6 +362,7 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - **Dual-write discipline must be enforced.** A direct write that skips the workflow is a silent authz bug. Lint, a review checklist, and integration tests mitigate it. The tests assert the OpenFGA state after every workflow.
 - **ASVS L2 is a design claim, not a test result.** No job proves it. It holds by construction, and review checks it. Its value: a reviewer has a named checklist instead of a private sense of what secure means. Its risk: a claim that nobody examines becomes false over time. The quarterly review schedule assigns the examination. A row with no examination for a full cadence is marked unverified.
 - **L2 is not the bar that every deployment needs.** A regulated project raises it and records the delta in its own ADR. It does not edit this one.
+- **The first operator is a shared credential until someone retires it.** Every holder of an age key for the environment can read its password. Before the first login, that reader can also enrol the second factor. So the first login happens directly after bootstrap, and the account is retired when named operators exist.
 - **The coarse ops gate is a claim, not a policy check.** An operator whose access should end keeps it until their session expires or someone removes the flag. This is accepted deliberately, so the dashboards survive an authz outage.
 
 ## Rules
@@ -362,7 +383,8 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint:authz)`
 - The edge gates operator dashboards by the coarse claim plus AAL2, with no OpenFGA call. Optional refinement per tool adds the `remote_json` authorizer.
 - The coarse operator claim is `metadata_public.operator`, written only through the Kratos admin API. It is never an identity trait. Self-service registration and settings write traits, so any visitor can grant a trait claim to themselves.
-- An operator is a registered user promoted in the admin console. The console toggle runs one workflow that writes the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. `mise run ops:grant` is the one path outside the console. It needs cluster credentials, and it exists for the first operator and for a console outage.
+- An operator is a registered user promoted in the admin console. The console toggle runs one workflow that writes the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. Two paths exist outside the console: the first-operator Job and `mise run ops:grant`. `ops:grant` needs cluster credentials, and it exists for a console outage.
+- Each environment seeds one first operator from the `first-operator` entry of its SOPS bundle. The Job seeds only while the environment has no operator. No chart carries a default password.
 - A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine.
 - The edge validates tokens once, with the algorithm pinned and `iss`, `aud`, and `exp` checked. Services do not validate tokens. `(CI: lint:auth-inline; ref: RFC 8725)`
 - Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`. The edge injects these headers, and internal calls forward them unchanged. Services read identity only from these headers. `(CI: lint:authz)`

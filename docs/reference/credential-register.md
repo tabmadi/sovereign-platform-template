@@ -25,6 +25,7 @@ The second row is empty for a project that provisions its infrastructure through
 | Credential | File | Recipients |
 | --- | --- | --- |
 | Per-environment platform secrets | `infra/gitops/platform/<env>/secrets/` | engineers, that cluster, ops-recovery |
+| The first operator's login of [ADR-0304](../adr/0304-identity-and-authorization.md) | the `first-operator` entry of `infra/gitops/platform/<env>/secrets/` | engineers, that cluster, ops-recovery |
 | Local-tier values | `infra/gitops/platform/local/secrets/` | the committed throwaway key |
 | The image-signing key of [ADR-0104](../adr/0104-supply-chain-security.md) | `infra/auth/cosign/` | engineers, CI, ops-recovery |
 

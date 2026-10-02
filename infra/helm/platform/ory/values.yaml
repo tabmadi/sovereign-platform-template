@@ -57,3 +57,14 @@ hydra:
   secret:
     enabled: false
     nameOverride: hydra-secrets
+
+# The first operator of an environment, per ADR-0304. A Job creates the identity in the `first-operator` Secret
+# when the environment has no operator. The Secret is in the environment's SOPS bundle. Without it, the Job does nothing.
+firstOperator:
+  enabled: true
+  # curl and jq, the same image as the OpenFGA seed.
+  image: alpine/k8s:1.31.1
+  secret: first-operator
+  openfgaSecret: openfga-creds
+  # How long the Job waits for the sops-operator to render the Secret before it decides that there is none.
+  secretWaitSeconds: 120

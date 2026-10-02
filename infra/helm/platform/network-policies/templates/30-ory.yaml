@@ -1,4 +1,4 @@
-## Kratos identity APIs: Oathkeeper reaches public 4433 for session checks, and only authz reaches admin 4434.
+## Kratos identity APIs: Oathkeeper reaches public 4433 for session checks. Admin 4434 has three callers, listed below.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -28,6 +28,11 @@ spec:
             k8s:io.kubernetes.pod.namespace: platform
             app.kubernetes.io/name: orgs
             component: worker
+      toPorts:
+        - ports: [{ port: "4434", protocol: TCP }]
+    # The first-operator Job, which creates one identity through the admin API, per ADR-0304.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: first-operator }
       toPorts:
         - ports: [{ port: "4434", protocol: TCP }]
   # No egress rules. The baseline in `00-baseline.yaml` already grants Kratos everything it needs: DNS, reach inside

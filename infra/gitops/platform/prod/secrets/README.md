@@ -107,6 +107,14 @@ spec:
         # so verification is skipped:
         #   smtp://platform:<password>@maddy.platform.svc.cluster.local:587/?skip_ssl_verify=true
         smtpConnectionURI: ""
+    # The first operator of this environment, per ADR-0304. A Job imports this identity
+    # into Kratos while the environment has no operator. Use a random password, for
+    # example from `openssl rand -base64 24`. The first login enrols a second factor.
+    # Remove this entry when you retire the account.
+    - name: first-operator
+      stringData:
+        email: ""
+        password: ""
     # Only when `hydra_thirdparty` is on, per ADR-0305. The Ory release deploys
     # Hydra next to Kratos. It reads all three keys from this Secret, because
     # `hydra.secret.enabled` is false in `infra/helm/platform/ory/values.yaml`.

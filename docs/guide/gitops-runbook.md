@@ -75,6 +75,8 @@ The task lays the floor that Argo CD cannot install for itself:
 
 It then applies the root Application, per [ADR-0200](../adr/0200-cluster-topology.md). Set `CLUSTER_AGE_KEY` only where the machine config does not already carry the key.
 
+When the applications are Healthy, log in as the first operator. See [break-glass](break-glass.md).
+
 ## Verify an environment
 
 ```sh

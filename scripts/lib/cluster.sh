@@ -554,7 +554,7 @@ stage_secrets() {
 }
 
 # Kratos and Oathkeeper, wired as the platform ApplicationSet wires them: the canonical infra/auth overlays and the string artefacts.
-# They are never inline in chart values, per `lint:auth-inline`.
+# They are never inline in chart values, per `lint:auth-inline`. The first-operator Job is off: this tier has no OpenFGA, and `identities` seeds it.
 stage_ory() {
   step "installing kratos and oathkeeper"
   chart_deps infra/helm/platform/ory
@@ -563,6 +563,7 @@ stage_ory() {
     -f infra/auth/kratos/values.yaml \
     -f infra/auth/oathkeeper/values.yaml \
     -f infra/gitops/platform/local/values.yaml \
+    --set firstOperator.enabled=false \
     --set-file 'kratos.kratos.identitySchemas.user\.v1\.json=infra/auth/kratos/identity-schemas/user.v1.json' \
     --set-file 'oathkeeper.oathkeeper.accessRules=infra/auth/oathkeeper/access-rules.json'
 }

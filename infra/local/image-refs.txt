@@ -7,6 +7,7 @@
 # The first column is the earliest tier that needs the image. Every tier warms `base`.
 # Only the full tier warms `full`, because only it runs ArgoCD and what ArgoCD deploys.
 # One file, not two, because the set is one decision, and a second list needs upkeep.
+base alpine/k8s:1.31.1
 base docker.io/busybox:stable
 base docker.io/oryd/kratos:v26.2.0
 base docker.io/oryd/oathkeeper:v26.2.0
@@ -25,7 +26,6 @@ base quay.io/jetstack/cert-manager-startupapicheck:v1.20.3
 base quay.io/jetstack/cert-manager-webhook:v1.20.3
 base stoplight/prism:5.15.10
 base temporalio/temporal:1.8.2
-full alpine/k8s:1.31.1
 full axllent/mailpit:v1.30.7
 full chrislusf/seaweedfs:4.41
 full docker.io/bats/bats:v1.4.1

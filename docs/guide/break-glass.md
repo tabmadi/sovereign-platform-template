@@ -29,17 +29,27 @@ The ladder fits a small platform team. It has no separate operator IdP or PKI. T
 
 ## The first operator
 
-The admin console promotes operators, and only an operator can reach it. So a new environment's first operator follows these steps:
+The admin console promotes operators, and only an operator can reach it. So each environment seeds one first operator, per [ADR-0304](../adr/0304-identity-and-authorization.md). Its credential is the `first-operator` entry of the environment's SOPS bundle.
 
-1. Register on the storefront like any user.
-2. Enrol TOTP.
-3. Get promoted from a workstation that holds the cluster's kubeconfig:
+1. Read the credential:
 
    ```sh
-   mise run ops:grant -- first.operator@example.com
+   sops -d infra/gitops/platform/<env>/secrets/platform.enc.yaml |
+     yq '.spec.secretTemplates[] | select(.name == "first-operator").stringData'
    ```
 
-Every later promotion and demotion happens in the console, per [ADR-0304](../adr/0304-identity-and-authorization.md).
+2. Log in at `https://<host>/auth/login`. The first login takes you to the settings flow once, to enrol TOTP.
+3. Open an ops origin from [operator-panels](../reference/operator-panels.md).
+
+Do this directly after the environment is up. Until the first login, every holder of the age key can enrol the second factor.
+
+Every later promotion and demotion happens in the console. To retire the seeded account, promote a named person first. Then delete the identity in the console, and remove the entry from the bundle.
+
+When the seed cannot run, promote a registered user from a workstation that holds the cluster's kubeconfig:
+
+```sh
+mise run ops:grant -- first.operator@example.com
+```
 
 ## Requirements on the break-glass path
 

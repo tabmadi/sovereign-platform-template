@@ -104,6 +104,14 @@ spec:
         # An empty value falls back to the chart placeholder, which is a real
         # relay host. That is the one outcome the Rule forbids.
         smtpConnectionURI: ""
+    # The first operator of this environment, per ADR-0304. A Job imports this identity
+    # into Kratos while the environment has no operator. Use a random password, for
+    # example from `openssl rand -base64 24`. The first login enrols a second factor.
+    # Remove this entry when you retire the account.
+    - name: first-operator
+      stringData:
+        email: ""
+        password: ""
     # Only where this environment delivers mail and does not sink it, per ADR-0307.
     # The DKIM private half, whose public half is the committed `DKIM` record. And
     # the submission password, as the BCRYPT hash that maddy compares against.

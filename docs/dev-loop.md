@@ -55,7 +55,7 @@ There is no bypass. Adding one blocks review, per `lint:auth-inline`. Both tiers
 | operator | `operator@e2e.localtest.me`, password `0perator-e2e-Sessi0n!` | AAL2: password and TOTP | the same ops hosts. This is the e2e fixture, created again for each suite run |
 | user | `user@e2e.localtest.me`, password `Pr0duct-e2e-Sessi0n!` | AAL1: password | the product surface |
 
-`admin` is created once, and nothing changes it after that. Every e2e run creates `operator` and `user` again, so the runs are deterministic. So do not build a workflow around their session. Log in at `https://dev.localtest.me:8443/auth/login`. The ops hosts are `https://<name>.ops.dev.localtest.me:8443`. They answer `401` until you log in.
+`admin` is created once, and nothing changes it after that. On the full tier it is also the first operator that every environment seeds, per [ADR-0304](adr/0304-identity-and-authorization.md). Every e2e run creates `operator` and `user` again, so the runs are deterministic. So do not build a workflow around their session. Log in at `https://dev.localtest.me:8443/auth/login`. The ops hosts are `https://<name>.ops.dev.localtest.me:8443`. They answer `401` until you log in.
 
 The second factor is enrolled at run time, not imported, because Kratos cannot import a TOTP credential. The first login with an operator account takes you to the settings flow once, to enrol it. If a login stops working, `mise run auth:seed` runs the whole provisioning again.
 

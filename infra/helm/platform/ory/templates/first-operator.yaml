@@ -1,0 +1,64 @@
+{{- if .Values.firstOperator.enabled }}
+# The script as a tracked resource. The Job below is a `hook: Sync`, and Argo CD leaves hooks out of OutOfSync detection.
+# A change to the script changes this ConfigMap, and that is what triggers the sync that runs the hook again.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: first-operator
+  namespace: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  first-operator.sh: |
+{{ .Files.Get "files/first-operator.sh" | indent 4 }}
+---
+# Seeds the first operator of an environment, per ADR-0304. It runs after Kratos is Ready: sync-wave 2, after the Deployment's default wave 0.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: first-operator
+  namespace: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: first-operator }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: seed
+          image: "{{ .Values.firstOperator.image }}"
+          # Restricted Pod Security Admission, per ADR-0200, rejects a container with no securityContext.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile: { type: RuntimeDefault }
+          env:
+            - name: SECRET_WAIT_SECONDS
+              value: {{ .Values.firstOperator.secretWaitSeconds | quote }}
+            # Optional, like the volume: a tier with no OpenFGA skips the grant.
+            - name: OPENFGA_KEY
+              valueFrom:
+                secretKeyRef: { name: {{ .Values.firstOperator.openfgaSecret }}, key: preshared_key, optional: true }
+          command: ["sh", "/script/first-operator.sh"]
+          volumeMounts:
+            - { name: script, mountPath: /script, readOnly: true }
+            - { name: credential, mountPath: /first-operator, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: script
+          configMap: { name: first-operator }
+        # Optional: an environment that retired its first operator has no such Secret, and the script then does nothing.
+        - name: credential
+          secret: { secretName: {{ .Values.firstOperator.secret }}, optional: true }
+        - name: tmp
+          emptyDir: {}
+{{- end }}
