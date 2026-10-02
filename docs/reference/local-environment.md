@@ -48,7 +48,7 @@ Deployed environments terminate on `443` and leave out the port.
 
 ## Ops URLs
 
-Each tool has one origin under `*.ops.<host>`, never a product path. `infra/gateway/ingressroutes.yaml` defines every route. The route of an opt-in tool resolves to a backend only when its chart is enabled.
+Each tool has one origin under `*.ops.<host>`, never a product path. [operator-panels](operator-panels.md) lists the panels of every environment. `infra/gateway/ingressroutes.yaml` defines every route. The route of an opt-in tool resolves to a backend only when its chart is enabled.
 
 The **Auth** column is the coarse gate, which is always on. It requires the `operator` claim plus an AAL2 session, with no authz call, per [ADR-0304](../adr/0304-identity-and-authorization.md). The optional per-tool `dashboard:<tool>#view` layer is off by default.
 

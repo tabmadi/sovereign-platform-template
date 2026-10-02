@@ -72,6 +72,7 @@ The topic is in the filename, not in a directory. A directory with one file adds
 | [threat-model](reference/threat-model.md) | The adversaries that each control acts against, over the three boundaries |
 | [cost-model](reference/cost-model.md) | The shape of the bill and what appears on it. The adopter sets the prices |
 | [credential-register](reference/credential-register.md) | Where every credential is kept, and who can open it. It never holds a value |
+| [operator-panels](reference/operator-panels.md) | Every web panel an operator can open, its URL, and what gates it |
 | [rules-index](reference/rules-index.md) | Every rule in the set with its enforcement. **Generated** |
 | [per-instance-hardening](reference/per-instance-hardening.md) | What a project turns on for its own risk profile or compliance framework |
 | [asvs-verification](reference/asvs-verification.md) | The ASVS L2 claim for each concern, with the date of the last check |
