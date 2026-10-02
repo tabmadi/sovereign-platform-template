@@ -43,3 +43,4 @@ run = "bash run.sh browse soak"
 # Bulk catalog rows, so the read path is measured against a realistic table.
 #   mise run perf:seed -- 50000     |     mise run perf:seed -- --clean
 description = "Seed bulk products, 5000 by default. --clean removes them"
+run = "bash seed/seed.sh"
