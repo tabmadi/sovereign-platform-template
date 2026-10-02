@@ -28,6 +28,10 @@ mise trust -q
 step "first run: bootstrap"
 mise run bootstrap
 
+# The rename changes names that generated files sort by. So the generators run before the gates, as the last line of the rename says.
+step "regenerating after the rename"
+mise run gen
+
 step "the generated project's own gates"
 mise run check
 
