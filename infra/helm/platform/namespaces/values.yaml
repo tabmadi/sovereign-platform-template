@@ -9,6 +9,10 @@ namespaces:
     # satisfies `restricted`. So this entry needs no `reason`. That is why the field is required only for the entries
     # below it.
     enforce: restricted
+  # The scratch copy of restore verification, per ADR-0207. The worker's Role and the network policy name it.
+  # A copy that stays behind is then easy to find.
+  - name: restore-verification
+    enforce: restricted
   - name: otel-agent
     # The node-level OTel collector, alone, per ADR-0200 and ADR-0500.
     enforce: privileged

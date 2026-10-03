@@ -26,6 +26,8 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: payment }
         # pgweb, the read-only DB inspector panel, per ADR-0401. It connects to postgres-rw.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: pgweb }
+        # The platform worker reads the source row counts of restore verification as `readonly`, per ADR-0207.
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: platform, component: worker }
       toPorts:
         - ports: [{ port: "5432", protocol: TCP }]
     # The cluster talks to ITSELF: replication, and the status port of the instance managers that failover reads.
@@ -95,6 +97,8 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: authz }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: openfga-seed }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: first-operator }
+        # The platform worker reads and deletes a subject's tuples, per ADR-0301.
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: platform, component: worker }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: catalog }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: orders }
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: payment }

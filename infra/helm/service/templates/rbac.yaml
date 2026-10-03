@@ -1,0 +1,27 @@
+{{- /* One Role and its RoleBinding per entry of `rbac.roles`, each in its own namespace, per ADR-0304. A service gets
+   only the Kubernetes API access that its values name, and none by default. */ -}}
+{{- range $i, $role := .Values.rbac.roles }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "service.fullname" $ }}
+  namespace: {{ $role.namespace }}
+  labels: {{- include "service.labels" $ | nindent 4 }}
+rules: {{- toYaml $role.rules | nindent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "service.fullname" $ }}
+  namespace: {{ $role.namespace }}
+  labels: {{- include "service.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "service.fullname" $ }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "service.fullname" $ }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}

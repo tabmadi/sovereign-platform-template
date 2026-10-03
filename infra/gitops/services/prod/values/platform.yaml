@@ -13,8 +13,33 @@ worker:
     tag: "0000000000000000000000000000000000000000"
     digest: ""   # promote-on-release pins prod by digest, per ADR-0103
 env:
-  # The analytics service, east-west, per ADR-0303.
-  ANALYTICS_API_URL: "http://analytics.platform.svc.cluster.local:8080"
+  # The stores of an erasure, an export, and the retention sweep, east-west, per ADR-0301 and ADR-0303.
+  ANALYTICS_API_URL: "http://analytics-server.platform.svc.cluster.local"
+  ORDERS_API_URL: "http://orders-server.platform.svc.cluster.local"
+  ORGS_API_URL: "http://orgs-server.platform.svc.cluster.local"
+  KRATOS_ADMIN_URL: "http://ory-kratos-admin.platform.svc.cluster.local"
+  OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
+  # The cardinality audit, per ADR-0500.
+  PROMETHEUS_URL: "http://prometheus.platform.svc.cluster.local:9090"
+# The OpenFGA key, for the tuples of an erasure.
+secrets: { envFrom: [openfga-creds] }
+# Restore verification creates a scratch cluster in its own namespace and reads the source's backup settings, per
+# ADR-0207. These are the only API calls that the worker makes.
+serviceAccount: { automountToken: true }
+rbac:
+  roles:
+    - namespace: restore-verification
+      rules:
+        - { apiGroups: [""], resources: [secrets], verbs: [get, create, delete] }
+        - { apiGroups: [""], resources: [persistentvolumeclaims], verbs: [list] }
+        - { apiGroups: [postgresql.cnpg.io], resources: [clusters], verbs: [get, create, delete] }
+    - namespace: platform
+      rules:
+        - { apiGroups: [postgresql.cnpg.io], resources: [clusters], resourceNames: [postgres], verbs: [get] }
+        - apiGroups: [""]
+          resources: [secrets]
+          resourceNames: [postgres-backup-creds, postgres-readonly]
+          verbs: [get]
 ingress:    { enabled: false }
 migrations: { enabled: false }   # owns no schema
 otel:       { deployEnv: prod }

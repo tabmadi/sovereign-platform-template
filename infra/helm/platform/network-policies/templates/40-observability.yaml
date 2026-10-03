@@ -49,6 +49,8 @@ spec:
         # here, and not left to the baseline. The readers of the metrics store are a
         # list, and a reader not on it is a reader that nobody decided on.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: alertmanager-hygiene-report }
+        # The platform worker's monthly cardinality audit, per ADR-0500.
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: platform, component: worker }
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
 ---

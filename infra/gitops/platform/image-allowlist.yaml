@@ -64,6 +64,7 @@ policies:
     - registry.localhost:5000/orgs-worker
     - registry.localhost:5000/payment-server
     - registry.localhost:5000/payment-worker
+    - registry.localhost:5000/platform-worker
     - sosedoff/pgweb
     - stoplight/prism
     - temporalio/admin-tools

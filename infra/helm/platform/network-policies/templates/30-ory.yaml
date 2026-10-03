@@ -1,4 +1,4 @@
-## Kratos identity APIs: Oathkeeper reaches public 4433 for session checks. Admin 4434 has three callers, listed below.
+## Kratos identity APIs: Oathkeeper reaches public 4433 for session checks. Admin 4434 has four callers, listed below.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -28,6 +28,11 @@ spec:
             k8s:io.kubernetes.pod.namespace: platform
             app.kubernetes.io/name: orgs
             component: worker
+      toPorts:
+        - ports: [{ port: "4434", protocol: TCP }]
+    # The platform worker deletes an identity in an erasure and reads one in an export, per ADR-0301.
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: platform, component: worker }
       toPorts:
         - ports: [{ port: "4434", protocol: TCP }]
     # The first-operator Job, which creates one identity through the admin API, per ADR-0304.

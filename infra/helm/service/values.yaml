@@ -87,6 +87,13 @@ ingress:
   resources: []         # for example [products] for catalog, [orders], [orgs], [charges]
   pathPrefix: ""        # literal-prefix fallback for surfaces that are not the API, such as the frontend's `/`
 
+# The Kubernetes API, per ADR-0304. A service gets no token and no Role unless its values ask. The platform worker's
+# restore verification is the one caller today.
+serviceAccount:
+  automountToken: false
+rbac:
+  roles: []             # each entry: namespace, and rules as in a Role
+
 # References to Kubernetes Secrets decrypted by SOPS, per ADR-0202.
 # The sops-operator creates them from `infra/gitops/<env>/secrets/<svc>.enc.yaml`.
 secrets:

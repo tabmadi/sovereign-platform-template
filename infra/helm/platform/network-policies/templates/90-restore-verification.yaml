@@ -1,0 +1,37 @@
+## Restore verification, per ADR-0207. The weekly workflow restores the latest backup into `restore-verification`.
+## That namespace holds a full copy of production data while the check runs. So two callers reach it, and nothing else:
+## the platform worker, which counts rows, and the CNPG operator, which manages the instance.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: restore-verification
+  namespace: restore-verification
+spec:
+  endpointSelector: {}
+  enableDefaultDeny:
+    ingress: true
+    egress: false
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: platform, component: worker }
+      toPorts:
+        - ports: [{ port: "5432", protocol: TCP }]
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: cloudnative-pg }
+      toPorts:
+        - ports: [{ port: "5432", protocol: TCP }, { port: "8000", protocol: TCP }]
+---
+## The two callers' side. The platform baseline denies egress out of `platform`, so each one needs this allow.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: restore-verification-callers
+spec:
+  endpointSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [platform, cloudnative-pg] }
+  egress:
+    - toEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: restore-verification }
+      toPorts:
+        - ports: [{ port: "5432", protocol: TCP }, { port: "8000", protocol: TCP }]

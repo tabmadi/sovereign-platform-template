@@ -30,6 +30,11 @@ spec:
         # zot keeps every image, and every signature and SBOM attached to one, in this store, per ADR-0105. It reads the
         # bucket before it can serve any pull.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app: zot }
+        # The scratch cluster of restore verification reads the same archive, per ADR-0207.
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: restore-verification
+            app.kubernetes.io/name: postgresql
+            app.kubernetes.io/component: database
       toPorts:
         - ports: [{ port: "8333", protocol: TCP }]
     # The admin UI, reached only through the edge, per ADR-0306. Traefik terminates
