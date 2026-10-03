@@ -612,7 +612,8 @@ stage_images() {
     svc="$(basename "$values" .yaml)"
     # Apps have their own Dockerfile, context, and build args. They are built below.
     [ -f "services/${svc}/Dockerfile" ] || continue
-    if [ "$(yq -r '.server.enabled // true' "$values")" = true ]; then
+    # Not `// true`: yq's alternative operator also replaces an explicit false, so a worker-only service would build a server.
+    if [ "$(yq -r '.server.enabled' "$values")" != false ]; then
       build_push "${svc}-server" "services/${svc}/Dockerfile" . \
         --build-arg SERVICE="${svc}" --build-arg APP_CMD=server "${build_id[@]}"
     fi

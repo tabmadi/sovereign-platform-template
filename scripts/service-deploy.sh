@@ -85,21 +85,29 @@ SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
 REV="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 git diff --quiet 2>/dev/null || REV="${REV}-dirty"
 
-step "building ${REPO}:${TAG}"
-if [ "$KIND" = service ]; then
+# A worker-only service, such as platform, has no server image and no server Deployment.
+SERVER=true
+[ "$(yq -r '.server.enabled' "$VALUES")" != false ] || SERVER=false
+
+if [ "$SERVER" = false ]; then
+  detail "no server: this service runs a worker only"
+elif [ "$KIND" = service ]; then
+  step "building ${REPO}:${TAG}"
   docker build -t "${REPO}:${TAG}" \
     --build-arg SERVICE="${SVC}" --build-arg APP_CMD=server \
     --build-arg "GIT_SHA=${REV}" --build-arg BUILD_VERSION=local \
     --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     -f "${SVC_DIR}/Dockerfile" .
+  publish_image "${REPO}:${TAG}"
 else
+  step "building ${REPO}:${TAG}"
   # `output: "standalone"` freezes next.config into server.js, so the build sets the server-action CSRF allowlist, per ADR-0306.
   docker build -t "${REPO}:${TAG}" \
     --build-arg "SERVICE_VERSION=${REV}" \
     --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' "$VALUES")" \
     -f "${SVC_DIR}/Dockerfile" .
+  publish_image "${REPO}:${TAG}"
 fi
-publish_image "${REPO}:${TAG}"
 
 # Build the worker too when this service declares one, as orders and payment do.
 if grep -qE '^\s*enabled:\s*true' <(awk '/^worker:/{f=1} f' "$VALUES"); then
@@ -124,6 +132,8 @@ fi
 step "helm upgrade ${SVC} with working-tree image ${TAG}"
 h upgrade --install "$SVC" infra/helm/service -n "$NS" -f infra/gitops/services/local/shared.yaml -f "$VALUES" \
   --take-ownership --force-conflicts --set image.pullPolicy=IfNotPresent "${SET[@]}" --timeout 5m
-k rollout restart "deploy/${SVC}-server"
-k rollout status "deploy/${SVC}-server" --timeout=180s
+if [ "$SERVER" = true ]; then
+  k rollout restart "deploy/${SVC}-server"
+  k rollout status "deploy/${SVC}-server" --timeout=180s
+fi
 ok "${SVC} deployed from the working tree, tag ${TAG}"
