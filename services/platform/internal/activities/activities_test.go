@@ -63,8 +63,8 @@ func newFake(t *testing.T) (*fake, *Activities) {
 	mux.HandleFunc("/stores/S1/authorization-models", reply(model))
 	mux.HandleFunc("/stores/S1/read", f.read)
 	mux.HandleFunc("/stores/S1/write", reply(`{}`))
-	mux.HandleFunc("/api/analytics/retention", reply(`{"partitions_created":[]}`))
-	mux.HandleFunc("/api/subject-data/", f.store)
+	mux.HandleFunc("/analytics/retention", reply(`{"partitions_created":[]}`))
+	mux.HandleFunc("/subject-data/", f.store)
 	mux.HandleFunc("/api/v1/status/tsdb", reply(`{"data":{"headStats":{"numSeries":12}}}`))
 	mux.HandleFunc("/issues", issue)
 	recording := func(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +124,7 @@ func (f *fake) read(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *fake) store(w http.ResponseWriter, r *http.Request) {
-	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/subject-data/"), "/")
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/subject-data/"), "/")
 	switch {
 	case len(parts) == 1:
 		ids, err := json.Marshal(append([]string{}, f.subjects[parts[0]]...))
@@ -159,10 +159,10 @@ func TestEraseServiceData(t *testing.T) {
 			t.Fatalf("%s: %v", svc, err)
 		}
 	}
-	if n := f.called("POST /api/subject-data/orders/" + subject + "/erase"); n != 1 {
+	if n := f.called("POST /subject-data/orders/" + subject + "/erase"); n != 1 {
 		t.Errorf("orders erase calls = %d, want 1", n)
 	}
-	if n := f.called("POST /api/subject-data/payment"); n != 0 {
+	if n := f.called("POST /subject-data/payment"); n != 0 {
 		t.Errorf("payment holds no personal data, and got %d calls", n)
 	}
 
@@ -238,18 +238,18 @@ func TestRetentionErasesOnlyOrphans(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := f.called("POST /api/analytics/retention"); n != 1 {
+	if n := f.called("POST /analytics/retention"); n != 1 {
 		t.Errorf("analytics retention calls = %d, want 1", n)
 	}
 	for _, svc := range []string{storeOrders, storeOrgs, storeAnalytics} {
-		if n := f.called("POST /api/subject-data/" + svc + "/" + gone + "/erase"); n != 1 {
+		if n := f.called("POST /subject-data/" + svc + "/" + gone + "/erase"); n != 1 {
 			t.Errorf("%s erase of the orphan = %d, want 1", svc, n)
 		}
 	}
-	if n := f.called("POST /api/subject-data/orders/" + subject + "/erase"); n != 0 {
+	if n := f.called("POST /subject-data/orders/" + subject + "/erase"); n != 0 {
 		t.Errorf("a live identity was erased")
 	}
-	if n := f.called("POST /api/subject-data/orders/admin-console/erase"); n != 0 {
+	if n := f.called("POST /subject-data/orders/admin-console/erase"); n != 0 {
 		t.Errorf("a service account was erased")
 	}
 }

@@ -49,7 +49,8 @@ func (a *Activities) subjectURL(service, identityID string) (string, bool, error
 	if base == "" {
 		return "", true, fmt.Errorf("the %s API URL is not set", service)
 	}
-	u := fmt.Sprintf("%s/api/subject-data/%s", base, service)
+	// East-west, so no `/api`: the edge strips that prefix, and the service serves its paths from the root.
+	u := fmt.Sprintf("%s/subject-data/%s", base, service)
 	if identityID != "" {
 		u += "/" + url.PathEscape(identityID)
 	}
@@ -214,7 +215,7 @@ func (a *Activities) ApplyRetentionActivity(ctx context.Context) error {
 	err := a.do(
 		ctx,
 		http.MethodPost,
-		a.cfg.AnalyticsAPI+"/api/analytics/retention",
+		a.cfg.AnalyticsAPI+"/analytics/retention",
 		nil,
 		nil,
 		&partitions,

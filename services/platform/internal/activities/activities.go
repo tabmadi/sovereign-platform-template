@@ -107,7 +107,7 @@ func (a *Activities) ComputeFunnelRollupActivity(
 		"from": from.UTC().Format(time.RFC3339),
 		"to":   to.UTC().Format(time.RFC3339),
 	}
-	endpoint := fmt.Sprintf("%s/api/analytics/funnels/%s/rollup", a.cfg.AnalyticsAPI, url.PathEscape(funnel))
+	endpoint := fmt.Sprintf("%s/analytics/funnels/%s/rollup", a.cfg.AnalyticsAPI, url.PathEscape(funnel))
 	// A rollup's result is a count that this activity does not use. The workflow's event history records that it ran.
 	err := a.do(ctx, http.MethodPost, endpoint, nil, window, nil, http.StatusOK)
 	if err != nil {
