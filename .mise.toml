@@ -655,6 +655,14 @@ run = "bash scripts/service-dev.sh"
 description = "Mint a Kratos session token for local authenticated calls. It needs the full tier."
 run = "bash scripts/auth-token.sh"
 
+[tasks."privacy:erase"]
+description = "Erase a subject in every store, per ADR-0301: mise run privacy:erase -- <identity-id>. KUBE_CONTEXT picks the cluster."
+run = "bash scripts/privacy.sh erase"
+
+[tasks."privacy:export"]
+description = "Export a subject's data as JSON on stdout, per ADR-0301: mise run privacy:export -- <identity-id>."
+run = "bash scripts/privacy.sh export"
+
 [tasks."ops:grant"]
 description = "Break-glass operator grant, per ADR-0304: the first operator, or any operator while the admin console is down. Otherwise promotion happens in the console."
 run = "bash scripts/ops-grant.sh"
