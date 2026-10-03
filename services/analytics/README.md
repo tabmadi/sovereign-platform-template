@@ -25,4 +25,4 @@ A dropped batch is not an error. The caller is the collector, which cannot fix a
 
 Every column has a class from the first migration, per [ADR-0301](../../docs/adr/0301-data-lifecycle-privacy.md). The table always carries a session id, and it carries an identity id when the visitor is authenticated. So it is a PII store by definition. Raw IP addresses are never stored, and ingest reduces the user agent to a device class.
 
-`events` is partitioned by month on `occurred_at`. So retention drops a partition and does not delete rows. A retention job that rewrites a table gets postponed.
+`events` is partitioned by month on `occurred_at`. So retention drops a partition and does not delete rows. A retention job that rewrites a table gets postponed. The platform worker calls `POST /analytics/retention` daily. It creates next month's partition before its first event, and it drops each month that ended more than 90 days ago. A default partition takes an event outside every month, so a client with a wrong clock does not fail a batch.
