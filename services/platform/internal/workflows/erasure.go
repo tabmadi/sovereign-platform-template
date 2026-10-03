@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"go.temporal.io/sdk/workflow"
+
+	"github.com/tabmadi/sovereign-platform-template/services/platform/internal/activities"
 )
 
 type EraseSubjectInput struct {
@@ -18,10 +20,18 @@ type EraseSubjectInput struct {
 func EraseSubject(ctx workflow.Context, in EraseSubjectInput) error {
 	ctx = activityOptions(ctx)
 
+	// One replacement for the identity in every store, so the subject's rows stay consistent with each other and
+	// name nobody. A side effect, because a workflow must not mint a random value on replay.
+	var pseudonym string
+	err := workflow.SideEffect(ctx, func(workflow.Context) any { return activities.NewPseudonym() }).Get(&pseudonym)
+	if err != nil {
+		return fmt.Errorf("erase subject: pseudonym: %w", err)
+	}
+
 	// Each activity chooses to delete or anonymise from the column's declared class. That choice is per category and
 	// never per request, because a request that could choose could erase an audit obligation.
 	for _, service := range []string{"orgs", "orders", "payment", "catalog", "analytics"} {
-		err := workflow.ExecuteActivity(ctx, "EraseServiceDataActivity", service, in.IdentityID).
+		err = workflow.ExecuteActivity(ctx, "EraseServiceDataActivity", service, in.IdentityID, pseudonym).
 			Get(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("erase subject: %s: %w", service, err)
@@ -29,7 +39,7 @@ func EraseSubject(ctx workflow.Context, in EraseSubjectInput) error {
 	}
 
 	// The identity itself. Its erasure stops the subject from signing in again.
-	err := workflow.ExecuteActivity(ctx, "EraseIdentityActivity", in.IdentityID).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, "EraseIdentityActivity", in.IdentityID).Get(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("erase subject: identity: %w", err)
 	}
@@ -44,20 +54,20 @@ func EraseSubject(ctx workflow.Context, in EraseSubjectInput) error {
 
 // ExportSubject reads the same stores that erasure writes, in the same order, per GDPR Art. 15 and 20 and ADR-0301.
 // The tuples describe what the subject could reach. Reading them first would describe a state that the export does
-// not match.
+// not match. The result is the export itself, as JSON. The operator who started the workflow reads it there.
 func ExportSubject(ctx workflow.Context, in EraseSubjectInput) (string, error) {
 	ctx = activityOptions(ctx)
-	var location string
+	var export string
 	err := workflow.ExecuteActivity(ctx, "ExportSubjectDataActivity", in.IdentityID).
-		Get(ctx, &location)
+		Get(ctx, &export)
 	if err != nil {
 		return "", fmt.Errorf("export subject: %w", err)
 	}
-	return location, nil
+	return export, nil
 }
 
-// RetentionPass reads the registry and not a list here, per ADR-0301. docs/reference/data-classes.md is generated
-// from the migrations' tags, so a newly tagged column is covered and nobody needs to add it.
+// RetentionPass prunes each class past its period, per ADR-0301 and docs/reference/data-classes.md. Each service
+// applies the periods of its own columns, and the sweep erases the data of every identity that no longer exists.
 func RetentionPass(ctx workflow.Context) error {
 	ctx = activityOptions(ctx)
 	err := workflow.ExecuteActivity(ctx, "ApplyRetentionActivity").Get(ctx, nil)

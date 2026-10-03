@@ -1,6 +1,4 @@
 # The platform worker answers no requests, so it has no `server` task and no registered port.
-# platform/not-deployed: local
-# It is not on the inner-loop tier. It deploys to dev and higher environments, where a Schedule has a reason to remind someone.
 
 [env]
 _.file = ".env"

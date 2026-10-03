@@ -53,7 +53,7 @@ func run() error {
 	w.RegisterWorkflow(workflows.FunnelRollup)
 	w.RegisterWorkflow(workflows.RestoreVerification)
 
-	acts := activities.New(slog.Default())
+	acts := activities.New(slog.Default(), activities.ConfigFromEnv())
 	w.RegisterActivity(acts.OpenTrackingIssueActivity)
 	w.RegisterActivity(acts.AuditCardinalityActivity)
 	w.RegisterActivity(acts.EraseServiceDataActivity)
