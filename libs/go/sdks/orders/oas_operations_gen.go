@@ -6,8 +6,11 @@ package orders
 type OperationName = string
 
 const (
-	CancelOrderOperation OperationName = "CancelOrder"
-	CheckoutOperation    OperationName = "Checkout"
-	GetOrderOperation    OperationName = "GetOrder"
-	ListOrdersOperation  OperationName = "ListOrders"
+	CancelOrderOperation         OperationName = "CancelOrder"
+	CheckoutOperation            OperationName = "Checkout"
+	EraseOrdersSubjectOperation  OperationName = "EraseOrdersSubject"
+	ExportOrdersSubjectOperation OperationName = "ExportOrdersSubject"
+	GetOrderOperation            OperationName = "GetOrder"
+	ListOrderSubjectsOperation   OperationName = "ListOrderSubjects"
+	ListOrdersOperation          OperationName = "ListOrders"
 )

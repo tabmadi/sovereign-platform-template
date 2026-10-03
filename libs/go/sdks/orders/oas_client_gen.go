@@ -42,12 +42,31 @@ type Invoker interface {
 	//
 	// POST /orders
 	Checkout(ctx context.Context, request *CheckoutInput, params CheckoutParams) (*WorkflowHandle, error)
+	// EraseOrdersSubject invokes eraseOrdersSubject operation.
+	//
+	// Anonymise the owner of the subject's orders. The orders stay, because they carry a bookkeeping
+	// obligation. Safe to run again.
+	//
+	// POST /subject-data/orders/{identity_id}/erase
+	EraseOrdersSubject(ctx context.Context, request *ErasureRequest, params EraseOrdersSubjectParams) (*ErasureResult, error)
+	// ExportOrdersSubject invokes exportOrdersSubject operation.
+	//
+	// Every order that the subject placed.
+	//
+	// GET /subject-data/orders/{identity_id}
+	ExportOrdersSubject(ctx context.Context, params ExportOrdersSubjectParams) (*SubjectOrders, error)
 	// GetOrder invokes getOrder operation.
 	//
 	// Fetch an order by id.
 	//
 	// GET /orders/{id}
 	GetOrder(ctx context.Context, params GetOrderParams) (*Order, error)
+	// ListOrderSubjects invokes listOrderSubjects operation.
+	//
+	// One page of the identities that own orders, in identity order.
+	//
+	// GET /subject-data/orders
+	ListOrderSubjects(ctx context.Context, params ListOrderSubjectsParams) (*SubjectPage, error)
 	// ListOrders invokes listOrders operation.
 	//
 	// List all orders.
@@ -296,6 +315,207 @@ func (c *Client) sendCheckout(ctx context.Context, request *CheckoutInput, param
 	return result, nil
 }
 
+// EraseOrdersSubject invokes eraseOrdersSubject operation.
+//
+// Anonymise the owner of the subject's orders. The orders stay, because they carry a bookkeeping
+// obligation. Safe to run again.
+//
+// POST /subject-data/orders/{identity_id}/erase
+func (c *Client) EraseOrdersSubject(ctx context.Context, request *ErasureRequest, params EraseOrdersSubjectParams) (*ErasureResult, error) {
+	res, err := c.sendEraseOrdersSubject(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendEraseOrdersSubject(ctx context.Context, request *ErasureRequest, params EraseOrdersSubjectParams) (res *ErasureResult, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("eraseOrdersSubject"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/subject-data/orders/{identity_id}/erase"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, EraseOrdersSubjectOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/subject-data/orders/"
+	{
+		// Encode "identity_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "identity_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.IdentityID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/erase"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeEraseOrdersSubjectRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeEraseOrdersSubjectResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// ExportOrdersSubject invokes exportOrdersSubject operation.
+//
+// Every order that the subject placed.
+//
+// GET /subject-data/orders/{identity_id}
+func (c *Client) ExportOrdersSubject(ctx context.Context, params ExportOrdersSubjectParams) (*SubjectOrders, error) {
+	res, err := c.sendExportOrdersSubject(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendExportOrdersSubject(ctx context.Context, params ExportOrdersSubjectParams) (res *SubjectOrders, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("exportOrdersSubject"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/subject-data/orders/{identity_id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ExportOrdersSubjectOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/subject-data/orders/"
+	{
+		// Encode "identity_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "identity_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.IdentityID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeExportOrdersSubjectResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetOrder invokes getOrder operation.
 //
 // Fetch an order by id.
@@ -390,6 +610,124 @@ func (c *Client) sendGetOrder(ctx context.Context, params GetOrderParams) (res *
 
 	stage = "DecodeResponse"
 	result, err := decodeGetOrderResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// ListOrderSubjects invokes listOrderSubjects operation.
+//
+// One page of the identities that own orders, in identity order.
+//
+// GET /subject-data/orders
+func (c *Client) ListOrderSubjects(ctx context.Context, params ListOrderSubjectsParams) (*SubjectPage, error) {
+	res, err := c.sendListOrderSubjects(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendListOrderSubjects(ctx context.Context, params ListOrderSubjectsParams) (res *SubjectPage, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listOrderSubjects"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/subject-data/orders"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ListOrderSubjectsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/subject-data/orders"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "after" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "after",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.After.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeListOrderSubjectsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

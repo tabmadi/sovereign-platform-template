@@ -12,5 +12,12 @@ export const checkoutInputSchema = z.object({
   quantity: z.number().int().min(1),
 });
 
+export const erasureRequestSchema = z.object({
+  pseudonym: z.string().regex(/^erased-[0-9a-f-]{36}$/),
+});
+
 export const checkoutSchema = checkoutInputSchema;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+export const eraseOrdersSubjectSchema = erasureRequestSchema;
+export type EraseOrdersSubjectInput = z.infer<typeof eraseOrdersSubjectSchema>;

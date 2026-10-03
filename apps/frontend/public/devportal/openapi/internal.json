@@ -796,6 +796,79 @@
           "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
         }
       },
+      "SubjectEvent": {
+        "type": "object",
+        "description": "One event, as stored.",
+        "required": [
+          "session_id",
+          "name",
+          "properties",
+          "device_class",
+          "occurred_at"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "device_class": {
+            "type": "string"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SubjectConsent": {
+        "type": "object",
+        "description": "One consent record, as stored.",
+        "required": [
+          "session_id",
+          "state",
+          "purpose_version",
+          "source",
+          "decided_at",
+          "updated_at"
+        ],
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "granted",
+              "withdrawn",
+              "refused"
+            ]
+          },
+          "purpose_version": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "control",
+              "gpc"
+            ]
+          },
+          "decided_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "Event": {
         "type": "object",
         "description": "One marketing event. The name has no `marketing.` prefix. The collector uses the prefix to route the event, and it is not part of the name.",
@@ -1004,6 +1077,30 @@
         "description": "An organization identifier: `org_` and the UUIDv7 in 26 characters of Crockford\nbase32. The first character is at most 7, because 26 characters hold 130 bits and\na UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.\n",
         "pattern": "^org_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$",
         "example": "org_01kztn9tsrea7b1597q3yjdeav"
+      },
+      "SubjectMembership": {
+        "type": "object",
+        "description": "One membership of the subject.",
+        "required": [
+          "org_id",
+          "org_name",
+          "role"
+        ],
+        "properties": {
+          "org_id": {
+            "$ref": "#/components/schemas/OrgId"
+          },
+          "org_name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ]
+          }
+        }
       },
       "Org": {
         "type": "object",

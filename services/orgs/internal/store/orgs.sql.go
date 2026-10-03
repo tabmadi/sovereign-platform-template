@@ -57,6 +57,63 @@ func (q *Queries) DeleteOrg(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const eraseSubjectMemberships = `-- name: EraseSubjectMemberships :execrows
+update org_members set user_id = $1::text
+where user_id = $2::text
+`
+
+type EraseSubjectMembershipsParams struct {
+	Pseudonym  string `json:"pseudonym"`
+	IdentityID string `json:"identity_id"`
+}
+
+// Erasure, per ADR-0301. `user_id` is an identifier, so it is anonymised and not deleted. The membership keeps the
+// org's history whole. One pseudonym per erasure keeps the primary key unique, because a user is in an org once.
+func (q *Queries) EraseSubjectMemberships(ctx context.Context, arg EraseSubjectMembershipsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, eraseSubjectMemberships, arg.Pseudonym, arg.IdentityID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const exportSubjectMemberships = `-- name: ExportSubjectMemberships :many
+select
+  orgs.id,
+  orgs.name,
+  org_members.role
+from org_members
+join orgs on org_members.org_id = orgs.id
+where org_members.user_id = $1
+order by orgs.created_at
+`
+
+type ExportSubjectMembershipsRow struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
+	Role string      `json:"role"`
+}
+
+func (q *Queries) ExportSubjectMemberships(ctx context.Context, userID string) ([]ExportSubjectMembershipsRow, error) {
+	rows, err := q.db.Query(ctx, exportSubjectMemberships, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportSubjectMembershipsRow
+	for rows.Next() {
+		var i ExportSubjectMembershipsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Role); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getOrg = `-- name: GetOrg :one
 select
   id,
@@ -75,6 +132,40 @@ func (q *Queries) GetOrg(ctx context.Context, id pgtype.UUID) (GetOrgRow, error)
 	var i GetOrgRow
 	err := row.Scan(&i.ID, &i.Name)
 	return i, err
+}
+
+const listMemberSubjects = `-- name: ListMemberSubjects :many
+select distinct user_id
+from org_members
+where user_id > $1::text and user_id not like 'erased-%'
+order by user_id
+limit $2::bigint
+`
+
+type ListMemberSubjectsParams struct {
+	After    string `json:"after"`
+	PageSize int64  `json:"page_size"`
+}
+
+// One page of the users that this store holds memberships for, after a cursor. An erased user is not a subject.
+func (q *Queries) ListMemberSubjects(ctx context.Context, arg ListMemberSubjectsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listMemberSubjects, arg.After, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var user_id string
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listOrgs = `-- name: ListOrgs :many

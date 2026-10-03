@@ -60,6 +60,76 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Creat
 	return i, err
 }
 
+const eraseSubjectOrders = `-- name: EraseSubjectOrders :execrows
+update orders set owner_id = $1::text
+where owner_id = $2::text
+`
+
+type EraseSubjectOrdersParams struct {
+	Pseudonym  string `json:"pseudonym"`
+	IdentityID string `json:"identity_id"`
+}
+
+// Erasure, per ADR-0301. `owner_id` is an identifier, so it is anonymised and not deleted. The order itself has a
+// bookkeeping obligation that outlives the account. One pseudonym per erasure keeps the subject's orders together
+// without naming the person.
+func (q *Queries) EraseSubjectOrders(ctx context.Context, arg EraseSubjectOrdersParams) (int64, error) {
+	result, err := q.db.Exec(ctx, eraseSubjectOrders, arg.Pseudonym, arg.IdentityID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const exportSubjectOrders = `-- name: ExportSubjectOrders :many
+select
+  id,
+  product_id,
+  quantity,
+  total,
+  currency,
+  status
+from orders
+where owner_id = $1
+order by created_at
+`
+
+type ExportSubjectOrdersRow struct {
+	ID        pgtype.UUID    `json:"id"`
+	ProductID pgtype.UUID    `json:"product_id"`
+	Quantity  int32          `json:"quantity"`
+	Total     pgtype.Numeric `json:"total"`
+	Currency  string         `json:"currency"`
+	Status    string         `json:"status"`
+}
+
+func (q *Queries) ExportSubjectOrders(ctx context.Context, ownerID pgtype.Text) ([]ExportSubjectOrdersRow, error) {
+	rows, err := q.db.Query(ctx, exportSubjectOrders, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportSubjectOrdersRow
+	for rows.Next() {
+		var i ExportSubjectOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProductID,
+			&i.Quantity,
+			&i.Total,
+			&i.Currency,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getOrder = `-- name: GetOrder :one
 select
   id,
@@ -128,6 +198,43 @@ func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey p
 		&i.Status,
 	)
 	return i, err
+}
+
+const listOrderSubjects = `-- name: ListOrderSubjects :many
+select distinct owner_id::text as owner_id
+from orders
+where
+  owner_id is not null
+  and owner_id > $1::text
+  and owner_id not like 'erased-%'
+order by owner_id
+limit $2::bigint
+`
+
+type ListOrderSubjectsParams struct {
+	After    string `json:"after"`
+	PageSize int64  `json:"page_size"`
+}
+
+// One page of the owners that this store holds orders for, after a cursor. An erased owner is not a subject.
+func (q *Queries) ListOrderSubjects(ctx context.Context, arg ListOrderSubjectsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listOrderSubjects, arg.After, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var owner_id string
+		if err := rows.Scan(&owner_id); err != nil {
+			return nil, err
+		}
+		items = append(items, owner_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listOrders = `-- name: ListOrders :many

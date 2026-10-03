@@ -33,12 +33,40 @@ func (UnimplementedHandler) Checkout(ctx context.Context, req *CheckoutInput, pa
 	return r, ht.ErrNotImplemented
 }
 
+// EraseOrdersSubject implements eraseOrdersSubject operation.
+//
+// Anonymise the owner of the subject's orders. The orders stay, because they carry a bookkeeping
+// obligation. Safe to run again.
+//
+// POST /subject-data/orders/{identity_id}/erase
+func (UnimplementedHandler) EraseOrdersSubject(ctx context.Context, req *ErasureRequest, params EraseOrdersSubjectParams) (r *ErasureResult, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExportOrdersSubject implements exportOrdersSubject operation.
+//
+// Every order that the subject placed.
+//
+// GET /subject-data/orders/{identity_id}
+func (UnimplementedHandler) ExportOrdersSubject(ctx context.Context, params ExportOrdersSubjectParams) (r *SubjectOrders, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetOrder implements getOrder operation.
 //
 // Fetch an order by id.
 //
 // GET /orders/{id}
 func (UnimplementedHandler) GetOrder(ctx context.Context, params GetOrderParams) (r *Order, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListOrderSubjects implements listOrderSubjects operation.
+//
+// One page of the identities that own orders, in identity order.
+//
+// GET /subject-data/orders
+func (UnimplementedHandler) ListOrderSubjects(ctx context.Context, params ListOrderSubjectsParams) (r *SubjectPage, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

@@ -80,6 +80,54 @@ paths:
       responses:
         "204": { description: Ack }
         default: { $ref: "#/components/responses/Error" }
+  /subject-data/orgs:
+    get:
+      operationId: listMemberSubjects
+      # East-west, from the platform worker's retention sweep, per ADR-0301. Like `/identity-created`, it skips the
+      # edge, and a NetworkPolicy gates it.
+      x-audience: cluster
+      tags: [cluster]
+      description: One page of the identities that hold memberships, in identity order.
+      parameters:
+        - { name: after, in: query, required: false, description: The last identity of the previous page., schema: { type: string } }
+        - { name: limit, in: query, required: false, description: The page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+      responses:
+        "200":
+          description: The page.
+          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectPage" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /subject-data/orgs/{identity_id}:
+    get:
+      operationId: exportOrgsSubject
+      # East-west, from the platform worker's ExportSubject, per ADR-0301 and GDPR Art. 15 and 20.
+      x-audience: cluster
+      tags: [cluster]
+      description: Every org that the subject is a member of, with the role.
+      parameters:
+        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: The subject's memberships.
+          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectMemberships" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /subject-data/orgs/{identity_id}/erase:
+    post:
+      operationId: eraseOrgsSubject
+      # East-west, from the platform worker's EraseSubject, per ADR-0301 and GDPR Art. 17.
+      x-audience: cluster
+      tags: [cluster]
+      description: Anonymise the subject's memberships. The orgs stay. Safe to run again.
+      parameters:
+        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+      requestBody:
+        required: true
+        description: The replacement for the identity.
+        content: { application/json: { schema: { $ref: "#/components/schemas/ErasureRequest" } } }
+      responses:
+        "200":
+          description: The rows that changed.
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErasureResult" } } }
+        default: { $ref: "#/components/responses/Error" }
 components:
   responses:
     # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
@@ -165,6 +213,44 @@ components:
         a UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.
       pattern: '^org_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
       example: org_01kztn9tsrea7b1597q3yjdeav
+    SubjectPage:
+      type: object
+      description: One page of subjects. `next` is absent on the last page.
+      required: [subjects]
+      properties:
+        subjects: { type: array, items: { type: string } }
+        next: { type: string, description: The cursor for the next page. }
+      example: { subjects: [0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40], next: 0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40 }
+    ErasureRequest:
+      type: object
+      description: The value that replaces the identity in every row. The workflow chooses one per erasure.
+      required: [pseudonym]
+      properties:
+        pseudonym: { type: string, pattern: "^erased-[0-9a-f-]{36}$" }
+    ErasureResult:
+      type: object
+      description: The rows that the erasure changed.
+      required: [rows]
+      properties:
+        rows: { type: integer }
+      example: { rows: 1 }
+    SubjectMembership:
+      type: object
+      description: One membership of the subject.
+      required: [org_id, org_name, role]
+      properties:
+        org_id: { $ref: "#/components/schemas/OrgId" }
+        org_name: { type: string }
+        role: { type: string, enum: [admin, member] }
+    SubjectMemberships:
+      type: object
+      description: A subject's memberships.
+      required: [memberships]
+      properties:
+        memberships: { type: array, items: { $ref: "#/components/schemas/SubjectMembership" } }
+      example:
+        memberships:
+          - { org_id: org_01kztnj6c8e0jt7vzw0cn1wxvd, org_name: Personal, role: admin }
     Org:
       type: object
       description: An organization.

@@ -13,8 +13,15 @@ import (
 type Querier interface {
 	// The order starts with a zero total. The saga sets it when the price is known.
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error)
+	// Erasure, per ADR-0301. `owner_id` is an identifier, so it is anonymised and not deleted. The order itself has a
+	// bookkeeping obligation that outlives the account. One pseudonym per erasure keeps the subject's orders together
+	// without naming the person.
+	EraseSubjectOrders(ctx context.Context, arg EraseSubjectOrdersParams) (int64, error)
+	ExportSubjectOrders(ctx context.Context, ownerID pgtype.Text) ([]ExportSubjectOrdersRow, error)
 	GetOrder(ctx context.Context, id pgtype.UUID) (GetOrderRow, error)
 	GetOrderByIdempotencyKey(ctx context.Context, idempotencyKey pgtype.Text) (GetOrderByIdempotencyKeyRow, error)
+	// One page of the owners that this store holds orders for, after a cursor. An erased owner is not a subject.
+	ListOrderSubjects(ctx context.Context, arg ListOrderSubjectsParams) ([]string, error)
 	ListOrders(ctx context.Context) ([]ListOrdersRow, error)
 	SetOrderTotal(ctx context.Context, arg SetOrderTotalParams) error
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error

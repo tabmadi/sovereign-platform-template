@@ -4,7 +4,7 @@ servers: [{ url: /api }]   # flat resource namespace, per ADR-0306. Paths are gl
 # `x-admin: crud` marks the resource group for the admin generator in tools/admin-gen, per
 # ADR-0401. The saga creates orders, and they are immutable. So the generator makes only
 # the list and detail read pages and the `cancel` action below, with no edit or delete.
-tags: [{ name: orders, x-admin: crud }]
+tags: [{ name: orders, x-admin: crud }, { name: cluster }]
 paths:
   /orders:
     get:
@@ -76,6 +76,56 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/WorkflowHandle" }
+        default: { $ref: "#/components/responses/Error" }
+  /subject-data/orders:
+    get:
+      operationId: listOrderSubjects
+      # East-west, from the platform worker's retention sweep, per ADR-0301. The edge routes only `/api/orders`,
+      # so this path has no edge route, and a NetworkPolicy gates it. `x-audience: cluster` keeps it off both portals.
+      x-audience: cluster
+      tags: [cluster]
+      description: One page of the identities that own orders, in identity order.
+      parameters:
+        - { name: after, in: query, required: false, description: The last identity of the previous page., schema: { type: string } }
+        - { name: limit, in: query, required: false, description: The page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+      responses:
+        "200":
+          description: The page.
+          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectPage" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /subject-data/orders/{identity_id}:
+    get:
+      operationId: exportOrdersSubject
+      # East-west, from the platform worker's ExportSubject, per ADR-0301 and GDPR Art. 15 and 20.
+      x-audience: cluster
+      tags: [cluster]
+      description: Every order that the subject placed.
+      parameters:
+        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: The subject's orders.
+          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectOrders" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /subject-data/orders/{identity_id}/erase:
+    post:
+      operationId: eraseOrdersSubject
+      # East-west, from the platform worker's EraseSubject, per ADR-0301 and GDPR Art. 17.
+      x-audience: cluster
+      tags: [cluster]
+      description: |
+        Anonymise the owner of the subject's orders. The orders stay, because they
+        carry a bookkeeping obligation. Safe to run again.
+      parameters:
+        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+      requestBody:
+        required: true
+        description: The replacement for the identity.
+        content: { application/json: { schema: { $ref: "#/components/schemas/ErasureRequest" } } }
+      responses:
+        "200":
+          description: The rows that changed.
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErasureResult" } } }
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
@@ -216,6 +266,36 @@ components:
       properties:
         product_id: { $ref: "#/components/schemas/ProductId" }
         quantity:   { type: integer, minimum: 1 }
+    SubjectPage:
+      type: object
+      description: One page of subjects. `next` is absent on the last page.
+      required: [subjects]
+      properties:
+        subjects: { type: array, items: { type: string } }
+        next: { type: string, description: The cursor for the next page. }
+      example: { subjects: [0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40], next: 0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40 }
+    ErasureRequest:
+      type: object
+      description: The value that replaces the identity in every row. The workflow chooses one per erasure.
+      required: [pseudonym]
+      properties:
+        pseudonym: { type: string, pattern: "^erased-[0-9a-f-]{36}$" }
+    ErasureResult:
+      type: object
+      description: The rows that the erasure changed.
+      required: [rows]
+      properties:
+        rows: { type: integer }
+      example: { rows: 3 }
+    SubjectOrders:
+      type: object
+      description: A subject's orders.
+      required: [orders]
+      properties:
+        orders: { type: array, items: { $ref: "#/components/schemas/Order" } }
+      example:
+        orders:
+          - { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total: {amount: "2598.00", currency: EUR}, status: confirmed }
     Order:
       type: object
       description: A customer order.

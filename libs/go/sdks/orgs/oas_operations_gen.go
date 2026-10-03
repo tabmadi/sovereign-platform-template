@@ -6,9 +6,12 @@ package orgs
 type OperationName = string
 
 const (
-	DeleteOrgOperation         OperationName = "DeleteOrg"
-	GetOrgOperation            OperationName = "GetOrg"
-	ListOrgsOperation          OperationName = "ListOrgs"
-	OnIdentityCreatedOperation OperationName = "OnIdentityCreated"
-	UpdateOrgOperation         OperationName = "UpdateOrg"
+	DeleteOrgOperation          OperationName = "DeleteOrg"
+	EraseOrgsSubjectOperation   OperationName = "EraseOrgsSubject"
+	ExportOrgsSubjectOperation  OperationName = "ExportOrgsSubject"
+	GetOrgOperation             OperationName = "GetOrg"
+	ListMemberSubjectsOperation OperationName = "ListMemberSubjects"
+	ListOrgsOperation           OperationName = "ListOrgs"
+	OnIdentityCreatedOperation  OperationName = "OnIdentityCreated"
+	UpdateOrgOperation          OperationName = "UpdateOrg"
 )

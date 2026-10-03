@@ -39,6 +39,38 @@ func (s *CheckoutInput) SetQuantity(val int) {
 	s.Quantity = val
 }
 
+// The value that replaces the identity in every row. The workflow chooses one per erasure.
+// Ref: #/components/schemas/ErasureRequest
+type ErasureRequest struct {
+	Pseudonym string `json:"pseudonym"`
+}
+
+// GetPseudonym returns the value of Pseudonym.
+func (s *ErasureRequest) GetPseudonym() string {
+	return s.Pseudonym
+}
+
+// SetPseudonym sets the value of Pseudonym.
+func (s *ErasureRequest) SetPseudonym(val string) {
+	s.Pseudonym = val
+}
+
+// The rows that the erasure changed.
+// Ref: #/components/schemas/ErasureResult
+type ErasureResult struct {
+	Rows int `json:"rows"`
+}
+
+// GetRows returns the value of Rows.
+func (s *ErasureResult) GetRows() int {
+	return s.Rows
+}
+
+// SetRows sets the value of Rows.
+func (s *ErasureResult) SetRows(val int) {
+	s.Rows = val
+}
+
 // ErrorStatusCode wraps Problem with StatusCode.
 type ErrorStatusCode struct {
 	StatusCode int
@@ -94,6 +126,52 @@ func (s *Money) SetAmount(val string) {
 // SetCurrency sets the value of Currency.
 func (s *Money) SetCurrency(val string) {
 	s.Currency = val
+}
+
+// NewOptInt returns new OptInt with value set to v.
+func NewOptInt(v int) OptInt {
+	return OptInt{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt is optional int.
+type OptInt struct {
+	Value int
+	Set   bool
+}
+
+// IsSet returns true if OptInt was set.
+func (o OptInt) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt) Reset() {
+	var v int
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt) SetTo(v int) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt) Get() (v int, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
 }
 
 // NewOptString returns new OptString with value set to v.
@@ -369,6 +447,50 @@ func (s *ProblemErrorsItem) SetMessage(val string) {
 }
 
 type ProductId string
+
+// A subject's orders.
+// Ref: #/components/schemas/SubjectOrders
+type SubjectOrders struct {
+	Orders []Order `json:"orders"`
+}
+
+// GetOrders returns the value of Orders.
+func (s *SubjectOrders) GetOrders() []Order {
+	return s.Orders
+}
+
+// SetOrders sets the value of Orders.
+func (s *SubjectOrders) SetOrders(val []Order) {
+	s.Orders = val
+}
+
+// One page of subjects. `next` is absent on the last page.
+// Ref: #/components/schemas/SubjectPage
+type SubjectPage struct {
+	Subjects []string `json:"subjects"`
+	// The cursor for the next page.
+	Next OptString `json:"next"`
+}
+
+// GetSubjects returns the value of Subjects.
+func (s *SubjectPage) GetSubjects() []string {
+	return s.Subjects
+}
+
+// GetNext returns the value of Next.
+func (s *SubjectPage) GetNext() OptString {
+	return s.Next
+}
+
+// SetSubjects sets the value of Subjects.
+func (s *SubjectPage) SetSubjects(val []string) {
+	s.Subjects = val
+}
+
+// SetNext sets the value of Next.
+func (s *SubjectPage) SetNext(val OptString) {
+	s.Next = val
+}
 
 // Handle to an async Temporal workflow run.
 // Ref: #/components/schemas/WorkflowHandle

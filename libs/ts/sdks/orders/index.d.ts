@@ -60,6 +60,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/subject-data/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One page of the identities that own orders, in identity order. */
+        get: operations["listOrderSubjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subject-data/orders/{identity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every order that the subject placed. */
+        get: operations["exportOrdersSubject"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subject-data/orders/{identity_id}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Anonymise the owner of the subject's orders. The orders stay, because they
+         *     carry a bookkeeping obligation. Safe to run again.
+         */
+        post: operations["eraseOrdersSubject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -180,6 +234,53 @@ export interface components {
         CheckoutInput: {
             product_id: components["schemas"]["ProductId"];
             quantity: number;
+        };
+        /**
+         * @description One page of subjects. `next` is absent on the last page.
+         * @example {
+         *       "subjects": [
+         *         "0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40"
+         *       ],
+         *       "next": "0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40"
+         *     }
+         */
+        SubjectPage: {
+            subjects: string[];
+            /** @description The cursor for the next page. */
+            next?: string;
+        };
+        /** @description The value that replaces the identity in every row. The workflow chooses one per erasure. */
+        ErasureRequest: {
+            pseudonym: string;
+        };
+        /**
+         * @description The rows that the erasure changed.
+         * @example {
+         *       "rows": 3
+         *     }
+         */
+        ErasureResult: {
+            rows: number;
+        };
+        /**
+         * @description A subject's orders.
+         * @example {
+         *       "orders": [
+         *         {
+         *           "id": "order_01kztnj6c8e0jt7vzw0cn1wxvd",
+         *           "product_id": "product_01kztmx9e0fq1r13w5d1aerqw6",
+         *           "quantity": 2,
+         *           "total": {
+         *             "amount": "2598.00",
+         *             "currency": "EUR"
+         *           },
+         *           "status": "confirmed"
+         *         }
+         *       ]
+         *     }
+         */
+        SubjectOrders: {
+            orders: components["schemas"]["Order"][];
         };
         /**
          * @description A customer order.
@@ -314,6 +415,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkflowHandle"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listOrderSubjects: {
+        parameters: {
+            query?: {
+                /** @description The last identity of the previous page. */
+                after?: string;
+                /** @description The page size. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectPage"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    exportOrdersSubject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Kratos identity. */
+                identity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The subject's orders. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectOrders"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    eraseOrdersSubject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Kratos identity. */
+                identity_id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The replacement for the identity. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErasureRequest"];
+            };
+        };
+        responses: {
+            /** @description The rows that changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureResult"];
                 };
             };
             default: components["responses"]["Error"];

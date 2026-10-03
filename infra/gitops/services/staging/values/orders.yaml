@@ -13,7 +13,7 @@ server:  { replicas: 1 }
 ingress: { enabled: true, host: staging.example.com, resources: [orders] }
 # The Lowdefy admin console in `apps/admin` calls orders from its server, east-west on
 # the server port. It does not go through the `/api` edge, per ADR-0401.
-networkPolicy: { allowFrom: [lowdefy] }
+networkPolicy: { allowFrom: [lowdefy, platform] }
 secrets: { envFrom: [orders-db, openfga-creds] }
 env:
   CATALOG_URL: http://catalog-server.platform.svc.cluster.local

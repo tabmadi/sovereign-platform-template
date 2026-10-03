@@ -22,12 +22,39 @@ func (UnimplementedHandler) DeleteOrg(ctx context.Context, params DeleteOrgParam
 	return ht.ErrNotImplemented
 }
 
+// EraseOrgsSubject implements eraseOrgsSubject operation.
+//
+// Anonymise the subject's memberships. The orgs stay. Safe to run again.
+//
+// POST /subject-data/orgs/{identity_id}/erase
+func (UnimplementedHandler) EraseOrgsSubject(ctx context.Context, req *ErasureRequest, params EraseOrgsSubjectParams) (r *ErasureResult, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExportOrgsSubject implements exportOrgsSubject operation.
+//
+// Every org that the subject is a member of, with the role.
+//
+// GET /subject-data/orgs/{identity_id}
+func (UnimplementedHandler) ExportOrgsSubject(ctx context.Context, params ExportOrgsSubjectParams) (r *SubjectMemberships, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // GetOrg implements getOrg operation.
 //
 // Fetch an organization by id.
 //
 // GET /orgs/{id}
 func (UnimplementedHandler) GetOrg(ctx context.Context, params GetOrgParams) (r *Org, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListMemberSubjects implements listMemberSubjects operation.
+//
+// One page of the identities that hold memberships, in identity order.
+//
+// GET /subject-data/orgs
+func (UnimplementedHandler) ListMemberSubjects(ctx context.Context, params ListMemberSubjectsParams) (r *SubjectPage, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

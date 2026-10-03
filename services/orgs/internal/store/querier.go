@@ -14,7 +14,13 @@ type Querier interface {
 	AddMember(ctx context.Context, arg AddMemberParams) error
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (CreateOrgRow, error)
 	DeleteOrg(ctx context.Context, id pgtype.UUID) error
+	// Erasure, per ADR-0301. `user_id` is an identifier, so it is anonymised and not deleted. The membership keeps the
+	// org's history whole. One pseudonym per erasure keeps the primary key unique, because a user is in an org once.
+	EraseSubjectMemberships(ctx context.Context, arg EraseSubjectMembershipsParams) (int64, error)
+	ExportSubjectMemberships(ctx context.Context, userID string) ([]ExportSubjectMembershipsRow, error)
 	GetOrg(ctx context.Context, id pgtype.UUID) (GetOrgRow, error)
+	// One page of the users that this store holds memberships for, after a cursor. An erased user is not a subject.
+	ListMemberSubjects(ctx context.Context, arg ListMemberSubjectsParams) ([]string, error)
 	ListOrgs(ctx context.Context) ([]ListOrgsRow, error)
 	UpdateOrg(ctx context.Context, arg UpdateOrgParams) (UpdateOrgRow, error)
 }

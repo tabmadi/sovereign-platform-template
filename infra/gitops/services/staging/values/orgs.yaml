@@ -14,7 +14,7 @@ ingress: { enabled: true, host: staging.example.com, resources: [orgs] }
 # Kratos calls `/identity-created` east-west on the server port, per ADR-0304. The first-operator Job makes the same call.
 # The edge rule `allowFromGateway` covers only Traefik to `/api/orgs`, so allow both.
 # The Lowdefy admin console in `apps/admin` also calls orgs from its server, per ADR-0401.
-networkPolicy: { allowFrom: [kratos, lowdefy, first-operator] }
+networkPolicy: { allowFrom: [kratos, lowdefy, first-operator, platform] }
 secrets: { envFrom: [orgs-db, openfga-creds] }
 env:
   # Write authz, per ADR-0304: the worker grants org admin through the shared OpenFGA

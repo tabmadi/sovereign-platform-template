@@ -14,12 +14,30 @@ type Handler interface {
 	//
 	// DELETE /orgs/{id}
 	DeleteOrg(ctx context.Context, params DeleteOrgParams) error
+	// EraseOrgsSubject implements eraseOrgsSubject operation.
+	//
+	// Anonymise the subject's memberships. The orgs stay. Safe to run again.
+	//
+	// POST /subject-data/orgs/{identity_id}/erase
+	EraseOrgsSubject(ctx context.Context, req *ErasureRequest, params EraseOrgsSubjectParams) (*ErasureResult, error)
+	// ExportOrgsSubject implements exportOrgsSubject operation.
+	//
+	// Every org that the subject is a member of, with the role.
+	//
+	// GET /subject-data/orgs/{identity_id}
+	ExportOrgsSubject(ctx context.Context, params ExportOrgsSubjectParams) (*SubjectMemberships, error)
 	// GetOrg implements getOrg operation.
 	//
 	// Fetch an organization by id.
 	//
 	// GET /orgs/{id}
 	GetOrg(ctx context.Context, params GetOrgParams) (*Org, error)
+	// ListMemberSubjects implements listMemberSubjects operation.
+	//
+	// One page of the identities that hold memberships, in identity order.
+	//
+	// GET /subject-data/orgs
+	ListMemberSubjects(ctx context.Context, params ListMemberSubjectsParams) (*SubjectPage, error)
 	// ListOrgs implements listOrgs operation.
 	//
 	// List all organizations.

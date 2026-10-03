@@ -34,12 +34,30 @@ type Invoker interface {
 	//
 	// DELETE /orgs/{id}
 	DeleteOrg(ctx context.Context, params DeleteOrgParams) error
+	// EraseOrgsSubject invokes eraseOrgsSubject operation.
+	//
+	// Anonymise the subject's memberships. The orgs stay. Safe to run again.
+	//
+	// POST /subject-data/orgs/{identity_id}/erase
+	EraseOrgsSubject(ctx context.Context, request *ErasureRequest, params EraseOrgsSubjectParams) (*ErasureResult, error)
+	// ExportOrgsSubject invokes exportOrgsSubject operation.
+	//
+	// Every org that the subject is a member of, with the role.
+	//
+	// GET /subject-data/orgs/{identity_id}
+	ExportOrgsSubject(ctx context.Context, params ExportOrgsSubjectParams) (*SubjectMemberships, error)
 	// GetOrg invokes getOrg operation.
 	//
 	// Fetch an organization by id.
 	//
 	// GET /orgs/{id}
 	GetOrg(ctx context.Context, params GetOrgParams) (*Org, error)
+	// ListMemberSubjects invokes listMemberSubjects operation.
+	//
+	// One page of the identities that hold memberships, in identity order.
+	//
+	// GET /subject-data/orgs
+	ListMemberSubjects(ctx context.Context, params ListMemberSubjectsParams) (*SubjectPage, error)
 	// ListOrgs invokes listOrgs operation.
 	//
 	// List all organizations.
@@ -200,6 +218,206 @@ func (c *Client) sendDeleteOrg(ctx context.Context, params DeleteOrgParams) (res
 	return result, nil
 }
 
+// EraseOrgsSubject invokes eraseOrgsSubject operation.
+//
+// Anonymise the subject's memberships. The orgs stay. Safe to run again.
+//
+// POST /subject-data/orgs/{identity_id}/erase
+func (c *Client) EraseOrgsSubject(ctx context.Context, request *ErasureRequest, params EraseOrgsSubjectParams) (*ErasureResult, error) {
+	res, err := c.sendEraseOrgsSubject(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendEraseOrgsSubject(ctx context.Context, request *ErasureRequest, params EraseOrgsSubjectParams) (res *ErasureResult, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("eraseOrgsSubject"),
+		semconv.HTTPRequestMethodKey.String("POST"),
+		semconv.URLTemplateKey.String("/subject-data/orgs/{identity_id}/erase"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, EraseOrgsSubjectOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/subject-data/orgs/"
+	{
+		// Encode "identity_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "identity_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.IdentityID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/erase"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeEraseOrgsSubjectRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeEraseOrgsSubjectResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// ExportOrgsSubject invokes exportOrgsSubject operation.
+//
+// Every org that the subject is a member of, with the role.
+//
+// GET /subject-data/orgs/{identity_id}
+func (c *Client) ExportOrgsSubject(ctx context.Context, params ExportOrgsSubjectParams) (*SubjectMemberships, error) {
+	res, err := c.sendExportOrgsSubject(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendExportOrgsSubject(ctx context.Context, params ExportOrgsSubjectParams) (res *SubjectMemberships, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("exportOrgsSubject"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/subject-data/orgs/{identity_id}"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ExportOrgsSubjectOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/subject-data/orgs/"
+	{
+		// Encode "identity_id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "identity_id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.IdentityID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeExportOrgsSubjectResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // GetOrg invokes getOrg operation.
 //
 // Fetch an organization by id.
@@ -294,6 +512,124 @@ func (c *Client) sendGetOrg(ctx context.Context, params GetOrgParams) (res *Org,
 
 	stage = "DecodeResponse"
 	result, err := decodeGetOrgResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// ListMemberSubjects invokes listMemberSubjects operation.
+//
+// One page of the identities that hold memberships, in identity order.
+//
+// GET /subject-data/orgs
+func (c *Client) ListMemberSubjects(ctx context.Context, params ListMemberSubjectsParams) (*SubjectPage, error) {
+	res, err := c.sendListMemberSubjects(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendListMemberSubjects(ctx context.Context, params ListMemberSubjectsParams) (res *SubjectPage, err error) {
+	otelAttrs := []attribute.KeyValue{
+		otelogen.OperationID("listMemberSubjects"),
+		semconv.HTTPRequestMethodKey.String("GET"),
+		semconv.URLTemplateKey.String("/subject-data/orgs"),
+	}
+	otelAttrs = append(otelAttrs, c.cfg.Attributes...)
+
+	// Run stopwatch.
+	startTime := time.Now()
+	defer func() {
+		// Use floating point division here for higher precision (instead of Millisecond method).
+		elapsedDuration := time.Since(startTime)
+		c.duration.Record(ctx, float64(elapsedDuration)/float64(time.Millisecond), metric.WithAttributes(otelAttrs...))
+	}()
+
+	// Increment request counter.
+	c.requests.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+
+	// Start a span for this request.
+	ctx, span := c.cfg.Tracer.Start(ctx, ListMemberSubjectsOperation,
+		trace.WithAttributes(otelAttrs...),
+		clientSpanKind,
+	)
+	// Track stage for error reporting.
+	var stage string
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, stage)
+			c.errors.Add(ctx, 1, metric.WithAttributes(otelAttrs...))
+		}
+		span.End()
+	}()
+
+	stage = "BuildURL"
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/subject-data/orgs"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	stage = "EncodeQueryParams"
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "after" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "after",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.After.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.IntToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	stage = "EncodeRequest"
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	stage = "SendRequest"
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	stage = "DecodeResponse"
+	result, err := decodeListMemberSubjectsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

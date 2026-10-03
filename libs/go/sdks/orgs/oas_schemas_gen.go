@@ -4,6 +4,8 @@ package orgs
 
 import (
 	"fmt"
+
+	"github.com/go-faster/errors"
 )
 
 func (s *ErrorStatusCode) Error() string {
@@ -12,6 +14,38 @@ func (s *ErrorStatusCode) Error() string {
 
 // DeleteOrgNoContent is response for DeleteOrg operation.
 type DeleteOrgNoContent struct{}
+
+// The value that replaces the identity in every row. The workflow chooses one per erasure.
+// Ref: #/components/schemas/ErasureRequest
+type ErasureRequest struct {
+	Pseudonym string `json:"pseudonym"`
+}
+
+// GetPseudonym returns the value of Pseudonym.
+func (s *ErasureRequest) GetPseudonym() string {
+	return s.Pseudonym
+}
+
+// SetPseudonym sets the value of Pseudonym.
+func (s *ErasureRequest) SetPseudonym(val string) {
+	s.Pseudonym = val
+}
+
+// The rows that the erasure changed.
+// Ref: #/components/schemas/ErasureResult
+type ErasureResult struct {
+	Rows int `json:"rows"`
+}
+
+// GetRows returns the value of Rows.
+func (s *ErasureResult) GetRows() int {
+	return s.Rows
+}
+
+// SetRows sets the value of Rows.
+func (s *ErasureResult) SetRows(val int) {
+	s.Rows = val
+}
 
 // ErrorStatusCode wraps Problem with StatusCode.
 type ErrorStatusCode struct {
@@ -66,6 +100,52 @@ func (s *OnIdentityCreatedReq) SetIdentityID(val OptString) {
 // SetEmail sets the value of Email.
 func (s *OnIdentityCreatedReq) SetEmail(val OptString) {
 	s.Email = val
+}
+
+// NewOptInt returns new OptInt with value set to v.
+func NewOptInt(v int) OptInt {
+	return OptInt{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt is optional int.
+type OptInt struct {
+	Value int
+	Set   bool
+}
+
+// IsSet returns true if OptInt was set.
+func (o OptInt) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt) Reset() {
+	var v int
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt) SetTo(v int) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt) Get() (v int, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
 }
 
 // NewOptString returns new OptString with value set to v.
@@ -266,4 +346,127 @@ func (s *ProblemErrorsItem) SetPointer(val string) {
 // SetMessage sets the value of Message.
 func (s *ProblemErrorsItem) SetMessage(val string) {
 	s.Message = val
+}
+
+// One membership of the subject.
+// Ref: #/components/schemas/SubjectMembership
+type SubjectMembership struct {
+	OrgID   OrgId                 `json:"org_id"`
+	OrgName string                `json:"org_name"`
+	Role    SubjectMembershipRole `json:"role"`
+}
+
+// GetOrgID returns the value of OrgID.
+func (s *SubjectMembership) GetOrgID() OrgId {
+	return s.OrgID
+}
+
+// GetOrgName returns the value of OrgName.
+func (s *SubjectMembership) GetOrgName() string {
+	return s.OrgName
+}
+
+// GetRole returns the value of Role.
+func (s *SubjectMembership) GetRole() SubjectMembershipRole {
+	return s.Role
+}
+
+// SetOrgID sets the value of OrgID.
+func (s *SubjectMembership) SetOrgID(val OrgId) {
+	s.OrgID = val
+}
+
+// SetOrgName sets the value of OrgName.
+func (s *SubjectMembership) SetOrgName(val string) {
+	s.OrgName = val
+}
+
+// SetRole sets the value of Role.
+func (s *SubjectMembership) SetRole(val SubjectMembershipRole) {
+	s.Role = val
+}
+
+type SubjectMembershipRole string
+
+const (
+	SubjectMembershipRoleAdmin  SubjectMembershipRole = "admin"
+	SubjectMembershipRoleMember SubjectMembershipRole = "member"
+)
+
+// AllValues returns all SubjectMembershipRole values.
+func (SubjectMembershipRole) AllValues() []SubjectMembershipRole {
+	return []SubjectMembershipRole{
+		SubjectMembershipRoleAdmin,
+		SubjectMembershipRoleMember,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SubjectMembershipRole) MarshalText() ([]byte, error) {
+	switch s {
+	case SubjectMembershipRoleAdmin:
+		return []byte(s), nil
+	case SubjectMembershipRoleMember:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SubjectMembershipRole) UnmarshalText(data []byte) error {
+	switch SubjectMembershipRole(data) {
+	case SubjectMembershipRoleAdmin:
+		*s = SubjectMembershipRoleAdmin
+		return nil
+	case SubjectMembershipRoleMember:
+		*s = SubjectMembershipRoleMember
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// A subject's memberships.
+// Ref: #/components/schemas/SubjectMemberships
+type SubjectMemberships struct {
+	Memberships []SubjectMembership `json:"memberships"`
+}
+
+// GetMemberships returns the value of Memberships.
+func (s *SubjectMemberships) GetMemberships() []SubjectMembership {
+	return s.Memberships
+}
+
+// SetMemberships sets the value of Memberships.
+func (s *SubjectMemberships) SetMemberships(val []SubjectMembership) {
+	s.Memberships = val
+}
+
+// One page of subjects. `next` is absent on the last page.
+// Ref: #/components/schemas/SubjectPage
+type SubjectPage struct {
+	Subjects []string `json:"subjects"`
+	// The cursor for the next page.
+	Next OptString `json:"next"`
+}
+
+// GetSubjects returns the value of Subjects.
+func (s *SubjectPage) GetSubjects() []string {
+	return s.Subjects
+}
+
+// GetNext returns the value of Next.
+func (s *SubjectPage) GetNext() OptString {
+	return s.Next
+}
+
+// SetSubjects sets the value of Subjects.
+func (s *SubjectPage) SetSubjects(val []string) {
+	s.Subjects = val
+}
+
+// SetNext sets the value of Next.
+func (s *SubjectPage) SetNext(val OptString) {
+	s.Next = val
 }

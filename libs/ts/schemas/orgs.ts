@@ -5,9 +5,16 @@
 // browser enforces the same rule that the spec states.
 import { z } from "zod";
 
+export const erasureRequestSchema = z.object({
+  pseudonym: z.string().regex(/^erased-[0-9a-f-]{36}$/),
+});
+
 export const orgInputSchema = z.object({
   name: z.string().min(1),
 });
+
+export const eraseOrgsSubjectSchema = erasureRequestSchema;
+export type EraseOrgsSubjectInput = z.infer<typeof eraseOrgsSubjectSchema>;
 
 export const onIdentityCreatedSchema = z.object({
   email: z.string().optional(),

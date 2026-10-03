@@ -57,6 +57,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/subject-data/orgs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One page of the identities that hold memberships, in identity order. */
+        get: operations["listMemberSubjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subject-data/orgs/{identity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every org that the subject is a member of, with the role. */
+        get: operations["exportOrgsSubject"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subject-data/orgs/{identity_id}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Anonymise the subject's memberships. The orgs stay. Safe to run again. */
+        post: operations["eraseOrgsSubject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -125,6 +176,55 @@ export interface components {
          * @example org_01kztn9tsrea7b1597q3yjdeav
          */
         OrgId: string;
+        /**
+         * @description One page of subjects. `next` is absent on the last page.
+         * @example {
+         *       "subjects": [
+         *         "0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40"
+         *       ],
+         *       "next": "0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40"
+         *     }
+         */
+        SubjectPage: {
+            subjects: string[];
+            /** @description The cursor for the next page. */
+            next?: string;
+        };
+        /** @description The value that replaces the identity in every row. The workflow chooses one per erasure. */
+        ErasureRequest: {
+            pseudonym: string;
+        };
+        /**
+         * @description The rows that the erasure changed.
+         * @example {
+         *       "rows": 1
+         *     }
+         */
+        ErasureResult: {
+            rows: number;
+        };
+        /** @description One membership of the subject. */
+        SubjectMembership: {
+            org_id: components["schemas"]["OrgId"];
+            org_name: string;
+            /** @enum {string} */
+            role: "admin" | "member";
+        };
+        /**
+         * @description A subject's memberships.
+         * @example {
+         *       "memberships": [
+         *         {
+         *           "org_id": "org_01kztnj6c8e0jt7vzw0cn1wxvd",
+         *           "org_name": "Personal",
+         *           "role": "admin"
+         *         }
+         *       ]
+         *     }
+         */
+        SubjectMemberships: {
+            memberships: components["schemas"]["SubjectMembership"][];
+        };
         /**
          * @description An organization.
          * @example {
@@ -278,6 +378,85 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listMemberSubjects: {
+        parameters: {
+            query?: {
+                /** @description The last identity of the previous page. */
+                after?: string;
+                /** @description The page size. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectPage"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    exportOrgsSubject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Kratos identity. */
+                identity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The subject's memberships. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectMemberships"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    eraseOrgsSubject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Kratos identity. */
+                identity_id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The replacement for the identity. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErasureRequest"];
+            };
+        };
+        responses: {
+            /** @description The rows that changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasureResult"];
+                };
             };
             default: components["responses"]["Error"];
         };

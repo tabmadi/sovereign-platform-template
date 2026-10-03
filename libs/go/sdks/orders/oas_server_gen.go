@@ -22,12 +22,31 @@ type Handler interface {
 	//
 	// POST /orders
 	Checkout(ctx context.Context, req *CheckoutInput, params CheckoutParams) (*WorkflowHandle, error)
+	// EraseOrdersSubject implements eraseOrdersSubject operation.
+	//
+	// Anonymise the owner of the subject's orders. The orders stay, because they carry a bookkeeping
+	// obligation. Safe to run again.
+	//
+	// POST /subject-data/orders/{identity_id}/erase
+	EraseOrdersSubject(ctx context.Context, req *ErasureRequest, params EraseOrdersSubjectParams) (*ErasureResult, error)
+	// ExportOrdersSubject implements exportOrdersSubject operation.
+	//
+	// Every order that the subject placed.
+	//
+	// GET /subject-data/orders/{identity_id}
+	ExportOrdersSubject(ctx context.Context, params ExportOrdersSubjectParams) (*SubjectOrders, error)
 	// GetOrder implements getOrder operation.
 	//
 	// Fetch an order by id.
 	//
 	// GET /orders/{id}
 	GetOrder(ctx context.Context, params GetOrderParams) (*Order, error)
+	// ListOrderSubjects implements listOrderSubjects operation.
+	//
+	// One page of the identities that own orders, in identity order.
+	//
+	// GET /subject-data/orders
+	ListOrderSubjects(ctx context.Context, params ListOrderSubjectsParams) (*SubjectPage, error)
 	// ListOrders implements listOrders operation.
 	//
 	// List all orders.
