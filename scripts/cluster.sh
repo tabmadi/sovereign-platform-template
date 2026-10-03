@@ -226,7 +226,20 @@ remove)
     fi
   fi
 
-  if h -n "$NS" status "$NAME" >/dev/null 2>&1; then
+  case "$KIND" in
+  chart) APP="local-platform-${NAME}" ;;
+  *) APP="$(argo_service_app "$NAME")" ;;
+  esac
+  ARGO_OWNS=false
+  if [ -n "$APP" ] && k -n argocd get application.argoproj.io "$APP" >/dev/null 2>&1; then ARGO_OWNS=true; fi
+
+  if [ "$ARGO_OWNS" = true ]; then
+    # Argo CD owns these resources again, so nothing is deleted. Only Helm's release record goes, and Argo applies its
+    # own manifests over the working-tree ones. An uninstall would delete a versioned Temporal worker. Its controller
+    # cannot delete a version while the version's own pods still poll, so that deletion never finishes.
+    step "handing ${NAME} back to ArgoCD"
+    k -n "$NS" delete secret -l "owner=helm,name=${NAME}" --ignore-not-found >/dev/null
+  elif h -n "$NS" status "$NAME" >/dev/null 2>&1; then
     step "uninstalling ${NAME}"
     h -n "$NS" uninstall "$NAME"
   else
@@ -235,11 +248,7 @@ remove)
 
   # Give it back to GitOps, the reverse of the pause in the deploy scripts. Removal must match add.
   # Otherwise Argo loses control of the cluster one service at a time, with no message.
-  case "$KIND" in
-  chart) APP="local-platform-${NAME}" ;;
-  *) APP="$(argo_service_app "$NAME")" ;;
-  esac
-  if [ -n "$APP" ] && k -n argocd get application.argoproj.io "$APP" >/dev/null 2>&1; then
+  if [ "$ARGO_OWNS" = true ]; then
     step "restoring ArgoCD auto-sync on ${APP}"
     k -n argocd patch application.argoproj.io "$APP" --type merge \
       -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}' >/dev/null
