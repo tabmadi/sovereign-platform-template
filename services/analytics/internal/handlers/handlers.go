@@ -32,7 +32,9 @@ const stateGranted = "granted"
 const maxRollupBuckets = 92
 
 type Handlers struct {
-	q       *store.Queries
+	q *store.Queries
+	// db runs the partition DDL of the retention pass, which sqlc cannot express.
+	db      *pgxpool.Pool
 	funnels *funnels.Set
 	log     *slog.Logger
 }
@@ -41,7 +43,7 @@ func New(db *pgxpool.Pool, defs *funnels.Set, log *slog.Logger) *Handlers {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Handlers{q: store.New(db), funnels: defs, log: log}
+	return &Handlers{q: store.New(db), db: db, funnels: defs, log: log}
 }
 
 var _ analytics.Handler = (*Handlers)(nil)

@@ -13,6 +13,10 @@ export const consentInputSchema = z.object({
   state: z.enum(["granted", "withdrawn", "refused"]),
 });
 
+export const erasureRequestSchema = z.object({
+  pseudonym: z.string().regex(/^erased-[0-9a-f-]{36}$/),
+});
+
 export const eventSchema = z.object({
   name: z.string().min(1),
   occurred_at: z.string().datetime(),
@@ -33,6 +37,9 @@ export const rollupWindowSchema = z.object({
 
 export const computeFunnelRollupSchema = rollupWindowSchema;
 export type ComputeFunnelRollupInput = z.infer<typeof computeFunnelRollupSchema>;
+
+export const eraseAnalyticsSubjectSchema = erasureRequestSchema;
+export type EraseAnalyticsSubjectInput = z.infer<typeof eraseAnalyticsSubjectSchema>;
 
 export const recordConsentSchema = consentInputSchema;
 export type RecordConsentInput = z.infer<typeof recordConsentSchema>;

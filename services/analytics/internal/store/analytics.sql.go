@@ -27,6 +27,173 @@ func (q *Queries) CountEventsSince(ctx context.Context, occurredAt pgtype.Timest
 	return rows_since, err
 }
 
+const eraseSubjectAnalytics = `-- name: EraseSubjectAnalytics :one
+with subject_sessions as materialized (
+  select events.session_id from events
+  where events.identity_id = $1::text
+  union
+  select consent.session_id from consent
+  where consent.identity_id = $1::text
+),
+
+replacement as materialized (
+  select
+    subject_sessions.session_id,
+    $2::text || '-' || gen_random_uuid()::text as anonymous_id
+  from subject_sessions
+),
+
+erased_events as (
+  update events set
+    session_id = replacement.anonymous_id,
+    identity_id = case when events.identity_id is null then null else $2::text end,
+    properties = '{}'::jsonb,
+    device_class = 'unknown'
+  from replacement
+  where events.session_id = replacement.session_id
+  returning 1
+),
+
+erased_consent as (
+  update consent set
+    session_id = replacement.anonymous_id,
+    identity_id = case when consent.identity_id is null then null else $2::text end
+  from replacement
+  where consent.session_id = replacement.session_id
+  returning 1
+)
+
+select
+  (select count(*) from erased_events)::bigint as events,
+  (select count(*) from erased_consent)::bigint as consents
+`
+
+type EraseSubjectAnalyticsParams struct {
+	IdentityID string `json:"identity_id"`
+	Pseudonym  string `json:"pseudonym"`
+}
+
+type EraseSubjectAnalyticsRow struct {
+	Events   int64 `json:"events"`
+	Consents int64 `json:"consents"`
+}
+
+// Erasure, per ADR-0301. It covers the subject's whole sessions, so the events before sign-in too.
+// Identifiers are anonymised, one replacement per session, so the aggregates still count distinct sessions.
+// `free_text` and `device` are deleted, which here means set to the column's empty value.
+func (q *Queries) EraseSubjectAnalytics(ctx context.Context, arg EraseSubjectAnalyticsParams) (EraseSubjectAnalyticsRow, error) {
+	row := q.db.QueryRow(ctx, eraseSubjectAnalytics, arg.IdentityID, arg.Pseudonym)
+	var i EraseSubjectAnalyticsRow
+	err := row.Scan(&i.Events, &i.Consents)
+	return i, err
+}
+
+const exportSubjectConsent = `-- name: ExportSubjectConsent :many
+select
+  session_id,
+  state,
+  purpose_version,
+  source,
+  decided_at,
+  updated_at
+from consent
+where
+  session_id in (
+    select e.session_id from events as e where e.identity_id = $1::text
+    union
+    select c.session_id from consent as c where c.identity_id = $1::text
+  )
+order by decided_at
+`
+
+type ExportSubjectConsentRow struct {
+	SessionID      string             `json:"session_id"`
+	State          string             `json:"state"`
+	PurposeVersion string             `json:"purpose_version"`
+	Source         string             `json:"source"`
+	DecidedAt      pgtype.Timestamptz `json:"decided_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ExportSubjectConsent(ctx context.Context, identityID string) ([]ExportSubjectConsentRow, error) {
+	rows, err := q.db.Query(ctx, exportSubjectConsent, identityID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportSubjectConsentRow
+	for rows.Next() {
+		var i ExportSubjectConsentRow
+		if err := rows.Scan(
+			&i.SessionID,
+			&i.State,
+			&i.PurposeVersion,
+			&i.Source,
+			&i.DecidedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportSubjectEvents = `-- name: ExportSubjectEvents :many
+select
+  session_id,
+  name,
+  properties,
+  device_class,
+  occurred_at
+from events
+where
+  session_id in (
+    select e.session_id from events as e where e.identity_id = $1::text
+    union
+    select c.session_id from consent as c where c.identity_id = $1::text
+  )
+order by occurred_at
+`
+
+type ExportSubjectEventsRow struct {
+	SessionID   string             `json:"session_id"`
+	Name        string             `json:"name"`
+	Properties  []byte             `json:"properties"`
+	DeviceClass string             `json:"device_class"`
+	OccurredAt  pgtype.Timestamptz `json:"occurred_at"`
+}
+
+// Subject access, per ADR-0301: every event of every session that the subject is known in.
+func (q *Queries) ExportSubjectEvents(ctx context.Context, identityID string) ([]ExportSubjectEventsRow, error) {
+	rows, err := q.db.Query(ctx, exportSubjectEvents, identityID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ExportSubjectEventsRow
+	for rows.Next() {
+		var i ExportSubjectEventsRow
+		if err := rows.Scan(
+			&i.SessionID,
+			&i.Name,
+			&i.Properties,
+			&i.DeviceClass,
+			&i.OccurredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const funnelStepFirstSeen = `-- name: FunnelStepFirstSeen :many
 select
   session_id,
@@ -198,6 +365,47 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) error 
 		arg.OccurredAt,
 	)
 	return err
+}
+
+const listAnalyticsSubjects = `-- name: ListAnalyticsSubjects :many
+select subjects.identity_id::text as identity_id
+from (
+  select events.identity_id from events
+  where events.identity_id is not null and events.identity_id > $1::text
+  union
+  select consent.identity_id from consent
+  where consent.identity_id is not null and consent.identity_id > $1::text
+) as subjects
+where subjects.identity_id not like 'erased-%'
+order by subjects.identity_id
+limit $2::bigint
+`
+
+type ListAnalyticsSubjectsParams struct {
+	After    string `json:"after"`
+	PageSize int64  `json:"page_size"`
+}
+
+// One page of the identities that this store holds data for, after a cursor. The retention sweep reads every page,
+// per ADR-0301. An identity that erasure already replaced has the `erased-` prefix and is not a subject.
+func (q *Queries) ListAnalyticsSubjects(ctx context.Context, arg ListAnalyticsSubjectsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listAnalyticsSubjects, arg.After, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var identity_id string
+		if err := rows.Scan(&identity_id); err != nil {
+			return nil, err
+		}
+		items = append(items, identity_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const summariseEvents = `-- name: SummariseEvents :many

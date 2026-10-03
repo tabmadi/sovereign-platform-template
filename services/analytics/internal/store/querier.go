@@ -15,6 +15,13 @@ type Querier interface {
 	// ADR-0700. `occurred_at` limits it. `events` is partitioned by month, so a `count(*)` over all rows would scan
 	// every month ever written, on every scrape.
 	CountEventsSince(ctx context.Context, occurredAt pgtype.Timestamptz) (int64, error)
+	// Erasure, per ADR-0301. It covers the subject's whole sessions, so the events before sign-in too.
+	// Identifiers are anonymised, one replacement per session, so the aggregates still count distinct sessions.
+	// `free_text` and `device` are deleted, which here means set to the column's empty value.
+	EraseSubjectAnalytics(ctx context.Context, arg EraseSubjectAnalyticsParams) (EraseSubjectAnalyticsRow, error)
+	ExportSubjectConsent(ctx context.Context, identityID string) ([]ExportSubjectConsentRow, error)
+	// Subject access, per ADR-0301: every event of every session that the subject is known in.
+	ExportSubjectEvents(ctx context.Context, identityID string) ([]ExportSubjectEventsRow, error)
 	// Each session's first occurrence of each named step in the window. The caller walks them in definition order,
 	// because in SQL the query's shape would depend on the number of steps. It uses `name = any($3::text[])` and not
 	// a join. The funnels are committed configuration in infra/analytics/funnels.yaml, not a table.
@@ -24,6 +31,9 @@ type Querier interface {
 	// order. The panel renders in this order.
 	GetFunnelRollup(ctx context.Context, arg GetFunnelRollupParams) ([]GetFunnelRollupRow, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) error
+	// One page of the identities that this store holds data for, after a cursor. The retention sweep reads every page,
+	// per ADR-0301. An identity that erasure already replaced has the `erased-` prefix and is not a subject.
+	ListAnalyticsSubjects(ctx context.Context, arg ListAnalyticsSubjectsParams) ([]string, error)
 	// One row per event name over a window, with its distinct sessions. It is a plain aggregate, because a panel
 	// first shows what is happening.
 	SummariseEvents(ctx context.Context, occurredAt pgtype.Timestamptz) ([]SummariseEventsRow, error)

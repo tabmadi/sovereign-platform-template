@@ -6,10 +6,14 @@ package analytics
 type OperationName = string
 
 const (
-	ComputeFunnelRollupOperation OperationName = "ComputeFunnelRollup"
-	GetConsentOperation          OperationName = "GetConsent"
-	GetFunnelRollupOperation     OperationName = "GetFunnelRollup"
-	RecordConsentOperation       OperationName = "RecordConsent"
-	RecordEventsOperation        OperationName = "RecordEvents"
-	SummariseEventsOperation     OperationName = "SummariseEvents"
+	ApplyAnalyticsRetentionOperation OperationName = "ApplyAnalyticsRetention"
+	ComputeFunnelRollupOperation     OperationName = "ComputeFunnelRollup"
+	EraseAnalyticsSubjectOperation   OperationName = "EraseAnalyticsSubject"
+	ExportAnalyticsSubjectOperation  OperationName = "ExportAnalyticsSubject"
+	GetConsentOperation              OperationName = "GetConsent"
+	GetFunnelRollupOperation         OperationName = "GetFunnelRollup"
+	ListAnalyticsSubjectsOperation   OperationName = "ListAnalyticsSubjects"
+	RecordConsentOperation           OperationName = "RecordConsent"
+	RecordEventsOperation            OperationName = "RecordEvents"
+	SummariseEventsOperation         OperationName = "SummariseEvents"
 )

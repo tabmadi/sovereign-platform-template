@@ -39,6 +39,22 @@ type Event struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
+type EventsDefault struct {
+	ID pgtype.UUID `json:"id"`
+	// pii:identifier
+	SessionID string `json:"session_id"`
+	// pii:identifier
+	IdentityID pgtype.Text `json:"identity_id"`
+	// pii:none
+	Name string `json:"name"`
+	// pii:free_text
+	Properties []byte `json:"properties"`
+	// pii:device
+	DeviceClass string             `json:"device_class"`
+	OccurredAt  pgtype.Timestamptz `json:"occurred_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type FunnelRollup struct {
 	// pii:none
 	Funnel string `json:"funnel"`

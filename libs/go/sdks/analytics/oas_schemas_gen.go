@@ -14,6 +14,33 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
+// The rows that the erasure changed.
+// Ref: #/components/schemas/AnalyticsErasure
+type AnalyticsErasure struct {
+	Events   int `json:"events"`
+	Consents int `json:"consents"`
+}
+
+// GetEvents returns the value of Events.
+func (s *AnalyticsErasure) GetEvents() int {
+	return s.Events
+}
+
+// GetConsents returns the value of Consents.
+func (s *AnalyticsErasure) GetConsents() int {
+	return s.Consents
+}
+
+// SetEvents sets the value of Events.
+func (s *AnalyticsErasure) SetEvents(val int) {
+	s.Events = val
+}
+
+// SetConsents sets the value of Consents.
+func (s *AnalyticsErasure) SetConsents(val int) {
+	s.Consents = val
+}
+
 // A recorded consent decision.
 // Ref: #/components/schemas/Consent
 type Consent struct {
@@ -325,6 +352,22 @@ func (s *ConsentState) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// The value that replaces the identity in every row. The workflow chooses one per erasure.
+// Ref: #/components/schemas/ErasureRequest
+type ErasureRequest struct {
+	Pseudonym string `json:"pseudonym"`
+}
+
+// GetPseudonym returns the value of Pseudonym.
+func (s *ErasureRequest) GetPseudonym() string {
+	return s.Pseudonym
+}
+
+// SetPseudonym sets the value of Pseudonym.
+func (s *ErasureRequest) SetPseudonym(val string) {
+	s.Pseudonym = val
 }
 
 // ErrorStatusCode wraps Problem with StatusCode.
@@ -712,6 +755,52 @@ func (o OptEventProperties) Or(d EventProperties) EventProperties {
 	return d
 }
 
+// NewOptInt returns new OptInt with value set to v.
+func NewOptInt(v int) OptInt {
+	return OptInt{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInt is optional int.
+type OptInt struct {
+	Value int
+	Set   bool
+}
+
+// IsSet returns true if OptInt was set.
+func (o OptInt) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInt) Reset() {
+	var v int
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInt) SetTo(v int) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInt) Get() (v int, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptString returns new OptString with value set to v.
 func NewOptString(v string) OptString {
 	return OptString{
@@ -896,6 +985,45 @@ func (s *RecordResult) SetDropped(val int) {
 	s.Dropped = val
 }
 
+// What a retention pass changed.
+// Ref: #/components/schemas/RetentionResult
+type RetentionResult struct {
+	PartitionsCreated []string `json:"partitions_created"`
+	PartitionsDropped []string `json:"partitions_dropped"`
+	// Rows past retention in the default partition, which holds events outside every month.
+	DefaultRowsDeleted int `json:"default_rows_deleted"`
+}
+
+// GetPartitionsCreated returns the value of PartitionsCreated.
+func (s *RetentionResult) GetPartitionsCreated() []string {
+	return s.PartitionsCreated
+}
+
+// GetPartitionsDropped returns the value of PartitionsDropped.
+func (s *RetentionResult) GetPartitionsDropped() []string {
+	return s.PartitionsDropped
+}
+
+// GetDefaultRowsDeleted returns the value of DefaultRowsDeleted.
+func (s *RetentionResult) GetDefaultRowsDeleted() int {
+	return s.DefaultRowsDeleted
+}
+
+// SetPartitionsCreated sets the value of PartitionsCreated.
+func (s *RetentionResult) SetPartitionsCreated(val []string) {
+	s.PartitionsCreated = val
+}
+
+// SetPartitionsDropped sets the value of PartitionsDropped.
+func (s *RetentionResult) SetPartitionsDropped(val []string) {
+	s.PartitionsDropped = val
+}
+
+// SetDefaultRowsDeleted sets the value of DefaultRowsDeleted.
+func (s *RetentionResult) SetDefaultRowsDeleted(val int) {
+	s.DefaultRowsDeleted = val
+}
+
 // What the pass wrote.
 // Ref: #/components/schemas/RollupResult
 type RollupResult struct {
@@ -965,4 +1093,290 @@ func (s *RollupWindow) SetFrom(val time.Time) {
 // SetTo sets the value of To.
 func (s *RollupWindow) SetTo(val time.Time) {
 	s.To = val
+}
+
+// A subject's data in the analytics store.
+// Ref: #/components/schemas/SubjectAnalytics
+type SubjectAnalytics struct {
+	Events   []SubjectEvent   `json:"events"`
+	Consents []SubjectConsent `json:"consents"`
+}
+
+// GetEvents returns the value of Events.
+func (s *SubjectAnalytics) GetEvents() []SubjectEvent {
+	return s.Events
+}
+
+// GetConsents returns the value of Consents.
+func (s *SubjectAnalytics) GetConsents() []SubjectConsent {
+	return s.Consents
+}
+
+// SetEvents sets the value of Events.
+func (s *SubjectAnalytics) SetEvents(val []SubjectEvent) {
+	s.Events = val
+}
+
+// SetConsents sets the value of Consents.
+func (s *SubjectAnalytics) SetConsents(val []SubjectConsent) {
+	s.Consents = val
+}
+
+// One consent record, as stored.
+// Ref: #/components/schemas/SubjectConsent
+type SubjectConsent struct {
+	SessionID      string               `json:"session_id"`
+	State          SubjectConsentState  `json:"state"`
+	PurposeVersion string               `json:"purpose_version"`
+	Source         SubjectConsentSource `json:"source"`
+	DecidedAt      time.Time            `json:"decided_at"`
+	UpdatedAt      time.Time            `json:"updated_at"`
+}
+
+// GetSessionID returns the value of SessionID.
+func (s *SubjectConsent) GetSessionID() string {
+	return s.SessionID
+}
+
+// GetState returns the value of State.
+func (s *SubjectConsent) GetState() SubjectConsentState {
+	return s.State
+}
+
+// GetPurposeVersion returns the value of PurposeVersion.
+func (s *SubjectConsent) GetPurposeVersion() string {
+	return s.PurposeVersion
+}
+
+// GetSource returns the value of Source.
+func (s *SubjectConsent) GetSource() SubjectConsentSource {
+	return s.Source
+}
+
+// GetDecidedAt returns the value of DecidedAt.
+func (s *SubjectConsent) GetDecidedAt() time.Time {
+	return s.DecidedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *SubjectConsent) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetSessionID sets the value of SessionID.
+func (s *SubjectConsent) SetSessionID(val string) {
+	s.SessionID = val
+}
+
+// SetState sets the value of State.
+func (s *SubjectConsent) SetState(val SubjectConsentState) {
+	s.State = val
+}
+
+// SetPurposeVersion sets the value of PurposeVersion.
+func (s *SubjectConsent) SetPurposeVersion(val string) {
+	s.PurposeVersion = val
+}
+
+// SetSource sets the value of Source.
+func (s *SubjectConsent) SetSource(val SubjectConsentSource) {
+	s.Source = val
+}
+
+// SetDecidedAt sets the value of DecidedAt.
+func (s *SubjectConsent) SetDecidedAt(val time.Time) {
+	s.DecidedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *SubjectConsent) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+type SubjectConsentSource string
+
+const (
+	SubjectConsentSourceControl SubjectConsentSource = "control"
+	SubjectConsentSourceGpc     SubjectConsentSource = "gpc"
+)
+
+// AllValues returns all SubjectConsentSource values.
+func (SubjectConsentSource) AllValues() []SubjectConsentSource {
+	return []SubjectConsentSource{
+		SubjectConsentSourceControl,
+		SubjectConsentSourceGpc,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SubjectConsentSource) MarshalText() ([]byte, error) {
+	switch s {
+	case SubjectConsentSourceControl:
+		return []byte(s), nil
+	case SubjectConsentSourceGpc:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SubjectConsentSource) UnmarshalText(data []byte) error {
+	switch SubjectConsentSource(data) {
+	case SubjectConsentSourceControl:
+		*s = SubjectConsentSourceControl
+		return nil
+	case SubjectConsentSourceGpc:
+		*s = SubjectConsentSourceGpc
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type SubjectConsentState string
+
+const (
+	SubjectConsentStateGranted   SubjectConsentState = "granted"
+	SubjectConsentStateWithdrawn SubjectConsentState = "withdrawn"
+	SubjectConsentStateRefused   SubjectConsentState = "refused"
+)
+
+// AllValues returns all SubjectConsentState values.
+func (SubjectConsentState) AllValues() []SubjectConsentState {
+	return []SubjectConsentState{
+		SubjectConsentStateGranted,
+		SubjectConsentStateWithdrawn,
+		SubjectConsentStateRefused,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SubjectConsentState) MarshalText() ([]byte, error) {
+	switch s {
+	case SubjectConsentStateGranted:
+		return []byte(s), nil
+	case SubjectConsentStateWithdrawn:
+		return []byte(s), nil
+	case SubjectConsentStateRefused:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SubjectConsentState) UnmarshalText(data []byte) error {
+	switch SubjectConsentState(data) {
+	case SubjectConsentStateGranted:
+		*s = SubjectConsentStateGranted
+		return nil
+	case SubjectConsentStateWithdrawn:
+		*s = SubjectConsentStateWithdrawn
+		return nil
+	case SubjectConsentStateRefused:
+		*s = SubjectConsentStateRefused
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// One event, as stored.
+// Ref: #/components/schemas/SubjectEvent
+type SubjectEvent struct {
+	SessionID   string                 `json:"session_id"`
+	Name        string                 `json:"name"`
+	Properties  SubjectEventProperties `json:"properties"`
+	DeviceClass string                 `json:"device_class"`
+	OccurredAt  time.Time              `json:"occurred_at"`
+}
+
+// GetSessionID returns the value of SessionID.
+func (s *SubjectEvent) GetSessionID() string {
+	return s.SessionID
+}
+
+// GetName returns the value of Name.
+func (s *SubjectEvent) GetName() string {
+	return s.Name
+}
+
+// GetProperties returns the value of Properties.
+func (s *SubjectEvent) GetProperties() SubjectEventProperties {
+	return s.Properties
+}
+
+// GetDeviceClass returns the value of DeviceClass.
+func (s *SubjectEvent) GetDeviceClass() string {
+	return s.DeviceClass
+}
+
+// GetOccurredAt returns the value of OccurredAt.
+func (s *SubjectEvent) GetOccurredAt() time.Time {
+	return s.OccurredAt
+}
+
+// SetSessionID sets the value of SessionID.
+func (s *SubjectEvent) SetSessionID(val string) {
+	s.SessionID = val
+}
+
+// SetName sets the value of Name.
+func (s *SubjectEvent) SetName(val string) {
+	s.Name = val
+}
+
+// SetProperties sets the value of Properties.
+func (s *SubjectEvent) SetProperties(val SubjectEventProperties) {
+	s.Properties = val
+}
+
+// SetDeviceClass sets the value of DeviceClass.
+func (s *SubjectEvent) SetDeviceClass(val string) {
+	s.DeviceClass = val
+}
+
+// SetOccurredAt sets the value of OccurredAt.
+func (s *SubjectEvent) SetOccurredAt(val time.Time) {
+	s.OccurredAt = val
+}
+
+type SubjectEventProperties map[string]jx.Raw
+
+func (s *SubjectEventProperties) init() SubjectEventProperties {
+	m := *s
+	if m == nil {
+		m = map[string]jx.Raw{}
+		*s = m
+	}
+	return m
+}
+
+// One page of subjects. `next` is absent on the last page.
+// Ref: #/components/schemas/SubjectPage
+type SubjectPage struct {
+	Subjects []string `json:"subjects"`
+	// The cursor for the next page.
+	Next OptString `json:"next"`
+}
+
+// GetSubjects returns the value of Subjects.
+func (s *SubjectPage) GetSubjects() []string {
+	return s.Subjects
+}
+
+// GetNext returns the value of Next.
+func (s *SubjectPage) GetNext() OptString {
+	return s.Next
+}
+
+// SetSubjects sets the value of Subjects.
+func (s *SubjectPage) SetSubjects(val []string) {
+	s.Subjects = val
+}
+
+// SetNext sets the value of Next.
+func (s *SubjectPage) SetNext(val OptString) {
+	s.Next = val
 }

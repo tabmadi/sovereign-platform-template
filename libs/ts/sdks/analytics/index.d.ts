@@ -80,6 +80,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/analytics/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Create the event partitions for this month and the next, and drop the
+         *     partitions that are past retention. An event row holds a `device` column,
+         *     and that class is kept for 90 days. So a month is dropped when it ended
+         *     more than 90 days ago. Safe to run again: each step checks what exists.
+         */
+        post: operations["applyAnalyticsRetention"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subject-data/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One page of the identities that this store holds data for, in identity order. */
+        get: operations["listAnalyticsSubjects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subject-data/analytics/{identity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every event and consent record of every session that the subject is known in. */
+        get: operations["exportAnalyticsSubject"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/subject-data/analytics/{identity_id}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Anonymise the subject's identifiers and delete the free text and device class
+         *     of their events. Safe to run again: a second call finds nothing to change.
+         */
+        post: operations["eraseAnalyticsSubject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -140,6 +216,105 @@ export interface components {
                 /** @example must be a decimal amount */
                 message: string;
             }[];
+        };
+        /**
+         * @description What a retention pass changed.
+         * @example {
+         *       "partitions_created": [
+         *         "events_2026_11"
+         *       ],
+         *       "partitions_dropped": [
+         *         "events_2026_06"
+         *       ],
+         *       "default_rows_deleted": 0
+         *     }
+         */
+        RetentionResult: {
+            partitions_created: string[];
+            partitions_dropped: string[];
+            /** @description Rows past retention in the default partition, which holds events outside every month. */
+            default_rows_deleted: number;
+        };
+        /**
+         * @description One page of subjects. `next` is absent on the last page.
+         * @example {
+         *       "subjects": [
+         *         "0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40"
+         *       ],
+         *       "next": "0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40"
+         *     }
+         */
+        SubjectPage: {
+            subjects: string[];
+            /** @description The cursor for the next page. */
+            next?: string;
+        };
+        /** @description The value that replaces the identity in every row. The workflow chooses one per erasure. */
+        ErasureRequest: {
+            pseudonym: string;
+        };
+        /**
+         * @description The rows that the erasure changed.
+         * @example {
+         *       "events": 42,
+         *       "consents": 1
+         *     }
+         */
+        AnalyticsErasure: {
+            events: number;
+            consents: number;
+        };
+        /** @description One event, as stored. */
+        SubjectEvent: {
+            session_id: string;
+            name: string;
+            properties: {
+                [key: string]: unknown;
+            };
+            device_class: string;
+            /** Format: date-time */
+            occurred_at: string;
+        };
+        /** @description One consent record, as stored. */
+        SubjectConsent: {
+            session_id: string;
+            /** @enum {string} */
+            state: "granted" | "withdrawn" | "refused";
+            purpose_version: string;
+            /** @enum {string} */
+            source: "control" | "gpc";
+            /** Format: date-time */
+            decided_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /**
+         * @description A subject's data in the analytics store.
+         * @example {
+         *       "events": [
+         *         {
+         *           "session_id": "f1e2d3c4",
+         *           "name": "signup.started",
+         *           "properties": {},
+         *           "device_class": "desktop",
+         *           "occurred_at": "2026-09-01T10:00:00Z"
+         *         }
+         *       ],
+         *       "consents": [
+         *         {
+         *           "session_id": "f1e2d3c4",
+         *           "state": "granted",
+         *           "purpose_version": "2026-08",
+         *           "source": "control",
+         *           "decided_at": "2026-09-01T09:59:00Z",
+         *           "updated_at": "2026-09-01T09:59:00Z"
+         *         }
+         *       ]
+         *     }
+         */
+        SubjectAnalytics: {
+            events: components["schemas"]["SubjectEvent"][];
+            consents: components["schemas"]["SubjectConsent"][];
         };
         /** @description A batch of marketing events from one session. */
         EventBatch: {
@@ -459,6 +634,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Consent"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    applyAnalyticsRetention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the pass changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionResult"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    listAnalyticsSubjects: {
+        parameters: {
+            query?: {
+                /** @description The last identity of the previous page. */
+                after?: string;
+                /** @description The page size. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectPage"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    exportAnalyticsSubject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Kratos identity. */
+                identity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The subject's data in this store. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectAnalytics"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    eraseAnalyticsSubject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Kratos identity. */
+                identity_id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The replacement for the identity. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErasureRequest"];
+            };
+        };
+        responses: {
+            /** @description The rows that changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsErasure"];
                 };
             };
             default: components["responses"]["Error"];

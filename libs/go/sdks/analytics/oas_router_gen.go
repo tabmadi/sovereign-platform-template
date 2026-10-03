@@ -11,13 +11,16 @@ import (
 )
 
 var (
-	rn5AllowedHeaders = map[string]string{
+	rn10AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn6AllowedHeaders = map[string]string{
+	rn12AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn3AllowedHeaders = map[string]string{
+	rn5AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn9AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -61,9 +64,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/analytics/"
+		case '/': // Prefix: "/"
 
-			if l := len("/analytics/"); len(elem) >= l && elem[0:l] == "/analytics/" {
+			if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 				elem = elem[l:]
 			} else {
 				break
@@ -73,82 +76,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 			switch elem[0] {
-			case 'c': // Prefix: "consent"
+			case 'a': // Prefix: "analytics/"
 
-				if l := len("consent"); len(elem) >= l && elem[0:l] == "consent" {
+				if l := len("analytics/"); len(elem) >= l && elem[0:l] == "analytics/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
-
-				if len(elem) == 0 {
-					// Leaf node.
-					switch r.Method {
-					case "GET":
-						s.handleGetConsentRequest([0]string{}, elemIsEscaped, w, r)
-					case "PUT":
-						s.handleRecordConsentRequest([0]string{}, elemIsEscaped, w, r)
-					default:
-						s.notAllowed(w, r, notAllowedParams{
-							allowedMethods: "GET,PUT",
-							allowedHeaders: rn5AllowedHeaders,
-							acceptPost:     "",
-							acceptPatch:    "",
-						})
-					}
-
-					return
-				}
-
-			case 'e': // Prefix: "events"
-
-				if l := len("events"); len(elem) >= l && elem[0:l] == "events" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				if len(elem) == 0 {
-					// Leaf node.
-					switch r.Method {
-					case "POST":
-						s.handleRecordEventsRequest([0]string{}, elemIsEscaped, w, r)
-					default:
-						s.notAllowed(w, r, notAllowedParams{
-							allowedMethods: "POST",
-							allowedHeaders: rn6AllowedHeaders,
-							acceptPost:     "application/json",
-							acceptPatch:    "",
-						})
-					}
-
-					return
-				}
-
-			case 'f': // Prefix: "funnels/"
-
-				if l := len("funnels/"); len(elem) >= l && elem[0:l] == "funnels/" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				// Param: "funnel"
-				// Match until "/"
-				idx := strings.IndexByte(elem, '/')
-				if idx < 0 {
-					idx = len(elem)
-				}
-				args[0] = elem[:idx]
-				elem = elem[idx:]
 
 				if len(elem) == 0 {
 					break
 				}
 				switch elem[0] {
-				case '/': // Prefix: "/rollup"
+				case 'c': // Prefix: "consent"
 
-					if l := len("/rollup"); len(elem) >= l && elem[0:l] == "/rollup" {
+					if l := len("consent"); len(elem) >= l && elem[0:l] == "consent" {
 						elem = elem[l:]
 					} else {
 						break
@@ -158,18 +100,143 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						// Leaf node.
 						switch r.Method {
 						case "GET":
-							s.handleGetFunnelRollupRequest([1]string{
-								args[0],
-							}, elemIsEscaped, w, r)
-						case "POST":
-							s.handleComputeFunnelRollupRequest([1]string{
-								args[0],
-							}, elemIsEscaped, w, r)
+							s.handleGetConsentRequest([0]string{}, elemIsEscaped, w, r)
+						case "PUT":
+							s.handleRecordConsentRequest([0]string{}, elemIsEscaped, w, r)
 						default:
 							s.notAllowed(w, r, notAllowedParams{
-								allowedMethods: "GET,POST",
-								allowedHeaders: rn3AllowedHeaders,
+								allowedMethods: "GET,PUT",
+								allowedHeaders: rn10AllowedHeaders,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+				case 'e': // Prefix: "events"
+
+					if l := len("events"); len(elem) >= l && elem[0:l] == "events" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleRecordEventsRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "POST",
+								allowedHeaders: rn12AllowedHeaders,
 								acceptPost:     "application/json",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+				case 'f': // Prefix: "funnels/"
+
+					if l := len("funnels/"); len(elem) >= l && elem[0:l] == "funnels/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "funnel"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/rollup"
+
+						if l := len("/rollup"); len(elem) >= l && elem[0:l] == "/rollup" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "GET":
+								s.handleGetFunnelRollupRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							case "POST":
+								s.handleComputeFunnelRollupRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "GET,POST",
+									allowedHeaders: rn5AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					}
+
+				case 'r': // Prefix: "retention"
+
+					if l := len("retention"); len(elem) >= l && elem[0:l] == "retention" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleApplyAnalyticsRetentionRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "POST",
+								allowedHeaders: nil,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+
+				case 's': // Prefix: "summary"
+
+					if l := len("summary"); len(elem) >= l && elem[0:l] == "summary" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "GET":
+							s.handleSummariseEventsRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "GET",
+								allowedHeaders: nil,
+								acceptPost:     "",
 								acceptPatch:    "",
 							})
 						}
@@ -179,19 +246,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				}
 
-			case 's': // Prefix: "summary"
+			case 's': // Prefix: "subject-data/analytics"
 
-				if l := len("summary"); len(elem) >= l && elem[0:l] == "summary" {
+				if l := len("subject-data/analytics"); len(elem) >= l && elem[0:l] == "subject-data/analytics" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch r.Method {
 					case "GET":
-						s.handleSummariseEventsRequest([0]string{}, elemIsEscaped, w, r)
+						s.handleListAnalyticsSubjectsRequest([0]string{}, elemIsEscaped, w, r)
 					default:
 						s.notAllowed(w, r, notAllowedParams{
 							allowedMethods: "GET",
@@ -202,6 +268,72 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					}
 
 					return
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "identity_id"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						switch r.Method {
+						case "GET":
+							s.handleExportAnalyticsSubjectRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, notAllowedParams{
+								allowedMethods: "GET",
+								allowedHeaders: nil,
+								acceptPost:     "",
+								acceptPatch:    "",
+							})
+						}
+
+						return
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/erase"
+
+						if l := len("/erase"); len(elem) >= l && elem[0:l] == "/erase" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleEraseAnalyticsSubjectRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, notAllowedParams{
+									allowedMethods: "POST",
+									allowedHeaders: rn9AllowedHeaders,
+									acceptPost:     "application/json",
+									acceptPatch:    "",
+								})
+							}
+
+							return
+						}
+
+					}
+
 				}
 
 			}
@@ -292,9 +424,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/analytics/"
+		case '/': // Prefix: "/"
 
-			if l := len("/analytics/"); len(elem) >= l && elem[0:l] == "/analytics/" {
+			if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 				elem = elem[l:]
 			} else {
 				break
@@ -304,89 +436,21 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 				break
 			}
 			switch elem[0] {
-			case 'c': // Prefix: "consent"
+			case 'a': // Prefix: "analytics/"
 
-				if l := len("consent"); len(elem) >= l && elem[0:l] == "consent" {
+				if l := len("analytics/"); len(elem) >= l && elem[0:l] == "analytics/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
-
-				if len(elem) == 0 {
-					// Leaf node.
-					switch method {
-					case "GET":
-						r.name = GetConsentOperation
-						r.summary = ""
-						r.operationID = "getConsent"
-						r.operationGroup = ""
-						r.pathPattern = "/analytics/consent"
-						r.args = args
-						r.count = 0
-						return r, true
-					case "PUT":
-						r.name = RecordConsentOperation
-						r.summary = ""
-						r.operationID = "recordConsent"
-						r.operationGroup = ""
-						r.pathPattern = "/analytics/consent"
-						r.args = args
-						r.count = 0
-						return r, true
-					default:
-						return
-					}
-				}
-
-			case 'e': // Prefix: "events"
-
-				if l := len("events"); len(elem) >= l && elem[0:l] == "events" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				if len(elem) == 0 {
-					// Leaf node.
-					switch method {
-					case "POST":
-						r.name = RecordEventsOperation
-						r.summary = ""
-						r.operationID = "recordEvents"
-						r.operationGroup = ""
-						r.pathPattern = "/analytics/events"
-						r.args = args
-						r.count = 0
-						return r, true
-					default:
-						return
-					}
-				}
-
-			case 'f': // Prefix: "funnels/"
-
-				if l := len("funnels/"); len(elem) >= l && elem[0:l] == "funnels/" {
-					elem = elem[l:]
-				} else {
-					break
-				}
-
-				// Param: "funnel"
-				// Match until "/"
-				idx := strings.IndexByte(elem, '/')
-				if idx < 0 {
-					idx = len(elem)
-				}
-				args[0] = elem[:idx]
-				elem = elem[idx:]
 
 				if len(elem) == 0 {
 					break
 				}
 				switch elem[0] {
-				case '/': // Prefix: "/rollup"
+				case 'c': // Prefix: "consent"
 
-					if l := len("/rollup"); len(elem) >= l && elem[0:l] == "/rollup" {
+					if l := len("consent"); len(elem) >= l && elem[0:l] == "consent" {
 						elem = elem[l:]
 					} else {
 						break
@@ -396,22 +460,154 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						// Leaf node.
 						switch method {
 						case "GET":
-							r.name = GetFunnelRollupOperation
+							r.name = GetConsentOperation
 							r.summary = ""
-							r.operationID = "getFunnelRollup"
+							r.operationID = "getConsent"
 							r.operationGroup = ""
-							r.pathPattern = "/analytics/funnels/{funnel}/rollup"
+							r.pathPattern = "/analytics/consent"
 							r.args = args
-							r.count = 1
+							r.count = 0
 							return r, true
-						case "POST":
-							r.name = ComputeFunnelRollupOperation
+						case "PUT":
+							r.name = RecordConsentOperation
 							r.summary = ""
-							r.operationID = "computeFunnelRollup"
+							r.operationID = "recordConsent"
 							r.operationGroup = ""
-							r.pathPattern = "/analytics/funnels/{funnel}/rollup"
+							r.pathPattern = "/analytics/consent"
 							r.args = args
-							r.count = 1
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+				case 'e': // Prefix: "events"
+
+					if l := len("events"); len(elem) >= l && elem[0:l] == "events" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = RecordEventsOperation
+							r.summary = ""
+							r.operationID = "recordEvents"
+							r.operationGroup = ""
+							r.pathPattern = "/analytics/events"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+				case 'f': // Prefix: "funnels/"
+
+					if l := len("funnels/"); len(elem) >= l && elem[0:l] == "funnels/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "funnel"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/rollup"
+
+						if l := len("/rollup"); len(elem) >= l && elem[0:l] == "/rollup" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "GET":
+								r.name = GetFunnelRollupOperation
+								r.summary = ""
+								r.operationID = "getFunnelRollup"
+								r.operationGroup = ""
+								r.pathPattern = "/analytics/funnels/{funnel}/rollup"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "POST":
+								r.name = ComputeFunnelRollupOperation
+								r.summary = ""
+								r.operationID = "computeFunnelRollup"
+								r.operationGroup = ""
+								r.pathPattern = "/analytics/funnels/{funnel}/rollup"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					}
+
+				case 'r': // Prefix: "retention"
+
+					if l := len("retention"); len(elem) >= l && elem[0:l] == "retention" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = ApplyAnalyticsRetentionOperation
+							r.summary = ""
+							r.operationID = "applyAnalyticsRetention"
+							r.operationGroup = ""
+							r.pathPattern = "/analytics/retention"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+
+				case 's': // Prefix: "summary"
+
+					if l := len("summary"); len(elem) >= l && elem[0:l] == "summary" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "GET":
+							r.name = SummariseEventsOperation
+							r.summary = ""
+							r.operationID = "summariseEvents"
+							r.operationGroup = ""
+							r.pathPattern = "/analytics/summary"
+							r.args = args
+							r.count = 0
 							return r, true
 						default:
 							return
@@ -420,29 +616,90 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 				}
 
-			case 's': // Prefix: "summary"
+			case 's': // Prefix: "subject-data/analytics"
 
-				if l := len("summary"); len(elem) >= l && elem[0:l] == "summary" {
+				if l := len("subject-data/analytics"); len(elem) >= l && elem[0:l] == "subject-data/analytics" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
 				if len(elem) == 0 {
-					// Leaf node.
 					switch method {
 					case "GET":
-						r.name = SummariseEventsOperation
+						r.name = ListAnalyticsSubjectsOperation
 						r.summary = ""
-						r.operationID = "summariseEvents"
+						r.operationID = "listAnalyticsSubjects"
 						r.operationGroup = ""
-						r.pathPattern = "/analytics/summary"
+						r.pathPattern = "/subject-data/analytics"
 						r.args = args
 						r.count = 0
 						return r, true
 					default:
 						return
 					}
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "identity_id"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						switch method {
+						case "GET":
+							r.name = ExportAnalyticsSubjectOperation
+							r.summary = ""
+							r.operationID = "exportAnalyticsSubject"
+							r.operationGroup = ""
+							r.pathPattern = "/subject-data/analytics/{identity_id}"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/erase"
+
+						if l := len("/erase"); len(elem) >= l && elem[0:l] == "/erase" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = EraseAnalyticsSubjectOperation
+								r.summary = ""
+								r.operationID = "eraseAnalyticsSubject"
+								r.operationGroup = ""
+								r.pathPattern = "/subject-data/analytics/{identity_id}/erase"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+
+					}
+
 				}
 
 			}

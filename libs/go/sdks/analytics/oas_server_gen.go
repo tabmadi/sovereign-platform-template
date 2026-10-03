@@ -8,6 +8,14 @@ import (
 
 // Handler handles operations described by OpenAPI v3 specification.
 type Handler interface {
+	// ApplyAnalyticsRetention implements applyAnalyticsRetention operation.
+	//
+	// Create the event partitions for this month and the next, and drop the partitions that are past
+	// retention. An event row holds a `device` column, and that class is kept for 90 days. So a month is
+	// dropped when it ended more than 90 days ago. Safe to run again: each step checks what exists.
+	//
+	// POST /analytics/retention
+	ApplyAnalyticsRetention(ctx context.Context) (*RetentionResult, error)
 	// ComputeFunnelRollup implements computeFunnelRollup operation.
 	//
 	// Recompute a funnel's rollup over a window, one bucket per day.
@@ -17,6 +25,19 @@ type Handler interface {
 	//
 	// POST /analytics/funnels/{funnel}/rollup
 	ComputeFunnelRollup(ctx context.Context, req *RollupWindow, params ComputeFunnelRollupParams) (*RollupResult, error)
+	// EraseAnalyticsSubject implements eraseAnalyticsSubject operation.
+	//
+	// Anonymise the subject's identifiers and delete the free text and device class of their events. Safe
+	// to run again: a second call finds nothing to change.
+	//
+	// POST /subject-data/analytics/{identity_id}/erase
+	EraseAnalyticsSubject(ctx context.Context, req *ErasureRequest, params EraseAnalyticsSubjectParams) (*AnalyticsErasure, error)
+	// ExportAnalyticsSubject implements exportAnalyticsSubject operation.
+	//
+	// Every event and consent record of every session that the subject is known in.
+	//
+	// GET /subject-data/analytics/{identity_id}
+	ExportAnalyticsSubject(ctx context.Context, params ExportAnalyticsSubjectParams) (*SubjectAnalytics, error)
 	// GetConsent implements getConsent operation.
 	//
 	// Read the recorded decision for a session.
@@ -29,6 +50,12 @@ type Handler interface {
 	//
 	// GET /analytics/funnels/{funnel}/rollup
 	GetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) ([]FunnelRollupRow, error)
+	// ListAnalyticsSubjects implements listAnalyticsSubjects operation.
+	//
+	// One page of the identities that this store holds data for, in identity order.
+	//
+	// GET /subject-data/analytics
+	ListAnalyticsSubjects(ctx context.Context, params ListAnalyticsSubjectsParams) (*SubjectPage, error)
 	// RecordConsent implements recordConsent operation.
 	//
 	// Record or withdraw consent for a session.

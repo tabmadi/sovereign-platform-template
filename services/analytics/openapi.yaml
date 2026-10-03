@@ -4,7 +4,7 @@ servers: [{ url: /api }]   # flat resource namespace, per ADR-0306. Paths are gl
 # `x-audience: cluster` means east-west only, with no /api edge route, per ADR-0303. A public write path to the
 # event store would let anyone fill the table without authentication.
 # No `x-admin` marker, because ADR-0700 puts the panel on the product origin, not in the operator console.
-tags: [{ name: analytics }, { name: consent }]
+tags: [{ name: analytics }, { name: consent }, { name: subjects }]
 paths:
   /analytics/events:
     post:
@@ -120,6 +120,67 @@ paths:
           description: The decision on file for that session.
           content: { application/json: { schema: { $ref: "#/components/schemas/Consent" } } }
         default: { $ref: "#/components/responses/Error" }
+  /analytics/retention:
+    post:
+      operationId: applyAnalyticsRetention
+      # The platform worker's daily RetentionPass calls this, per ADR-0301.
+      description: |
+        Create the event partitions for this month and the next, and drop the
+        partitions that are past retention. An event row holds a `device` column,
+        and that class is kept for 90 days. So a month is dropped when it ended
+        more than 90 days ago. Safe to run again: each step checks what exists.
+      tags: [analytics]
+      responses:
+        "200":
+          description: What the pass changed.
+          content: { application/json: { schema: { $ref: "#/components/schemas/RetentionResult" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /subject-data/analytics:
+    get:
+      operationId: listAnalyticsSubjects
+      # The platform worker's retention sweep reads every page, per ADR-0301.
+      description: One page of the identities that this store holds data for, in identity order.
+      tags: [subjects]
+      parameters:
+        - { name: after, in: query, required: false, description: The last identity of the previous page., schema: { type: string } }
+        - { name: limit, in: query, required: false, description: The page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+      responses:
+        "200":
+          description: The page.
+          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectPage" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /subject-data/analytics/{identity_id}:
+    get:
+      operationId: exportAnalyticsSubject
+      # The platform worker's ExportSubject calls this, per ADR-0301 and GDPR Art. 15 and 20.
+      description: Every event and consent record of every session that the subject is known in.
+      tags: [subjects]
+      parameters:
+        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: The subject's data in this store.
+          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectAnalytics" } } }
+        default: { $ref: "#/components/responses/Error" }
+  /subject-data/analytics/{identity_id}/erase:
+    post:
+      operationId: eraseAnalyticsSubject
+      # The platform worker's EraseSubject calls this, per ADR-0301 and GDPR Art. 17.
+      description: |
+        Anonymise the subject's identifiers and delete the free text and device class
+        of their events. Safe to run again: a second call finds nothing to change.
+      tags: [subjects]
+      parameters:
+        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+      requestBody:
+        required: true
+        description: The replacement for the identity.
+        content: { application/json: { schema: { $ref: "#/components/schemas/ErasureRequest" } } }
+      responses:
+        "200":
+          description: The rows that changed.
+          content: { application/json: { schema: { $ref: "#/components/schemas/AnalyticsErasure" } } }
+        default: { $ref: "#/components/responses/Error" }
 components:
   responses:
     # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
@@ -195,6 +256,72 @@ components:
         detail: No product with that identifier.
         trace_id: 4bf92f3577b34da6a3ce929d0e0e4736
     # <<< shared-components
+    RetentionResult:
+      type: object
+      description: What a retention pass changed.
+      required: [partitions_created, partitions_dropped, default_rows_deleted]
+      properties:
+        partitions_created: { type: array, items: { type: string } }
+        partitions_dropped: { type: array, items: { type: string } }
+        default_rows_deleted:
+          type: integer
+          description: Rows past retention in the default partition, which holds events outside every month.
+      example: { partitions_created: [events_2026_11], partitions_dropped: [events_2026_06], default_rows_deleted: 0 }
+    SubjectPage:
+      type: object
+      description: One page of subjects. `next` is absent on the last page.
+      required: [subjects]
+      properties:
+        subjects: { type: array, items: { type: string } }
+        next: { type: string, description: The cursor for the next page. }
+      example: { subjects: [0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40], next: 0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40 }
+    ErasureRequest:
+      type: object
+      description: The value that replaces the identity in every row. The workflow chooses one per erasure.
+      required: [pseudonym]
+      properties:
+        pseudonym: { type: string, pattern: "^erased-[0-9a-f-]{36}$" }
+    AnalyticsErasure:
+      type: object
+      description: The rows that the erasure changed.
+      required: [events, consents]
+      properties:
+        events: { type: integer }
+        consents: { type: integer }
+      example: { events: 42, consents: 1 }
+    SubjectEvent:
+      type: object
+      description: One event, as stored.
+      required: [session_id, name, properties, device_class, occurred_at]
+      properties:
+        session_id: { type: string }
+        name: { type: string }
+        properties: { type: object, additionalProperties: true }
+        device_class: { type: string }
+        occurred_at: { type: string, format: date-time }
+    SubjectConsent:
+      type: object
+      description: One consent record, as stored.
+      required: [session_id, state, purpose_version, source, decided_at, updated_at]
+      properties:
+        session_id: { type: string }
+        state: { type: string, enum: [granted, withdrawn, refused] }
+        purpose_version: { type: string }
+        source: { type: string, enum: [control, gpc] }
+        decided_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    SubjectAnalytics:
+      type: object
+      description: A subject's data in the analytics store.
+      required: [events, consents]
+      properties:
+        events: { type: array, items: { $ref: "#/components/schemas/SubjectEvent" } }
+        consents: { type: array, items: { $ref: "#/components/schemas/SubjectConsent" } }
+      example:
+        events:
+          - { session_id: f1e2d3c4, name: signup.started, properties: {}, device_class: desktop, occurred_at: "2026-09-01T10:00:00Z" }
+        consents:
+          - { session_id: f1e2d3c4, state: granted, purpose_version: "2026-08", source: control, decided_at: "2026-09-01T09:59:00Z", updated_at: "2026-09-01T09:59:00Z" }
     EventBatch:
       type: object
       description: A batch of marketing events from one session.

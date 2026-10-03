@@ -17,4 +17,4 @@ networkPolicy:
   allowFromGateway: false
   # The node-level OTel collector is the only caller. It splits
   # `marketing.*` out of the logs pipeline and delivers the batch here.
-  allowFrom: [otel-agent, frontend]
+  allowFrom: [otel-agent, frontend, platform]

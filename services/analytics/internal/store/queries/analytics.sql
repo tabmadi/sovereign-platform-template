@@ -95,3 +95,95 @@ order by bucket_start desc, step_index asc;
 select count(*)::bigint as rows_since
 from events
 where occurred_at >= $1;
+
+-- name: EraseSubjectAnalytics :one
+-- Erasure, per ADR-0301. It covers the subject's whole sessions, so the events before sign-in too.
+-- Identifiers are anonymised, one replacement per session, so the aggregates still count distinct sessions.
+-- `free_text` and `device` are deleted, which here means set to the column's empty value.
+with subject_sessions as materialized (
+  select events.session_id from events
+  where events.identity_id = sqlc.arg(identity_id)::text
+  union
+  select consent.session_id from consent
+  where consent.identity_id = sqlc.arg(identity_id)::text
+),
+
+replacement as materialized (
+  select
+    subject_sessions.session_id,
+    sqlc.arg(pseudonym)::text || '-' || gen_random_uuid()::text as anonymous_id
+  from subject_sessions
+),
+
+erased_events as (
+  update events set
+    session_id = replacement.anonymous_id,
+    identity_id = case when events.identity_id is null then null else sqlc.arg(pseudonym)::text end,
+    properties = '{}'::jsonb,
+    device_class = 'unknown'
+  from replacement
+  where events.session_id = replacement.session_id
+  returning 1
+),
+
+erased_consent as (
+  update consent set
+    session_id = replacement.anonymous_id,
+    identity_id = case when consent.identity_id is null then null else sqlc.arg(pseudonym)::text end
+  from replacement
+  where consent.session_id = replacement.session_id
+  returning 1
+)
+
+select
+  (select count(*) from erased_events)::bigint as events,
+  (select count(*) from erased_consent)::bigint as consents;
+
+-- name: ExportSubjectEvents :many
+-- Subject access, per ADR-0301: every event of every session that the subject is known in.
+select
+  session_id,
+  name,
+  properties,
+  device_class,
+  occurred_at
+from events
+where
+  session_id in (
+    select e.session_id from events as e where e.identity_id = sqlc.arg(identity_id)::text
+    union
+    select c.session_id from consent as c where c.identity_id = sqlc.arg(identity_id)::text
+  )
+order by occurred_at;
+
+-- name: ExportSubjectConsent :many
+select
+  session_id,
+  state,
+  purpose_version,
+  source,
+  decided_at,
+  updated_at
+from consent
+where
+  session_id in (
+    select e.session_id from events as e where e.identity_id = sqlc.arg(identity_id)::text
+    union
+    select c.session_id from consent as c where c.identity_id = sqlc.arg(identity_id)::text
+  )
+order by decided_at;
+
+-- name: ListAnalyticsSubjects :many
+-- One page of the identities that this store holds data for, after a cursor. The retention sweep reads every page,
+-- per ADR-0301. An identity that erasure already replaced has the `erased-` prefix and is not a subject.
+select subjects.identity_id::text as identity_id
+from (
+  select events.identity_id from events
+  where events.identity_id is not null and events.identity_id > sqlc.arg(after)::text
+  union
+  select consent.identity_id from consent
+  where consent.identity_id is not null and consent.identity_id > sqlc.arg(after)::text
+) as subjects
+where subjects.identity_id not like 'erased-%'
+order by subjects.identity_id
+limit sqlc.arg(page_size)::bigint;

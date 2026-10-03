@@ -13,6 +13,17 @@ type UnimplementedHandler struct{}
 
 var _ Handler = UnimplementedHandler{}
 
+// ApplyAnalyticsRetention implements applyAnalyticsRetention operation.
+//
+// Create the event partitions for this month and the next, and drop the partitions that are past
+// retention. An event row holds a `device` column, and that class is kept for 90 days. So a month is
+// dropped when it ended more than 90 days ago. Safe to run again: each step checks what exists.
+//
+// POST /analytics/retention
+func (UnimplementedHandler) ApplyAnalyticsRetention(ctx context.Context) (r *RetentionResult, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // ComputeFunnelRollup implements computeFunnelRollup operation.
 //
 // Recompute a funnel's rollup over a window, one bucket per day.
@@ -22,6 +33,25 @@ var _ Handler = UnimplementedHandler{}
 //
 // POST /analytics/funnels/{funnel}/rollup
 func (UnimplementedHandler) ComputeFunnelRollup(ctx context.Context, req *RollupWindow, params ComputeFunnelRollupParams) (r *RollupResult, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// EraseAnalyticsSubject implements eraseAnalyticsSubject operation.
+//
+// Anonymise the subject's identifiers and delete the free text and device class of their events. Safe
+// to run again: a second call finds nothing to change.
+//
+// POST /subject-data/analytics/{identity_id}/erase
+func (UnimplementedHandler) EraseAnalyticsSubject(ctx context.Context, req *ErasureRequest, params EraseAnalyticsSubjectParams) (r *AnalyticsErasure, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ExportAnalyticsSubject implements exportAnalyticsSubject operation.
+//
+// Every event and consent record of every session that the subject is known in.
+//
+// GET /subject-data/analytics/{identity_id}
+func (UnimplementedHandler) ExportAnalyticsSubject(ctx context.Context, params ExportAnalyticsSubjectParams) (r *SubjectAnalytics, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -40,6 +70,15 @@ func (UnimplementedHandler) GetConsent(ctx context.Context, params GetConsentPar
 //
 // GET /analytics/funnels/{funnel}/rollup
 func (UnimplementedHandler) GetFunnelRollup(ctx context.Context, params GetFunnelRollupParams) (r []FunnelRollupRow, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ListAnalyticsSubjects implements listAnalyticsSubjects operation.
+//
+// One page of the identities that this store holds data for, in identity order.
+//
+// GET /subject-data/analytics
+func (UnimplementedHandler) ListAnalyticsSubjects(ctx context.Context, params ListAnalyticsSubjectsParams) (r *SubjectPage, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
