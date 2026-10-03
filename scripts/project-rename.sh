@@ -38,7 +38,9 @@ replace() { # <from> <to>
   # `|` is the sed delimiter, so an argument cannot contain it unescaped. A module path, a host, and a registry namespace are URL-shaped,
   # so none contains one. The escape costs one expansion.
   local from="${1//|/\\|}" to="${2//|/\\|}"
-  grep -rlZ -F "${PRUNE[@]}" -- "$1" . 2>/dev/null |
+  # A name that no file holds is not an error. A project that deleted the files with that name, such as an unused
+  # environment, is updated with the same rename.
+  { grep -rlZ -F "${PRUNE[@]}" -- "$1" . 2>/dev/null || true; } |
     xargs -0 -r sed -i "s|${from}|${to}|g"
 }
 
