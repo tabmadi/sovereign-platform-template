@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 184 |
-| Review-enforced | 341 |
-| **Total** | **525** |
+| Review-enforced | 342 |
+| **Total** | **526** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -609,6 +609,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A browser SDK that first paint does not need is loaded with a dynamic `import()`. A static import decides when a bundle is downloaded and parsed, and a deferred call does not change that. So nothing in the initial graph statically imports one. | review |
 | A redirect that can be decided before rendering comes from the proxy, not from a page. Behind a `loading.tsx` boundary, a page-level redirect ships as a rendered 200. | review |
 | A redirect into or out of the auth subtree replaces the history entry and never pushes one. When the login UI finds an existing session, it replaces its own entry with the destination. | review |
+| A redirect that depends on the session carries `Cache-Control: no-store`. | review |
 | Server components do not call the identity provider. Browser flows reach it through the edge, per [ADR-0304](../adr/0304-identity-and-authorization.md). That is the only path the network policy allows. | review |
 | Bundle budgets and the Lighthouse thresholds are merge gates. | review |
 | Images go through `next/image`, and fonts go through `next/font`. | `ci:lint` in CI |

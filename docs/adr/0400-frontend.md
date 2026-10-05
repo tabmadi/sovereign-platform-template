@@ -229,7 +229,7 @@ The **public docs portal** is anonymous, with no login, which is the norm for pu
 | React Context | only theming and per-route-group session bootstrapping, never cross-cutting state |
 | Session | the Next.js proxy checks the Kratos session on `(panel)` and `(devportal)`. `(landing)` is public except for its auth subtree. The proxy forwards a session-id header to server components, and they never call Kratos directly |
 | Tokens | the frontend never mints, decodes, or validates JWTs. Server-component calls attach the user's cookie, and Oathkeeper validates it at the edge |
-| Sign-in navigation | a redirect into or out of the auth subtree replaces the history entry and never pushes one. The proxy answers with an HTTP redirect. Client code uses `router.replace` or `location.replace`. After a login, Kratos leaves the used flow in the history. So when the login UI finds an existing session, it replaces its own entry with the destination. The back button then never bounces a user between the login flow and the app |
+| Sign-in navigation | a redirect into or out of the auth subtree replaces the history entry and never pushes one. The proxy answers with an HTTP redirect. Client code uses `router.replace` or `location.replace`. After a login, Kratos leaves the used flow in the history. So when the login UI finds an existing session, it replaces its own entry with the destination. The back button then never bounces a user between the login flow and the app. A redirect that depends on the session carries `Cache-Control: no-store`. Otherwise the back and forward buttons can replay a redirect from an earlier session state. An example is a redirect to login after the user signed in |
 
 ### Access denials
 
@@ -363,6 +363,7 @@ Locally, the dev server runs against `cluster:up`, and the edge is how a develop
 - A browser SDK that first paint does not need is loaded with a dynamic `import()`. A static import decides when a bundle is downloaded and parsed, and a deferred call does not change that. So nothing in the initial graph statically imports one.
 - A redirect that can be decided before rendering comes from the proxy, not from a page. Behind a `loading.tsx` boundary, a page-level redirect ships as a rendered 200.
 - A redirect into or out of the auth subtree replaces the history entry and never pushes one. When the login UI finds an existing session, it replaces its own entry with the destination.
+- A redirect that depends on the session carries `Cache-Control: no-store`.
 - Server components do not call the identity provider. Browser flows reach it through the edge, per [ADR-0304](0304-identity-and-authorization.md). That is the only path the network policy allows.
 - Bundle budgets and the Lighthouse thresholds are merge gates.
 - Images go through `next/image`, and fonts go through `next/font`. `(CI: ci:lint)`
