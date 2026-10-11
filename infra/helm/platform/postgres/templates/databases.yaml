@@ -1,0 +1,23 @@
+{{- /* One Database per service, per ADR-0300. postInitApplicationSQL in cluster.yaml runs once, at bootstrap, so a
+   database that a later service adds would never exist on a running cluster. The operator reconciles these on every
+   cluster, and it adopts a database that bootstrap already made. The reclaim policy keeps the data when a name
+   leaves the list. */ -}}
+{{- if .Values.cluster.create }}
+{{- $owner := .Values.cluster.initdb.owner }}
+{{- $cluster := .Values.cluster.name }}
+{{- range prepend .Values.cluster.initdb.databases .Values.cluster.initdb.database }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ $cluster }}-{{ . | replace "_" "-" }}
+  namespace: platform
+spec:
+  name: {{ . }}
+  owner: {{ $owner }}
+  cluster:
+    name: {{ $cluster }}
+  ensure: present
+  databaseReclaimPolicy: retain
+{{- end }}
+{{- end }}

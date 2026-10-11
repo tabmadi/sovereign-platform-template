@@ -23,7 +23,8 @@ cluster:
     size: 20Gi
     storageClass: ""    # the cluster's default StorageClass, per ADR-0207
   # CNPG provisions one app database, `database` and `owner`, per Cluster. The platform needs one per service, plus
-  # kratos, temporal, and openfga. So postInitApplicationSQL creates the rest, owned by the same app role.
+  # kratos, temporal, and openfga. postInitApplicationSQL creates the rest at bootstrap, and templates/databases.yaml
+  # keeps each one present on a running cluster, all owned by the same app role.
   initdb:
     database: orders
     # ONE role owns every database. Its name is in three places that must agree: here, the `username` of the
@@ -43,8 +44,6 @@ cluster:
       - payment
       - kratos
       # Hydra's database. It is created here even though `hydra_thirdparty` is off by default.
-      # This list runs once, at bootstrap. A database left out now needs a manual
-      # CREATE DATABASE against a live cluster on the day the flag is turned on.
       - hydra
       - temporal
       - temporal_visibility
