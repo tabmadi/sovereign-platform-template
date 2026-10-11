@@ -46,7 +46,7 @@ spec:
         - ports:
             - { port: "53", protocol: UDP }
             - { port: "53", protocol: TCP }
-    # The three backends, each on the port that its exporter uses. A cross-namespace
+    # The backends, each on the port that its exporter uses. A cross-namespace
     # rule must name the ports, and that is also what makes it tighter than the
     # baseline's blanket allow inside the namespace.
     - toEndpoints:
@@ -67,6 +67,13 @@ spec:
             app.kubernetes.io/name: prometheus
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
+    # The analytics service takes the `marketing.*` events, per ADR-0700. Its pod listens on 8080 behind service port 80.
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: {{ .Values.backendNamespace }}
+            app.kubernetes.io/name: analytics
+      toPorts:
+        - ports: [{ port: "8080", protocol: TCP }]
     # The API server, for the pod watch of the k8sattributes processor and the PVC and PV resolution of the kubeletstats receiver.
     - toEntities:
         - kube-apiserver

@@ -137,13 +137,17 @@ opentelemetry-collector:
         error_mode: ignore
         table:
           - context: log
-            condition: 'IsMatch(attributes["faro.name"], "^marketing[.]")'
+            # The Faro receiver writes an event as a logfmt body, with `kind` as its only attribute. So the name is matched
+            # in the body, and only on an event, because a log line can quote the same text.
+            condition: 'attributes["kind"] == "event" and IsMatch(body, "(^| )event_name=marketing[.]")'
             pipelines: [logs/marketing]
     exporters:
       otlphttp/tempo:      { endpoint: http://tempo.platform.svc.cluster.local:4318 }
-      # The analytics service, per ADR-0700. It is a first-party service, not a
-      # platform component, so this is an ordinary in-cluster endpoint.
-      otlphttp/analytics:  { endpoint: http://analytics-server.platform.svc.cluster.local/api/analytics/events }
+      # The analytics service, per ADR-0700: an ordinary in-cluster endpoint. It reads OTLP JSON at its one route outside
+      # the spec.
+      otlphttp/analytics:
+        logs_endpoint: http://analytics-server.platform.svc.cluster.local/otlp/v1/logs
+        encoding: json
       # The Prometheus native OTLP receiver, `--web.enable-otlp-receiver`. The otlphttp
       # exporter adds `/v1/metrics` to this base path.
       otlphttp/prometheus: { endpoint: http://prometheus.platform.svc.cluster.local:9090/api/v1/otlp }

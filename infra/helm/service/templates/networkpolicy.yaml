@@ -29,6 +29,14 @@ spec:
       ports:
         - { port: {{ $.Values.server.port }}, protocol: TCP }
     {{- end }}
+    {{- if .Values.networkPolicy.allowFromCollector }}
+    # The OTel collector exports to this service, per ADR-0700. It runs in its own namespace, so `allowFrom` cannot name it.
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Values.networkPolicy.otelAgentNamespace }} }
+      ports:
+        - { port: {{ .Values.server.port }}, protocol: TCP }
+    {{- end }}
     # Metrics scrape from the OTel collector in the platform namespace to the admin port.
     - from:
         - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: platform } }

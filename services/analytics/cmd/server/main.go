@@ -62,17 +62,19 @@ func run() error {
 
 	// No OpenFGA client. The panel's render layer authorises it, per ADR-0700. The write path here is east-west, and
 	// the consent record is its gate.
-	api, err := analytics.NewServer(
-		handlers.New(db, defs, slog.Default()),
-		analytics.WithErrorHandler(apierr.ServeError),
-	)
+	h := handlers.New(db, defs, slog.Default())
+	api, err := analytics.NewServer(h, analytics.WithErrorHandler(apierr.ServeError))
 	if err != nil {
 		return fmt.Errorf("ogen server: %w", err)
 	}
+	// The collector exports marketing events as OTLP, which the spec cannot name, per ADR-0700.
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /otlp/v1/logs", h.OTLPLogs)
+	mux.Handle("/", api)
 
 	srv := &http.Server{
 		Addr:              httpmw.ListenAddr(),
-		Handler:           httpmw.Chain(authmw.Middleware()(api), serviceName),
+		Handler:           httpmw.Chain(authmw.Middleware()(mux), serviceName),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	serveErr := make(chan error, 1)
