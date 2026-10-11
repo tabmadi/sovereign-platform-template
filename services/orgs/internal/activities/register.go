@@ -3,9 +3,11 @@ package activities
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -38,12 +40,33 @@ const personalOrgName = "Personal workspace"
 
 // CreatePersonalOrgActivity is dual-write leg 1, per ADR-0304: the org and its admin membership in one transaction.
 // It returns the org id in the wire form, per ADR-0003, because the id leaves this process.
+// Temporal retries an attempt whose commit result was lost, so the activity returns the org of an earlier attempt.
 func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID string) (string, error) {
 	tx, err := a.db.Begin(ctx)
 	if err != nil {
 		return "", fmt.Errorf("create personal org: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	qtx := a.q.WithTx(tx)
+	err = qtx.LockIdentity(ctx, identityID)
+	if err != nil {
+		return "", fmt.Errorf("create personal org: lock identity: %w", err)
+	}
+	existing, err := qtx.FindPersonalOrg(
+		ctx,
+		store.FindPersonalOrgParams{IdentityID: identityID, Name: personalOrgName},
+	)
+	switch {
+	case err == nil:
+		found, fromErr := id.From("org", existing.Bytes)
+		if fromErr != nil {
+			return "", fmt.Errorf("create personal org: existing id: %w", fromErr)
+		}
+		return found.String(), nil
+	case !errors.Is(err, pgx.ErrNoRows):
+		return "", fmt.Errorf("create personal org: find existing: %w", err)
+	}
 
 	// Minted here, not by a column default and not in the workflow. `id.New` reads the clock and the entropy pool, and
 	// a workflow function must not, per ADR-0003.
@@ -52,7 +75,6 @@ func (a *Activities) CreatePersonalOrgActivity(ctx context.Context, identityID s
 		return "", fmt.Errorf("create personal org: mint id: %w", err)
 	}
 
-	qtx := a.q.WithTx(tx)
 	org, err := qtx.CreateOrg(
 		ctx,
 		store.CreateOrgParams{

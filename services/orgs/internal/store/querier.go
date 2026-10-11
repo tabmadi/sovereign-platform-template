@@ -18,10 +18,13 @@ type Querier interface {
 	// org's history whole. One pseudonym per erasure keeps the primary key unique, because a user is in an org once.
 	EraseSubjectMemberships(ctx context.Context, arg EraseSubjectMembershipsParams) (int64, error)
 	ExportSubjectMemberships(ctx context.Context, userID string) ([]ExportSubjectMembershipsRow, error)
+	FindPersonalOrg(ctx context.Context, arg FindPersonalOrgParams) (pgtype.UUID, error)
 	GetOrg(ctx context.Context, id pgtype.UUID) (GetOrgRow, error)
 	// One page of the users that this store holds memberships for, after a cursor. An erased user is not a subject.
 	ListMemberSubjects(ctx context.Context, arg ListMemberSubjectsParams) ([]string, error)
 	ListOrgs(ctx context.Context) ([]ListOrgsRow, error)
+	// Serialises the writes for one identity until the transaction ends, so two activity attempts cannot both insert.
+	LockIdentity(ctx context.Context, identityID string) error
 	UpdateOrg(ctx context.Context, arg UpdateOrgParams) (UpdateOrgRow, error)
 }
 

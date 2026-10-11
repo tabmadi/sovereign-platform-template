@@ -114,6 +114,30 @@ func (q *Queries) ExportSubjectMemberships(ctx context.Context, userID string) (
 	return items, nil
 }
 
+const findPersonalOrg = `-- name: FindPersonalOrg :one
+select orgs.id
+from orgs
+join org_members on orgs.id = org_members.org_id
+where
+  org_members.user_id = $1::text
+  and org_members.role = 'admin'
+  and orgs.name = $2::text
+order by orgs.created_at
+limit 1
+`
+
+type FindPersonalOrgParams struct {
+	IdentityID string `json:"identity_id"`
+	Name       string `json:"name"`
+}
+
+func (q *Queries) FindPersonalOrg(ctx context.Context, arg FindPersonalOrgParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, findPersonalOrg, arg.IdentityID, arg.Name)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getOrg = `-- name: GetOrg :one
 select
   id,
@@ -199,6 +223,16 @@ func (q *Queries) ListOrgs(ctx context.Context) ([]ListOrgsRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockIdentity = `-- name: LockIdentity :exec
+select pg_advisory_xact_lock(hashtextextended($1::text, 0))
+`
+
+// Serialises the writes for one identity until the transaction ends, so two activity attempts cannot both insert.
+func (q *Queries) LockIdentity(ctx context.Context, identityID string) error {
+	_, err := q.db.Exec(ctx, lockIdentity, identityID)
+	return err
 }
 
 const updateOrg = `-- name: UpdateOrg :one

@@ -50,3 +50,18 @@ from org_members
 where user_id > sqlc.arg(after)::text and user_id not like 'erased-%'
 order by user_id
 limit sqlc.arg(page_size)::bigint;
+
+-- name: LockIdentity :exec
+-- Serialises the writes for one identity until the transaction ends, so two activity attempts cannot both insert.
+select pg_advisory_xact_lock(hashtextextended(sqlc.arg(identity_id)::text, 0));
+
+-- name: FindPersonalOrg :one
+select orgs.id
+from orgs
+join org_members on orgs.id = org_members.org_id
+where
+  org_members.user_id = sqlc.arg(identity_id)::text
+  and org_members.role = 'admin'
+  and orgs.name = sqlc.arg(name)::text
+order by orgs.created_at
+limit 1;
