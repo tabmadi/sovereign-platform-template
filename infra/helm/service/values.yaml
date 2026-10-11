@@ -129,6 +129,8 @@ networkPolicy:
   enabled: true
   allowFromGateway: true
   egressDNS: true
+  # HTTPS to the public internet, for a service that calls a third-party API. Off by default, per ADR-0206.
+  egressPublicHTTPS: false
   # Other services, by slug, that can call this one on the server port.
   # For example, catalog and payment list `orders` here. orders accepts no inbound service calls.
   allowFrom: []
