@@ -37,12 +37,14 @@ var moneyWords = []string{
 	"total",
 }
 
-// countWords end an identifier that counts and does not hold a value. `total_count` and `amount_of_rows` are not money.
+// countWords end an identifier that counts and does not hold a value.
+// `total_count`, `total_pages`, and `amount_of_rows` are not money.
 var countWords = []string{
 	"bytes",
 	"count",
 	"items",
 	"length",
+	"pages",
 	"quantity",
 	"qty",
 	"rows",

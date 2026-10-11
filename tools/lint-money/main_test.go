@@ -16,7 +16,11 @@ func TestIsMoneyName(t *testing.T) {
 		{"refund_total", true},
 		{"totals", false},
 		{"pricing_enabled", false},
+		{"total", true},
 		{"total_count", false},
+		{"total_pages", false},
+		{"totalPages", false},
+		{"page_count", false},
 		{"quantity", false},
 		{"name", false},
 	}
