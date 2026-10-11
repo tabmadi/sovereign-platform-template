@@ -20,48 +20,73 @@ const (
 	sourceDir   = "apps/frontend/src"
 )
 
-// The physical to logical swaps, applied in order.
+// The physical to logical swaps. Each one matches a whole utility, so `slide-in-from-right-2` and the centring
+// offset `left-1/2` stay as they are.
 var logicalSwaps = []struct {
 	re   *regexp.Regexp
 	with string
 }{
-	{regexp.MustCompile(`\bml-(auto|[0-9.]+)\b`), "ms-$1"},
-	{regexp.MustCompile(`\bmr-(auto|[0-9.]+)\b`), "me-$1"},
-	{regexp.MustCompile(`\bpl-([0-9.]+)\b`), "ps-$1"},
-	{regexp.MustCompile(`\bpr-([0-9.]+)\b`), "pe-$1"},
-	{regexp.MustCompile(`\bborder-l-([0-9]+)\b`), "border-s-$1"},
-	{regexp.MustCompile(`\bborder-r-([0-9]+)\b`), "border-e-$1"},
-	{regexp.MustCompile(`\bborder-l\b`), "border-s"},
-	{regexp.MustCompile(`\bborder-r\b`), "border-e"},
-	{regexp.MustCompile(`\brounded-l-([a-z0-9]+)\b`), "rounded-s-$1"},
-	{regexp.MustCompile(`\brounded-r-([a-z0-9]+)\b`), "rounded-e-$1"},
-	{regexp.MustCompile(`\btext-left\b`), "text-start"},
-	{regexp.MustCompile(`\btext-right\b`), "text-end"},
-	{regexp.MustCompile(`\bleft-([0-9.]+)\b`), "start-$1"},
-	{regexp.MustCompile(`\bright-([0-9.]+)\b`), "end-$1"},
+	{regexp.MustCompile(`^ml-(auto|[0-9.]+)$`), "ms-$1"},
+	{regexp.MustCompile(`^mr-(auto|[0-9.]+)$`), "me-$1"},
+	{regexp.MustCompile(`^pl-([0-9.]+)$`), "ps-$1"},
+	{regexp.MustCompile(`^pr-([0-9.]+)$`), "pe-$1"},
+	{regexp.MustCompile(`^border-l-([0-9]+)$`), "border-s-$1"},
+	{regexp.MustCompile(`^border-r-([0-9]+)$`), "border-e-$1"},
+	{regexp.MustCompile(`^border-l$`), "border-s"},
+	{regexp.MustCompile(`^border-r$`), "border-e"},
+	{regexp.MustCompile(`^rounded-l-([a-z0-9]+)$`), "rounded-s-$1"},
+	{regexp.MustCompile(`^rounded-r-([a-z0-9]+)$`), "rounded-e-$1"},
+	{regexp.MustCompile(`^text-left$`), "text-start"},
+	{regexp.MustCompile(`^text-right$`), "text-end"},
+	{regexp.MustCompile(`^left-([0-9.]+)$`), "start-$1"},
+	{regexp.MustCompile(`^right-([0-9.]+)$`), "end-$1"},
 }
 
-// `left-1/2` and `right-1/2` are centring offsets, and mirroring them moves the element.
-// RE2 has no negative lookahead, so a substitution protects them.
-var centringRe = regexp.MustCompile(`\b(left|right)-([0-9]+)/([0-9]+)\b`)
+// A class token: the text between spaces, quotes, and braces.
+var tokenRe = regexp.MustCompile("[^\\s\"'`{}]+")
 
-const centringSentinel = "\x00centring\x00"
+// physicalSideRe is a variant for a physical placement, such as the side that a popover opened on. A class under it
+// names that physical side on purpose, and mirroring it points the element the wrong way in a right-to-left layout.
+var physicalSideRe = regexp.MustCompile(`side=(left|right)\]`)
 
-// toLogical applies every swap, with the centring offsets protected.
+// toLogical applies the swaps to every class token.
 func toLogical(body string) string {
-	var held []string
-	hold := func(match string) string {
-		held = append(held, match)
-		return centringSentinel
+	return tokenRe.ReplaceAllStringFunc(body, logicalToken)
+}
+
+// logicalToken swaps the utility of one token, after its variants and its `-` or `!` modifiers.
+func logicalToken(token string) string {
+	cut := variantEnd(token)
+	variants, utility := token[:cut], token[cut:]
+	if physicalSideRe.MatchString(variants) {
+		return token
 	}
-	protected := centringRe.ReplaceAllStringFunc(body, hold)
+	core := strings.TrimLeft(utility, "-!")
+	lead := utility[:len(utility)-len(core)]
 	for _, swap := range logicalSwaps {
-		protected = swap.re.ReplaceAllString(protected, swap.with)
+		if swap.re.MatchString(core) {
+			return variants + lead + swap.re.ReplaceAllString(core, swap.with)
+		}
 	}
-	for _, match := range held {
-		protected = strings.Replace(protected, centringSentinel, match, 1)
+	return token
+}
+
+// variantEnd is the index after the last variant colon that is outside square brackets.
+func variantEnd(token string) int {
+	depth, end := 0, 0
+	for i, c := range token {
+		switch c {
+		case '[':
+			depth++
+		case ']':
+			depth--
+		case ':':
+			if depth == 0 {
+				end = i + 1
+			}
+		}
 	}
-	return protected
+	return end
 }
 
 func main() {
