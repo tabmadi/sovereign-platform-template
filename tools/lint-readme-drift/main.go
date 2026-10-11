@@ -16,6 +16,7 @@ import (
 
 const (
 	adrDir         = "docs/adr"
+	productDir     = "docs/product"
 	readmePath     = "README.md"
 	foundationsADR = "docs/adr/0000-platform-foundations.md"
 )
@@ -584,6 +585,10 @@ func markdownFiles() ([]string, error) {
 			func(path string, d fs.DirEntry, err error) error {
 				if err != nil {
 					return err
+				}
+				// Product research describes customers, and a persona's org size is a fact about the market, per ADR-0701.
+				if d.IsDir() && path == productDir {
+					return filepath.SkipDir
 				}
 				if d.IsDir() || !strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".local.md") {
 					return nil
