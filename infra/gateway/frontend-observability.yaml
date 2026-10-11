@@ -9,6 +9,9 @@ spec:
   routes:
     - kind: Rule
       match: PathPrefix(`/api/rum`)
+      # Traefik ranks a route by the length of its rule. The frontend's `Host(<env>) && PathPrefix(`/`)` is longer than
+      # this rule, so without a set priority the frontend answers every beacon with a page.
+      priority: 10000
       middlewares:
         - name: security-headers
       services:
