@@ -9,9 +9,9 @@ pf=$!
 trap 'kill "$pf" 2>/dev/null || true' EXIT
 sleep 2
 
-for svc in orders catalog orgs payment; do
-  dir="services/$svc/migrations"
-  [[ -d "$dir" ]] || continue
+for dir in services/*/migrations; do
+  svc="$(basename "$(dirname "$dir")")"
+  [[ "$svc" == _template ]] && continue
   step "migrating $svc"
   DATABASE_URL="postgres://dev:dev@localhost:5432/${svc}?sslmode=disable" \
     DBMATE_MIGRATIONS_DIR="$dir" DBMATE_NO_DUMP_SCHEMA=true \
