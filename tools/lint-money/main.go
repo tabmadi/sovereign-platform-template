@@ -43,13 +43,18 @@ var countWords = []string{
 	"bytes",
 	"count",
 	"items",
+	"keys",
 	"length",
+	"models",
 	"pages",
+	"points",
 	"quantity",
 	"qty",
 	"rows",
 	"seconds",
 	"size",
+	"tokens",
+	"users",
 }
 
 // moneyComponent is the shared OpenAPI schema that every monetary property must point at, in
@@ -304,11 +309,18 @@ func checkTypeScript() ([]finding, error) {
 	return found, nil
 }
 
+// displayOnly marks a file whose numbers are display figures, such as a demo screen or a chart. The
+// platform never stores or moves them. The marker must give that reason, so a reviewer can refuse it.
+var displayOnly = regexp.MustCompile(`(?m)^// lint:money-allow: \S`)
+
 // checkTypeScriptFile is textual, where the Go side is syntactic. TypeScript has no standard-library parser.
 // The shape it looks for, a name and a number on the same line, survives the loss of structure.
 func checkTypeScriptFile(path, source string) []finding {
 	var found []finding
 
+	if displayOnly.MatchString(source) {
+		return nil
+	}
 	for i, line := range strings.Split(source, "\n") {
 		// A comment is prose about money, not money. The check is textual here, so the exclusion is textual too.
 		trimmed := strings.TrimSpace(line)

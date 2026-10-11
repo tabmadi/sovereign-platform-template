@@ -21,6 +21,7 @@ func TestIsMoneyName(t *testing.T) {
 		{"total_pages", false},
 		{"totalPages", false},
 		{"page_count", false},
+		{"total_tokens", false},
 		{"quantity", false},
 		{"name", false},
 	}
@@ -65,5 +66,19 @@ func TestSplitIdentifier(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+func TestDisplayOnlyMarker(t *testing.T) {
+	t.Parallel()
+	marked := "// lint:money-allow: demo figures for the landing showcase\nconst row = { cost: 12 };\n"
+	got := checkTypeScriptFile("a.ts", marked)
+	if len(got) != 0 {
+		t.Errorf("a marked file reported %v", got)
+	}
+	bare := "// lint:money-allow:\nconst row = { cost: 12 };\n"
+	got = checkTypeScriptFile("a.ts", bare)
+	if len(got) != 1 {
+		t.Errorf("a marker without a reason reported %d findings, want 1", len(got))
 	}
 }

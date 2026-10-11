@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 184 |
+| Machine-enforced | 185 |
 | Review-enforced | 342 |
-| **Total** | **526** |
+| **Total** | **527** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -145,6 +145,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Every backend service is written in Go. Another language requires its own ADR that admits the service under a documented escape hatch. | review |
 | The root `.mise.toml` pins the Go version, and no service overrides it. Only a release that still receives upstream security fixes is pinned. Per the [Go release policy](https://go.dev/doc/devel/release), that is one of the two most recent major releases. | `ci:lint` in CI |
 | A monetary amount is the shared money type, never a floating-point number. It is `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. | `lint:money` in CI |
+| A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. | `lint:money` in CI |
 | The frontend is TypeScript. | review |
 | Bun is the only JS runtime for code we author. No Go service image, no frontend image, and no artifact built from our own source installs Node. | `lint:node-scope` in CI |
 | Node is never pinned in the root `.mise.toml`. An island that installs Node pins it in its own island config, against the root `[env] NODE_VERSION`. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. | `lint:node-scope` in CI |
