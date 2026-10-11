@@ -3,6 +3,7 @@ package main
 
 import (
 	"go/ast"
+	"go/token"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -34,9 +35,14 @@ func runCallArgs(pass *analysis.Pass) (any, error) {
 			}
 
 			if !isSingleLine(call, pass) && !isFullyExploded(call, pass) {
-				pass.Reportf(
-					call.Lparen,
-					"call arguments are partially broken across lines; use either a single line or one argument per line",
+				pass.Report(
+					analysis.Diagnostic{
+						Pos:     call.Lparen,
+						Message: "call arguments are partially broken across lines; use either a single line or one argument per line",
+						SuggestedFixes: []analysis.SuggestedFix{
+							{Message: "put one argument on each line", TextEdits: explodeEdits(call, pass)},
+						},
+					},
 				)
 			}
 
@@ -44,6 +50,28 @@ func runCallArgs(pass *analysis.Pass) (any, error) {
 		})
 	}
 	return nil, nil //nolint:nilnil // Run's (result, error) signature; nil result is normal
+}
+
+// explodeEdits breaks the line before each argument that shares a line with the token before it, and after the last
+// argument. gofmt then sets the indentation.
+func explodeEdits(call *ast.CallExpr, pass *analysis.Pass) []analysis.TextEdit {
+	var edits []analysis.TextEdit
+	prevEnd := call.Lparen
+	for _, arg := range call.Args {
+		if pass.Fset.Position(prevEnd).Line == pass.Fset.Position(arg.Pos()).Line {
+			edits = append(edits, analysis.TextEdit{Pos: arg.Pos(), End: arg.Pos(), NewText: []byte("\n")})
+		}
+		prevEnd = arg.End()
+	}
+
+	lastEnd := call.Args[len(call.Args)-1].End()
+	if call.Ellipsis.IsValid() {
+		lastEnd = call.Ellipsis + token.Pos(len("..."))
+	}
+	if pass.Fset.Position(lastEnd).Line == pass.Fset.Position(call.Rparen).Line {
+		edits = append(edits, analysis.TextEdit{Pos: lastEnd, End: lastEnd, NewText: []byte(",\n")})
+	}
+	return edits
 }
 
 // isGenerated reports whether the file has the standard `// Code generated ... DO NOT EDIT.` marker.

@@ -283,8 +283,8 @@ mise run gen
 depends = ["format:go", "format:ts", "format:md", "format:shell"]
 
 [tasks."format:go"]
-description = "Go formatting: golangci-lint's formatters, in place, per ADR-0100."
-run = "golangci-lint fmt ./... ./tools/..."
+description = "Go formatting: the gostyle fixes, then golangci-lint's formatters, in place, per ADR-0100."
+run = "go run ./tools/gostyle -fix ./... && golangci-lint fmt ./... ./tools/..."
 
 [tasks."format:ts"]
 description = "TypeScript, JSON, and CSS formatting: biome, in place, per ADR-0100."
