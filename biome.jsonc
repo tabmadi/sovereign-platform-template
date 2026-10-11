@@ -13,6 +13,9 @@
       "!**/dist",
       "!**/build",
       "!**/libs/ts/sdks",
+      // tools/zod-gen writes these, and ci:gen drift-checks the raw output. A rewrite here makes every commit drift.
+      "!**/libs/ts/schemas/*.ts",
+      "**/libs/ts/schemas/index.test.ts",
       "!**/apps/admin/_generated",
       // The configuration language of dnscontrol, per ADR-0206. It is JavaScript in syntax only: its globals belong to the tool.
       "!**/infra/dns/dnsconfig.js",

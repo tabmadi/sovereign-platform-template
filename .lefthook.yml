@@ -70,6 +70,7 @@ pre-commit:
       glob: "**/*.{ts,tsx,js,jsx,json,jsonc,css}"
       exclude:
         - "libs/ts/sdks/**"
+        - "libs/ts/schemas/**"
         - "apps/admin/_generated/**"
         - "apps/frontend/public/devportal/**"
         - "test/e2e/**"
