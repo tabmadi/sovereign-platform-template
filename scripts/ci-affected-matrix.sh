@@ -3,8 +3,13 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-# A push is compared with the commit it replaced. On master the default base is HEAD itself, and that diff is always empty.
-# When that commit is not in the history, after a new branch or a force-push, everything is affected.
+# A push is compared with the last commit that reached dev, not only with the commit it replaced.
+# A newer push cancels a running publish, so a change that the cancelled run would have built is still owed.
+# When no such commit is in the history, after a new branch or a force-push, everything is affected.
+promoted="$(git log -1 --format=%s --grep='^chore(deploy): promote ' | sed -nE 's/^chore\(deploy\): promote ([0-9a-f]+).*/\1/p')"
+if [ -n "$promoted" ] && git cat-file -e "${promoted}^{commit}" 2>/dev/null && git merge-base --is-ancestor "$promoted" HEAD; then
+  BEFORE="$promoted"
+fi
 args=(--all)
 if [ -n "${BEFORE:-}" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
   args=(--base "$BEFORE")
