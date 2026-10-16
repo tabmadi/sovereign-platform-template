@@ -93,19 +93,19 @@ Not everything here ships at once. Capabilities are deferred behind a **hard tri
 
 A deferral is safe only when a **seam** exists. A seam is a pre-built slot where the capability fits in without restructuring:
 
-- ✅ **The seam exists.** Adoption is additive. Deferral costs nothing but the wait.
-- ⚠️ **No full seam.** Adoption is structural. This is a *bet*, not a deferral. Adopt earlier, or accept a rewrite later.
+- **Full**: the seam exists. Adoption is additive. Deferral costs nothing but the wait.
+- **Partial**: no full seam exists. Adoption is structural. This is a *bet*, not a deferral. Adopt earlier, or accept a rewrite later.
 
 | Capability | Trigger | Seam | Tier |
 | --- | --- | --- | --- |
-| Ory Hydra, the OAuth2 server | A public API or an external machine client exists | ✅ behind a flag. The internal request shape does not change | Opt-in |
-| Mimir, for metrics at scale | Prometheus needs multi-tenancy, HA, or long retention | ✅ the same query API. Dashboards and alerts move unchanged | Scale |
-| Tail sampling | Trace volume makes head sampling lose data | ✅ services only emit to `localhost:4317` | Scale |
-| Loki and Tempo microservices mode | The ingest volume of a single backend needs it | ✅ the same storage and the same API | Scale |
-| Rust or Python service | A *measured* shortfall of Go, or a need for an ecosystem native to that runtime | ✅ contracts are HTTP with OpenAPI, not shared code | Opt-in |
-| Storybook | A second frontend app, or a design-system maintainer | ⚠️ | Opt-in |
-| Service mesh | A measured need that Cilium with WireGuard cannot meet | ⚠️ partial. mTLS is covered, and policy for each request is not | Scale |
-| Escalation and paging | An on-call rota exists | ⚠️ **no credible self-hosted escalation layer exists**. Alertmanager does the routing, and a hosted service does the paging, per [0502](docs/adr/0502-alerting-and-on-call.md) | Opt-in |
+| Ory Hydra, the OAuth2 server | A public API or an external machine client exists | Full: behind a flag. The internal request shape does not change | Opt-in |
+| Mimir, for metrics at scale | Prometheus needs multi-tenancy, HA, or long retention | Full: the same query API. Dashboards and alerts move unchanged | Scale |
+| Tail sampling | Trace volume makes head sampling lose data | Full: services only emit to `localhost:4317` | Scale |
+| Loki and Tempo microservices mode | The ingest volume of a single backend needs it | Full: the same storage and the same API | Scale |
+| Rust or Python service | A *measured* shortfall of Go, or a need for an ecosystem native to that runtime | Full: contracts are HTTP with OpenAPI, not shared code | Opt-in |
+| Storybook | A second frontend app, or a design-system maintainer | Partial | Opt-in |
+| Service mesh | A measured need that Cilium with WireGuard cannot meet | Partial: mTLS is covered, and policy for each request is not | Scale |
+| Escalation and paging | An on-call rota exists | Partial: **no credible self-hosted escalation layer exists**. Alertmanager does the routing, and a hosted service does the paging, per [0502](docs/adr/0502-alerting-and-on-call.md) | Opt-in |
 
 A deferral on purpose, with the trigger written down, is the **last responsible moment** applied to architecture. It is not the same as an open decision.
 
@@ -323,3 +323,7 @@ This repo offers the falsifiable half instead. Every decision states what it was
 - **It is a template, not a product.** Fork it and own your copy. There is no support channel and no compatibility promise.
 - **Generated projects** track upstream through the 3-way merge of Copier.
 - **Disagreement is expected.** The ADRs record the reasons so that you can overturn a decision on purpose, not by accident. If a comparison table is wrong, that is the most useful issue you can open.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).
