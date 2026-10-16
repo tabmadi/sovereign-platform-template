@@ -32,6 +32,7 @@ func erasureEnv(ts *testsuite.WorkflowTestSuite) *testsuite.TestWorkflowEnvironm
 	return env
 }
 
+// PLT-001.
 // The test pins the order. While the tuples exist, the services can still answer questions about the subject, so a
 // failed run is safe to retry.
 func TestEraseSubjectRemovesTuplesLast(t *testing.T) {
@@ -54,7 +55,7 @@ func TestEraseSubjectRemovesTuplesLast(t *testing.T) {
 	require.Equal(t, "EraseAuthzTuplesActivity", order[len(order)-1])
 }
 
-// A store that fails must stop the run. ADR-0301 says that a partial erasure
+// PLT-003. A store that fails must stop the run. ADR-0301 says that a partial erasure
 // that reports success is worse than one that never started.
 func TestEraseSubjectStopsOnFailure(t *testing.T) {
 	t.Parallel()

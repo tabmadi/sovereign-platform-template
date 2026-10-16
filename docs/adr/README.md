@@ -94,6 +94,7 @@ Each layer has a hundred slots, not ten, so a layer can grow without renumbering
 | --- | --- | --- |
 | [0600](0600-local-development-loop.md) | Local Development Loop | The two local tiers, dependency graph, service contract, API mock |
 | [0601](0601-testing-strategy.md) | Testing Strategy | Correctness layers, the acceptance gauge, load testing |
+| [0602](0602-behaviour-requirements.md) | Behaviour Requirements | What a service must do, as EARS requirements with IDs that tests cite |
 
 ### 07xx: Product
 

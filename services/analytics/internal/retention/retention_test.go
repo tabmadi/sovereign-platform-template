@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ANL-012.
 func TestName(t *testing.T) {
 	t.Parallel()
 	got := Name(time.Date(2026, 10, 31, 23, 0, 0, 0, time.FixedZone("x", -3600)))
@@ -17,6 +18,7 @@ func TestName(t *testing.T) {
 	}
 }
 
+// ANL-012.
 func TestWanted(t *testing.T) {
 	t.Parallel()
 	got := Wanted(time.Date(2026, 12, 15, 0, 0, 0, 0, time.UTC))
@@ -25,6 +27,7 @@ func TestWanted(t *testing.T) {
 	}
 }
 
+// ANL-013.
 func TestExpired(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)
@@ -36,6 +39,7 @@ func TestExpired(t *testing.T) {
 	}
 }
 
+// ANL-014.
 // The period here and the `device` class in the registry must agree. A change to one without the other fails here.
 func TestPeriodMatchesTheRegistry(t *testing.T) {
 	t.Parallel()

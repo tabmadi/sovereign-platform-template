@@ -30,7 +30,7 @@ func TestRefundWorkflow(t *testing.T) {
 	t.Parallel()
 
 	t.Run(
-		"reverses the charge then marks it refunded",
+		"PAY-013 reverses the charge then marks it refunded",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite
@@ -50,7 +50,7 @@ func TestRefundWorkflow(t *testing.T) {
 	)
 
 	t.Run(
-		"PSP failure fails the workflow and never marks refunded",
+		"PAY-014 PSP failure fails the workflow and never marks refunded",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite

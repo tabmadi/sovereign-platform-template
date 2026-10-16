@@ -60,10 +60,10 @@ func TestGetOrgAuthz(t *testing.T) {
 		checker authz.Checker
 		want    int
 	}{
-		{"holding the identifier is not enough", context.Background, resourceChecker{orgObject: true}, 401},
-		{"a non-member is forbidden", opCtx, resourceChecker{}, 403},
-		{"a member reads their org", opCtx, resourceChecker{orgObject: true}, 0},
-		{"an operator reads any org", opCtx, resourceChecker{"group:operator": true}, 0},
+		{"ORG-001 holding the identifier is not enough", context.Background, resourceChecker{orgObject: true}, 401},
+		{"ORG-002 a non-member is forbidden", opCtx, resourceChecker{}, 403},
+		{"ORG-003 a member reads their org", opCtx, resourceChecker{orgObject: true}, 0},
+		{"ORG-004 an operator reads any org", opCtx, resourceChecker{"group:operator": true}, 0},
 	}
 	for _, tc := range tests {
 		t.Run(
@@ -116,9 +116,9 @@ func TestOrgWriteAuthz(t *testing.T) {
 		checker authz.Checker
 		want    int
 	}{
-		{"anonymous is unauthorized", false, fakeChecker{}, 401},
-		{"non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
-		{"checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
+		{"ORG-005 anonymous is unauthorized", false, fakeChecker{}, 401},
+		{"ORG-005 non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
+		{"ORG-005 checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
 	}
 	for name, call := range writes {
 		for _, tc := range cases {
@@ -138,7 +138,7 @@ func TestOrgWriteAuthz(t *testing.T) {
 	}
 }
 
-// UpdateOrg rejects an empty name, per ADR-0302, but only after the operator gate.
+// ORG-006. UpdateOrg rejects an empty name, per ADR-0302, but only after the operator gate.
 // So this tests the validation path with an authenticated operator and a nil
 // store.
 func TestUpdateOrgValidation(t *testing.T) {

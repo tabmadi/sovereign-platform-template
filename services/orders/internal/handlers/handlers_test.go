@@ -145,25 +145,25 @@ func TestGetOrderAuthz(t *testing.T) {
 		want    int
 	}{
 		{
-			"holding the identifier is not enough",
+			"ORD-009 holding the identifier is not enough",
 			context.Background,
 			resourceChecker{orderObject: true},
 			401,
 		},
 		{
-			"another buyer is forbidden",
+			"ORD-010 another buyer is forbidden",
 			buyerCtx,
 			resourceChecker{},
 			403,
 		},
 		{
-			"the order's own buyer reads it",
+			"ORD-011 the order's own buyer reads it",
 			buyerCtx,
 			resourceChecker{orderObject: true},
 			0,
 		},
 		{
-			"an operator reads any order",
+			"ORD-012 an operator reads any order",
 			buyerCtx,
 			resourceChecker{"group:operator": true},
 			0,
@@ -198,7 +198,7 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 	params := orders.CheckoutParams{IdempotencyKey: "checkout-" + t.Name()}
 
 	t.Run(
-		"anonymous is unauthorized",
+		"ORD-001 anonymous is unauthorized",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, tc: fakeTemporal{}, checker: okChecker()}
@@ -210,7 +210,7 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 	// The edge builds the header from the Kratos identity, per ADR-0304. An identity
 	// whose org never reached the edge would produce an order that belongs to nobody.
 	t.Run(
-		"an identity with no org is forbidden",
+		"ORD-002 an identity with no org is forbidden",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, tc: fakeTemporal{}, checker: okChecker()}
@@ -222,7 +222,7 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 	// Without the header, a retry cannot be recognised. So the request is refused and
 	// does not place a second order with no warning.
 	t.Run(
-		"a missing Idempotency-Key is a bad request",
+		"ORD-003 a missing Idempotency-Key is a bad request",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, tc: fakeTemporal{}, checker: okChecker()}
@@ -234,7 +234,7 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 	// The replay path. An order with this key means that the first attempt
 	// succeeded, so the same handle comes back and no second workflow starts.
 	t.Run(
-		"a repeated key replays the first order",
+		"ORD-004 a repeated key replays the first order",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{
@@ -253,7 +253,7 @@ func TestCheckoutRequiresAnOwner(t *testing.T) {
 	)
 
 	t.Run(
-		"a buyer with an org starts the checkout workflow",
+		"ORD-005 a buyer with an org starts the checkout workflow",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{
@@ -284,9 +284,9 @@ func TestCancelOrderAuthz(t *testing.T) {
 		checker authz.Checker
 		want    int
 	}{
-		{"anonymous is unauthorized", false, fakeChecker{}, 401},
-		{"non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
-		{"checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
+		{"ORD-015 anonymous is unauthorized", false, fakeChecker{}, 401},
+		{"ORD-015 non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
+		{"ORD-015 checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
 	}
 	for _, tc := range tests {
 		t.Run(
@@ -309,7 +309,7 @@ func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 
 	t.Run(
-		"missing order is not found",
+		"ORD-016 missing order is not found",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{getErr: pgx.ErrNoRows}, tc: fakeTemporal{}, checker: okChecker()}
@@ -320,7 +320,7 @@ func TestCancelOrder(t *testing.T) {
 
 	for _, status := range []string{"cancelled", "failed"} {
 		t.Run(
-			status+" order is a conflict",
+			"ORD-017 "+status+" order is a conflict",
 			func(t *testing.T) {
 				t.Parallel()
 				h := &Handlers{q: fakeQ{order: store.GetOrderRow{Status: status}}, tc: fakeTemporal{}, checker: okChecker()}
@@ -357,7 +357,7 @@ func TestCancelOrder(t *testing.T) {
 	)
 
 	t.Run(
-		"a cancellable order starts the cancel workflow",
+		"ORD-018 a cancellable order starts the cancel workflow",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{order: store.GetOrderRow{Status: statusPending}}, tc: fakeTemporal{}, checker: okChecker()}
@@ -379,7 +379,7 @@ func TestListOrders(t *testing.T) {
 	// ADR-0303. So it is operator-gated, and an anonymous caller is refused before the
 	// store is reached.
 	t.Run(
-		"an anonymous caller is unauthorized",
+		"ORD-013 an anonymous caller is unauthorized",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, checker: okChecker()}
@@ -389,7 +389,7 @@ func TestListOrders(t *testing.T) {
 	)
 
 	t.Run(
-		"a non-operator is forbidden",
+		"ORD-014 a non-operator is forbidden",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, checker: fakeChecker{allowed: false}}

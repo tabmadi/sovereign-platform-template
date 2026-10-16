@@ -36,7 +36,7 @@ func TestRegisterUserWorkflow(t *testing.T) {
 	t.Parallel()
 
 	t.Run(
-		"creates the personal org then grants admin on it",
+		"ORG-007 creates the personal org then grants admin on it",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite
@@ -57,7 +57,7 @@ func TestRegisterUserWorkflow(t *testing.T) {
 	)
 
 	t.Run(
-		"org creation failure fails the workflow and never grants admin",
+		"ORG-008 org creation failure fails the workflow and never grants admin",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite
@@ -76,7 +76,7 @@ func TestRegisterUserWorkflow(t *testing.T) {
 	// X-Org-Id comes from the identity, per ADR-0304. An org that the edge never
 	// learns about is the same as no org, so the workflow must fail on it.
 	t.Run(
-		"identity metadata failure fails the workflow",
+		"ORG-009 identity metadata failure fails the workflow",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite
@@ -96,7 +96,7 @@ func TestRegisterUserWorkflow(t *testing.T) {
 	)
 
 	t.Run(
-		"OpenFGA grant failure fails the workflow after the org is created",
+		"ORG-010 OpenFGA grant failure fails the workflow after the org is created",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite

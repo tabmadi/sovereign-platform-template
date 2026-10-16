@@ -26,7 +26,7 @@ func TestCancelOrderWorkflow(t *testing.T) {
 	t.Parallel()
 
 	t.Run(
-		"marks the order cancelled",
+		"ORD-019 marks the order cancelled",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite
@@ -45,7 +45,7 @@ func TestCancelOrderWorkflow(t *testing.T) {
 	)
 
 	t.Run(
-		"activity failure fails the workflow",
+		"ORD-020 activity failure fails the workflow",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite

@@ -19,6 +19,7 @@ func write(t *testing.T, body string) string {
 	return path
 }
 
+// ANL-011.
 func TestLoadsTheCommittedDefinitions(t *testing.T) {
 	t.Parallel()
 	// The real file. A change to it that breaks the rules then fails here, and not
@@ -39,7 +40,7 @@ func TestLoadsTheCommittedDefinitions(t *testing.T) {
 	}
 }
 
-// A one-step funnel is not a funnel but a count. It would always report a 100%
+// ANL-010. A one-step funnel is not a funnel but a count. It would always report a 100%
 // conversion rate, which is worse than no report.
 func TestRejectsFunnelWithOneStep(t *testing.T) {
 	t.Parallel()
@@ -53,7 +54,7 @@ func TestRejectsFunnelWithOneStep(t *testing.T) {
 	}
 }
 
-// A repeated step counts the same event twice. The funnel then shows 100% through
+// ANL-010. A repeated step counts the same event twice. The funnel then shows 100% through
 // the duplicate.
 func TestRejectsRepeatedStep(t *testing.T) {
 	t.Parallel()
@@ -67,6 +68,7 @@ func TestRejectsRepeatedStep(t *testing.T) {
 	}
 }
 
+// ANL-010.
 func TestRejectsDuplicateFunnelID(t *testing.T) {
 	t.Parallel()
 	path := write(t, "funnels:\n  - id: x\n    steps: [a, b]\n  - id: x\n    steps: [c, d]\n")
@@ -76,6 +78,7 @@ func TestRejectsDuplicateFunnelID(t *testing.T) {
 	}
 }
 
+// ANL-010.
 func TestRejectsEmptyFile(t *testing.T) {
 	t.Parallel()
 	path := write(t, "funnels: []\n")
@@ -85,6 +88,7 @@ func TestRejectsEmptyFile(t *testing.T) {
 	}
 }
 
+// ANL-010.
 func TestRejectsMissingFile(t *testing.T) {
 	t.Parallel()
 	_, err := funnels.Load(filepath.Join(t.TempDir(), "absent.yaml"))

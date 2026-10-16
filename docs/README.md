@@ -17,6 +17,7 @@ The genre decides the directory. So a path tells the reader the kind of document
 | `adr/` | explanation and reference | the decisions |
 | `guide/` | how-to | a procedure someone executes |
 | `reference/` | reference | a lookup, a registry, or live state |
+| `requirements/` | reference | what a journey across services must do. A service's own requirements are in `services/<name>/requirements.md`, per [ADR-0602](adr/0602-behaviour-requirements.md) |
 | `product/` | evidence | dated observations of the outside world, with sources. It is optional and binds nothing, per [ADR-0701](adr/0701-product-design-and-discovery.md) |
 | `docs/*.md` | entry and canonical registries | the way in, and the documents that the ADR set names as the only record of a thing |
 
@@ -87,6 +88,8 @@ The topic is in the filename, not in a directory. A directory with one file adds
 | --- | --- |
 | Why a tool was chosen, and what it won against | the owning ADR |
 | The rule a reviewer enforces | the *Rules* section of that ADR |
+| What a service must do | its `requirements.md`, per [ADR-0602](adr/0602-behaviour-requirements.md) |
+| What a journey across services must do | [requirements/](requirements) |
 | The command to run | the how-to above |
 | What is deployed now | [operational-surface](operational-surface.md) |
 | What it costs to keep a component running | [operational-surface](operational-surface.md), *Recurring obligation* |

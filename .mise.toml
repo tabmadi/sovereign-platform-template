@@ -299,7 +299,7 @@ description = "shfmt from mvdan/sh formats shell, over the same file set that li
 run = "bash scripts/format-shell.sh"
 
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:tasks", "lint:dns", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:requirements", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:tasks", "lint:dns", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
 
 [tasks."lint:go"]
 description = "Go correctness and style: golangci-lint's configured analysers over every module, per ADR-0100."
@@ -410,6 +410,10 @@ run = "go run ./tools/lint-comments"
 [tasks."lint:adr-xref"]
 description = "The internal links of the ADR set. References resolve, and Related names documents that exist. Every ADR has a Decides line and an index row. The two adoption documents name the same components."
 run = "go run ./tools/lint-adr-xref"
+
+[tasks."lint:requirements"]
+description = "The trace of ADR-0602. Every requirement has one EARS sentence and an ID under its file's prefix. A test cites each requirement, and every cited ID exists."
+run = "go run ./tools/lint-requirements"
 
 [tasks."lint:readme-drift"]
 description = "Principle 9, applied to the one document that is not generated."

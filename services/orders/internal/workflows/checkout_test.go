@@ -57,7 +57,7 @@ func TestCheckoutWorkflow(t *testing.T) {
 	t.Parallel()
 
 	t.Run(
-		"writes the row and its access tuples before charging",
+		"ORD-006 writes the row and its access tuples, then charges the total and confirms",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite
@@ -115,7 +115,7 @@ func TestCheckoutWorkflow(t *testing.T) {
 	// ADR-0304. So a failed insert must not leave tuples that point at a row that
 	// does not exist.
 	t.Run(
-		"a failed insert never grants access",
+		"ORD-007 a failed insert never grants access",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite
@@ -141,7 +141,7 @@ func TestCheckoutWorkflow(t *testing.T) {
 	// The dual write exists to prevent an order that nobody can read. So the saga
 	// stops and does not charge for something that the buyer cannot see.
 	t.Run(
-		"a failed grant stops the saga before it charges",
+		"ORD-008 a failed grant stops the saga before it charges",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite

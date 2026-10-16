@@ -351,7 +351,7 @@ Principle 7 applies to standards as it applies to tools: a standard with no reco
 
 All ADRs use these terms consistently. If a term is ambiguous in a later ADR, this glossary wins.
 
-**Four words carry a second, unrelated sense elsewhere in the repository.** Both senses are correct, and the subject shows which sense is meant.
+**Five words carry a second, unrelated sense elsewhere in the repository.** Both senses are correct, and the subject shows which sense is meant.
 
 | Word | Glossary sense | The other sense |
 | --- | --- | --- |
@@ -359,6 +359,7 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 | **ceiling** | the point where an approach stops working, stated as a trigger | the `limits` field of a container, which is a scheduler value, per [ADR-0204](0204-resource-management.md) |
 | **trigger** | the observable condition that makes a deferred capability due | a *threshold* is a number whose doubling would change the decision, per [ADR-0001](0001-documentation-and-output-conventions.md). A trigger often tests a threshold, and the two are not interchangeable. One is a number, and the other is a condition |
 | **first-class** | served by the default path, not by a special case beside it | *native execution* is a service that runs as a host process and not in a container, per [ADR-0600](0600-local-development-loop.md) |
+| **requirement** | one row with an ID in a requirements file, per [ADR-0602](0602-behaviour-requirements.md) | the general need that a decision meets, as in *a stated requirement* or *a failure-response requirement* |
 
 - **Axis position**: this platform's load-bearing assumption, set in *Thesis* above: **A high, B maximal, C high**. An ADR cites the axis position and does not restate a service count or a headcount. So the assumption changes in one place.
 - **Seam**: a pre-built slot that a deferred capability drops into without restructuring. A deferral with a seam is additive. A deferral without one is a bet.
@@ -379,6 +380,7 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 - **Frontend app**: the single Next.js application under `apps/frontend/`. Route groups separate audiences, and the deploy unit is one app.
 - **Platform component**: infrastructure software that the services depend on, such as Postgres, the Temporal server, the gateway, the IdP, and the observability stack. It lives under `infra/helm/platform/`.
 - **Library**: shared code under `libs/go/<name>/` or `libs/ts/<name>/`. It has no business state.
+- **Requirement**: one EARS sentence with an ID, such as `ORD-003`, in a service's `requirements.md` or in `docs/requirements/`. At least one test cites it, per ADR-0602.
 - **Generated client**: code under `libs/{go,ts}/sdks/<service>/` that is produced from the OpenAPI spec of a service. It is committed to the repo.
 - **Workflow** and **Activity**: Temporal terms, per ADR-0302.
 - **Authz-relevant mutation**: a state change that affects who can see or modify a resource, per ADR-0304.

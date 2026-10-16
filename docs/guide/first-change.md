@@ -134,6 +134,7 @@ The dense rules above buy you these savings:
 
 | The change | Read first |
 | --- | --- |
+| A change to what a service does | the service's `requirements.md`. Edit the requirement first, then cite its ID in the name of the test that proves it, per [ADR-0602](../adr/0602-behaviour-requirements.md) |
 | A new service | the six decomposition forces of [ADR-0000](../adr/0000-platform-foundations.md). A new service names the force that justifies it |
 | A new platform component | the budget rule in [`../operational-surface.md`](../operational-surface.md), then [ADR-0002](../adr/0002-tool-adoption.md) for the comparison it needs |
 | A breaking API change | [ADR-0303](../adr/0303-api-contracts-and-lifecycle.md). `oasdiff` labels it, and the ADR states what to do about the label |

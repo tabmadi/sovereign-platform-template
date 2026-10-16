@@ -88,9 +88,9 @@ func TestRefundChargeAuthz(t *testing.T) {
 		checker authz.Checker
 		want    int
 	}{
-		{"anonymous is unauthorized", false, fakeChecker{}, 401},
-		{"non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
-		{"checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
+		{"PAY-009 anonymous is unauthorized", false, fakeChecker{}, 401},
+		{"PAY-009 non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
+		{"PAY-009 checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
 	}
 	for _, tc := range tests {
 		t.Run(
@@ -114,7 +114,7 @@ func TestRefundCharge(t *testing.T) {
 	req := &payment.RefundInput{Reason: "duplicate"}
 
 	t.Run(
-		"missing charge is not found",
+		"PAY-010 missing charge is not found",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{getErr: pgx.ErrNoRows}, tc: fakeTemporal{}, checker: okChecker()}
@@ -124,7 +124,7 @@ func TestRefundCharge(t *testing.T) {
 	)
 
 	t.Run(
-		"an unsettled charge is a conflict",
+		"PAY-011 an unsettled charge is a conflict",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{charge: store.GetChargeRow{Status: "pending"}}, tc: fakeTemporal{}, checker: okChecker()}
@@ -160,7 +160,7 @@ func TestRefundCharge(t *testing.T) {
 	)
 
 	t.Run(
-		"a settled charge starts the refund workflow",
+		"PAY-012 a settled charge starts the refund workflow",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{charge: store.GetChargeRow{Status: statusSettled}}, tc: fakeTemporal{}, checker: okChecker()}
@@ -211,10 +211,10 @@ func TestGetChargeAuthz(t *testing.T) {
 		checker authz.Checker
 		want    int
 	}{
-		{"holding the identifier is not enough", context.Background, resourceChecker{chargeObject: true}, 401},
-		{"another buyer is forbidden", opCtx, resourceChecker{}, 403},
-		{"the order's buyer reads its charge", opCtx, resourceChecker{chargeObject: true}, 0},
-		{"an operator reads any charge", opCtx, resourceChecker{"group:operator": true}, 0},
+		{"PAY-003 holding the identifier is not enough", context.Background, resourceChecker{chargeObject: true}, 401},
+		{"PAY-004 another buyer is forbidden", opCtx, resourceChecker{}, 403},
+		{"PAY-005 the order's buyer reads its charge", opCtx, resourceChecker{chargeObject: true}, 0},
+		{"PAY-006 an operator reads any charge", opCtx, resourceChecker{"group:operator": true}, 0},
 	}
 	for _, tc := range tests {
 		t.Run(
@@ -250,10 +250,10 @@ func TestCreateChargeAmount(t *testing.T) {
 		name   string
 		amount payment.Money
 	}{
-		{"a non-decimal amount", payment.Money{Amount: "12,00", Currency: testCurrency}},
-		{"an unknown currency form", payment.Money{Amount: "12.00", Currency: "eur"}},
-		{"zero is not a charge", payment.Money{Amount: "0.00", Currency: testCurrency}},
-		{"a negative amount is a refund, not a charge", payment.Money{Amount: "-1.00", Currency: testCurrency}},
+		{"PAY-001 a non-decimal amount", payment.Money{Amount: "12,00", Currency: testCurrency}},
+		{"PAY-001 an unknown currency form", payment.Money{Amount: "12.00", Currency: "eur"}},
+		{"PAY-002 zero is not a charge", payment.Money{Amount: "0.00", Currency: testCurrency}},
+		{"PAY-002 a negative amount is a refund, not a charge", payment.Money{Amount: "-1.00", Currency: testCurrency}},
 	}
 	for _, tc := range tests {
 		t.Run(
@@ -280,7 +280,7 @@ func TestListCharges(t *testing.T) {
 	// ADR-0303. So it is operator-gated, and an anonymous caller is refused before the
 	// store is reached.
 	t.Run(
-		"an anonymous caller is unauthorized",
+		"PAY-007 an anonymous caller is unauthorized",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, checker: okChecker()}
@@ -290,7 +290,7 @@ func TestListCharges(t *testing.T) {
 	)
 
 	t.Run(
-		"a non-operator is forbidden",
+		"PAY-008 a non-operator is forbidden",
 		func(t *testing.T) {
 			t.Parallel()
 			h := &Handlers{q: fakeQ{}, checker: fakeChecker{allowed: false}}

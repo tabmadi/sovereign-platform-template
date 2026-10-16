@@ -4,11 +4,11 @@ This guide is for any coding agent that works in this repo: Codex, Cursor, Claud
 
 ## The one rule above this file
 
-**Humans are the first developers. ADRs and `docs/` rank above this file.** Every decision, convention, or rationale lives in an [ADR](docs/adr) or a `docs/` file. Those files are for humans first, are neutral to tools, and are reviewed.
+**Humans and coding agents read the same documents. ADRs, requirements, and `docs/` rank above this file.** Every decision, convention, or rationale lives in an [ADR](docs/adr) or a `docs/` file. What a service must do lives in its `requirements.md`, per [ADR-0602](docs/adr/0602-behaviour-requirements.md). These files are written for both readers, are neutral to tools, and are reviewed.
 
 This file holds only operational hints for agents: how to navigate, build, and run the repo, and what to read first. Everything else is a link to the ADRs and docs.
 
-- A line that a new human developer also needs belongs in an ADR or a doc. This file links to it.
+- A line that a new developer, human or agent, also needs belongs in an ADR, a requirements file, or a doc. This file links to it.
 - A line that only one tool needs belongs in that tool's own dotfile, not here.
 
 ## Write in Simple English
@@ -31,6 +31,7 @@ Every text you write in this repo follows the Simple English profile in [ADR-000
 - The [ADR index](docs/adr): every load-bearing decision. Each ADR ends with a flat **Rules** section and has a one-sentence **Decides** line in its header. The index's *Decides* column is the fastest full pass over the set.
 - [docs/reference/rules-index.md](docs/reference/rules-index.md): every rule in the set with its enforcement, generated from the Rules sections. One grep covers the whole law.
 - [docs/reference/system-view.md](docs/reference/system-view.md): what runs, and how a request moves, on one page.
+- `services/<name>/requirements.md`: what one service must do, as EARS requirements with IDs. [docs/requirements/](docs/requirements) holds the journeys across services. Read the file before you change the service.
 
 ## What to load first, by task
 
@@ -38,7 +39,7 @@ The set is large, and each task needs a small part of it. Grep the Rules section
 
 | Changing | Load | Then check |
 | --- | --- | --- |
-| A service's behaviour | [0303](docs/adr/0303-api-contracts-and-lifecycle.md) contracts, [0300](docs/adr/0300-data.md) data, [0304](docs/adr/0304-identity-and-authorization.md) authorization, [0500](docs/adr/0500-observability.md) instrumentation | `mise run lint:service-contract`, `lint:authz` |
+| A service's behaviour | the service's `requirements.md` first, then [0602](docs/adr/0602-behaviour-requirements.md) requirements, [0303](docs/adr/0303-api-contracts-and-lifecycle.md) contracts, [0300](docs/adr/0300-data.md) data, [0304](docs/adr/0304-identity-and-authorization.md) authorization, [0500](docs/adr/0500-observability.md) instrumentation | `go test -run '/<ID>'` for each changed requirement, then `mise run lint:requirements`, `lint:service-contract`, `lint:authz` |
 | An API spec | [0303](docs/adr/0303-api-contracts-and-lifecycle.md), [0003](docs/adr/0003-naming-and-identifiers.md) identifiers | `mise run gen`, then `lint:openapi`, `lint:api-audience` |
 | A workflow | [0302](docs/adr/0302-temporal.md), and `docs/reference/long-running-workflows.md` if the workflow runs for a long time | replay tests |
 | A chart or values file | [0201](docs/adr/0201-gitops.md), [0204](docs/adr/0204-resource-management.md), [0205](docs/adr/0205-environment-parity.md) | `mise run lint:resource-governance`, `lint:floating-tags` |
@@ -62,7 +63,11 @@ The set is large, and each task needs a small part of it. Grep the Rules section
   - Every word carries meaning. Three or more items that share two or more attributes are a table.
   - Its **three comment tests** decide whether a comment exists at all. The deletion test: keep a comment only if its absence would cause a wrong change, and doubt resolves to deletion. The genre test: a sentence that is still true without the file belongs in an ADR or a doc, and the comment cites it. The length test: one paragraph of at most three lines, and one line is the norm.
   - The reader is an expert with an LLM at hand, so nothing that the code shows is written down.
-- **Genre decides the path**, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md). `docs/adr/` holds decisions, `docs/guide/` holds procedures, and `docs/reference/` holds lookups and registries. The `docs/` root holds the entry documents and the registries that an ADR names as canonical. [docs/README.md](docs/README.md) indexes everything. A doc holds a procedure or live state. A decision lives only in its ADR.
+- **Behaviour is written before it is coded**, per [ADR-0602](docs/adr/0602-behaviour-requirements.md).
+  - To change what a service does, edit its `requirements.md` first. A new rule gets the next free ID. A rule whose meaning changes gets a new ID, and the old ID is not used again.
+  - Then put the ID in the name of each test that proves it, then change the code. All three land in one pull request.
+  - Never commit a proposal, plan, or task file. The diff to `requirements.md` is the proposal.
+- **Genre decides the path**, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md). `docs/adr/` holds decisions, `docs/guide/` holds procedures, `docs/reference/` holds lookups and registries, and `docs/requirements/` holds journey requirements. The `docs/` root holds the entry documents and the registries that an ADR names as canonical. [docs/README.md](docs/README.md) indexes everything. A doc holds a procedure or live state. A decision lives only in its ADR.
 - **An ADR is law, not a plan.** It states what is true of this platform, never what someone intends to do. Do not add a `Follow-ups` section, a roadmap, a `TODO`, or a remark such as `not yet wired`. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and the rule binds anyway, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md).
 - **Planned work goes in a local `*.local.md` file.** `.gitignore` excludes these files, and nothing committed links to them.
   - `PLAN.local.md` is this repo's plan file. Record there any gap you find between a decision and the code.

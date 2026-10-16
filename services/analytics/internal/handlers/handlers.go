@@ -32,7 +32,7 @@ const stateGranted = "granted"
 const maxRollupBuckets = 92
 
 type Handlers struct {
-	q *store.Queries
+	q store.Querier
 	// db runs the partition DDL of the retention pass, which sqlc cannot express.
 	db      *pgxpool.Pool
 	funnels *funnels.Set

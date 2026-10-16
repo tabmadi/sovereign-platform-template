@@ -246,7 +246,7 @@ test.describe("end-to-end signal correlation", () => {
   const BUYER_ID = "obs-e2e-buyer";
   const BUYER_ORG_ID = "org_01kztn9tsrea7b1597q3yjdeav";
 
-  test("a checkout emits a stitched trace, correlated logs and metrics @smoke", async () => {
+  test("a checkout emits a stitched trace, correlated logs and metrics @smoke", { tag: ["@PUR-003"] }, async () => {
     test.setTimeout(180_000);
     const catalog = `http://127.0.0.1:${CATALOG_PORT}`;
     const orders = `http://127.0.0.1:${ORDERS_PORT}`;

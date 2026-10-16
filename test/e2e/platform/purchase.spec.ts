@@ -64,7 +64,7 @@ test.describe("full purchase scenario", () => {
   test.describe("operator adds a product", () => {
     test.use({ storageState: OPERATOR_STATE });
 
-    test("through the admin console add-product page @smoke", async ({ page }) => {
+    test("through the admin console add-product page @smoke", { tag: ["@PUR-001", "@CAT-003"] }, async ({ page }) => {
       await page.goto(`${opsURL("lowdefy")}/products_new`);
       await page.getByLabel(/^name$/i).fill(PRODUCT_NAME);
       // Two fields, not one: a price is an amount AND a currency, per ADR-0300.
@@ -85,7 +85,7 @@ test.describe("full purchase scenario", () => {
 
   // Steps 2 to 4: a new shopper registers, logs in, and buys, and the purchase is observable.
   // The test uses a new, isolated context with no operator storageState, because the shopper is a different human in a different app.
-  test("shopper registers, checks out, and the order is traced end to end @smoke", async ({
+  test("shopper registers, checks out, and the order is traced end to end @smoke", { tag: ["@PUR-002", "@PUR-003"] }, async ({
     browser,
   }) => {
     // The config's 60s default is a budget per step, and the waits in this test are longer: the saga has 60s to settle, and Tempo has 90s to make the trace searchable.

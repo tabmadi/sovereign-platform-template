@@ -34,9 +34,9 @@ func TestCreateProductAuthz(t *testing.T) {
 		checker authz.Checker
 		want    int
 	}{
-		{"anonymous is unauthorized", false, fakeChecker{}, 401},
-		{"non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
-		{"checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
+		{"CAT-001 anonymous is unauthorized", false, fakeChecker{}, 401},
+		{"CAT-001 non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
+		{"CAT-001 checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
 	}
 	for _, tc := range tests {
 		t.Run(
@@ -82,9 +82,9 @@ func TestWriteAuthz(t *testing.T) {
 		checker authz.Checker
 		want    int
 	}{
-		{"anonymous is unauthorized", false, fakeChecker{}, 401},
-		{"non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
-		{"checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
+		{"CAT-002 anonymous is unauthorized", false, fakeChecker{}, 401},
+		{"CAT-002 non-operator is forbidden", true, fakeChecker{allowed: false}, 403},
+		{"CAT-002 checker failure is internal", true, fakeChecker{err: errors.New("openfga down")}, 500},
 	}
 	for name, call := range writes {
 		for _, tc := range cases {

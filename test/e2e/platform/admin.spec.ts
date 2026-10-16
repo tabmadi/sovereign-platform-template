@@ -27,7 +27,7 @@ test.describe("lowdefy ops dashboard", () => {
   test.describe("products CRUD", () => {
     test.use({ storageState: OPERATOR_STATE });
 
-    test("create, list, edit and delete a product @smoke", async ({ page }) => {
+    test("create, list, edit and delete a product @smoke", { tag: ["@CAT-003", "@CAT-004", "@CAT-005"] }, async ({ page }) => {
       const name = `e2e-widget-${Date.now()}`;
       const renamed = `${name}-v2`;
       const admin = opsURL("lowdefy");
@@ -74,7 +74,7 @@ test.describe("lowdefy ops dashboard", () => {
   test.describe("identities", () => {
     test.use({ storageState: OPERATOR_STATE });
 
-    test("list shows seeded identities and an edit round-trips @smoke", async ({ page }) => {
+    test("list shows seeded identities and an edit round-trips @smoke", { tag: ["@AUZ-008"] }, async ({ page }) => {
       const admin = opsURL("lowdefy");
 
       // Changelist: the seeded operator and product user must both appear. An empty grid fails here.
@@ -146,7 +146,7 @@ test.describe("lowdefy ops dashboard", () => {
       }
     });
 
-    test("the identity toggle promotes and demotes @smoke", async ({ browser, page }) => {
+    test("the identity toggle promotes and demotes @smoke", { tag: ["@AUZ-009"] }, async ({ browser, page }) => {
       const anon = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
       try {
         await register(await anon.newPage(), PROMOTED_EMAIL, PROMOTED_PASSWORD);

@@ -7,6 +7,7 @@ The starting skeleton for every backend service. **Do not edit this directory to
 | Path | Purpose |
 | --- | --- |
 | `openapi.yaml` | The service contract, per ADR-0303. It is the source of truth. |
+| `requirements.md` | What the service must do, as EARS requirements that tests cite, per ADR-0602 |
 | `cmd/server/main.go` | HTTP server entry point. It calls `obs.Init`, `dbmw`, and the other wiring. |
 | `cmd/worker/main.go` | Temporal worker entry point, per ADR-0302 |
 | `internal/handlers/` | Implements the ogen-generated `Handler`. It reads and writes through the sqlc store |
@@ -29,7 +30,8 @@ The starting skeleton for every backend service. **Do not edit this directory to
 4. **Write `.env.example`** with every variable that you read. It creates a fresh clone's `.env`, so an unlisted variable gets a default with no warning.
 5. **Add a values file per environment** under `infra/gitops/services/<env>/values/`. This step deploys the service. The ApplicationSet generates one Argo Application *per values file*. If you skip an environment, the service is absent there and nothing reports it. If that is on purpose, declare `# platform/not-deployed: <env>` in your `.mise.toml` instead.
 6. **Decide your edge exposure** in those values: `ingress.enabled`, `ingress.resources`, and `networkPolicy.allowFrom` for east-west callers. An internal service must set `networkPolicy.allowFromGateway: false`. `services/authz` is a worked example.
-7. **Replace this README** with one that describes the purpose of the service.
+7. **Write `requirements.md`** under a new prefix, and cite each ID in a test name, per [ADR-0602](../../docs/adr/0602-behaviour-requirements.md). `mise run lint:requirements` fails while the prefix is `TPL` or a requirement has no test.
+8. **Replace this README** with one that describes the purpose of the service.
 
 ## Standard tasks
 

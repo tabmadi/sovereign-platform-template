@@ -22,6 +22,7 @@ const (
 
 var steps = []string{stepViewed, stepAdded, stepCheckout, stepPlaced}
 
+// ANL-006.
 func TestCountOrderedTraversal(t *testing.T) {
 	t.Parallel()
 	rows := []Step{
@@ -35,7 +36,7 @@ func TestCountOrderedTraversal(t *testing.T) {
 	assertCounts(t, got, want)
 }
 
-// This is the purpose of the package. A session that reaches a later step WITHOUT
+// ANL-006. This is the purpose of the package. A session that reaches a later step WITHOUT
 // the earlier ones, such as a bookmark to checkout, must not count there.
 // Otherwise every funnel reports conversion that it did not have.
 func TestCountRejectsSkippedSteps(t *testing.T) {
@@ -48,7 +49,7 @@ func TestCountRejectsSkippedSteps(t *testing.T) {
 	assertCounts(t, got, []int64{0, 0, 0, 0})
 }
 
-// Steps in the WRONG ORDER are not a traversal either. This session saw every
+// ANL-006. Steps in the WRONG ORDER are not a traversal either. This session saw every
 // event, so a naive per-name count would report a perfect funnel.
 func TestCountRejectsOutOfOrderSteps(t *testing.T) {
 	t.Parallel()
@@ -63,6 +64,7 @@ func TestCountRejectsOutOfOrderSteps(t *testing.T) {
 	assertCounts(t, got, []int64{1, 0, 0, 0})
 }
 
+// ANL-008.
 func TestCountDropOffIsMonotonic(t *testing.T) {
 	t.Parallel()
 	rows := []Step{
@@ -87,7 +89,7 @@ func TestCountDropOffIsMonotonic(t *testing.T) {
 	}
 }
 
-// The same instant is a traversal, not a rejection. The funnel's definition orders
+// ANL-007. The same instant is a traversal, not a rejection. The funnel's definition orders
 // two events in the same millisecond, because the clock cannot separate them.
 func TestCountAcceptsSimultaneousSteps(t *testing.T) {
 	t.Parallel()
@@ -99,7 +101,7 @@ func TestCountAcceptsSimultaneousSteps(t *testing.T) {
 	assertCounts(t, got, []int64{1, 1, 0, 0})
 }
 
-// A step that nothing reached is a zero, never a missing entry.
+// ANL-008. A step that nothing reached is a zero, never a missing entry.
 func TestCountAlwaysReturnsOnePerStep(t *testing.T) {
 	t.Parallel()
 	got := Count(steps, nil)
@@ -109,6 +111,7 @@ func TestCountAlwaysReturnsOnePerStep(t *testing.T) {
 	assertCounts(t, got, []int64{0, 0, 0, 0})
 }
 
+// ANL-009.
 func TestBucketsAlignToMidnightUTC(t *testing.T) {
 	t.Parallel()
 	from := time.Date(2026, 8, 19, 3, 30, 0, 0, time.UTC)
@@ -128,6 +131,7 @@ func TestBucketsAlignToMidnightUTC(t *testing.T) {
 	}
 }
 
+// ANL-009.
 func TestBucketsEmptyWindow(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)

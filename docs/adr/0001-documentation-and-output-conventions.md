@@ -125,6 +125,7 @@ Diátaxis organises the tree, not only the prose. A reader learns a document's g
 | `docs/adr/` | explanation and reference | one decision per file |
 | `docs/guide/` | how-to | a procedure someone executes |
 | `docs/reference/` | reference | a lookup, a registry, or live state |
+| `docs/requirements/` | reference | what a journey across services must do, per [ADR-0602](0602-behaviour-requirements.md) |
 | `docs/*.md` | entry, and canonical registries | the ordered way in, and the documents this set cites by name as the only record of a fact |
 
 **The root is not a genre and not a default.** A file sits at `docs/` only as the set's entry point or as a registry an ADR names as canonical. The registries are [`operational-surface.md`](../operational-surface.md) for components, [`adoption-path.md`](../adoption-path.md) for the reduction order, and [`tool-register.md`](../tool-register.md) for tools, per [ADR-0002](0002-tool-adoption.md). Every other file takes a genre directory.
@@ -408,7 +409,7 @@ The named mechanism is one the ADR set decides on. A task or policy that no deci
 - An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet.
 - Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. `(CI: lint:md, lint:prose)`
 - ADR numbers come in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md).
-- A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. `(CI: lint:adr-xref)`
+- A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups, `docs/requirements/` for journey requirements. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. `(CI: lint:adr-xref)`
 - The filename carries the topic, never a directory that holds a single file. No two documents in `docs/` share a filename. `(CI: lint:adr-xref)`
 - Structured logs carry a lowercase message with no final punctuation and no symbols. Context is in OTel-conventioned attributes, never interpolated into the string. `(ref: OTel semconv)`
 - Human CLI output uses `→` for a step, `✓` for success, `✗` for a fatal error, and `⚠` for a warning. Sub-detail has a two-space indent. Bare `WARN` or `ERROR` text and other symbols are not used. `(ref: clig.dev)`

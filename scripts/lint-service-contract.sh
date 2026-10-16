@@ -21,7 +21,7 @@ for dir in services/*/; do
   [ "${svc#_}" = "$svc" ] || continue # _template is the source, not a service
   checked=$((checked + 1))
 
-  for f in .mise.toml .env.example Dockerfile README.md; do
+  for f in .mise.toml .env.example Dockerfile README.md requirements.md; do
     [ -f "${dir}${f}" ] || {
       warn "${svc}: missing ${f}"
       rc=1

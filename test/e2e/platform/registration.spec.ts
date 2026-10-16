@@ -77,7 +77,7 @@ test.describe("self-service registration", () => {
     }
   });
 
-  test("registering a new identity creates its personal org @smoke", async ({ browser, page }) => {
+  test("registering a new identity creates its personal org @smoke", { tag: ["@REG-001", "@ORG-007"] }, async ({ browser, page }) => {
     // `storageState: undefined` is required. newContext() inherits the describe-level `test.use`, and Kratos sends an authenticated visitor away from the registration flow.
     const anon = await browser.newContext({ ignoreHTTPSErrors: true, storageState: undefined });
     try {
@@ -132,7 +132,7 @@ test.describe("password policy", () => {
   // So the length rule is the only rule that can reject it, and the assertion below is specific.
   const WEAK_PASSWORD = "Fjord-9Ln";
 
-  test("a password under the length policy is refused and creates no identity @smoke", async ({
+  test("a password under the length policy is refused and creates no identity @smoke", { tag: ["@REG-002"] }, async ({
     page,
   }) => {
     const rendered = await registerExpectingRejection(page, WEAK_EMAIL, WEAK_PASSWORD);

@@ -34,7 +34,7 @@ func TestSetOperatorWorkflow(t *testing.T) {
 
 	for _, op := range []bool{true, false} {
 		t.Run(
-			fmt.Sprintf("operator=%t writes the flag then the grant", op),
+			fmt.Sprintf("AUZ-009 operator=%t writes the flag then the grant", op),
 			func(t *testing.T) {
 				t.Parallel()
 				var ts testsuite.WorkflowTestSuite
@@ -52,7 +52,7 @@ func TestSetOperatorWorkflow(t *testing.T) {
 	}
 
 	t.Run(
-		"a flag failure fails the run and never touches the grant",
+		"AUZ-010 a flag failure fails the run and never touches the grant",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite
@@ -71,7 +71,7 @@ func TestSetOperatorWorkflow(t *testing.T) {
 	t.Run(
 		// The workflow exists to prevent this state: a flag and a grant that disagree. A grant failure must fail the run,
 		// so it is visible. The run must not return success with half the write done.
-		"a grant failure fails the run rather than leaving the legs disagreeing",
+		"AUZ-011 a grant failure fails the run rather than leaving the legs disagreeing",
 		func(t *testing.T) {
 			t.Parallel()
 			var ts testsuite.WorkflowTestSuite

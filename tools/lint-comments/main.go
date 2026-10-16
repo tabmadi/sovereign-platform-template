@@ -107,9 +107,10 @@ var exported = regexp.MustCompile(
 )
 
 // signal is a fact a signature cannot state. A doc comment on an exported
-// identifier carries one, or it restates the declaration and is deleted.
+// identifier carries one, or it restates the declaration and is deleted. A requirement ID is one, per ADR-0602.
 var signal = regexp.MustCompile(
-	`(?i)(ADR-\d{4}|\bnil\b|\bmust\b|\bnever\b|\bonly\b|\bpanic|\berror|\bcaller|\bzero\b|\bempty\b|\bnegative\b|` +
+	`(?i)(ADR-\d{4}|(?-i:\b[A-Z]{2,4}-\d{3}\b)|` +
+		`\bnil\b|\bmust\b|\bnever\b|\bonly\b|\bpanic|\berror|\bcaller|\bzero\b|\bempty\b|\bnegative\b|` +
 		`\binclusive\b|\bexclusive\b|\bat least\b|\bat most\b|\bconcurrent|\bblocks\b|\bcloses\b|\bowns\b|\bmutates\b|` +
 		`\bretains\b|\bunsafe\b|\bUTC\b|\bcents\b|\bbytes\b|\bseconds\b|\bdoes not\b|\bcannot\b|\bis not\b|\bare not\b|` +
 		`\bno\b|\bnot\b|\$[A-Z_]{3,}|\bdefault|\bRFC \d|\bcolumn\b|\bwire\b|\bimplements\b|\bISO \d)`,

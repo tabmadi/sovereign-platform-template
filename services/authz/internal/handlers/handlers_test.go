@@ -62,7 +62,7 @@ func decideStatus(t *testing.T, h *Handlers, r *authzsdk.AuthorizeRequest) int {
 	}
 }
 
-// The coarse gate is a claim check on the operator flag and AAL2. It makes no
+// AUZ-005. The coarse gate is a claim check on the operator flag and AAL2. It makes no
 // OpenFGA call, so a product-authz outage cannot lock operators out, per ADR-0306.
 func TestCoarseClaimGate(t *testing.T) {
 	t.Parallel()
@@ -74,12 +74,12 @@ func TestCoarseClaimGate(t *testing.T) {
 		req  *authzsdk.AuthorizeRequest
 		want int
 	}{
-		{"operator + aal2", req(subjectAlice, toolGrafana, aalLevel2, operatorFlagTrue), 200},
-		{"operator + aal2, any tool", req(subjectAlice, toolHubble, aalLevel2, operatorFlagTrue), 200},
-		{"operator but aal1", req(subjectAlice, toolGrafana, "aal1", operatorFlagTrue), 403},
-		{"aal2 but not operator", req(subjectBob, toolGrafana, aalLevel2, "false"), 403},
-		{"operator flag empty", req(subjectBob, toolGrafana, aalLevel2, ""), 403},
-		{"anonymous", req("", toolGrafana, aalLevel2, operatorFlagTrue), 403},
+		{"AUZ-001 operator + aal2", req(subjectAlice, toolGrafana, aalLevel2, operatorFlagTrue), 200},
+		{"AUZ-001 operator + aal2, any tool", req(subjectAlice, toolHubble, aalLevel2, operatorFlagTrue), 200},
+		{"AUZ-002 operator but aal1", req(subjectAlice, toolGrafana, "aal1", operatorFlagTrue), 403},
+		{"AUZ-003 aal2 but not operator", req(subjectBob, toolGrafana, aalLevel2, "false"), 403},
+		{"AUZ-003 operator flag empty", req(subjectBob, toolGrafana, aalLevel2, ""), 403},
+		{"AUZ-004 anonymous", req("", toolGrafana, aalLevel2, operatorFlagTrue), 403},
 	}
 	for _, tc := range cases {
 		t.Run(
@@ -99,6 +99,7 @@ func TestCoarseClaimGate(t *testing.T) {
 	}
 }
 
+// AUZ-006. The fine layer admits an operator only to a tool that the operator holds a view grant on.
 func TestFineGrainedGate(t *testing.T) {
 	t.Parallel()
 	// alice holds o11y but not map.
@@ -163,6 +164,7 @@ func newKratosHandlers(url string) *Handlers {
 	return h
 }
 
+// AUZ-007.
 // ListIdentities flattens each Kratos identity. It reads the operator flag from metadata_public, and a missing flag
 // is false.
 func TestListIdentities(t *testing.T) {
@@ -186,6 +188,7 @@ func TestListIdentities(t *testing.T) {
 	}
 }
 
+// AUZ-008.
 // UpdateIdentity puts only the changed fields onto the current identity. A Kratos PUT replaces the whole record, so
 // this keeps schema_id, state, email, and the metadata_public keys that the edge reads.
 func TestUpdateIdentityPreservesRecord(t *testing.T) {

@@ -56,7 +56,7 @@ test.describe("self-service privilege escalation", () => {
     }
   });
 
-  test("registration refuses an operator field @smoke", async ({ request }) => {
+  test("registration refuses an operator field @smoke", { tag: ["@REG-003"] }, async ({ request }) => {
     const id = await flow(request, "registration");
     const res = await submit(request, "registration", id, {
       method: "password",
@@ -67,7 +67,7 @@ test.describe("self-service privilege escalation", () => {
     expect(await identities(ATTACKER), "no identity may exist for the attacker").toHaveLength(0);
   });
 
-  test("settings refuses an operator field @smoke", async ({ request }) => {
+  test("settings refuses an operator field @smoke", { tag: ["@REG-004"] }, async ({ request }) => {
     const reg = await flow(request, "registration");
     const created = await submit(request, "registration", reg, {
       method: "password",

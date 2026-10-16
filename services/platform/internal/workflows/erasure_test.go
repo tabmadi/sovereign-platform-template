@@ -10,6 +10,7 @@ import (
 	"go.temporal.io/sdk/testsuite"
 )
 
+// PLT-001 and PLT-002.
 // EraseSubject gives every store the same pseudonym, and it erases the identity and then the tuples after the stores.
 func TestEraseSubjectOrderAndPseudonym(t *testing.T) {
 	t.Parallel()

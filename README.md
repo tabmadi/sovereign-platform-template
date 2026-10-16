@@ -81,7 +81,7 @@ What `sovereign` costs to run:
 - The operational surface does not change.
 - Coherent review gets harder as the volume of generated change grows. A reviewer must know that a generated change agrees with the twenty decisions it touches.
 
-The ADRs and the Rules sections exist partly for this reason. They are the constraint that an agent must follow when nobody has time to work out the reasons again.
+The ADRs, the Rules sections, and the requirements of each service exist partly for this reason. They are the constraint that an agent must follow when nobody has time to work out the reasons again.
 
 **Fewer services make the platform relatively heavier.** The floor is fixed. So with a few services, the ratio of application work to platform work is about 1:1, and the case for austerity is *stronger*.
 
@@ -285,6 +285,7 @@ Build real services from `services/_template/`.
 - **[ADRs](docs/adr)**: every load-bearing decision, with a comparison against the alternatives and the trigger that would open it again. Start at [ADR-0000](docs/adr/0000-platform-foundations.md). [`docs/adr/README.md`](docs/adr/README.md) has the block map and the full index.
 - **[ADR-0001](docs/adr/0001-documentation-and-output-conventions.md)**: the rules for these documents. It covers density, banned constructs, section order, and the same rules for code comments.
 - **Rules sections**: each ADR ends with flat, greppable normative statements. They are written so that humans and LLMs apply them the same way.
+- **Requirements**: what each service must do, in `services/<name>/requirements.md`, and what each journey across services must do, in [`docs/requirements/`](docs/requirements). Every requirement has an ID that a test cites, and CI checks the trace, per [ADR-0602](docs/adr/0602-behaviour-requirements.md).
 - **Fitness functions**: machines enforce rules wherever possible, through admission control, type checking, drift-checked codegen, and static analysis for architectural invariants. A rule that a machine enforces names its mechanism, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md).
 
 ---

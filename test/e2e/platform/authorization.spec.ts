@@ -111,7 +111,7 @@ test.describe("order read authorization", () => {
   });
 
   // The saga's first activity writes the row, so it appears just after the 202 and not with it.
-  test("its own buyer reads it", async () => {
+  test("its own buyer reads it", { tag: ["@ORD-011"] }, async () => {
     await expect(async () => {
       const res = await buyer.request.get(`${BASE_URL}/api/orders/${orderId}`);
       expect(res.status()).toBe(200);
@@ -119,18 +119,18 @@ test.describe("order read authorization", () => {
     }).toPass({ timeout: 60_000 });
   });
 
-  test("another signed-in buyer holding the identifier is refused", async () => {
+  test("another signed-in buyer holding the identifier is refused", { tag: ["@ORD-010"] }, async () => {
     const res = await other.request.get(`${BASE_URL}/api/orders/${orderId}`);
     expect(res.status(), "an order id is not a capability").toBe(403);
   });
 
-  test("a caller with no session is refused", async () => {
+  test("a caller with no session is refused", { tag: ["@ORD-009"] }, async () => {
     const res = await anonymous.request.get(`${BASE_URL}/api/orders/${orderId}`);
     expect(res.status()).toBe(401);
   });
 
   // The back-office collections are for operators only, and a product user is not an operator.
-  test("a buyer cannot list every order", async () => {
+  test("a buyer cannot list every order", { tag: ["@ORD-014"] }, async () => {
     const res = await buyer.request.get(`${BASE_URL}/api/orders`);
     expect(res.status()).toBe(403);
   });

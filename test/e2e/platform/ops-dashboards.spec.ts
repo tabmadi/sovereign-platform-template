@@ -23,11 +23,11 @@ for (const { tool, title } of TOOLS) {
       await expectUnauthenticatedDenied(tool);
     });
 
-    test("gated: AAL1 product session is forbidden", async () => {
+    test("gated: AAL1 product session is forbidden", { tag: ["@AUZ-002"] }, async () => {
       await expectAal1Forbidden(tool);
     });
 
-    test(`gated: AAL2 operator passes the dashboard:${tool}#view grant`, async () => {
+    test(`gated: AAL2 operator passes the dashboard:${tool}#view grant`, { tag: ["@AUZ-001", "@AUZ-006"] }, async () => {
       await expectOperatorAllowed(tool);
     });
 

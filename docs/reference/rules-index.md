@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 185 |
-| Review-enforced | 342 |
-| **Total** | **527** |
+| Machine-enforced | 191 |
+| Review-enforced | 347 |
+| **Total** | **538** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -73,7 +73,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. | review |
 | Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. | `lint:md, lint:prose` in CI |
 | ADR numbers come in blocks of a hundred by layer, per [`docs/adr/README.md`](../adr/README.md). | review |
-| A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. | `lint:adr-xref` in CI |
+| A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups, `docs/requirements/` for journey requirements. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. | `lint:adr-xref` in CI |
 | The filename carries the topic, never a directory that holds a single file. No two documents in `docs/` share a filename. | `lint:adr-xref` in CI |
 | Structured logs carry a lowercase message with no final punctuation and no symbols. Context is in OTel-conventioned attributes, never interpolated into the string. | standard: OTel semconv |
 | Human CLI output uses `→` for a step, `✓` for success, `✗` for a fatal error, and `⚠` for a warning. Sub-detail has a two-space indent. Bare `WARN` or `ERROR` text and other symbols are not used. | standard: clig.dev |
@@ -764,6 +764,24 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Results from a generator on the same host are reported as relative regression signals, never as absolute capacity figures. | review |
 | Load against a shared environment requires an explicit target. The only default target of `test/perf/` is the local edge. | review |
 | The full e2e and perf suites run nightly when there was activity, and before a release. Smoke suites run on a PR only when it has the label. Neither is part of `ci:affected`. | review |
+
+## ADR-0602: Behaviour Requirements
+
+[Full decision](../adr/0602-behaviour-requirements.md)
+
+| Rule | Enforced by |
+| --- | --- |
+| What a service must do is written in `services/<name>/requirements.md`. What a journey across services must do is written in `docs/requirements/<journey>.md`. | `lint:service-contract` in CI |
+| A requirement uses one EARS pattern, in the present tense, and starts with `The`, `When`, `While`, `If`, or `Where`. | `lint:requirements` in CI |
+| A requirement is one table row: its ID, then one sentence. | `lint:requirements` in CI |
+| A requirement states observable behaviour. It does not restate a field, a type, or a format of the OpenAPI spec, or the reason for an ADR. | review |
+| Each requirements file declares one prefix of two to four capital letters. No two files share a prefix, and no file outside `services/_template/` uses `TPL`. | `lint:requirements` in CI |
+| An ID is the prefix, a hyphen, and three digits. It is unique across the repository. | `lint:requirements` in CI |
+| An ID names one meaning. A requirement whose meaning changes gets a new ID, and a retired ID is not used again. | review |
+| Every requirement is cited by at least one test, and every ID that a test cites exists in a requirements file. | `lint:requirements` in CI |
+| A test cites a requirement by its ID in the test name: a Go subtest or case name, or a Playwright tag. A Go test function with no subtest cites it in its doc comment. | review |
+| A pull request that changes behaviour changes the requirements file, the tests, and the code together. | review |
+| No proposal, plan, or task file for a change is committed. The pull request's diff is the proposal. | review |
 
 ## ADR-0700: Marketing and Product Analytics
 

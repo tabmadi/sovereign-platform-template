@@ -10,6 +10,7 @@ const faroEvent = `timestamp=2026-10-11T18:32:29Z kind=event level=info event_na
 	`event_domain=marketing event_data_owner="personal key" app_name=frontend app_version=probe ` +
 	`session_id=probe-session-1 session_attr_isSampled=true browser_mobile=false`
 
+// ANL-005.
 func TestParseLogfmt(t *testing.T) {
 	t.Parallel()
 	got := parseLogfmt(faroEvent)
@@ -24,6 +25,7 @@ func TestParseLogfmt(t *testing.T) {
 	}
 }
 
+// ANL-005.
 func TestBatches(t *testing.T) {
 	t.Parallel()
 	body := map[string]any{"resourceLogs": []any{map[string]any{"scopeLogs": []any{map[string]any{"logRecords": []any{

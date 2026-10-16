@@ -149,6 +149,7 @@ func issue(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, `{"number":7}`)
 }
 
+// PLT-004 and PLT-005.
 func TestEraseServiceData(t *testing.T) {
 	t.Parallel()
 	f, a := newFake(t)
@@ -173,6 +174,7 @@ func TestEraseServiceData(t *testing.T) {
 	}
 }
 
+// PLT-006.
 func TestEraseIdentityAcceptsAMissingIdentity(t *testing.T) {
 	t.Parallel()
 	f, a := newFake(t)
@@ -187,6 +189,7 @@ func TestEraseIdentityAcceptsAMissingIdentity(t *testing.T) {
 	}
 }
 
+// PLT-007.
 func TestEraseAuthzTuplesReadsEveryTypeAndPage(t *testing.T) {
 	t.Parallel()
 	f, a := newFake(t)
@@ -208,6 +211,7 @@ func TestEraseAuthzTuplesReadsEveryTypeAndPage(t *testing.T) {
 	}
 }
 
+// PLT-008.
 func TestExportSubjectData(t *testing.T) {
 	t.Parallel()
 	_, a := newFake(t)
@@ -230,6 +234,7 @@ func TestExportSubjectData(t *testing.T) {
 	}
 }
 
+// PLT-009 and PLT-010.
 // The sweep erases only the identity that Kratos no longer has. A service account and a live identity stay.
 func TestRetentionErasesOnlyOrphans(t *testing.T) {
 	t.Parallel()
@@ -254,6 +259,7 @@ func TestRetentionErasesOnlyOrphans(t *testing.T) {
 	}
 }
 
+// PLT-011.
 func TestCardinalityAndIssue(t *testing.T) {
 	t.Parallel()
 	_, a := newFake(t)
@@ -272,6 +278,7 @@ func TestCardinalityAndIssue(t *testing.T) {
 	}
 }
 
+// PLT-012.
 func TestRestoreManifest(t *testing.T) {
 	t.Parallel()
 	var source cnpgCluster
@@ -300,6 +307,7 @@ func TestRestoreManifest(t *testing.T) {
 	}
 }
 
+// PLT-013.
 func TestCompareCounts(t *testing.T) {
 	t.Parallel()
 	live := map[string]int64{"items": 3, "empty": 0, "lost": 2, "drained": 5}
