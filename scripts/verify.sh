@@ -59,8 +59,15 @@ forward() { # <service> <local-port> <remote-port>
 
 step "platform"
 expect "nodes Ready" 0 "$(kc get nodes --no-headers | awk '$2 != "Ready"' | wc -l | tr -d ' ')"
-expect "pods not ready" 0 "$(kc get pods -A --no-headers |
-  awk '$4 != "Completed" {split($3, a, "/"); if (a[1] != a[2] || $4 != "Running") n++} END {print n+0}')"
+unready_pods() { kc get pods -A --no-headers | awk '$4 != "Completed" {split($3, a, "/"); if (a[1] != a[2] || $4 != "Running") print $1 "/" $2 " " $3 " " $4}'; }
+# A pod that restarts after the last sync needs a short time to settle, so the check waits before it fails.
+for _ in $(seq 1 30); do
+  pods="$(unready_pods)"
+  [ -z "$pods" ] && break
+  sleep 2
+done
+expect "pods not ready" 0 "$(printf '%s' "$pods" | grep -c .)"
+[ -z "$pods" ] || printf '%s\n' "$pods" | sed 's/^/    /' >&2
 if kc get ns argocd >/dev/null 2>&1; then
   expect "Argo CD applications Synced and Healthy" 0 \
     "$(kc -n argocd get applications --no-headers 2>/dev/null | awk '$2 != "Synced" || $3 != "Healthy"' | wc -l | tr -d ' ')"
