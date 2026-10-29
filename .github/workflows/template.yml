@@ -41,8 +41,9 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           go-cache: "true"
-      # Restore only, like e2e.yml: the lighthouse job is the one writer of the mirror.
+      # On this repository, e2e.yml's full job never runs on its schedule, so this job writes the mirror cache.
       - name: Restore the registry mirror
+        id: registry-cache
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
@@ -55,3 +56,11 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Saved on a miss and on `always()`. The warm fails when upstream throttles, and a partial store still helps the next run.
+      - name: Save the registry mirror
+        if: always() && runner.environment == 'github-hosted' && steps.registry-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
+          path: ~/.cache/zot/registry.localhost
+          key: ${{ steps.registry-cache.outputs.cache-primary-key }}
