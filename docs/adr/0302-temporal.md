@@ -42,6 +42,16 @@ Without one durable-execution platform, each problem grows its own machinery: ou
 | Kubernetes Jobs, CronJobs, Argo Workflows | pipeline DAGs | none new | Not business workflows. Kept for pure infrastructure tasks |
 | Temporal Cloud | the same as Temporal | none | Fails driver 5. Client call sites stay cloud-neutral, so a deploy reverses the position, not a rewrite |
 
+### Applying a schedule
+
+| Option | Where the schedule set lives | What applies it | Verdict |
+| --- | --- | --- | --- |
+| **The worker reconciles at start** | a file in the worker's own package, embedded in its binary | each worker, through the SDK's schedule client, before it polls | **Chosen.** A schedule changes in the same deploy as the workflow it starts, so it cannot name a workflow the running worker lacks. It works on every tier and adds no component *(reasoned)* |
+| An Argo CD sync hook Job | a ConfigMap in a chart | the Temporal CLI in a hook Job | GitOps-native, and a failure shows on the sync. The file must move into a chart, and the Job and the worker can deploy different versions |
+| A schedule operator | a custom resource for each schedule | a third-party controller | Declarative, with clean deletion. It is one more Core component to run, per [`operational-surface.md`](../operational-surface.md), for a short list of schedules |
+| A CI step after deploy | the repository | the pipeline, against the cluster's Temporal | CI then needs a network path into each cluster. That breaks the pull model of [ADR-0201](0201-gitops.md) |
+| An operator runs the CLI by hand | the repository | a person | Nothing reaches a new environment until someone remembers. A missed run is silent, and a missed DR drill or retention pass is a compliance gap |
+
 ## Decision
 
 Self-hosted Temporal is the platform's durable-execution layer and the default async primitive.
@@ -69,6 +79,12 @@ It is the wrong primitive for a single atomic action inside one service.
 | Transactional email, fire-and-forget | Outbox, or a workflow if delivery must be tracked |
 | Thumbnail or document index | Outbox, or a workflow if part of a larger process |
 | Update profile name, add to cart, list orders | Neither: synchronous |
+
+### Schedules are applied by their worker
+
+A service that owns periodic work commits its schedule set as `schedules.yaml` in its workflows package. The worker embeds the file and calls `temporalmw.ReconcileSchedules` before it polls. A missing schedule is created. An existing one gets the file's spec, action, and note. A schedule that the worker created and the file no longer names is deleted. The worker marks the schedules it creates with an `owner` memo, so it never deletes a schedule that it did not create.
+
+An operator's pause survives a restart, because the reconcile does not touch the paused state. Every replica runs the reconcile, and two that race write the same result. A reconcile that fails stops the worker, so a broken schedule set shows as a failed rollout and not as a silent gap.
 
 ### The outbox seam
 
@@ -275,4 +291,6 @@ Other ADRs own these concerns, and nothing here overrides them:
 - Workflow IDs encode business intent, not opaque UUIDs.
 - Activity inputs and outputs stay in kilobytes. Larger payloads go through the bucket by reference.
 - Periodic business-meaningful work uses a Temporal `Schedule`. `CronJob` is only for pure infrastructure.
+- A service's schedules are a committed `schedules.yaml` in its workflows package. Its worker applies the file at every start, through `temporalmw.ReconcileSchedules`. No person, pipeline, or Job applies a schedule.
+- A schedule names only a workflow that its own worker registers. A test checks the file against the worker's registrations.
 - Temporal Cloud is not used.

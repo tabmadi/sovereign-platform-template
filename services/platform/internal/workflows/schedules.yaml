@@ -1,4 +1,5 @@
-# Temporal Schedules for the platform's periodic obligations, per ADR-0302.
+# Temporal Schedules for the platform's periodic obligations, per ADR-0302. The platform worker embeds this file and
+# applies it at start. A schedule that leaves the file is deleted on the next start.
 schedules:
   - id: dr-drill
     workflow: DisasterRecoveryDrill

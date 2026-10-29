@@ -37,3 +37,12 @@ What this worker must do, per [ADR-0602](../../docs/adr/0602-behaviour-requireme
 | PLT-011 | If the forge refuses the tracking issue that an audit opens, the audit fails. |
 | PLT-012 | The restore cluster recovers from the source's archive with the source's image and storage size, and does not copy the source's backup settings. |
 | PLT-013 | If a source table with rows is empty or missing in the restore, restore verification reports a failure. |
+
+## Schedules
+
+| ID | Requirement |
+| --- | --- |
+| PLT-014 | The committed schedule file names only workflows that this worker registers. |
+| PLT-015 | When the worker starts, it creates each missing schedule and rewrites the spec and action of each existing one. |
+| PLT-016 | When the worker starts, it deletes a schedule that it created and the file no longer names, and leaves every other schedule. |
+| PLT-017 | When the worker starts, a schedule that an operator paused stays paused. |

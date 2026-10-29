@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 194 |
-| Review-enforced | 349 |
-| **Total** | **543** |
+| Review-enforced | 351 |
+| **Total** | **545** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -460,6 +460,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Workflow IDs encode business intent, not opaque UUIDs. | review |
 | Activity inputs and outputs stay in kilobytes. Larger payloads go through the bucket by reference. | review |
 | Periodic business-meaningful work uses a Temporal `Schedule`. `CronJob` is only for pure infrastructure. | review |
+| A service's schedules are a committed `schedules.yaml` in its workflows package. Its worker applies the file at every start, through `temporalmw.ReconcileSchedules`. No person, pipeline, or Job applies a schedule. | review |
+| A schedule names only a workflow that its own worker registers. A test checks the file against the worker's registrations. | review |
 | Temporal Cloud is not used. | review |
 
 ## ADR-0303: API Contracts, Codegen and Lifecycle

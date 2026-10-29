@@ -43,15 +43,19 @@ func run() error {
 	}
 	defer tc.Close()
 
+	schedules, err := temporalmw.ParseSchedules(workflows.ScheduleFile)
+	if err != nil {
+		return fmt.Errorf("schedules: %w", err)
+	}
+	err = temporalmw.ReconcileSchedules(ctx, tc.ScheduleClient(), serviceName, schedules)
+	if err != nil {
+		return fmt.Errorf("schedules: %w", err)
+	}
+
 	w := temporalmw.NewWorker(tc, serviceName+"-queue")
-	w.RegisterWorkflow(workflows.DisasterRecoveryDrill)
-	w.RegisterWorkflow(workflows.TriggerReview)
-	w.RegisterWorkflow(workflows.CardinalityAudit)
-	w.RegisterWorkflow(workflows.EraseSubject)
-	w.RegisterWorkflow(workflows.ExportSubject)
-	w.RegisterWorkflow(workflows.RetentionPass)
-	w.RegisterWorkflow(workflows.FunnelRollup)
-	w.RegisterWorkflow(workflows.RestoreVerification)
+	for _, wf := range workflows.All() {
+		w.RegisterWorkflow(wf)
+	}
 
 	acts := activities.New(slog.Default(), activities.ConfigFromEnv())
 	w.RegisterActivity(acts.OpenTrackingIssueActivity)

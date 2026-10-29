@@ -2,12 +2,24 @@
 package workflows
 
 import (
+	_ "embed"
 	"fmt"
 	"time"
 
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
+
+//go:embed schedules.yaml
+var ScheduleFile []byte
+
+// All is every workflow that this worker registers. A schedule may name only one of them.
+func All() []any {
+	return []any{
+		DisasterRecoveryDrill, TriggerReview, CardinalityAudit, EraseSubject, ExportSubject, RetentionPass,
+		FunnelRollup, RestoreVerification,
+	}
+}
 
 // How far back each funnel pass recomputes. Events arrive late, so a bucket is not final when its day ends. Three
 // days is longer than any likely delivery delay.
