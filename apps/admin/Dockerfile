@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
 # The build context is this directory, apps/admin. It does not use the repo-root .dockerignore of the Go service images, which excludes apps/.
 
-# Lowdefy 5 needs Node and pnpm, so this image is Node-based, unlike the Go and bun runtime images. It is one of the two Node exceptions that ADR-0100 allows, and the only one that ships as an image.
-# No repo runtime code is Node. Lowdefy is a third-party app, so upstream chooses the runtime. bun cannot replace it: the CLI stops unless pnpm is on PATH.
-# `lowdefy start` spawns `pnpm run start` → `next start`, whose bin is `#!/usr/bin/env node`. bun would need a node alias and pnpm anyway, an unsupported hack for no gain.
+# Lowdefy 5 needs Node and pnpm to build, so this image is Node-based, unlike the Go and bun runtime images. It is one of the two Node exceptions that ADR-0100 allows, and the only one that ships as an image.
+# No repo runtime code is Node. Lowdefy is a third-party app, so upstream chooses the runtime. bun cannot replace it at build: the CLI stops unless pnpm is on PATH.
+# The last stage runs the standalone server of Lowdefy's Next build, which upstream targets at Node.
 ARG NODE_VERSION=22
 ARG LOWDEFY_VERSION=5.4.0
 ARG PNPM_VERSION=10.18.2
@@ -40,24 +40,27 @@ RUN npm install -g lowdefy@${LOWDEFY_VERSION} \
   && npm pack "@lowdefy/server@${LOWDEFY_VERSION}" --pack-destination /tmp \
   && tar xzf "/tmp/lowdefy-server-${LOWDEFY_VERSION}.tgz" --strip-components=1 -C .lowdefy/server \
   && rm "/tmp/lowdefy-server-${LOWDEFY_VERSION}.tgz"
+# The server's dependencies before `COPY . .`, so a page change reuses this layer. `lowdefy build` then finds them and only checks them.
+# The store is a cache mount, so a new server version fetches only the packages that changed.
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store cd .lowdefy/server && pnpm install
 COPY . .
-RUN lowdefy build
+# Next's standalone output: a server.js with only the files it imports. The last stage then ships no CLI, no pnpm, and no full node_modules.
+ENV LOWDEFY_BUILD_OUTPUT_STANDALONE=1
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store lowdefy build
 
 FROM node:${NODE_VERSION}-alpine
-ARG LOWDEFY_VERSION
-ARG PNPM_VERSION
 # Build identity, per ADR-0103: the commit SHA as the standard OCI revision label, so the image reports what was built.
 # The frontend takes the same SERVICE_VERSION build arg, so one apps job builds both.
 ARG SERVICE_VERSION=dev
 LABEL org.opencontainers.image.revision="${SERVICE_VERSION}"
-# `lowdefy start` needs the CLI and pnpm on PATH at start, as in the build stage.
-RUN npm install -g pnpm@${PNPM_VERSION} lowdefy@${LOWDEFY_VERSION}
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
 # Run as the `node` user, uid 1000 in the base image, not root. The `restricted` level of the target namespace requires this, per ADR-0200.
-# `lowdefy start` writes into .lowdefy/ and .next/ at startup, so the tree belongs to `node`, with no dependence on world-writable defaults.
-# The copy creates /app with that owner. A WORKDIR before it would create /app as root.
-COPY --from=build --chown=node:node /app /app
+# The copies create /app with that owner. A WORKDIR before them would create /app as root.
+COPY --from=build --chown=node:node /app/.lowdefy/server/.next/standalone /app
+COPY --from=build --chown=node:node /app/.lowdefy/server/.next/static /app/.next/static
+COPY --from=build --chown=node:node /app/.lowdefy/server/public /app/public
 WORKDIR /app
 EXPOSE 3000
 USER node
-# `lowdefy start` serves the built app on :3000. The edge enforces auth, per ADR-0401, and this process trusts the forwarded X-User-Email header.
-CMD ["lowdefy", "start"]
+# The standalone server serves the built app on :3000. The edge enforces auth, per ADR-0401, and this process trusts the forwarded X-User-Email header.
+CMD ["node", "server.js"]
