@@ -73,9 +73,13 @@ func run(r *lint.Report) error {
 }
 
 // commitDate is the committer date of HEAD, so one commit gets the same verdict on every machine and on every day.
+// A repository with no commit yet, such as a project just generated, has no HEAD, so it uses today.
 func commitDate() (time.Time, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	if exec.CommandContext(ctx, "git", "rev-parse", "--verify", "--quiet", "HEAD").Run() != nil {
+		return time.Now().UTC().Truncate(24 * time.Hour), nil
+	}
 	out, err := exec.CommandContext(ctx, "git", "log", "-1", "--format=%cs", "HEAD").Output()
 	if err != nil {
 		return time.Time{}, fmt.Errorf("git log: %w", err)
