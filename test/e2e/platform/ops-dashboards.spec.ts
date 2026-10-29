@@ -35,9 +35,17 @@ for (const { tool, title } of TOOLS) {
       test.describe("renders behind AAL2", () => {
         test.use({ storageState: OPERATOR_STATE });
         test("paints at the subdomain root", async ({ page }) => {
+          // A SPA that never paints leaves an empty title. Its console errors and refused requests name the cause.
+          const problems: string[] = [];
+          page.on("console", (m) => m.type() === "error" && problems.push(m.text().slice(0, 300)));
+          page.on("response", (r) => r.status() >= 400 && problems.push(`${r.status()} ${r.url()}`));
           await page.goto(`${opsURL(tool)}/`);
           await expect(page).not.toHaveURL(/\/auth\/login/);
-          await expect(page).toHaveTitle(title, { timeout: 30_000 });
+          try {
+            await expect(page).toHaveTitle(title, { timeout: 30_000 });
+          } catch (error) {
+            throw new Error(`${(error as Error).message}\n${problems.join("\n")}`);
+          }
         });
       });
     }

@@ -1,5 +1,5 @@
 // Observability gauge, per ADR-0500.
-import { type APIRequestContext, expect, request, test } from "@playwright/test";
+import { type APIRequestContext, type APIResponse, expect, request, test } from "@playwright/test";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { portForward } from "../fixtures/kube";
 import {
@@ -84,6 +84,11 @@ test.describe("network policy denials", () => {
   });
 });
 
+// A refused proxy call names its status and the start of its body, so a red run shows the cause.
+async function expectProxyOk(res: APIResponse, what: string): Promise<void> {
+  expect(res.ok(), `${what}: ${res.status()} ${(await res.text()).slice(0, 200)}`).toBeTruthy();
+}
+
 // Guards the prerequisites that helm-template cannot check, per ADR-0501: dashboards registered, the Pyroscope datasource answering, alert rules loaded, and each metric family that a panel reads.
 // The RED check uses the stable otelhttp histogram, where `le="0.5"` is a real 500ms bucket, per ADR-0500.
 test.describe("service observability POC, ADR-0501", () => {
@@ -157,7 +162,7 @@ test.describe("service observability POC, ADR-0501", () => {
     const res = await ctx.get(
       `${opsURL("grafana")}/api/datasources/proxy/uid/${promUid}/api/v1/rules`,
     );
-    expect(res.ok(), "Prometheus rules API answers via the Grafana proxy").toBeTruthy();
+    await expectProxyOk(res, "Prometheus rules API answers via the Grafana proxy");
     const groups: { rules: { name: string }[] }[] = (await res.json()).data?.groups ?? [];
     const names = groups.flatMap((g) => g.rules.map((r) => r.name));
     expect(names, "committed alert rules are evaluating").toEqual(
@@ -188,7 +193,7 @@ test.describe("service observability POC, ADR-0501", () => {
           const res = await ctx.get(
             `${opsURL("grafana")}/api/datasources/proxy/uid/${uid}/loki/api/v1/label/service_name/values?start=${start}`,
           );
-          expect(res.ok(), "Loki label API answers via the Grafana proxy").toBeTruthy();
+          await expectProxyOk(res, "Loki label API answers via the Grafana proxy");
           const services = ((await res.json()).data ?? []) as string[];
           // Not otel-cluster: a healthy collector logs only at startup, and that can happen before the agent tails its file.
           return ["postgres", "temporal", "lowdefy", "observability"].filter((s) => !services.includes(s));
@@ -213,7 +218,7 @@ test.describe("service observability POC, ADR-0501", () => {
     const res = await ctx.get(
       `${opsURL("grafana")}/api/datasources/proxy/uid/${uid}/loki/api/v1/query_range?query=${query}&start=${start}&limit=5`,
     );
-    expect(res.ok(), "Loki query API answers via the Grafana proxy").toBeTruthy();
+    await expectProxyOk(res, "Loki query API answers via the Grafana proxy");
     const streams = (await res.json()).data?.result ?? [];
     expect(
       streams,

@@ -84,7 +84,7 @@ async function newestTo(
 ): Promise<SinkMessage | null> {
   const query = encodeURIComponent(`to:${address}`);
   const res = await request.get(`${opsURL("mailpit")}/api/v1/search?query=${query}`);
-  expect(res.status()).toBe(200);
+  expect(res.status(), (await res.text()).slice(0, 300)).toBe(200);
   const { messages } = (await res.json()) as { messages: SinkMessage[] };
   return (
     messages
