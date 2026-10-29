@@ -114,7 +114,9 @@ cat > /usr/local/sbin/runner-gc <<'GC'
 #!/bin/sh
 cutoff=\$(date -d '-3 hours' +%s)
 old() { [ "\$(date -d "\$(docker inspect -f '{{.Created}}' "\$1")" +%s)" -lt "\$cutoff" ]; }
+# A \`ci-keep-\` builder is the cache that ci:build-images keeps between jobs on purpose, and BuildKit's own GC bounds it.
 docker ps -a --filter name=buildx_buildkit_ --format '{{.Names}}' | while read -r c; do
+  case "\$c" in buildx_buildkit_ci-keep-*) continue ;; esac
   old "\$c" || continue
   docker rm -f "\$c" >/dev/null && docker volume rm "\${c}_state" >/dev/null 2>&1
 done
