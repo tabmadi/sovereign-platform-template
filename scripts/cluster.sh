@@ -13,7 +13,7 @@ require_tools docker kind kubectl helm
 # Every tier starts with this floor, and the tier adds to it.
 PRELUDE=(registry warm cluster cni coredns namespaces edge glue)
 STAGES_base=(postgres certs priority middlewares secrets ory identities)
-STAGES_full=(sopskey images argocd rootapp populatezot identities)
+STAGES_full=(kyverno sopskey images argocd rootapp populatezot identities)
 
 run_stages() {
   local stage
@@ -108,8 +108,15 @@ up)
   step "bringing up the ${TIER} tier as cluster '$(cluster_name)'"
   run_stages "${PRELUDE[@]}"
   case "$TIER" in
-  base) run_stages "${STAGES_base[@]}" && epilogue_base ;;
-  full) run_stages "${STAGES_full[@]}" && epilogue_full ;;
+  # Two statements, not `&&`: bash ignores set -e inside a command on the left of `&&`, so a failed stage would not stop the run.
+  base)
+    run_stages "${STAGES_base[@]}"
+    epilogue_base
+    ;;
+  full)
+    run_stages "${STAGES_full[@]}"
+    epilogue_full
+    ;;
   esac
   ;;
 

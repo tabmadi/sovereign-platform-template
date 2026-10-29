@@ -631,8 +631,8 @@ stage_images() {
       infra/gitops/services/local/values/frontend.yaml)"
 }
 
-# ArgoCD, which cannot sync itself into existence. The local platform ApplicationSet excludes it, so this release is authoritative.
-stage_argocd() {
+# Before any apply on a resumed tier. The sopskey stage is the first apply.
+stage_kyverno() {
   # Kyverno's webhook is failurePolicy: Fail, so every apply is rejected while the admission controller is not ready.
   # The check uses the deployment, not the namespace, because the namespaces stage creates the kyverno namespace early.
   if k -n kyverno get deploy kyverno-admission-controller >/dev/null 2>&1; then
@@ -646,7 +646,10 @@ stage_argocd() {
     }
     wait_for "a ready kyverno endpoint" 120 kyverno_endpoint_ready
   fi
+}
 
+# ArgoCD, which cannot sync itself into existence. The local platform ApplicationSet excludes it, so this release is authoritative.
+stage_argocd() {
   step "installing ArgoCD"
   chart_deps infra/helm/platform/argocd
   # Machine-local values that proxy:setup writes. They are absent on a direct network.
