@@ -14,6 +14,8 @@ on:
     inputs:
       profile:
         description: "smoke, load, or stress"
+        type: choice
+        options: [smoke, load, stress]
         default: "load"
 
 concurrency:

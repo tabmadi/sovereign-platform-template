@@ -13,6 +13,8 @@ on:
     inputs:
       suite:
         description: "full or smoke"
+        type: choice
+        options: [full, smoke]
         default: "full"
 
 concurrency:
