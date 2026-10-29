@@ -639,6 +639,10 @@ run = "bash scripts/ci-preview.sh"
 description = "Reconcile the committed branch protection and required checks into the forge, per ADR-0102."
 run = "bash scripts/forge-apply.sh"
 
+[tasks."forge:ci-user"]
+description = "Create or refresh the `ci` machine user, per ADR-0102: write access, a new PROMOTE_TOKEN secret, and branch protection. A rerun rotates the token."
+run = "bash scripts/forge-ci-user.sh"
+
 [tasks."ci:gen"]
 description = "The one definition behind ci.yml's drift job and the lefthook gen-drift hook. Run it locally to repeat that CI job exactly."
 run = "bash scripts/ci-gen.sh"
