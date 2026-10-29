@@ -12,8 +12,9 @@ branch="deploy/prod-${ver}"
 title="chore(deploy): promote ${ver} to prod"
 
 git diff --quiet -- infra/gitops && fail "promote:prod changed no values file"
-git config user.name "${GITHUB_ACTOR:-ci}"
-git config user.email "${GITHUB_ACTOR:-ci}@noreply.${GITHUB_SERVER_URL#*://}"
+# shellcheck source=lib/ci-git.sh
+source "$LIB/ci-git.sh"
+ci_git_identity
 git switch -q -c "$branch"
 git add infra/gitops
 git commit -q -m "$title"

@@ -12,8 +12,9 @@ if git diff --quiet -- infra/gitops; then
   exit 0
 fi
 
-git config user.name "${GITHUB_ACTOR:-ci}"
-git config user.email "${GITHUB_ACTOR:-ci}@noreply.${GITHUB_SERVER_URL#*://}"
+# shellcheck source=lib/ci-git.sh
+source "$LIB/ci-git.sh"
+ci_git_identity
 git add infra/gitops
 # PROMOTE_TOKEN is a user token, so its push starts workflows. A values-only commit has nothing for them to check.
 git commit -q -m "chore(deploy): promote ${sha:0:12} [skip ci]"
