@@ -8,6 +8,9 @@ const SESSION_COOKIE = "ory_kratos_session";
 // `/analytics` is here only for the session part. The route group does the authoritative check itself, per ADR-0700, and a redirect is a better first experience than a 403.
 const PROTECTED = ["/panel", "/devportal", "/analytics"];
 
+// The matcher does not exclude these, so a file under a protected path keeps the session gate.
+const PUBLIC_FILE = /\.[a-zA-Z0-9]+$/;
+
 // A Kratos browser flow cannot start on our side: Kratos sets its CSRF cookie and returns a flow id.
 // The redirect is issued here and not from the page, because this measurably improves LCP, per ADR-0400.
 // The path segment is not always the flow name: /auth/register starts `registration`.
@@ -157,7 +160,7 @@ function requestHeadersWithNonce(req: NextRequest, nonce: string, csp: string): 
 
 /**
  * The `[locale]` segment is always present internally. So an unprefixed request is rewritten to the negotiated locale, and the address bar keeps the clean URL.
- * A prefixed request already matches and needs no rewrite.
+ * A prefixed request already matches and needs no rewrite. A path with a file extension is a file of `public`, and a rewrite would answer it with a page.
  */
 function localeRewriteTarget(
   req: NextRequest,
@@ -165,7 +168,7 @@ function localeRewriteTarget(
   locale: Locale,
   path: string,
 ): URL | null {
-  if (prefix !== null) {
+  if (prefix !== null || PUBLIC_FILE.test(path)) {
     return null;
   }
   const rewritten = req.nextUrl.clone();
