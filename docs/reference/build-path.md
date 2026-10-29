@@ -141,6 +141,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint:thin-workflows` | ADR-0102: workflow YAML checks out, sets up the toolchain, and calls a mise task. | .lefthook.yml, ci.yml |
 | `lint:tool-register` | The four register Rules of ADR-0002: every Tier 1 or Tier 2 row names an owning ADR that exists, and that ADR has the comparison its tier needs. A Tier 1 row names a runner-up. | .lefthook.yml, ci.yml |
 | `lint:ts` | TypeScript, JSON, and CSS: biome lint and format, with warnings as errors, per ADR-0100. | .lefthook.yml, ci.yml |
+| `lint:workarounds` | ADR-0001: every workaround matches the version its file pins, or was checked in the last twelve months. | .lefthook.yml, ci.yml |
 | `lint:workspace-copies` | A TS workspace member that the frontend image build does not copy fails `bun install` with `Workspace not found`. This happens only at image build, which on the full tier is minutes into a cluster start. | .lefthook.yml, ci.yml |
 | `mock:start` | The API mock for UI work, per ADR-0600. Prism serves the committed `internal.json` projection behind the real edge and its real middleware chain. | lighthouse.yml |
 | `perf` | The steady baseline: nightly and before a release. | perf.yml |

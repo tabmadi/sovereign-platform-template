@@ -323,6 +323,32 @@ An exported identifier gets a doc comment only when the comment states a fact th
 
 **No comment count is enforced.** A count or density limit cannot tell a grounded comment from a weak one. To meet it, an author deletes the newest comment, not the weakest. Deleting code also raises the density. The rules above judge each comment on its own grounds, and a linter names the one that fails.
 
+### Workarounds
+
+A workaround is code or configuration that exists only because a third-party component or an external service misbehaves. It is correct while that behaviour lasts. A later release or a changed service makes it dead weight, and nothing in the code shows when. Every generated project inherits it, and there it reads as a rule.
+
+So every workaround carries a marker that a gate checks. The marker opens the sentence that states the behaviour, on the first survivor ground above. It has one of two forms:
+
+| Form | For | Example |
+| --- | --- | --- |
+| `Workaround for <name> <version> in <path>: <behaviour>. Retest: <check>.` | a component that the repository pins | `Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4. Retest: drop continue-on-error and upload a report.` |
+| `Workaround for <name>, checked <YYYY-MM>: <behaviour>. Retest: <check>.` | an external service that no file in the repository pins | `Workaround for mirror.gcr.io, checked 2026-09: it stalls for minutes from some networks. Retest: pull through it first.` |
+
+`lint:workarounds` reads every marker. For a pinned component, the named file holds the version. It is on the line that names the component, or on one of the next four lines. A bump changes the pin, so the bump's pull request fails the gate, per [ADR-0106](0106-dependency-updates.md). The author runs the retest. Then the author removes the workaround, or moves the marker to the new version.
+
+For an external service, the gate fails when the check date is more than twelve months before the commit date. The commit date, not the clock, keeps one commit's verdict the same on every machine. Twelve months is the threshold: a public service changes in that time, and a shorter window makes the retest a routine that nobody reads.
+
+The marker is the one comment that states a release version or a date. The gate compares it with the pin or with the commit date, so it cannot go stale without a red build. The retest names what shows that the behaviour is gone: a command, a test, or the symptom to look for. A workaround with no retest is never removed, because nobody can show that it is safe to remove.
+
+Four kinds of change look like a workaround and are not. They carry no marker:
+
+- a fix to this platform's own code
+- a rule that an ADR decides
+- a value sized for a measured load, per [ADR-0204](0204-resource-management.md)
+- a form that is correct on every release, such as reading a tool's JSON output instead of its human report
+
+A setting that one environment needs is not a default. A slow host, a NAT that cannot hairpin, or a small runner is a fact of that environment. The setting lives in that environment's values file, or behind a chart option that is off by default.
+
 ### Template docs are final-state facts
 
 **Scope: the `docs/` of this template repository only.** A project generated from it is a living system. There, ADR history, `Supersedes` and `Amends`, `Proposed → Accepted`, and real dates are correct.
@@ -425,3 +451,8 @@ The named mechanism is one the ADR set decides on. A task or policy that no deci
 - Commented-out code, changelog, author, or date comments, and decorative banners are not committed. `(CI: lint:comments)`
 - A `TODO` cites an issue or an ADR. `(CI: lint:comments)`
 - A comment that exists to explain confusing code is a defect. The code is rewritten.
+- A workaround for a third-party component or an external service states the behaviour in a sentence that opens with a marker: `Workaround for <name> <version> in <path>:` or `Workaround for <name>, checked <YYYY-MM>:`. The comment names a `Retest:`. `(CI: lint:workarounds)`
+- A pinned workaround names the version that its file pins. A bump of the pin fails the gate until the author runs the retest and removes the workaround or updates the marker. `(CI: lint:workarounds)`
+- An external-service workaround is checked again within twelve months of its check date, measured against the commit date. `(CI: lint:workarounds)`
+- Four kinds of change carry no marker: a fix to the platform's own code, a decided rule, a measured sizing, and a form correct on every release.
+- A setting that only one environment needs lives in that environment's values, or behind a chart option that is off by default. It is never a default.

@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 191 |
-| Review-enforced | 347 |
-| **Total** | **538** |
+| Machine-enforced | 194 |
+| Review-enforced | 349 |
+| **Total** | **543** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -89,6 +89,11 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Commented-out code, changelog, author, or date comments, and decorative banners are not committed. | `lint:comments` in CI |
 | A `TODO` cites an issue or an ADR. | `lint:comments` in CI |
 | A comment that exists to explain confusing code is a defect. The code is rewritten. | review |
+| A workaround for a third-party component or an external service states the behaviour in a sentence that opens with a marker: `Workaround for <name> <version> in <path>:` or `Workaround for <name>, checked <YYYY-MM>:`. The comment names a `Retest:`. | `lint:workarounds` in CI |
+| A pinned workaround names the version that its file pins. A bump of the pin fails the gate until the author runs the retest and removes the workaround or updates the marker. | `lint:workarounds` in CI |
+| An external-service workaround is checked again within twelve months of its check date, measured against the commit date. | `lint:workarounds` in CI |
+| Four kinds of change carry no marker: a fix to the platform's own code, a decided rule, a measured sizing, and a form correct on every release. | review |
+| A setting that only one environment needs lives in that environment's values, or behind a chart option that is off by default. It is never a default. | review |
 
 ## ADR-0002: Tool Adoption and Comparison Requirement
 
