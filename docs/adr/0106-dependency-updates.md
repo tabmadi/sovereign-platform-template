@@ -98,6 +98,14 @@ A generated project tracks this repository through the Copier answers file, and 
 
 **The rename runs at every update, not only at generation.** An update renders the old template and the new template, and it merges the difference into the project. Both renders carry the project's names. So the merge sees only what the template changed, and a reworded line that holds a name does not conflict.
 
+### A project keeps the files of its setup modes
+
+Some files fit one setup of a project and not another. The workflows' `permissions` blocks fit GitHub, and Forgejo ignores them with a warning. The hypervisor scripts fit a project that runs its own hardware. A template that ships only one setup leaves every other project to write the rest. A template that ships every setup leaves each project with files that do not apply to it.
+
+So each setup is a **mode**, and each mode is a Copier answer. The template carries the files of every mode. A templated `_exclude` line keeps a mode's paths out of the render of a project that did not choose it. `project:init` reads the same lines, so both adoption paths drop the same files. A mode that changes files in place is a script. It runs at generation and at every update, like the rename. The forge mode is one: it edits the workflows. [`docs/reference/modes.md`](../reference/modes.md) lists the modes.
+
+An exclusion is the mechanism, not a deletion. It stops a render, so an update deletes only a file that came from the template unchanged. A task that deletes files would also delete a file the project wrote at the same path.
+
 **Renovate updates the template pin.** The Copier answers file records the commit of the template. That makes it a dependency like any other. So the same weekly mechanism proposes the template bump, and the same gates judge it.
 
 ## Consequences
@@ -126,5 +134,7 @@ A generated project tracks this repository through the Copier answers file, and 
 - A CVE that Trivy gates on and that has a fixed version available is proposed at once, outside the batch. `(CI: ci:scan)`
 - A generated project tracks this template through the Copier answers file and updates by 3-way merge. The template makes no compatibility promise, and the project resolves each conflict.
 - The rename runs at generation and at every update. Both renders of an update carry the project's names.
+- A file that fits only one setup belongs to a mode. A mode is a Copier answer, and its paths are templated `_exclude` lines that `project:init` also reads. `(CI: test:template)`
+- A mode never deletes a file in a Copier task. A mode that edits files in place runs its script at generation and at every update.
 - A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name does not match its module path has not been renamed. `(CI: lint:project-identity)`
 - Copier and Renovate are pinned in `.mise.toml` like every other tool. Neither runs inside a cluster workload. `(CI: lint:node-scope)`

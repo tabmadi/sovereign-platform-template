@@ -57,7 +57,24 @@ OLD_REGISTRY="ghcr.io/tabmadi/sovereign-platform-template"
 OLD_APEX="example.com"
 OLD_NODE="example-dev-cp"
 MACHINERY=(copier.yml .copier-answers.yml.jinja .template-version scripts/project-rename.sh scripts/project-init.sh
-  scripts/template-tasks.toml .github/workflows/template.yml scripts/test-template.sh scripts/acceptance.sh test/template)
+  scripts/forge-mode.sh scripts/template-tasks.toml .github/workflows/template.yml scripts/test-template.sh scripts/acceptance.sh test/template)
+
+# The mode exclusions of copier.yml, one `answer|value|path` line each. A path stays only where the answer is the value.
+MODE_RULES="$(sed -nE "s/^ *- \"\{% if ([a-z_]+) != '([a-z]+)' %\}([^{]+)\{% endif %\}\"\$/\1|\2|\3/p" copier.yml)"
+
+# Echoes one problem for each mode file that the answers in fixture $2 keep out of project $1 or let in.
+mode_problems() {
+  local out="$1" fixture="$2" key value path chosen
+  while IFS='|' read -r key value path; do
+    chosen="$(awk -v k="$key" '$1 == k":" {print $2}' "$fixture")"
+    chosen="${chosen:-$(awk -v k="$key" '$1 == k":" {f=1} f && $1 == "default:" {print $2; exit}' copier.yml)}"
+    if [ "$chosen" = "$value" ] && [ ! -e "$out/$path" ]; then echo "${path} is missing for ${key} ${value}"; fi
+    if [ "$chosen" != "$value" ] && [ -e "$out/$path" ]; then echo "${path} is present for ${key} ${chosen}"; fi
+  done <<<"$MODE_RULES"
+  if grep -q '^forge: forgejo' "$fixture" && grep -lq '^ *permissions:' "$out"/.github/workflows/*.yml; then
+    echo "a workflow keeps a permissions block on forgejo"
+  fi
+}
 
 step "generating valid fixtures"
 for fixture in "$FIXTURES"/valid/*.yml; do
@@ -87,6 +104,9 @@ for fixture in "$FIXTURES"/valid/*.yml; do
   # The pin is the whole interface to `copier update`.
   [ -f "$out/.copier-answers.yml" ] || problems+=("no .copier-answers.yml")
   grep -q "^_commit:" "$out/.copier-answers.yml" 2>/dev/null || problems+=("no _commit in .copier-answers.yml")
+  while IFS= read -r problem; do
+    if [ -n "$problem" ]; then problems+=("$problem"); fi
+  done < <(mode_problems "$out" "$fixture")
 
   if [ "${#problems[@]}" -eq 0 ]; then
     detail "${name}: clean"
@@ -98,37 +118,43 @@ for fixture in "$FIXTURES"/valid/*.yml; do
 done
 
 # Only `_src_path` can differ: Copier records the local directory it generated from, and `project:init` writes the canonical remote.
+# Once with the default modes, and once with every non-default mode, so both paths drop the same files.
 step "comparing the two adoption paths"
-PATH_B="$WORK/valid-defaults"
-PATH_A="$WORK/path-a"
-mkdir -p "$PATH_A"
-git -C "$SRC" archive HEAD | tar -x -C "$PATH_A"
-echo "$SRC_REF" >"$PATH_A/.template-version"
-(
-  cd "$PATH_A"
-  git init -q .
-  git remote add origin "git@github.com:acme/acmeplat.git"
-  bash scripts/project-init.sh "Acme Platform" acmeplat github.com/acme/acmeplat \
-    acmeplat.example ghcr.io/acme/acmeplat
-) >"$WORK/path-a.log" 2>&1 || {
-  warn "✗ project:init failed: $(tail -3 "$WORK/path-a.log" | tr '\n' ' ')"
-  FAILED=1
-}
-
-if [ -d "$PATH_B" ]; then
-  differences="$(diff -rq --exclude=.git "$PATH_B" "$PATH_A" 2>&1 |
+compare_paths() {
+  local name="$1" path_b="$WORK/valid-$1" path_a="$WORK/path-a-$1"
+  shift
+  mkdir -p "$path_a"
+  git -C "$SRC" archive HEAD | tar -x -C "$path_a"
+  echo "$SRC_REF" >"$path_a/.template-version"
+  (
+    cd "$path_a"
+    git init -q .
+    git remote add origin "git@github.com:acme/acmeplat.git"
+    bash scripts/project-init.sh "Acme Platform" acmeplat github.com/acme/acmeplat \
+      acmeplat.example ghcr.io/acme/acmeplat "$@"
+  ) >"$WORK/path-a-$name.log" 2>&1 || {
+    warn "✗ project:init failed for ${name}: $(tail -3 "$WORK/path-a-$name.log" | tr '\n' ' ')"
+    FAILED=1
+    return
+  }
+  [ -d "$path_b" ] || return
+  local differences answers_diff
+  differences="$(diff -rq --exclude=.git "$path_b" "$path_a" 2>&1 |
     grep -v '\.copier-answers\.yml differ$' || true)"
-  answers_diff="$(diff "$PATH_B/.copier-answers.yml" "$PATH_A/.copier-answers.yml" 2>/dev/null |
+  answers_diff="$(diff "$path_b/.copier-answers.yml" "$path_a/.copier-answers.yml" 2>/dev/null |
     grep -E '^[<>]' | grep -vE '^[<>] _src_path:' || true)"
   if [ -n "$differences" ] || [ -n "$answers_diff" ]; then
-    warn "✗ the two paths diverge, so the merge baseline of copier update would be wrong:"
+    warn "✗ the two paths diverge for ${name}, so the merge baseline of copier update would be wrong:"
     [ -n "$differences" ] && printf '      %s\n' "$differences" >&2
     [ -n "$answers_diff" ] && printf '      %s\n' "$answers_diff" >&2
     FAILED=1
   else
-    detail "identical but for _src_path"
+    detail "${name}: identical but for _src_path"
   fi
-fi
+}
+compare_paths defaults
+compare_paths own-hardware --forge forgejo --provisioning hypervisor
+PATH_B="$WORK/valid-defaults"
 
 # The rename runs at an update too, so a new template line that carries the template's names merges with no conflict.
 # This step commits to the snapshot, so it runs after every step that reads the first commit.

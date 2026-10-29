@@ -9,12 +9,24 @@ TEMPLATE_SRC="https://github.com/tabmadi/sovereign-platform-template.git"
 VERSION_FILE=".template-version"
 
 ref=""
+forge="github"
+provisioning="terraform"
 args=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
   --ref)
     [ "$#" -ge 2 ] || fail "--ref needs a value"
     ref="$2"
+    shift 2
+    ;;
+  --forge)
+    [ "$#" -ge 2 ] || fail "--forge needs a value"
+    forge="$2"
+    shift 2
+    ;;
+  --provisioning)
+    [ "$#" -ge 2 ] || fail "--provisioning needs a value"
+    provisioning="$2"
     shift 2
     ;;
   *)
@@ -25,9 +37,13 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ "${#args[@]}" -eq 5 ] ||
-  fail "usage: project-init.sh <project-name> <slug> <module-path> <apex-host> <image-registry> [--ref <template-ref>]"
+  fail "usage: project-init.sh <project-name> <slug> <module-path> <apex-host> <image-registry> [--ref <template-ref>] [--forge <forge>] [--provisioning <mode>]"
 project_name="${args[0]}" slug="${args[1]}" module="${args[2]}" apex="${args[3]}" registry="${args[4]}"
 
+# The choices that copier.yml offers. A typo would otherwise exclude nothing and keep every mode.
+[[ "$forge" =~ ^(github|forgejo)$ ]] || fail "--forge is github or forgejo: ${forge}"
+[[ "$provisioning" =~ ^(terraform|provided|hypervisor)$ ]] ||
+  fail "--provisioning is terraform, provided, or hypervisor: ${provisioning}"
 [ -f .copier-answers.yml ] &&
   fail "this project is already initialised: .copier-answers.yml exists"
 
@@ -72,16 +88,30 @@ cat >.copier-answers.yml <<EOF
 _commit: ${commit}
 _src_path: ${TEMPLATE_SRC}
 apex_host: ${apex}
+forge: ${forge}
 image_registry: ${registry}
 module_path: ${module}
 project_name: ${project_name}
 project_slug: ${slug}
+provisioning: ${provisioning}
 EOF
 detail "wrote .copier-answers.yml"
 
+# Copier's mode exclusions, read from copier.yml, so both paths drop the same files.
+# Each line has the form `{% if <answer> != '<value>' %}<path>{% endif %}`.
+declare -A answer=([forge]="$forge" [provisioning]="$provisioning")
+while IFS='|' read -r key value path; do
+  if [ "${answer[$key]}" != "$value" ]; then
+    rm -rf -- "$path"
+    detail "excluded ${path}, a file of ${key} ${value}"
+  fi
+done < <(sed -nE "s/^ *- \"\{% if ([a-z_]+) != '([a-z]+)' %\}([^{]+)\{% endif %\}\"\$/\1|\2|\3/p" copier.yml)
+
+bash scripts/forge-mode.sh "$forge"
+
 # What Copier's `_exclude` drops at render time, and the two scripts that run once.
 # This script goes last: bash can safely unlink a file it runs, but not rewrite it in place. Nothing can follow these two lines.
-rm -f copier.yml .copier-answers.yml.jinja "$VERSION_FILE" scripts/project-rename.sh \
+rm -f copier.yml .copier-answers.yml.jinja "$VERSION_FILE" scripts/project-rename.sh scripts/forge-mode.sh \
   scripts/template-tasks.toml .github/workflows/template.yml scripts/test-template.sh scripts/acceptance.sh
 rm -rf test/template
 ok "initialised ${project_name}. Run 'mise run gen' and 'mise run check' before the first commit"

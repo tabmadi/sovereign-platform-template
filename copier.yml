@@ -30,6 +30,12 @@ _exclude:
   - "scripts/test-template.sh"
   - "scripts/acceptance.sh"
   - "test/template"
+  # The files of a setup mode the project did not choose, per ADR-0106 and docs/reference/modes.md.
+  # An exclusion stops a render. It never deletes a file the project wrote. project-init.sh reads these lines.
+  - "{% if forge != 'forgejo' %}infra/runner{% endif %}"
+  - "{% if forge != 'forgejo' %}infra/forge-host{% endif %}"
+  - "{% if provisioning != 'hypervisor' %}infra/hypervisor{% endif %}"
+  - "{% if provisioning != 'terraform' %}infra/terraform{% endif %}"
 
 _tasks:
   # At generation and at every update. An update renders the old template, the new template, and the project itself.
@@ -38,7 +44,8 @@ _tasks:
   - command: "[ ! -f scripts/project-rename.sh ] || bash scripts/project-rename.sh {{ project_slug }} {{ module_path }} {{ apex_host }} {{ image_registry }}"
   # A product repository does not keep the script, because it can still rename the chosen name later.
   # The removal keeps this output identical to the output of `project:init`. The 3-way baseline of `copier update` depends on that.
-  - command: "rm -f scripts/project-rename.sh"
+  - command: "[ ! -f scripts/forge-mode.sh ] || bash scripts/forge-mode.sh {{ forge }}"
+  - command: "rm -f scripts/project-rename.sh scripts/forge-mode.sh"
 
 project_name:
   type: str
@@ -72,3 +79,15 @@ image_registry:
   type: str
   help: "The registry namespace for published images, per ADR-0105"
   default: "ghcr.io/acme/{{ project_slug }}"
+
+forge:
+  type: str
+  help: "Where the pipelines run, per ADR-0102. github is the provider-hosted start. forgejo is the project's own forge"
+  choices: [github, forgejo]
+  default: github
+
+provisioning:
+  type: str
+  help: "How the nodes come to exist, per ADR-0200. terraform on a provider, provided when the machines are given, hypervisor when the project runs its own"
+  choices: [terraform, provided, hypervisor]
+  default: terraform
