@@ -78,7 +78,8 @@ jobs:
 
       - name: Upload the Lighthouse report
         if: always()
-        # A report is a diagnostic. Forgejo's artifact service refuses v4, and that must not fail a passing run.
+        # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4.
+        # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:

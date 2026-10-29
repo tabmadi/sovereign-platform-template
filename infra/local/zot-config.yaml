@@ -42,8 +42,9 @@ extensions:
     # forge. So a warm that pulls 50 images can use up a limit that it did not spend itself.
     credentialsFile: /etc/zot/sync-creds.json
     registries:
-      # Hub first, then mirror.gcr.io, Google's unthrottled cache of Hub. zot tries the next URL when Hub answers 429. From
-      # some networks, mirror.gcr.io stalls for minutes before it fails, so it cannot come first.
+      # Hub first, then mirror.gcr.io, Google's unthrottled cache of Hub. zot tries the next URL when Hub answers 429.
+      # Workaround for mirror.gcr.io, checked 2026-09: from some networks it stalls for minutes before it fails, so it cannot
+      # come first. Retest: put it first and time a cold warm of the mirror.
       - urls: ["https://registry-1.docker.io", "https://mirror.gcr.io"]
         onDemand: true
         tlsVerify: true
