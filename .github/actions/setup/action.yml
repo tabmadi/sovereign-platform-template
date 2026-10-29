@@ -13,22 +13,23 @@ inputs:
 runs:
   using: composite
   steps:
+    # One key for ci.yml's test and build jobs, so they share one cache entry of the same compiled packages.
+    # Before mise: its `go:` tools write read-only files into ~/go/pkg/mod, and a restore over them fails with `File exists`.
+    # A self-hosted runner keeps both paths in its home, so only a hosted machine restores them.
+    - if: inputs.go-cache == 'true' && runner.environment == 'github-hosted'
+      uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+
     # mise reads every other pin in the repo. An unpinned mise lets a cold runner fail on a commit that changed nothing.
     # Renovate's custom manager in .github/renovate.json bumps it, through the marker comment.
-    - uses: jdx/mise-action@v2
+    - uses: jdx/mise-action@v5
       with:
         # renovate: datasource=github-releases depName=jdx/mise
         version: 2026.8.5
         install: true
         # A self-hosted runner keeps its tools in the runner's home between jobs. Only a fresh hosted machine needs the cache.
         cache: ${{ runner.environment == 'github-hosted' }}
-
-    # One key for ci.yml's test and build jobs, so they share one cache entry of the same compiled packages.
-    # A self-hosted runner keeps both paths in its home. A restore there fails on the read-only module files that are already present.
-    - if: inputs.go-cache == 'true' && runner.environment == 'github-hosted'
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
