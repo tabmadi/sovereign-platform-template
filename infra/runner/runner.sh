@@ -36,6 +36,8 @@ systemctl enable --now docker >/dev/null
 # kind runs a kubelet in each node container. Each one holds inotify instances, and the Debian default runs out.
 printf 'fs.inotify.max_user_watches = 524288\nfs.inotify.max_user_instances = 512\n' >/etc/sysctl.d/90-kind.conf
 sysctl -q --system
+# Every checkout runs $(git init), which prints a hint on each job while git has no default branch name.
+git config --system init.defaultBranch master
 if ! /usr/local/bin/forgejo-runner --version 2>/dev/null | grep -q "${RUNNER_VERSION}"; then
   curl -fsSL -o /tmp/fr \
     "https://code.forgejo.org/forgejo/runner/releases/download/v${RUNNER_VERSION}/forgejo-runner-${RUNNER_VERSION}-linux-amd64"
