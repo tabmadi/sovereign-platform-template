@@ -94,6 +94,14 @@
         "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>\\S+)\\s+version:\\s*(?<currentValue>\\S+)"
       ],
       "extractVersionTemplate": "^v(?<version>.+)$"
+    },
+    {
+      "description": "The forge and runner kits pin the release they install on a machine, per ADR-0102. A marker comment above each pin names its image, so the release moves with the same weekly batch as the chart that pins the same Forgejo.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^infra/(forge-host|runner)/[^/]+\\.env$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>\\S+)\\s+[A-Z_]+=(?<currentValue>\\S+)"
+      ]
     }
   ],
   "vulnerabilityAlerts": {
