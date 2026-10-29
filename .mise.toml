@@ -66,6 +66,8 @@ jq = "1.8.1"
 
 # Authorization: OpenFGA model validation and ops-grant tuple writes.
 "github:openfga/cli" = "0.7.13"
+# Temporal Schedules, per ADR-0302. temporal:schedules applies them. The version follows the CLI in the admintools image of infra/helm/platform/temporal.
+"aqua:temporalio/cli" = "1.7.2"
 
 lefthook = "2.1.9"
 cocogitto = "7.0.0"

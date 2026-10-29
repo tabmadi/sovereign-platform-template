@@ -26,13 +26,13 @@ for i in $(seq 0 $((count - 1))); do
 
   if temporal schedule describe --schedule-id "$id" --address "$ADDRESS" --namespace "$NAMESPACE" >/dev/null 2>&1; then
     temporal schedule update --schedule-id "$id" --address "$ADDRESS" --namespace "$NAMESPACE" \
-      --workflow-type "$workflow" --task-queue "$queue" --cron "$cron" \
+      --type "$workflow" --task-queue "$queue" --cron "$cron" \
       "${args[@]+"${args[@]}"}" \
       --workflow-id "${id}-run" >/dev/null
     detail "updated ${id}"
   else
     temporal schedule create --schedule-id "$id" --address "$ADDRESS" --namespace "$NAMESPACE" \
-      --workflow-type "$workflow" --task-queue "$queue" --cron "$cron" \
+      --type "$workflow" --task-queue "$queue" --cron "$cron" \
       "${args[@]+"${args[@]}"}" \
       --workflow-id "${id}-run" >/dev/null
     detail "created ${id}"
