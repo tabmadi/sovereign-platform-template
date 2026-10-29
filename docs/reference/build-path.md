@@ -79,7 +79,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `dns:apply` | Make the provider's zones match infra/dns/dnsconfig.js, per ADR-0206. It deletes the records that the file does not declare. | dns.yml |
 | `dns:check` | Report how the provider's zones differ from infra/dns/dnsconfig.js, per ADR-0206. It changes nothing. | dns.yml |
 | `e2e` | The full browser suite against a running full tier: acceptance, visual, and accessibility, per ADR-0601. | e2e.yml |
-| `e2e:install` | The e2e island's Node dependencies and its browser, per ADR-0601. | e2e.yml, lighthouse.yml, preview.yml |
+| `e2e:install` | The e2e island's Node dependencies and its browser, per ADR-0601. | e2e.yml, lighthouse.yml, preview.yml, publish.yml |
 | `e2e:smoke` | The @smoke subset of the browser suite, for a labelled pull request, per ADR-0601. | e2e.yml, preview.yml |
 | `gen:admin` | Scaffold the Lowdefy admin pages from the OpenAPI specs, per ADR-0401. | .lefthook.yml |
 | `gen:adr-rules` | Two documents are views over the Rules sections of the ADR set: the rules index and the security baseline, per ADR-0203. | .lefthook.yml |
@@ -91,9 +91,9 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `gen:shared-components` | Writes the canonical error envelope, money, and timestamp components from tools/codegen/shared-components.yaml into every spec, per ADR-0303. | .lefthook.yml |
 | `gen:sqlc` | The typed Go database access, generated from each service's queries, per ADR-0300. | .lefthook.yml |
 | `gen:zod` | The runtime validation schemas for the TypeScript apps, generated from the OpenAPI specs, per ADR-0303. | .lefthook.yml |
-| `lighthouse` | Web vitals and the bundle budget for each route, as merge gates, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile. | lighthouse.yml |
-| `lighthouse:down` | Remove the containers and the network of `lighthouse:up`. | lighthouse.yml |
-| `lighthouse:up` | The Lighthouse origin without a cluster, per ADR-0400: the production frontend image, the API mock, a Kratos stub, and Traefik, on port 8444. | lighthouse.yml |
+| `lighthouse` | Web vitals and the bundle budget for each route, as merge gates, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile. | lighthouse.yml, publish.yml |
+| `lighthouse:down` | Remove the containers and the network of `lighthouse:up`. | lighthouse.yml, publish.yml |
+| `lighthouse:up` | The Lighthouse origin without a cluster, per ADR-0400: the production frontend image, the API mock, a Kratos stub, and Traefik, on port 8444. | lighthouse.yml, publish.yml |
 | `lint:activity-register` | The Temporal registration gate, per ADR-0302: every activity that a workflow names as a string is registered on its service's worker. | .lefthook.yml, ci.yml |
 | `lint:adr-xref` | The internal links of the ADR set. References resolve, and Related names documents that exist. Every ADR has a Decides line and an index row. The two adoption documents name the same components. | .lefthook.yml, ci.yml |
 | `lint:alert-severity` | The alert-severity gate, per ADR-0502. | .lefthook.yml, ci.yml |

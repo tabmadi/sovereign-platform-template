@@ -6,21 +6,7 @@ name: lighthouse
 on:
   pull_request:
     branches: [master]
-  # On master the run gates nothing, because the change is already merged. So it runs only for a change that can move a measured number.
-  push:
-    branches: [master]
-    paths:
-      - "apps/frontend/**"
-      - "test/e2e/lighthouse*"
-      - "test/e2e/lighthouse/**"
-      - "test/e2e/package*.json"
-      - "scripts/lighthouse-stack.sh"
-      - "libs/ts/**"
-      - "package.json"
-      - "bun.lock"
-      - ".mise.toml"
-      - ".github/actions/**"
-      - ".github/workflows/lighthouse.yml"
+  # On master the run gates nothing, so publish.yml measures it after the promotion, and a change reaches dev first.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
