@@ -96,7 +96,8 @@ var assignmentish = regexp.MustCompile(`^\s*[\w.\[\]]+(\s*(?::?=|\+=)|\()[^)]*[)
 // directive matches a comment a tool reads. Excluded before any rule runs: deleting one changes behaviour.
 var directive = regexp.MustCompile(
 	`(?i)^\s*(shellcheck\s|renovate:|yaml-language-server:|SPDX-|nolint:|eslint-|biome-ignore|ts-|prettier-|` +
-		`sqlc:|go:generate|go:build|\+build|noqa|type:\s|platform/not-deployed|name:\s\w+\s:|migrate:|/\s*<reference\s)`,
+		`sqlc:|go:generate|go:build|go:embed|\+build|noqa|type:\s|platform/not-deployed|` +
+		`name:\s\w+\s:|migrate:|/\s*<reference\s)`,
 )
 
 // exported matches a Go or TypeScript declaration of an exported identifier, and
