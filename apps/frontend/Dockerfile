@@ -3,7 +3,7 @@
 # Next's standalone output officially targets Node, but Bun runs it, and without Node the platform has one runtime, per ADR-0000 §"one way to do things".
 ARG BUN_VERSION=1.4.2
 
-FROM oven/bun:${BUN_VERSION}-alpine AS deps
+FROM oven/bun:${BUN_VERSION}-alpine AS build
 WORKDIR /app
 COPY package.json bun.lock ./
 # Every workspace member's manifest, because `bun install` resolves the workspace list before it installs anything.
@@ -19,14 +19,8 @@ COPY libs/ts/schemas/package.json libs/ts/schemas/
 # That is the cheaper failure. The other is `@sdks/<name>@workspace:* failed to resolve`, minutes into an image build.
 COPY libs/ts/sdks/ libs/ts/sdks/
 RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile
-
-FROM oven/bun:${BUN_VERSION}-alpine AS build
-WORKDIR /app
-# BOTH trees. In a Bun workspace, a member's executables go into its own node_modules/.bin, not the root's. With only /app/node_modules, the build fails with `next: not found`.
-# The build context excludes node_modules, per Dockerfile.dockerignore, so this stage is their only source.
-# This also stops a developer's host install from hiding the omission locally while CI builds from a clean checkout.
-COPY --from=deps /app/node_modules /app/node_modules
-COPY --from=deps /app/apps/frontend/node_modules /app/apps/frontend/node_modules
+# The install and the build share one stage. A second stage would copy every file of node_modules, and that copy cost more than the install.
+# The build context excludes node_modules, per Dockerfile.dockerignore, so a developer's host install cannot hide a missing manifest above.
 COPY . .
 # Build identity in the bundle, per ADR-0103: next.config inlines NEXT_PUBLIC_SERVICE_VERSION from SERVICE_VERSION at build.
 # So the shipped JS and the X-App-Version response header both report the git SHA or release.
@@ -40,7 +34,8 @@ ENV SERVICE_VERSION=$SERVICE_VERSION
 # The RUNTIME origins for server component fetches are separate. They come from the pod env, in infra/gitops/services/<env>/values/frontend.yaml.
 ARG EDGE_PUBLIC_ORIGIN=
 ENV EDGE_PUBLIC_ORIGIN=$EDGE_PUBLIC_ORIGIN
-RUN cd apps/frontend && bun run build
+# Turbopack keeps its build cache in .next/cache. The mount keeps it in the builder between builds, so a small change compiles only what it touched.
+RUN --mount=type=cache,target=/app/apps/frontend/.next/cache cd apps/frontend && bun run build
 
 FROM oven/bun:${BUN_VERSION}-alpine AS runtime
 WORKDIR /app
