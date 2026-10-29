@@ -35,22 +35,17 @@ jobs:
 
   images:
     needs: affected
-    # An affected set of `[]` is normal, but GitHub rejects an empty `include`.
-    # A job that GitHub cannot create fails the run, and it does not appear in the job list.
+    # An affected set of `[]` is normal. The job is skipped, and promote reads the skip as no failure.
     if: ${{ needs.affected.outputs.images != '[]' }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Explicit {service, cmd} pairs, not a cross product. Not every service has a worker.
-        # A build for a missing `cmd/worker` fails one cell for each service with no worker.
-        include: ${{ fromJSON(needs.affected.outputs.images) }}
     steps:
       - uses: actions/checkout@v4
       # The toolchain for the signing step. cosign, syft, sops, and yq are pinned in .mise.toml, per ADR-0101.
       # So CI signs with the same binaries that a developer verifies with.
       - uses: ./.github/actions/setup
-      - uses: docker/setup-buildx-action@v3
+      # buildx in a run step finds the hosted cache service through these variables, and only an action can read them.
+      - if: runner.environment == 'github-hosted'
+        uses: crazy-max/ghaction-github-runtime@v3
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
@@ -58,73 +53,49 @@ jobs:
           # A separate registry component such as zot has its own push identity, per ADR-0105. These two secrets hold it.
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
-      - name: Build and push ${{ matrix.service }}-${{ matrix.cmd }}
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: services/${{ matrix.service }}/Dockerfile
-          # Bake the build identity, per ADR-0103: the commit SHA that the pod reports through /version and the X-App-Version header.
-          # BUILD_VERSION stays `dev` for master builds. The release stamps prod's CalVer.
-          build-args: |
-            APP_CMD=${{ matrix.cmd }}
-            GIT_SHA=${{ github.sha }}
-            BUILD_VERSION=dev
-            BUILD_TIME=${{ github.event.head_commit.timestamp }}
-          push: true
-          tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.service }}-${{ matrix.cmd }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      # By digest, not by the new tag, per ADR-0104. cosign resolves a tag itself, and a tag can move between two resolves.
-      - name: Sign, SBOM, provenance
+      - name: Build, push, and sign the service images
         env:
+          # Explicit {service, cmd} pairs, not a cross product. Not every service has a worker.
+          ITEMS: ${{ needs.affected.outputs.images }}
+          IMAGE_PREFIX: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          # The commit SHA that the pod reports through /version and the X-App-Version header, per ADR-0103.
+          GIT_SHA: ${{ github.sha }}
+          BUILD_TIME: ${{ github.event.head_commit.timestamp }}
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
           # ci:sign records the supply chain, where the signature and both attestations exist.
           # Unset until a project has a Loki to push to. The build is signed in both cases.
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
-        run: mise run ci:sign -- "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.service }}-${{ matrix.cmd }}@${{ steps.build.outputs.digest }}"
+        run: mise run ci:build-images -- services
 
-  # Apps are single images, so they have their own matrix from the same ci:affected manifest.
-  # Each app has its own Dockerfile and build context, so the context is resolved below. The build SHA is baked as SERVICE_VERSION, per ADR-0103.
+  # Apps come from the same ci:affected manifest. Each app has its own Dockerfile and build context, per ADR-0103.
   apps:
     needs: affected
     if: ${{ needs.affected.outputs.apps != '[]' }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: ${{ fromJSON(needs.affected.outputs.apps) }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
-      - uses: docker/setup-buildx-action@v3
+      - if: runner.environment == 'github-hosted'
+        uses: crazy-max/ghaction-github-runtime@v3
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
-      - id: ctx
-        run: mise run ci:build-context -- "${{ matrix.app }}" >> "$GITHUB_OUTPUT"
-      - name: Build and push ${{ matrix.app }}
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ steps.ctx.outputs.context }}
-          file: apps/${{ matrix.app }}/Dockerfile
-          build-args: SERVICE_VERSION=${{ github.sha }}
-          push: true
-          tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.app }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Sign, SBOM, provenance
+      - name: Build, push, and sign the app images
         env:
+          ITEMS: ${{ needs.affected.outputs.apps }}
+          IMAGE_PREFIX: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          GIT_SHA: ${{ github.sha }}
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
-        run: mise run ci:sign -- "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/${{ matrix.app }}@${{ steps.build.outputs.digest }}"
+        run: mise run ci:build-images -- apps
 
   # One job after every image, not a workflow that this one triggers. The forge of ADR-0102 does not raise a completed-run event.
   promote:

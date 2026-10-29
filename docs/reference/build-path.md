@@ -62,8 +62,8 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `acceptance` | Generate a project from the working tree and prove that it reaches a serving cluster, per ADR-0106. It needs Docker. It runs nightly and on the acceptance label, never in check. | template.yml |
 | `build` | Every Go module compiles, including the tools, per ADR-0101. | ci.yml |
 | `ci:affected-adversarial` | Test affected-detection from the other side, per ADR-0101 and ADR-0601. Break each service in a scratch worktree and check that the manifest names it. | ci.yml |
-| `ci:affected-matrix` | The affected manifest, split into the two arrays that publish.yml's matrices need, as forge step-output assignments, per ADR-0102. | publish.yml |
-| `ci:build-context` | An app's Docker build context, as a forge step-output assignment, per ADR-0102. | publish.yml |
+| `ci:affected-matrix` | The affected manifest, split into the arrays that publish.yml's image jobs need, as forge step-output assignments, per ADR-0102. | publish.yml |
+| `ci:build-images` | Build, push, and sign every affected service or app image in one job, per ADR-0101 and ADR-0104. The argument is `services` or `apps`. | publish.yml |
 | `ci:e2e-gate` | Whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0102 and ADR-0601. | e2e.yml |
 | `ci:gen` | The one definition behind ci.yml's drift job and the lefthook gen-drift hook. Run it locally to repeat that CI job exactly. | .lefthook.yml, ci.yml |
 | `ci:nightly-gate` | Whether tonight's cluster:up full suite runs, as a forge step-output assignment, per ADR-0102 and ADR-0601. | _nightly-gate.yml |
@@ -74,7 +74,6 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `ci:release-pr` | Open the prod pin as a pull request. The forge merges it when its checks pass, per ADR-0201. | promote-on-release.yml |
 | `ci:release-publish` | Publish the forge release for $VER, per ADR-0103. | promote-on-release.yml |
 | `ci:scan` | The vulnerability merge gate, per ADR-0104. | ci.yml |
-| `ci:sign` | Sign a published image and attach its SBOM and provenance, per ADR-0104. | publish.yml |
 | `cluster:add` | One verb to put something in the cluster, per ADR-0600. | lighthouse.yml |
 | `cluster:down` | Delete the tier's cluster and its image cache. | e2e.yml, lighthouse.yml, perf.yml |
 | `cluster:up` | Create, resume, or repair a tier. | e2e.yml, lighthouse.yml, perf.yml |

@@ -38,7 +38,7 @@ step "attaching the SBOM and the provenance"
 cosign attest --yes --tlog-upload=false --key "$work/cosign.key" \
   --type spdxjson --predicate "$work/sbom.spdx.json" "$IMAGE"
 
-# The predicate comes from the forge's environment: the builder is `docker/build-push-action`, and the claim is this pipeline's.
+# The predicate comes from the forge's environment: the builder is this pipeline's buildx, and the claim is this pipeline's.
 # `startedOn` defaults to now: the predicate parses as a protobuf Timestamp, and an empty string is not one.
 jq -n \
   --arg repo "${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-unknown}" \

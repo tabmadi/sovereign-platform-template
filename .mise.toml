@@ -561,7 +561,7 @@ run = "bash scripts/scan.sh report"
 depends = ["test"]
 
 [tasks."ci:affected-matrix"]
-description = "The affected manifest, split into the two arrays that publish.yml's matrices need, as forge step-output assignments, per ADR-0102."
+description = "The affected manifest, split into the arrays that publish.yml's image jobs need, as forge step-output assignments, per ADR-0102."
 run = "bash scripts/ci-affected-matrix.sh"
 
 [tasks."ci:prune-registry"]
@@ -599,6 +599,10 @@ run = "bash scripts/ci-e2e-gate.sh"
 [tasks."ci:nightly-gate"]
 description = "Whether tonight's cluster:up full suite runs, as a forge step-output assignment, per ADR-0102 and ADR-0601."
 run = "bash scripts/ci-nightly-gate.sh"
+
+[tasks."ci:build-images"]
+description = "Build, push, and sign every affected service or app image in one job, per ADR-0101 and ADR-0104. The argument is `services` or `apps`."
+run = "bash scripts/ci-build-images.sh"
 
 [tasks."ci:build-context"]
 description = "An app's Docker build context, as a forge step-output assignment, per ADR-0102."
