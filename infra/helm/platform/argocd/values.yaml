@@ -77,11 +77,10 @@ argo-cd:
     service: { type: ClusterIP }
   redis-ha: { enabled: false }         # 3-node embedded etcd, so HA Redis is more than needed, per ADR-0200
   redis:
-    # The chart default is the ecr-public.aws.com vanity host, which publishes only
-    # AAAA records. Pin the canonical public.ecr.aws mirror. It has the same image and
-    # is reachable over IPv4, so redis does not hang on networks without IPv6.
+    # The chart default host publishes only AAAA records. Docker Hub has the same image over IPv4,
+    # and the mirror pulls it with the Docker Hub login. public.ecr.aws limits an anonymous pull.
     image:
-      repository: public.ecr.aws/docker/library/redis
+      repository: docker.io/library/redis
   # Per ADR-0204.
   controller:
     replicas: 1
