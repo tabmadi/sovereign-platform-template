@@ -6,8 +6,20 @@ name: lighthouse
 on:
   pull_request:
     branches: [master]
+  # On master the run gates nothing, because the change is already merged. So it runs only for a change that can move a measured number.
   push:
     branches: [master]
+    paths:
+      - "apps/frontend/**"
+      - "infra/local/**"
+      - "infra/helm/**"
+      - "test/e2e/lighthouse*"
+      - "test/e2e/package*.json"
+      - "scripts/cluster*.sh"
+      - "scripts/mock.sh"
+      - ".mise.toml"
+      - ".github/actions/**"
+      - ".github/workflows/lighthouse.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
