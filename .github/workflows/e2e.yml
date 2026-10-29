@@ -25,6 +25,14 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # renovate runs as the dependency bot, never in a job. Its install is the largest in the toolchain and warns on every runner.
+  MISE_DISABLE_TOOLS: npm:renovate
+  # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: init.defaultBranch
+  GIT_CONFIG_VALUE_0: master
+
 jobs:
   # Decides whether tonight's run needs a cluster. Only the cron run checks. A tag or a dispatch always runs.
   gate:
