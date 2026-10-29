@@ -22,8 +22,9 @@ const setFlag = "--set"
 // platform,
 // like the ApplicationSet destination.
 var chartNamespace = map[string]string{
-	"argocd": "argocd",
-	"cilium": "kube-system",
+	"argocd":  "argocd",
+	"cilium":  "kube-system",
+	"traefik": "kube-system",
 }
 
 // Values that some charts require before they render at all. They are throwaway placeholders, because this lint reads
