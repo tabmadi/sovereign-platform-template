@@ -1,6 +1,6 @@
 // Browser helpers that drive the real self-service auth UI, not the API.
 import { type Page, expect } from "@playwright/test";
-import { authenticator } from "otplib";
+import { generateSync } from "otplib";
 import { BASE_URL } from "./env";
 
 const init = (flow: string, query = "") => `${BASE_URL}/auth/self-service/${flow}/browser${query}`;
@@ -13,10 +13,11 @@ const submitFor = (method: string) => `button[name="method"][value="${method}"]`
 // So this remembers each code it gives out, and waits for the next window if the window has not changed.
 const usedCodes = new Set<string>();
 async function freshTotp(page: Page, secret: string): Promise<string> {
-  let code = authenticator.generate(secret);
+  let code = generateSync({ secret });
   if (usedCodes.has(code)) {
-    await page.waitForTimeout((authenticator.timeRemaining() + 1) * 1000);
-    code = authenticator.generate(secret);
+    const remaining = 30 - (Math.floor(Date.now() / 1000) % 30);
+    await page.waitForTimeout((remaining + 1) * 1000);
+    code = generateSync({ secret });
   }
   usedCodes.add(code);
   return code;
