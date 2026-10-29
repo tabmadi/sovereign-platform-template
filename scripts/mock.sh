@@ -18,9 +18,10 @@ start)
   [ -f "$SPEC" ] || fail "missing ${SPEC}. Run \`mise run gen\` first"
 
   step "stamping the committed projection into the mock's spec ConfigMap"
-  # The dry-run output piped to apply updates the existing object. The hash below makes the pod notice.
+  # The dry-run output piped to a server-side apply updates the existing object. A client-side apply copies the spec into
+  # an annotation, and a growing spec passes the annotation size limit. The hash below makes the pod notice.
   k create configmap mock-spec --from-file="internal.json=${SPEC}" \
-    --dry-run=client -o yaml | k apply -f - >/dev/null
+    --dry-run=client -o yaml | k apply --server-side --force-conflicts -f - >/dev/null
   detail "$(wc -c <"$SPEC" | tr -d ' ') bytes from ${SPEC}"
 
   step "applying the mock"
