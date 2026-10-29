@@ -25,6 +25,8 @@ server:
 # over again.
 ingress: { enabled: true, host: dev.localtest.me, pathPrefix: "/" }
 migrations: { enabled: false }
+# Server components fetch `/api` through the edge, per ADR-0305.
+networkPolicy: { egressEdge: true }
 # Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
 otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 env:

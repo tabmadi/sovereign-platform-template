@@ -55,6 +55,16 @@ spec:
       ports:
         - { port: 4317, protocol: TCP }
         - { port: 4318, protocol: TCP }
+    {{- if .Values.networkPolicy.egressEdge }}
+    # The edge. A server component calls `/api` through it, so the edge injects identity once, per ADR-0305.
+    # Both ports: 443 is the Service port, and 8443 is the pod port that a policy sees after the Service translation.
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
+      ports:
+        - { port: 443, protocol: TCP }
+        - { port: 8443, protocol: TCP }
+    {{- end }}
     {{- if .Values.networkPolicy.egressPublicHTTPS }}
     # A third-party API on the public internet, such as a payment or model provider. HTTPS only, and never a private
     # range, so the rule does not open the cluster's own networks.

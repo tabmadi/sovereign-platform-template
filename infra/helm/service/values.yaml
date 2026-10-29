@@ -129,6 +129,8 @@ networkPolicy:
   enabled: true
   allowFromGateway: true
   egressDNS: true
+  # HTTPS to the edge, Traefik in kube-system, for a server that calls `/api` through it, as the frontend does.
+  egressEdge: false
   # HTTPS to the public internet, for a service that calls a third-party API. Off by default, per ADR-0206.
   egressPublicHTTPS: false
   # Ingress from the OTel collector's namespace to the server port. Only a service that the collector exports to sets it.
@@ -145,3 +147,7 @@ networkPolicy:
 # Empty for a registry that allows anonymous pulls, such as the local tier's registry. A deployed
 # environment names the Secret that its SopsSecret carries.
 imagePullSecrets: []
+
+# Extra /etc/hosts entries for the server pod, as `{ ip, hostnames }`, for a name that cluster DNS cannot resolve.
+# An environment where a pod cannot reach the public address of the edge maps that host to the Traefik Service.
+hostAliases: []
