@@ -55,9 +55,9 @@ jobs:
       - name: Provision the local SOPS age key
         run: mise run secrets:age
       # Authenticated Docker Hub pulls for zot's sync. Anonymous pulls have a limit for each source IP, and the whole forge shares this IP.
-      # Unset on a fork, where the secrets do not resolve. Restore only: the lighthouse job is the one writer.
-      # A full-tier start would also cache first-party images.
+      # Unset on a fork, where the secrets do not resolve. This job is the one writer of the mirror cache, and the smoke job only restores it.
       - name: Restore the registry mirror
+        id: registry-cache
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@v4
@@ -74,6 +74,15 @@ jobs:
           ARGOCD_REPO_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Saved on a miss and on `always()`. The warm fails when upstream throttles, and a partial store still helps the next run.
+      # The full tier also pushes first-party images into the store. They make the cache larger, and a later commit never pulls them.
+      - name: Save the registry mirror
+        if: always() && runner.environment == 'github-hosted' && steps.registry-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
+          path: ~/.cache/zot/registry.localhost
+          key: ${{ steps.registry-cache.outputs.cache-primary-key }}
       - name: Install Playwright in the Node island
         run: mise run e2e:install
       - name: Run the full e2e and visual suite

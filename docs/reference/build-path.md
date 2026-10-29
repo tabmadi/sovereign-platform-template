@@ -74,9 +74,8 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `ci:release-pr` | Open the prod pin as a pull request. The forge merges it when its checks pass, per ADR-0201. | promote-on-release.yml |
 | `ci:release-publish` | Publish the forge release for $VER, per ADR-0103. | promote-on-release.yml |
 | `ci:scan` | The vulnerability merge gate, per ADR-0104. | ci.yml |
-| `cluster:add` | One verb to put something in the cluster, per ADR-0600. | lighthouse.yml |
-| `cluster:down` | Delete the tier's cluster and its image cache. | e2e.yml, lighthouse.yml, perf.yml |
-| `cluster:up` | Create, resume, or repair a tier. | e2e.yml, lighthouse.yml, perf.yml |
+| `cluster:down` | Delete the tier's cluster and its image cache. | e2e.yml, perf.yml |
+| `cluster:up` | Create, resume, or repair a tier. | e2e.yml, perf.yml |
 | `dns:apply` | Make the provider's zones match infra/dns/dnsconfig.js, per ADR-0206. It deletes the records that the file does not declare. | dns.yml |
 | `dns:check` | Report how the provider's zones differ from infra/dns/dnsconfig.js, per ADR-0206. It changes nothing. | dns.yml |
 | `e2e` | The full browser suite against a running full tier: acceptance, visual, and accessibility, per ADR-0601. | e2e.yml |
@@ -93,6 +92,8 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `gen:sqlc` | The typed Go database access, generated from each service's queries, per ADR-0300. | .lefthook.yml |
 | `gen:zod` | The runtime validation schemas for the TypeScript apps, generated from the OpenAPI specs, per ADR-0303. | .lefthook.yml |
 | `lighthouse` | Web vitals and the bundle budget for each route, as merge gates, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile. | lighthouse.yml |
+| `lighthouse:down` | Remove the containers and the network of `lighthouse:up`. | lighthouse.yml |
+| `lighthouse:up` | The Lighthouse origin without a cluster, per ADR-0400: the production frontend image, the API mock, a Kratos stub, and Traefik, on port 8444. | lighthouse.yml |
 | `lint:activity-register` | The Temporal registration gate, per ADR-0302: every activity that a workflow names as a string is registered on its service's worker. | .lefthook.yml, ci.yml |
 | `lint:adr-xref` | The internal links of the ADR set. References resolve, and Related names documents that exist. Every ADR has a Decides line and an index row. The two adoption documents name the same components. | .lefthook.yml, ci.yml |
 | `lint:alert-severity` | The alert-severity gate, per ADR-0502. | .lefthook.yml, ci.yml |
@@ -142,7 +143,6 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint:ts` | TypeScript, JSON, and CSS: biome lint and format, with warnings as errors, per ADR-0100. | .lefthook.yml, ci.yml |
 | `lint:workarounds` | ADR-0001: every workaround matches the version its file pins, or was checked in the last twelve months. | .lefthook.yml, ci.yml |
 | `lint:workspace-copies` | A TS workspace member that the frontend image build does not copy fails `bun install` with `Workspace not found`. This happens only at image build, which on the full tier is minutes into a cluster start. | .lefthook.yml, ci.yml |
-| `mock:start` | The API mock for UI work, per ADR-0600. Prism serves the committed `internal.json` projection behind the real edge and its real middleware chain. | lighthouse.yml |
 | `perf` | The steady baseline: nightly and before a release. | perf.yml |
 | `perf:seed` | Bulk catalog data, so the read path is measured against a realistic table. | perf.yml |
 | `perf:smoke` | About 30 seconds. | perf.yml |

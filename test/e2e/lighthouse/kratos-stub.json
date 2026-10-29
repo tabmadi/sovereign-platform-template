@@ -1,0 +1,270 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Kratos self-service stub for the Lighthouse stack",
+    "version": "1",
+    "description": "Two fixed flows. Each browser start redirects to one flow id, so every Lighthouse run of a route has the same final URL."
+  },
+  "paths": {
+    "/self-service/login/browser": {
+      "get": {
+        "operationId": "start_login",
+        "responses": {
+          "303": {
+            "description": "The flow is created.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "example": "/auth/login?flow=lighthouse-login"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/self-service/registration/browser": {
+      "get": {
+        "operationId": "start_registration",
+        "responses": {
+          "303": {
+            "description": "The flow is created.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "example": "/auth/register?flow=lighthouse-registration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/self-service/login/flows": {
+      "get": {
+        "operationId": "get_login",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The flow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "id": "lighthouse-login",
+                  "type": "browser",
+                  "state": "choose_method",
+                  "ui": {
+                    "action": "/auth/self-service/login?flow=lighthouse-login",
+                    "method": "POST",
+                    "nodes": [
+                      {
+                        "type": "input",
+                        "group": "default",
+                        "attributes": {
+                          "name": "csrf_token",
+                          "type": "hidden",
+                          "value": "lighthouse",
+                          "required": true,
+                          "disabled": false,
+                          "node_type": "input"
+                        },
+                        "messages": [],
+                        "meta": {}
+                      },
+                      {
+                        "type": "input",
+                        "group": "default",
+                        "attributes": {
+                          "name": "identifier",
+                          "type": "text",
+                          "value": "",
+                          "required": true,
+                          "disabled": false,
+                          "node_type": "input"
+                        },
+                        "messages": [],
+                        "meta": {
+                          "label": {
+                            "id": 1,
+                            "text": "Email",
+                            "type": "info"
+                          }
+                        }
+                      },
+                      {
+                        "type": "input",
+                        "group": "password",
+                        "attributes": {
+                          "name": "password",
+                          "type": "password",
+                          "value": "",
+                          "required": true,
+                          "disabled": false,
+                          "node_type": "input"
+                        },
+                        "messages": [],
+                        "meta": {
+                          "label": {
+                            "id": 1,
+                            "text": "Password",
+                            "type": "info"
+                          }
+                        }
+                      },
+                      {
+                        "type": "input",
+                        "group": "password",
+                        "attributes": {
+                          "name": "method",
+                          "type": "submit",
+                          "value": "password",
+                          "required": false,
+                          "disabled": false,
+                          "node_type": "input"
+                        },
+                        "messages": [],
+                        "meta": {
+                          "label": {
+                            "id": 1,
+                            "text": "Sign in",
+                            "type": "info"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/self-service/registration/flows": {
+      "get": {
+        "operationId": "get_registration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The flow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "id": "lighthouse-registration",
+                  "type": "browser",
+                  "state": "choose_method",
+                  "ui": {
+                    "action": "/auth/self-service/registration?flow=lighthouse-registration",
+                    "method": "POST",
+                    "nodes": [
+                      {
+                        "type": "input",
+                        "group": "default",
+                        "attributes": {
+                          "name": "csrf_token",
+                          "type": "hidden",
+                          "value": "lighthouse",
+                          "required": true,
+                          "disabled": false,
+                          "node_type": "input"
+                        },
+                        "messages": [],
+                        "meta": {}
+                      },
+                      {
+                        "type": "input",
+                        "group": "password",
+                        "attributes": {
+                          "name": "traits.email",
+                          "type": "email",
+                          "value": "",
+                          "required": true,
+                          "disabled": false,
+                          "node_type": "input"
+                        },
+                        "messages": [],
+                        "meta": {
+                          "label": {
+                            "id": 1,
+                            "text": "Email",
+                            "type": "info"
+                          }
+                        }
+                      },
+                      {
+                        "type": "input",
+                        "group": "password",
+                        "attributes": {
+                          "name": "password",
+                          "type": "password",
+                          "value": "",
+                          "required": true,
+                          "disabled": false,
+                          "node_type": "input"
+                        },
+                        "messages": [],
+                        "meta": {
+                          "label": {
+                            "id": 1,
+                            "text": "Password",
+                            "type": "info"
+                          }
+                        }
+                      },
+                      {
+                        "type": "input",
+                        "group": "password",
+                        "attributes": {
+                          "name": "method",
+                          "type": "submit",
+                          "value": "password",
+                          "required": false,
+                          "disabled": false,
+                          "node_type": "input"
+                        },
+                        "messages": [],
+                        "meta": {
+                          "label": {
+                            "id": 1,
+                            "text": "Sign up",
+                            "type": "info"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+# The edge of the Lighthouse stack, per ADR-0400: the same paths as the cluster edge, with no auth middleware.
+# A measured page is public, so Oathkeeper and the identity headers change nothing that Lighthouse reads.
+# Every router serves both entrypoints: TLS on `websecure` for the browser, and plain HTTP on `web` for the frontend's server fetches.
+http:
+  routers:
+    api:
+      rule: PathPrefix(`/api`)
+      middlewares: [strip-api]
+      service: mock
+    kratos:
+      rule: PathPrefix(`/auth/self-service`)
+      middlewares: [strip-auth]
+      service: kratos
+    frontend:
+      rule: PathPrefix(`/`)
+      priority: 1
+      service: frontend
+  middlewares:
+    strip-api:
+      stripPrefix: { prefixes: ["/api"] }
+    strip-auth:
+      stripPrefix: { prefixes: ["/auth"] }
+  services:
+    mock:
+      loadBalancer: { servers: [{ url: "http://mock:4010" }] }
+    kratos:
+      loadBalancer: { servers: [{ url: "http://kratos:4010" }] }
+    frontend:
+      loadBalancer: { servers: [{ url: "http://frontend:3000" }] }

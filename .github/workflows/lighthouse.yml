@@ -1,5 +1,5 @@
 # Web vitals and bundle budgets are merge gates, per ADR-0400. So this runs on every PR, not behind a label.
-# The origin is the inner-loop floor and the API mock, per ADR-0600. It serves the production bundle.
+# The origin is the production frontend image with the API mock and a Kratos stub, from scripts/lighthouse-stack.sh. No cluster starts.
 # `/devportal` is not measured: proxy.ts redirects an unauthenticated request to login, so it measures login twice.
 name: lighthouse
 
@@ -11,19 +11,20 @@ on:
     branches: [master]
     paths:
       - "apps/frontend/**"
-      - "infra/local/**"
-      - "infra/helm/**"
       - "test/e2e/lighthouse*"
+      - "test/e2e/lighthouse/**"
       - "test/e2e/package*.json"
-      - "scripts/cluster*.sh"
-      - "scripts/mock.sh"
+      - "scripts/lighthouse-stack.sh"
+      - "libs/ts/**"
+      - "package.json"
+      - "bun.lock"
       - ".mise.toml"
       - ".github/actions/**"
       - ".github/workflows/lighthouse.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # A cancelled job skips its teardown and leaves its cluster on a self-hosted runner. So a newer run waits in the queue.
+  # A cancelled job skips its teardown and leaves its containers on a self-hosted runner. So a newer run waits in the queue.
   cancel-in-progress: false
 
 permissions:
@@ -32,52 +33,27 @@ permissions:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
-    timeout-minutes: 120
+    timeout-minutes: 30
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
 
-      # A cold warm pulls every third-party image from upstream, and that is most of this job's cost.
-      # The key is the generated warm list, so it changes only when the image set changes.
-      - name: Restore the registry mirror
-        id: registry-cache
-        # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
-        if: runner.environment == 'github-hosted'
-        uses: actions/cache/restore@v4
+      # The stack pulls Traefik and Prism from Docker Hub. Anonymous pulls have a limit for each source IP, and the whole forge shares this IP.
+      - name: Log in to Docker Hub
+        # Unset on a fork, where the secrets do not resolve.
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
         with:
-          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
-          path: ~/.cache/zot/registry.localhost
-          key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # The floor: real Traefik, cert-manager, Kratos, and Oathkeeper, because `/auth/login` is a measured URL.
-      # Authenticated Docker Hub pulls for zot's sync. Unset on a fork, where the secrets do not resolve.
-      - name: Bring up cluster:up
-        run: mise run cluster:up
+      # The production container, not `next dev`, behind Traefik with the API mock and a Kratos stub. A development server serves unminified output, so its bundle budget means nothing.
+      - name: Start the Lighthouse stack
+        run: mise run lighthouse:up
         env:
-          # The one writer of the mirror cache warms it for the full-tier jobs that only restore it.
-          WARM_TIER: full
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # Saved before the frontend push, because later steps push first-party images that change with every commit.
-      # Saved on a miss and on `always()`. The warm fails when upstream throttles, and a partial store still helps the next run.
-      - name: Save the registry mirror
-        if: always() && runner.environment == 'github-hosted' && steps.registry-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
-          path: ~/.cache/zot/registry.localhost
-          key: ${{ steps.registry-cache.outputs.cache-primary-key }}
-
-      # The production container, not `next dev`. A development server serves unminified output, so its bundle budget means nothing.
-      - name: Deploy the frontend as its production image
-        run: mise run cluster:add -- frontend
-
-      # `/api` from the committed OpenAPI projection. The panel pages render server components that fetch through the edge.
-      # Without the mock they render an error state, and the job measures the wrong page.
-      - name: Start the API mock
-        run: mise run mock:start
+          GIT_SHA: ${{ github.sha }}
 
       - name: Install the Node island
         run: mise run e2e:install
@@ -101,4 +77,4 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: mise run cluster:down
+        run: mise run lighthouse:down

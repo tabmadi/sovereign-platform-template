@@ -739,6 +739,14 @@ run = "mise run -C test/e2e test:visual"
 description = "Web vitals and the bundle budget for each route, as merge gates, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile."
 run = "mise run -C test/e2e lighthouse"
 
+[tasks."lighthouse:up"]
+description = "The Lighthouse origin without a cluster, per ADR-0400: the production frontend image, the API mock, a Kratos stub, and Traefik, on port 8444."
+run = "bash scripts/lighthouse-stack.sh up"
+
+[tasks."lighthouse:down"]
+description = "Remove the containers and the network of `lighthouse:up`."
+run = "bash scripts/lighthouse-stack.sh down"
+
 [tasks."perf:seed"]
 description = "Bulk catalog data, so the read path is measured against a realistic table."
 run = "mise run -C test/perf seed"

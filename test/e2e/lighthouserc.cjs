@@ -2,7 +2,8 @@
 //
 // A .cjs config and not JSON, because a JSON file cannot carry the two notes below. Each note names a known trap.
 // The origin is a variable because the budgets are a property of the build, not of the machine that serves it.
-const ORIGIN = process.env.LHCI_URL ?? "https://dev.localtest.me:8443";
+// The default is the stack that `mise run lighthouse:up` starts. Not `LHCI_URL`: lhci reads every `LHCI_*` variable as its own flag, and that one replaces the URL list.
+const ORIGIN = process.env.LIGHTHOUSE_ORIGIN ?? "https://dev.localtest.me:8444";
 
 // The gate. LCP, CLS, and TBT are ADR-0400's numbers. TBT replaces INP, because INP is a field metric
 // and a navigation run has no interaction to measure.
@@ -37,13 +38,15 @@ module.exports = {
           disabled: false,
         },
         throttlingMethod: "simulate",
+        // The gate reads only performance audits. The SEO category's font-size gatherer took half of each run on the landing page's DOM.
+        onlyCategories: ["performance"],
+        disableFullPageScreenshot: true,
         budgetsPath: "./lighthouse-budgets.json",
       },
     },
     assert: {
       // median, not the lhci default optimistic: a budget measures a typical load, not the best of three runs.
-      // It applies only to the landing page. lhci groups runs by finalUrl, and each auth route 307s to a Kratos flow init with a new `?flow=<uuid>`.
-      // So each auth run is a group of one, with no median. `assertMatrix` does not help: it selects assertions after the grouping.
+      // lhci groups runs by finalUrl. The Kratos stub returns one fixed flow id for each route, so the three runs of an auth route are one group too.
       aggregationMethod: "median",
       assertions: ASSERTIONS,
     },
