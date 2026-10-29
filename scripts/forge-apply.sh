@@ -38,8 +38,8 @@ fi
 detail "$(yq -r '.protection.status_check_contexts | join(", ")' "$CONFIG") required"
 
 if [[ "$(yq -r '.actions.approval_for_outside_collaborators' "$CONFIG")" == "true" ]]; then
-  warn "fork-run approval is a repository setting with no API: confirm it is on"
-  detail "${url}/${repo}/settings/actions: approval required for outside collaborators"
+  # Forgejo has no switch for this. It holds a run from an outside collaborator's fork until a maintainer approves it.
+  detail "runs from an outside collaborator's fork wait for a maintainer's approval, which Forgejo does by itself"
 fi
 
 ok "branch protection applied to ${repo}@${branch}"
