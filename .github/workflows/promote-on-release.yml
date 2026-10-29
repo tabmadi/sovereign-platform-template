@@ -15,13 +15,13 @@ permissions:
 jobs:
   promote:
     if: ${{ !github.event.repository.is_template }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: ./.github/actions/setup
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           # The same three settings as publish.yml. The registry is configuration.
           # A deployment with its own registry, per ADR-0105, sets them as forge variables and does not edit this file.

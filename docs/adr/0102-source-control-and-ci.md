@@ -61,7 +61,7 @@ Both are Tier 2, per [ADR-0002](0002-tool-adoption.md). Both follow from the run
 
 **Workflow YAML is a portable subset.** Its steps are `actions/checkout`, the own composite setup action of the repository, and `mise run` calls. That subset runs on Forgejo Actions and on the provider-hosted workflows that the template ships. This makes the forge cheap to leave in either direction.
 
-**A runner gives `ubuntu-latest` a machine, not a container.** The portable subset assumes what a provider-hosted job gets: a host with Docker, whose loopback and filesystem the job owns. A job that starts kind publishes its API and a registry on loopback, and bind-mounts its checkout. Inside a job container, neither the loopback nor the filesystem belongs to the host. So a Forgejo runner executes jobs on a dedicated machine that holds nothing else. It never uses a workload-cluster node, because a job controls the Docker of that machine, which is root on it. A machine that runs two jobs at once has one registry port and one set of edge ports. So in CI, `cluster:up` waits while another job holds them, and `cluster:down` removes only its own.
+**A runner gives `ubuntu-24.04` a machine, not a container.** The portable subset assumes what a provider-hosted job gets: a host with Docker, whose loopback and filesystem the job owns. A job that starts kind publishes its API and a registry on loopback, and bind-mounts its checkout. Inside a job container, neither the loopback nor the filesystem belongs to the host. So a Forgejo runner executes jobs on a dedicated machine that holds nothing else. It never uses a workload-cluster node, because a job controls the Docker of that machine, which is root on it. A machine that runs two jobs at once has one registry port and one set of edge ports. So in CI, `cluster:up` waits while another job holds them, and `cluster:down` removes only its own.
 
 ### The template ships provider-hosted workflows
 
@@ -125,7 +125,7 @@ The cost is real, and it is a host. Someone patches it, backs it up, and monitor
 - The forge is Forgejo, self-hosted on a host outside the workload cluster, with its Postgres on that host.
 - **The forge runs outside the workload cluster it serves.** *Where the forge runs* gives the reason.
 - Pipelines run on Forgejo Actions, with runners on controlled infrastructure. No second CI engine is introduced, per principle 5 of [ADR-0000](0000-platform-foundations.md).
-- A runner executes `ubuntu-latest` jobs on a dedicated machine. It never runs them inside a job container or on a workload-cluster node.
+- A runner executes `ubuntu-24.04` jobs on a dedicated machine. It never runs them inside a job container or on a workload-cluster node.
 - The repository lives at `forge.<apex>/platform/<project>`. An organisation owns it, never a person, and Argo CD reconciles from that URL.
 - Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
 - Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](0000-platform-foundations.md).

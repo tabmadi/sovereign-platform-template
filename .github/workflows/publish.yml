@@ -19,13 +19,13 @@ env:
 jobs:
   affected:
     if: ${{ !github.event.repository.is_template }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       services: ${{ steps.affected.outputs.services }}
       apps: ${{ steps.affected.outputs.apps }}
       images: ${{ steps.affected.outputs.images }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: ./.github/actions/setup
       - id: affected
@@ -37,16 +37,16 @@ jobs:
     needs: affected
     # An affected set of `[]` is normal. The job is skipped, and promote reads the skip as no failure.
     if: ${{ needs.affected.outputs.images != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The toolchain for the signing step. cosign, syft, sops, and yq are pinned in .mise.toml, per ADR-0101.
       # So CI signs with the same binaries that a developer verifies with.
       - uses: ./.github/actions/setup
       # buildx in a run step finds the hosted cache service through these variables, and only an action can read them.
       - if: runner.environment == 'github-hosted'
-        uses: crazy-max/ghaction-github-runtime@v3
-      - uses: docker/login-action@v3
+        uses: crazy-max/ghaction-github-runtime@v4
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           # The forge's own token works for the forge's own registry, which is the default.
@@ -74,13 +74,13 @@ jobs:
   apps:
     needs: affected
     if: ${{ needs.affected.outputs.apps != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - if: runner.environment == 'github-hosted'
-        uses: crazy-max/ghaction-github-runtime@v3
-      - uses: docker/login-action@v3
+        uses: crazy-max/ghaction-github-runtime@v4
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
@@ -102,17 +102,17 @@ jobs:
     needs: [affected, images, apps]
     # A skipped matrix is empty. A failed cell means a values file would name an image that the registry does not hold.
     if: ${{ !failure() && !cancelled() && (needs.affected.outputs.services != '[]' || needs.affected.outputs.apps != '[]') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     concurrency: { group: promote, cancel-in-progress: false }
     permissions:
       contents: write
     steps:
       # The machine user that branch protection lets push, in infra/forge/branch-protection.yaml.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { ref: "${{ github.ref_name }}", fetch-depth: 0, token: "${{ secrets.PROMOTE_TOKEN || secrets.GITHUB_TOKEN }}" }
       - uses: ./.github/actions/setup
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
@@ -141,17 +141,17 @@ jobs:
   lighthouse:
     needs: [affected, promote]
     if: ${{ !cancelled() && contains(needs.affected.outputs.apps, '"frontend"') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       # The stack pulls Traefik and Prism from Docker Hub. Unset on a fork, where the secrets do not resolve.
       - name: Log in to Docker Hub
         if: env.DOCKERHUB_USERNAME != ''
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}

@@ -17,10 +17,10 @@ permissions:
 jobs:
   generation:
     if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - name: Generate every fixture and compare the adoption paths
         run: mise run test:template
@@ -29,13 +29,13 @@ jobs:
     if: >-
       github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.label.name == 'template-acceptance')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     concurrency:
       group: acceptance-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -46,7 +46,7 @@ jobs:
         id: registry-cache
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
@@ -59,7 +59,7 @@ jobs:
       # Saved on a miss and on `always()`. The warm fails when upstream throttles, and a partial store still helps the next run.
       - name: Save the registry mirror
         if: always() && runner.environment == 'github-hosted' && steps.registry-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost

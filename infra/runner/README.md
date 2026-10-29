@@ -8,10 +8,10 @@ This directory exists in a project whose `forge` answer is `forgejo`, per [modes
 
 | Part | Why |
 | --- | --- |
-| Docker, buildx, Node, pipx, chromium, and the build tools | what a provider-hosted `ubuntu-latest` image carries and a job assumes |
+| Docker, buildx, Node, pipx, chromium, and the build tools | what a provider-hosted `ubuntu-24.04` image carries and a job assumes |
 | higher inotify limits | each kind node runs a kubelet, and the Debian default runs out |
 | one user, home, and temp directory for each instance | one job's cache restore or registry logout otherwise lands in another running job |
-| the `ubuntu-latest:host` label | a job runs on the machine, so kind can publish on loopback and bind-mount the checkout |
+| the `ubuntu-24.04:host` label, with `ubuntu-latest:host` beside it | a job runs on the machine, so kind can publish on loopback and bind-mount the checkout |
 | one Actions cache, served by instance 1 | separate caches would each warm the registry mirror against one Docker Hub limit |
 | an hourly `runner-gc` timer | a job that dies early leaves BuildKit builders, kind clusters, and images that nothing else removes |
 

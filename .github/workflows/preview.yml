@@ -18,13 +18,13 @@ permissions:
 jobs:
   preview:
     if: contains(github.event.pull_request.labels.*.name, 'preview')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:
       PREVIEW_PR: ${{ github.event.pull_request.number }}
       PREVIEW_REVISION: ${{ github.head_ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -38,10 +38,10 @@ jobs:
         run: mise run e2e:smoke
       - name: Upload Playwright report
         if: always()
-        # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4.
+        # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-preview
           path: |

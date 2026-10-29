@@ -65,11 +65,11 @@ EOF
     guest <<EOF
 cd ${state}
 su ${user} -c "/usr/local/bin/forgejo-runner register --no-interactive --instance https://${FORGE_DOMAIN} \
-  --token '${token}' --name ${name}-${n} --labels ubuntu-latest:host"
+  --token '${token}' --name ${name}-${n} --labels ubuntu-24.04:host,ubuntu-latest:host"
 EOF
   fi
 
-  # `ubuntu-latest` is the machine itself, as on a provider-hosted runner, per ADR-0102.
+  # `ubuntu-24.04` is the machine itself, as on a provider-hosted runner, per ADR-0102.
   # One cache, served by instance 1. Separate caches would each warm the registry mirror against one shared Docker Hub limit.
   if [ "$n" = 1 ]; then
     cache="dir: /var/lib/forgejo-runner/cache
@@ -93,7 +93,7 @@ runner:
   capacity: 1
   # Above every workflow's timeout-minutes, which is the limit that ends a job.
   timeout: 3h
-  labels: ["ubuntu-latest:host"]
+  labels: ["ubuntu-24.04:host", "ubuntu-latest:host"]
   envs:
     MISE_GITHUB_TOKEN: "${mise_token}"
     XDG_RUNTIME_DIR: /home/${user}/run

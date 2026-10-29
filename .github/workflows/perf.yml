@@ -46,11 +46,11 @@ jobs:
       github.event_name == 'schedule' ||
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -62,7 +62,7 @@ jobs:
       - name: Restore the registry mirror
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
@@ -83,10 +83,10 @@ jobs:
         run: mise run perf${{ (github.event_name == 'workflow_dispatch' && inputs.profile != 'load') && format(':{0}', inputs.profile) || '' }}
       - name: Upload k6 summaries
         if: always()
-        # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4.
+        # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: perf-summary-load
           path: test/perf/results/
@@ -100,11 +100,11 @@ jobs:
     if: >-
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'perf-smoke')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -113,7 +113,7 @@ jobs:
       - name: Restore the registry mirror
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
@@ -133,10 +133,10 @@ jobs:
         run: mise run perf:smoke
       - name: Upload k6 summaries
         if: always()
-        # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4.
+        # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: perf-summary-smoke
           path: test/perf/results/

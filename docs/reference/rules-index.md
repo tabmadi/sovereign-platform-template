@@ -195,7 +195,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The forge is Forgejo, self-hosted on a host outside the workload cluster, with its Postgres on that host. | review |
 | **The forge runs outside the workload cluster it serves.** *Where the forge runs* gives the reason. | review |
 | Pipelines run on Forgejo Actions, with runners on controlled infrastructure. No second CI engine is introduced, per principle 5 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
-| A runner executes `ubuntu-latest` jobs on a dedicated machine. It never runs them inside a job container or on a workload-cluster node. | review |
+| A runner executes `ubuntu-24.04` jobs on a dedicated machine. It never runs them inside a job container or on a workload-cluster node. | review |
 | The repository lives at `forge.<apex>/platform/<project>`. An organisation owns it, never a person, and Argo CD reconciles from that URL. | review |
 | Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML. | review |
 | Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
