@@ -13,9 +13,9 @@ sqlc = "1.31.1"
 
 "go:github.com/ogen-go/ogen/cmd/ogen" = "1.22.0"
 vacuum = "0.29.2"
-"ubi:oasdiff/oasdiff" = "1.28.0"
+"github:oasdiff/oasdiff" = "1.28.0"
 # DNS as code, per ADR-0206.
-"ubi:DNSControl/dnscontrol" = "4.30.0"
+"github:DNSControl/dnscontrol" = "4.30.0"
 
 biome = "2.5.0"
 
