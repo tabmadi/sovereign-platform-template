@@ -8,6 +8,12 @@ traefik:
     kubernetesCRD:
       allowCrossNamespace: true
 
+  # The kube-system default CPU request is far below the edge's measured peak, and the edge is sized first, per ADR-0204.
+  # Memory keeps the namespace default.
+  resources:
+    requests:
+      cpu: 200m
+
   # Local tier: the host reaches the edge at :8443, then the node's 30443 through the extraPortMappings in
   # `infra/local/kind.yaml`, then this NodePort.
   service:
