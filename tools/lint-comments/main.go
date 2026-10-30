@@ -4,8 +4,10 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -200,6 +202,9 @@ func sweep() ([]finding, int, error) {
 		}
 		walk := func(path string, info os.FileInfo, err error) error {
 			switch {
+			case errors.Is(err, fs.ErrNotExist):
+				// A parallel task, such as a chart dependency build, removes its scratch folder mid-walk.
+				return nil
 			case err != nil:
 				return err
 			case info.IsDir() && skipDir(info.Name()):
