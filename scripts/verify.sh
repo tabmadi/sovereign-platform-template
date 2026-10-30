@@ -59,7 +59,18 @@ forward() { # <service> <local-port> <remote-port>
 
 step "platform"
 expect "nodes Ready" 0 "$(kc get nodes --no-headers | awk '$2 != "Ready"' | wc -l | tr -d ' ')"
-unready_pods() { kc get pods -A --no-headers | awk '$4 != "Completed" {split($3, a, "/"); if (a[1] != a[2] || $4 != "Running") print $1 "/" $2 " " $3 " " $4}'; }
+# A failed pod of a Job that a retry finished is history, not a fault.
+unready_pods() {
+  local done_jobs
+  done_jobs="$(kc get jobs -A -o json | jq -c '[.items[] | select((.status.succeeded // 0) > 0) | .metadata.namespace + "/" + .metadata.name]')"
+  kc get pods -A -o json | jq -r --argjson settled "$done_jobs" '
+    .items[]
+    | select(.status.phase != "Succeeded")
+    | select(([.metadata.namespace + "/" + (.metadata.ownerReferences // [] | map(select(.kind == "Job").name) | first // "")] | inside($settled)) | not)
+    | (.status.containerStatuses // []) as $c
+    | select(.status.phase != "Running" or ($c | map(.ready) | all | not))
+    | "\(.metadata.namespace)/\(.metadata.name) \($c | map(select(.ready)) | length)/\($c | length) \(.status.phase)"'
+}
 # A pod that restarts after the last sync needs a short time to settle, so the check waits before it fails.
 for _ in $(seq 1 30); do
   pods="$(unready_pods)"
