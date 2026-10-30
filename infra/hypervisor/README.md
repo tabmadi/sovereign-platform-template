@@ -38,6 +38,10 @@ The Proxmox VE install itself is not scripted. It is done once in each host's li
 7. Apply each node's machine config and bootstrap the cluster, per [ADR-0200](../../docs/adr/0200-cluster-topology.md).
 8. With the `forgejo` forge, build the forge and the runner, per `infra/forge-host/` and `infra/runner/`.
 
+A project adds what this directory cannot know in `extra/`: `nat.rules`, `dnsmasq.conf`, and a file named for the public bridge. Each file is added to the rendered file of the same name, as it is. A guest that the project runs beside the nodes needs lines in all three.
+
+Set `KNOWN_HOSTS` in `hypervisor.env` and `forge-host/forge.env` to a file of the host's keys that you verified out of band. Then no run accepts an unknown key.
+
 The scripts read the inventory with `yq`, so run them as `mise exec -- bash infra/hypervisor/<script>`.
 
 ## What the NAT does

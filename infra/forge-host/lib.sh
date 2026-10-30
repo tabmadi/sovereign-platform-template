@@ -14,7 +14,13 @@ on() { # <target> [jump]
   local target="$1" jump="${2:-}" opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new)
   if [ -n "${SSH_KEY:-}" ]; then opts+=(-i "$SSH_KEY"); fi
   if [ -n "$jump" ]; then
-    opts+=(-o "ProxyCommand=ssh ${opts[*]} -W %h:%p ${jump}")
+    # The jump host is the hypervisor. Its keys are pinned when the project committed them, and the machine behind it is new.
+    hop=("${opts[@]}")
+    if [ -n "${KNOWN_HOSTS:-}" ]; then
+      hop=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=${KNOWN_HOSTS}")
+      if [ -n "${SSH_KEY:-}" ]; then hop+=(-i "$SSH_KEY"); fi
+    fi
+    opts+=(-o "ProxyCommand=ssh ${hop[*]} -W %h:%p ${jump}")
   fi
   ssh "${opts[@]}" "$target" 'bash -s'
 }

@@ -9,6 +9,8 @@ INVENTORY="infra/talos/inventory/${ENVIRONMENT}/nodes.yml"
 
 remote() {
   local opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new)
+  # A project that verified the host's keys out of band commits them, and then no run accepts an unknown key.
+  if [ -n "${KNOWN_HOSTS:-}" ]; then opts=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=${KNOWN_HOSTS}"); fi
   if [ -n "${SSH_KEY:-}" ]; then opts+=(-i "$SSH_KEY"); fi
   ssh "${opts[@]}" "$HYPERVISOR_SSH" "$@"
 }

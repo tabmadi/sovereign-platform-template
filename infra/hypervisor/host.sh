@@ -24,6 +24,15 @@ for g in "${guests[@]}"; do
   case "$g" in *-forge\ *) forge_address="${g##* }" ;; esac
 done
 
+# A project adds what the template cannot know in `extra/`. Examples are another guest and another public address.
+# A file there has the name of the file it extends, and it is added as it is. So it carries its own DNAT and MASQUERADE pairs.
+extra_file() { # <name>
+  if [ -f "$here/extra/$1" ]; then cat "$here/extra/$1"; fi
+}
+add_extra() { # <rendered file> <extra name>
+  extra_file "$2" >>"$1"
+}
+
 render() { # <dir>
   local dir="$1" edge entry name address subnet
   mkdir -p "$dir"
@@ -39,6 +48,7 @@ iface ${PUBLIC_BRIDGE} inet static
   bridge-stp off
   bridge-fd 0
 EOF
+  add_extra "$dir/${PUBLIC_BRIDGE}" "${PUBLIC_BRIDGE}"
 
   cat >"$dir/${PRIVATE_BRIDGE}" <<EOF
 # The private network of every node and VM. Installed at /etc/network/interfaces.d/${PRIVATE_BRIDGE}.
@@ -65,6 +75,7 @@ EOF
       for entry in "${guests[@]}"; do echo "$entry"; done
     )
   } >"$dir/dnsmasq.conf"
+  add_extra "$dir/dnsmasq.conf" dnsmasq.conf
 
   {
     echo "# NAT on the hypervisor. Installed at /etc/iptables/rules.v4, which iptables-persistent restores at boot."
@@ -92,6 +103,7 @@ EOF
         echo "-A POSTROUTING -s ${subnet} -d ${forge_address}/32 -p tcp --dport ${port} -j MASQUERADE"
       done
     fi
+    extra_file nat.rules
     echo "# The MASQUERADE rules above are the hairpin. A VM that reaches a public address of this network arrives with a"
     echo "# private source, and without them the reply would skip this host."
     if [ -n "$PUBLIC_MAIL" ]; then
