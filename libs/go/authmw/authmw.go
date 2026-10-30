@@ -114,3 +114,31 @@ func ParseRoles(raw string) []string {
 	}
 	return roles
 }
+
+// Transport forwards the caller's identity headers on an east-west call, per ADR-0304. A context without a principal
+// sends none, so the callee sees an anonymous request.
+func Transport(base http.RoundTripper) http.RoundTripper {
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return forwarding{base: base}
+}
+
+type forwarding struct{ base http.RoundTripper }
+
+func (f forwarding) RoundTrip(r *http.Request) (*http.Response, error) {
+	p, ok := FromContext(r.Context())
+	if ok && p != nil {
+		r = r.Clone(r.Context())
+		for header, value := range map[string]string{
+			HeaderUserID: p.UserID,
+			HeaderOrgID:  p.OrgID,
+			HeaderRoles:  strings.Join(p.Roles, ","),
+		} {
+			if value != "" {
+				r.Header.Set(header, value)
+			}
+		}
+	}
+	return f.base.RoundTrip(r) //nolint:wrapcheck // a transport returns the base error unchanged
+}

@@ -2,6 +2,7 @@ package authmw_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/tabmadi/sovereign-platform-template/libs/go/authmw"
@@ -51,5 +52,50 @@ func TestNilPrincipal(t *testing.T) {
 	}
 	if p.HasRole("operator") {
 		t.Error("a nil principal reports a role")
+	}
+}
+
+func TestTransportForwardsIdentity(t *testing.T) {
+	t.Parallel()
+
+	client := &http.Client{Transport: authmw.Transport(nil)}
+
+	tests := map[string]struct {
+		principal *authmw.Principal
+		want      authmw.Principal
+	}{
+		"a caller": {
+			&authmw.Principal{UserID: "u1", OrgID: "o1", Roles: []string{"admin", "member"}},
+			authmw.Principal{UserID: "u1", OrgID: "o1", Roles: []string{"admin", "member"}},
+		},
+		"no principal": {nil, authmw.Principal{}},
+	}
+	for name, tc := range tests {
+		t.Run(
+			name,
+			func(t *testing.T) {
+				t.Parallel()
+				var got http.Header
+				srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = r.Header.Clone() }))
+				t.Cleanup(srv.Close)
+				ctx := t.Context()
+				if tc.principal != nil {
+					ctx = authmw.NewContext(ctx, tc.principal)
+				}
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				resp, err := client.Do(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_ = resp.Body.Close()
+				p := authmw.Read(got)
+				if p.UserID != tc.want.UserID || p.OrgID != tc.want.OrgID || len(p.Roles) != len(tc.want.Roles) {
+					t.Errorf("callee saw %+v, want %+v", p, tc.want)
+				}
+			},
+		)
 	}
 }
