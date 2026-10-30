@@ -1,0 +1,29 @@
+{{- if and .Values.networkPolicy.enabled .Values.networkPolicy.allowFromRoutes }}
+# Callers limited to the listed routes, per ADR-0305. Envoy answers 403 to any other method and path.
+# A caller here is not also in `allowFrom`, because an allow on the whole port hides this rule.
+# The chart anchors each path and allows a query string.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ include "service.fullname" . }}-routes
+  labels: {{- include "service.labels" . | nindent 4 }}
+spec:
+  endpointSelector:
+    matchLabels: {{- include "service.selector" . | nindent 6 }}
+  ingress:
+    {{- range .Values.networkPolicy.allowFromRoutes }}
+    - fromEndpoints:
+        - matchLabels:
+            k8s:app.kubernetes.io/name: {{ .name }}
+            k8s:io.kubernetes.pod.namespace: platform
+      toPorts:
+        - ports:
+            - { port: {{ $.Values.server.port | quote }}, protocol: TCP }
+          rules:
+            http:
+              {{- range .routes }}
+              - method: {{ .method | quote }}
+                path: {{ printf "^%s(\\?.*)?$" .path | quote }}
+              {{- end }}
+    {{- end }}
+{{- end }}

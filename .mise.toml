@@ -299,7 +299,7 @@ description = "shfmt from mvdan/sh formats shell, over the same file set that li
 run = "bash scripts/format-shell.sh"
 
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:requirements", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:tasks", "lint:workarounds", "lint:dns", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:l7-routes", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:requirements", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:tasks", "lint:workarounds", "lint:dns", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
 
 [tasks."lint:go"]
 description = "Go correctness and style: golangci-lint's configured analysers over every module, per ADR-0100."
@@ -346,6 +346,10 @@ run = "bash scripts/lint-service-databases.sh"
 [tasks."lint:ports"]
 description = "The local port registry gate, per ADR-0205: ports are unique, every service is registered, and each service's .mise.toml uses the port the registry assigns."
 run = "bash scripts/lint-ports.sh"
+
+[tasks."lint:l7-routes"]
+description = "ADR-0305 gate: a caller limited to some routes of a service uses only the operations that the spec marks x-audience: cluster, and is not also in allowFrom."
+run = "bash scripts/lint-l7-routes.sh"
 
 [tasks."lint:api-audience"]
 description = "The audience and exposure gate, per ADR-0303. A spec's info.x-audience is public only when the service has an /api route at the edge."

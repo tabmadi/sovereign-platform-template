@@ -138,6 +138,10 @@ networkPolicy:
   # Other services, by slug, that can call this one on the server port.
   # For example, catalog and payment list `orders` here. orders accepts no inbound service calls.
   allowFrom: []
+  # Other services, by slug, that can call only the listed routes on the server port. Each entry is
+  # `{ name: <slug>, routes: [{ method: POST, path: /reservations }] }`. A path is a regular expression for the
+  # request path. For example, a service that moves money lists each caller here with the cluster routes it uses.
+  allowFromRoutes: []
   # The namespace that the OTel collector runs in, per ADR-0200. Telemetry export is the
   # one dependency outside this service's own namespace. So it is the one egress rule
   # that must name a namespace, and cannot rely on the platform namespace.

@@ -115,6 +115,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint:helm-deps` | `helm dependency build` needs the repo registered in the caller's helm config. `update` resolves it from Chart.yaml. | .lefthook.yml, ci.yml |
 | `lint:i18n` | Localisation, enforced, per ADR-0400. | .lefthook.yml, ci.yml |
 | `lint:image-allowlist` | The drift check for the image allow-list. | .lefthook.yml, ci.yml |
+| `lint:l7-routes` | ADR-0305 gate: a caller limited to some routes of a service uses only the operations that the spec marks x-audience: cluster, and is not also in allowFrom. | .lefthook.yml, ci.yml |
 | `lint:log-vocab` | The vocabulary gate for human output, per ADR-0001. Scripts use → ✓ ✗ ⚠ through scripts/lib/log.sh, not bare WARN, ERROR, or FAIL text. | .lefthook.yml, ci.yml |
 | `lint:md` | Markdown structure and formatting: rumdl over every document, per ADR-0001. | .lefthook.yml, ci.yml |
 | `lint:money` | The monetary-value gate, per ADR-0100 and ADR-0300. A money-like OpenAPI property is the shared `Money` component. No Go or TypeScript field or variable with a money-like name is a float. | .lefthook.yml, ci.yml |

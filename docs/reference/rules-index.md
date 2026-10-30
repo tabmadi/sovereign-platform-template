@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 195 |
-| Review-enforced | 352 |
-| **Total** | **547** |
+| Machine-enforced | 196 |
+| Review-enforced | 353 |
+| **Total** | **549** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -542,6 +542,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The edge routes each resource prefix to its backing service, and the route table is the single registry of resource ownership. | `lint:service-contract` in CI |
 | Hydra is deployed only for projects that expose a public API or external machine clients. | review |
 | A project that needs tiered per-API-key quotas adds a full gateway for its own routes by its own decision. It is not the platform default. | review |
+| A caller that a service limits to some of its routes is listed in `networkPolicy.allowFromRoutes`, and only with operations that the spec marks `x-audience: cluster`. The caller is not also in `allowFrom`. | `lint:l7-routes` in CI |
+| A service that performs a monetary mutation limits its east-west callers to routes. | review |
 
 ## ADR-0306: Trust Tiers and URL Structure
 

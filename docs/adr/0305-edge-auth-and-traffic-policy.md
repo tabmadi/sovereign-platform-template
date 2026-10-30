@@ -129,6 +129,8 @@ The upgrade converts positional trust into cryptographic trust, and it changes o
 
 This platform can observe the first two conditions in its own repository. So its largest accepted risk does not depend on an external party to notice it. The example `payment` service does not fire the first condition: it moves no money and holds no processor credential, per [ADR-0302](0302-temporal.md). A service that moves money makes a different claim, and that claim fires the trigger.
 
+**A route allowlist bounds what a forged identity can reach.** A sanctioned caller has a valid identity and still sets any `X-User-Id`, so mutual auth would not remove the cost. The response is to limit each sanctioned caller to the routes it uses. The spec of a service marks its east-west operations `x-audience: cluster`. The values of the service list, for each caller, the methods and paths of the operations that it calls, in `networkPolicy.allowFromRoutes`. Cilium's Envoy reads each request and answers `403` to any other method and path. This needs no change in service code. A service that performs a monetary mutation limits its east-west callers this way. A compromised caller can still forge identity on its own routes. Only a signed identity from the edge removes that.
+
 ### Rate limiting
 
 From day one, Traefik's middleware throttles auth-sensitive routes per source: login, signup, and password reset. This is a security control, independent of any public API.
@@ -195,6 +197,7 @@ Scalar's request console is the reason that the dev portal is same-origin with `
 ### Negative and Risks
 
 - **Internal header trust rests on NetworkPolicy.** A misconfigured policy lets a pod spoof `X-User-Id`. Default-deny in the service template mitigates this, and Hubble flows are the audit surface, per [ADR-0200](0200-cluster-topology.md). This is the recorded deviation from NIST SP 800-207 above, not an unexamined gap. The SPIFFE seam exists to convert this one property.
+- **A route allowlist puts Cilium's Envoy on the path of a limited caller.** A restart of `cilium-envoy` on a node fails the calls that cross it for a short time.
 - **No edge schema validation.** Generated in-service validation from the same spec mitigates this. Internal calls bypass the edge anyway, so the service is the only point that sees every request.
 - **Per-API-key quotas are not available on day one.** Accepted. A project adds them when a monetised public API is real.
 - **Oathkeeper is one more component to operate.** Accepted. It shares the Ory operational model.
@@ -214,3 +217,5 @@ Scalar's request console is the reason that the dev portal is same-origin with `
 - The edge routes each resource prefix to its backing service, and the route table is the single registry of resource ownership. `(CI: lint:service-contract)`
 - Hydra is deployed only for projects that expose a public API or external machine clients.
 - A project that needs tiered per-API-key quotas adds a full gateway for its own routes by its own decision. It is not the platform default.
+- A caller that a service limits to some of its routes is listed in `networkPolicy.allowFromRoutes`, and only with operations that the spec marks `x-audience: cluster`. The caller is not also in `allowFrom`. `(CI: lint:l7-routes)`
+- A service that performs a monetary mutation limits its east-west callers to routes.
