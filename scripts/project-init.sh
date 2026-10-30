@@ -112,7 +112,7 @@ bash scripts/forge-mode.sh "$forge"
 # What Copier's `_exclude` drops at render time, and the two scripts that run once.
 # This script goes last: bash can safely unlink a file it runs, but not rewrite it in place. Nothing can follow these two lines.
 rm -f copier.yml .copier-answers.yml.jinja "$VERSION_FILE" scripts/project-rename.sh scripts/forge-mode.sh \
-  scripts/template-tasks.toml .github/workflows/template.yml scripts/test-template.sh scripts/acceptance.sh
+  scripts/template-tasks.toml .github/workflows/template.yml .forgejo/workflows/template.yml scripts/test-template.sh scripts/acceptance.sh
 rm -rf test/template
 ok "initialised ${project_name}. Run 'mise run gen' and 'mise run check' before the first commit"
 rm -f -- "${BASH_SOURCE[0]}"
