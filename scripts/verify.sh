@@ -59,11 +59,14 @@ forward() { # <service> <local-port> <remote-port>
 
 step "platform"
 expect "nodes Ready" 0 "$(kc get nodes --no-headers | awk '$2 != "Ready"' | wc -l | tr -d ' ')"
-# A failed pod of a Job that a retry finished is history, not a fault.
+# A failed pod of a Job that a retry finished is history, not a fault. A failed run of a CronJob is history too.
+# An alert covers a CronJob that keeps failing. A fresh tier shows the first run before its dependencies are up.
 unready_pods() {
-  local done_jobs
-  done_jobs="$(kc get jobs -A -o json | jq -c '[.items[] | select((.status.succeeded // 0) > 0) | .metadata.namespace + "/" + .metadata.name]')"
-  kc get pods -A -o json | jq -r --argjson settled "$done_jobs" '
+  local settled
+  settled="$(kc get jobs -A -o json | jq -c '[.items[]
+    | select((.status.succeeded // 0) > 0 or (.metadata.ownerReferences // [] | any(.kind == "CronJob")))
+    | .metadata.namespace + "/" + .metadata.name]')"
+  kc get pods -A -o json | jq -r --argjson settled "$settled" '
     .items[]
     | select(.status.phase != "Succeeded")
     | select(([.metadata.namespace + "/" + (.metadata.ownerReferences // [] | map(select(.kind == "Job").name) | first // "")] | inside($settled)) | not)
