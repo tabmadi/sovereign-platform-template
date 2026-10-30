@@ -52,6 +52,8 @@ func workflowFiles() ([]string, error) {
 	for _, pattern := range []string{
 		filepath.Join(".github", "workflows", "*.yml"),
 		filepath.Join(".github", "workflows", "*.yaml"),
+		filepath.Join(".forgejo", "workflows", "*.yml"),
+		filepath.Join(".forgejo", "workflows", "*.yaml"),
 		filepath.Join(".github", "actions", "*", "action.yml"),
 		filepath.Join(".github", "actions", "*", "action.yaml"),
 	} {

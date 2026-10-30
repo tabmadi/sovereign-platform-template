@@ -16,7 +16,8 @@ tasks="$({
 } | jq -s 'add')"
 
 # Each entry point and the tasks it names, as `<file> <task>` lines.
-roots="$(grep -oE 'mise run [a-z][a-z0-9:.-]*' .github/workflows/*.yml .lefthook.yml |
+shopt -s nullglob
+roots="$(grep -oE 'mise run [a-z][a-z0-9:.-]*' .github/workflows/*.yml .forgejo/workflows/*.yml .lefthook.yml |
   sed -E 's|^([^:]+):mise run |\1 |' | sort -u)"
 
 rows="$(jq -rn --argjson t "$tasks" --arg roots "$roots" '

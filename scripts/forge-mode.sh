@@ -13,9 +13,17 @@ forgejo) ;;
 *) fail "usage: forge-mode.sh github|forgejo" ;;
 esac
 
+# Forgejo reads .forgejo/workflows first. A local reusable workflow is named by its folder, so the references move with it.
+# The composite action stays in .github/actions, because a local action is found by any path.
+if [ -d .github/workflows ] && [ ! -d .forgejo/workflows ]; then
+  mkdir -p .forgejo
+  mv .github/workflows .forgejo/workflows
+  sed -i 's|\./\.github/workflows/|./.forgejo/workflows/|g' .forgejo/workflows/*.yml
+fi
+
 # Forgejo ignores `permissions` and warns on every run. Its token scope is fixed, per ADR-0102.
 # A block is the key line and every deeper line after it. A blank line that the removal doubles goes too.
-for f in .github/workflows/*.yml; do
+for f in .forgejo/workflows/*.yml; do
   awk '
     function indent(s) { match(s, /[^ ]/); return RSTART }
     {
@@ -36,4 +44,4 @@ for f in .github/workflows/*.yml; do
   ' "$f" >"$f.tmp"
   mv "$f.tmp" "$f"
 done
-ok "workflows fitted to forgejo: no permissions blocks"
+ok "workflows fitted to forgejo: moved to .forgejo/workflows, no permissions blocks"

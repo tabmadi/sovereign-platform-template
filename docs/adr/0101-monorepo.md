@@ -167,7 +167,7 @@ docs/                         # genre decides the directory (ADR-0001)
 ├── reference/                # lookups, registries, live state
 └── *.md                      # entry documents, and registries an ADR names as canonical
 
-.github/workflows/            # CI definitions
+.github/workflows/            # CI definitions, or .forgejo/workflows/ in a project that chose the forgejo mode
 ```
 
 | Choice | Reason |

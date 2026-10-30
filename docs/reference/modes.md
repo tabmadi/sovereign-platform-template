@@ -9,7 +9,7 @@ Each mode is a Copier answer. The `_exclude` list of `copier.yml` holds one line
 | Answer | Value | Decided by | Keeps | Leave it when |
 | --- | --- | --- | --- | --- |
 | `forge` | `github`, the default | [ADR-0102](../adr/0102-source-control-and-ci.md) | the provider-hosted workflows, with their `permissions` blocks | the platform cluster serves its first environment, which is the trigger of ADR-0102 |
-| `forge` | `forgejo` | [ADR-0102](../adr/0102-source-control-and-ci.md) | `infra/forge-host/` and `infra/runner/`. The workflows lose their `permissions` blocks, which Forgejo ignores with a warning | the project leaves its own forge |
+| `forge` | `forgejo` | [ADR-0102](../adr/0102-source-control-and-ci.md) | `infra/forge-host/` and `infra/runner/`. The workflows move to `.forgejo/workflows/` and lose their `permissions` blocks, which Forgejo ignores with a warning | the project leaves its own forge |
 | `provisioning` | `terraform`, the default | [ADR-0200](../adr/0200-cluster-topology.md) | `infra/terraform/` | the provider stops being the place that the nodes come from |
 | `provisioning` | `provided` | [ADR-0200](../adr/0200-cluster-topology.md) | none. Someone else gives the machines, and `infra/talos/` starts at the machine config | the project starts to create its own machines |
 | `provisioning` | `hypervisor` | [ADR-0200](../adr/0200-cluster-topology.md) | `infra/hypervisor/` | the project stops running its own hardware |

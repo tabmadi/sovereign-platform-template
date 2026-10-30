@@ -23,7 +23,7 @@ const maxBlockLines = 3
 const maxEchoChars = 90
 
 // roots are scanned recursively; a root naming a file is scanned alone.
-var roots = []string{"apps", "libs", "services", "tools", "scripts", "infra", "test", ".github/workflows", ".mise.toml"}
+var roots = []string{"apps", "libs", "services", "tools", "scripts", "infra", "test", ".github/workflows", ".forgejo/workflows", ".mise.toml"}
 
 type rule struct {
 	name    string

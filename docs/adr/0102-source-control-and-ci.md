@@ -65,7 +65,7 @@ Both are Tier 2, per [ADR-0002](0002-tool-adoption.md). Both follow from the run
 
 ### The template ships provider-hosted workflows
 
-A generated project needs CI from its first commit. At that point, no cluster exists to run a forge on. So the workflows under `.github/workflows/` are the bootstrap path, not a competing decision.
+A generated project needs CI from its first commit. At that point, no cluster exists to run a forge on. So the workflows under `.github/workflows/` are the bootstrap path, not a competing decision. A project that runs its own forge chooses the `forgejo` mode of [ADR-0106](0106-dependency-updates.md). That mode moves the workflows to `.forgejo/workflows/`, the folder that Forgejo reads first, and no workflow changes.
 
 | Field | Value |
 | --- | --- |

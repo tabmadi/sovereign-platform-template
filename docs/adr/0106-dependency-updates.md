@@ -102,7 +102,7 @@ A generated project tracks this repository through the Copier answers file, and 
 
 Some files fit one setup of a project and not another. The workflows' `permissions` blocks fit GitHub, and Forgejo ignores them with a warning. The hypervisor scripts fit a project that runs its own hardware. A template that ships only one setup leaves every other project to write the rest. A template that ships every setup leaves each project with files that do not apply to it.
 
-So each setup is a **mode**, and each mode is a Copier answer. The template carries the files of every mode. A templated `_exclude` line keeps a mode's paths out of the render of a project that did not choose it. `project:init` reads the same lines, so both adoption paths drop the same files. A mode that changes files in place is a script. It runs at generation and at every update, like the rename. The forge mode is one: it edits the workflows. [`docs/reference/modes.md`](../reference/modes.md) lists the modes.
+So each setup is a **mode**, and each mode is a Copier answer. The template carries the files of every mode. A templated `_exclude` line keeps a mode's paths out of the render of a project that did not choose it. `project:init` reads the same lines, so both adoption paths drop the same files. A mode that changes files in place is a script. It runs at generation and at every update, like the rename. The forge mode is one: it moves the workflows to `.forgejo/workflows/` and edits them. [`docs/reference/modes.md`](../reference/modes.md) lists the modes.
 
 An exclusion is the mechanism, not a deletion. It stops a render, so an update deletes only a file that came from the template unchanged. A task that deletes files would also delete a file the project wrote at the same path.
 
