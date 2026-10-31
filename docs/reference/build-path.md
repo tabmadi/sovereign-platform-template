@@ -79,6 +79,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `dns:apply` | Make the provider's zones match infra/dns/dnsconfig.js, per ADR-0206. It deletes the records that the file does not declare. | dns.yml |
 | `dns:check` | Report how the provider's zones differ from infra/dns/dnsconfig.js, per ADR-0206. It changes nothing. | dns.yml |
 | `e2e` | The full browser suite against a running full tier: acceptance, visual, and accessibility, per ADR-0601. | e2e.yml |
+| `e2e:diagnose` | Print the errors in the logs of the workloads on the path of an ops route, after a failed e2e run on the full tier. | e2e.yml |
 | `e2e:install` | The e2e island's Node dependencies and its browser, per ADR-0601. | e2e.yml, lighthouse.yml, preview.yml, publish.yml |
 | `e2e:smoke` | The @smoke subset of the browser suite, for a labelled pull request, per ADR-0601. | e2e.yml, preview.yml |
 | `gen:admin` | Scaffold the Lowdefy admin pages from the OpenAPI specs, per ADR-0401. | .lefthook.yml |

@@ -705,6 +705,10 @@ run = "mise run -C test/e2e install"
 description = "The full browser suite against a running full tier: acceptance, visual, and accessibility, per ADR-0601."
 run = "mise run -C test/e2e test"
 
+[tasks."e2e:diagnose"]
+description = "Print the errors in the logs of the workloads on the path of an ops route, after a failed e2e run on the full tier."
+run = "bash scripts/e2e-diagnose.sh"
+
 [tasks."e2e:smoke"]
 description = "The @smoke subset of the browser suite, for a labelled pull request, per ADR-0601."
 run = "mise run -C test/e2e test:smoke"

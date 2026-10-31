@@ -95,6 +95,10 @@ jobs:
         run: mise run e2e:install
       - name: Run the full e2e and visual suite
         run: mise run e2e
+      - name: Print the ops path logs
+        if: failure()
+        continue-on-error: true
+        run: mise run e2e:diagnose
       - name: Upload Playwright report
         if: always()
         # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
