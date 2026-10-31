@@ -13,6 +13,9 @@ import (
 	"github.com/tabmadi/sovereign-platform-template/libs/go/observability"
 )
 
+// minPoolConns is the smallest pool that MustOpen builds, unless the DSN sets `pool_max_conns` higher.
+const minPoolConns = 16
+
 // MustOpen opens a pgxpool with the platform-default tracer.
 // dsn usually comes from a Secret mounted with envFrom, per ADR-0202.
 func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
@@ -25,6 +28,11 @@ func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
 	// above zero, and the CNPG Pooler does not set it. To turn it on, amend ADR-0300. A values edit is not enough.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
 	cfg.ConnConfig.Tracer = otelpgx.NewTracer()
+	// A transaction that waits for a row lock holds a connection. The pgx default is four, so a handful of
+	// concurrent requests for one wallet used every connection and stalled every other query until a timeout.
+	if cfg.MaxConns < minPoolConns {
+		cfg.MaxConns = minPoolConns
+	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		panic(err)
