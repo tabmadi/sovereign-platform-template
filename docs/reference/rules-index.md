@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 196 |
-| Review-enforced | 353 |
-| **Total** | **549** |
+| Review-enforced | 354 |
+| **Total** | **550** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -544,6 +544,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A project that needs tiered per-API-key quotas adds a full gateway for its own routes by its own decision. It is not the platform default. | review |
 | A caller that a service limits to some of its routes is listed in `networkPolicy.allowFromRoutes`, and only with operations that the spec marks `x-audience: cluster`. The caller is not also in `allowFrom`. | `lint:l7-routes` in CI |
 | A service that performs a monetary mutation limits its east-west callers to routes. | review |
+| A product rule in `infra/auth/oathkeeper/access-rules.json` names a host of at most three labels, so an ops host matches only its own rule. A host pattern of `<**>` makes Oathkeeper answer `500` for any ops path that starts with an API prefix. | review |
 
 ## ADR-0306: Trust Tiers and URL Structure
 

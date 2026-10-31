@@ -1,7 +1,7 @@
 [
   {
     "id": "api-services",
-    "match": { "url": "<{http,https}>://<**>/api/<{products,orders,orgs,charges,observability}><**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "match": { "url": "<{http,https}>://<{*.*,*.*.*}>/api/<{products,orders,orgs,charges,observability}><**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
     "authenticators": [{ "handler": "cookie_session" }, { "handler": "jwt" }, { "handler": "anonymous" }],
     "authorizer": { "handler": "allow" },
     "mutators": [{ "handler": "header" }],

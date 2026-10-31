@@ -169,6 +169,7 @@ These are the security controls that every project built from this template inhe
 | A project that needs tiered per-API-key quotas adds a full gateway for its own routes by its own decision. It is not the platform default. | review |
 | A caller that a service limits to some of its routes is listed in `networkPolicy.allowFromRoutes`, and only with operations that the spec marks `x-audience: cluster`. The caller is not also in `allowFrom`. | `lint:l7-routes` in CI |
 | A service that performs a monetary mutation limits its east-west callers to routes. | review |
+| A product rule in `infra/auth/oathkeeper/access-rules.json` names a host of at most three labels, so an ops host matches only its own rule. A host pattern of `<**>` makes Oathkeeper answer `500` for any ops path that starts with an API prefix. | review |
 
 ## Trust tiers and origins
 
