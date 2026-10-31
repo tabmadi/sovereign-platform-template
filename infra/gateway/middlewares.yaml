@@ -32,6 +32,8 @@ spec:
       X-User-Email: ""
 ---
 # Rate limit per source IP for auth-sensitive routes: login, signup, and recovery.
+# No source criterion: the default is the peer address. A `depth` reads X-Forwarded-For, which Traefik deletes
+# from an untrusted peer, so every client would share one bucket, per ADR-0305.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -42,9 +44,6 @@ spec:
     average: 10
     burst: 20
     period: 1m
-    sourceCriterion:
-      ipStrategy:
-        depth: 1
 ---
 # Static browser-security headers on all responses, per ADR-0305 and ADR-0400.
 # The frontend sets the per-request CSP nonce for `script-src`. Here we set

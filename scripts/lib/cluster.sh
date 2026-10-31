@@ -445,7 +445,7 @@ stage_namespaces() {
 # by the glue stage below or by the gateway Application on the full tier.
 stage_edge() {
   if ! forced edge && h -n kube-system status traefik >/dev/null 2>&1 &&
-    k -n kube-system rollout status deploy/traefik --timeout=0 >/dev/null 2>&1; then
+    k -n kube-system rollout status ds/traefik --timeout=0 >/dev/null 2>&1; then
     return 0
   fi
   step "installing Traefik, the edge controller"
@@ -453,7 +453,7 @@ stage_edge() {
   # So the chart's own values hold the NodePort mapping.
   chart_deps infra/helm/platform/traefik
   h upgrade --install traefik infra/helm/platform/traefik -n kube-system --timeout 5m
-  k -n kube-system rollout status deploy/traefik --timeout=300s
+  k -n kube-system rollout status ds/traefik --timeout=300s
 }
 
 # Edge glue for this machine, not managed by GitOps on purpose. The docker-bridge gateway changes across restarts, so every start applies it again.

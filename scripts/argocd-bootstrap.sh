@@ -24,7 +24,7 @@ done
 
 step "installing Traefik, whose CRDs the gateway's Middlewares resolve against"
 install_chart traefik infra/helm/platform/traefik kube-system
-kubectl -n kube-system rollout status deploy/traefik --timeout=300s
+kubectl -n kube-system rollout status ds/traefik --timeout=300s
 
 step "the cluster's age key"
 kubectl create namespace platform --dry-run=client -o yaml | kubectl apply -f - >/dev/null

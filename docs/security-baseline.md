@@ -162,6 +162,10 @@ These are the security controls that every project built from this template inhe
 | Request-schema validation is service-side. There is no edge schema validation. | review |
 | Edge denials return `application/problem+json` in the shape that [ADR-0303](adr/0303-api-contracts-and-lifecycle.md) fixes, and carry `trace_id`. The default error body of Oathkeeper is not shipped. | standard: RFC 9457 |
 | Rate limiting on auth-sensitive routes is Traefik middleware in `infra/gateway/`. | review |
+| The rate limit keys on the peer address that Traefik sees, or on `ipStrategy.excludedIPs` behind a trusted layer 7 proxy. It never sets an `ipStrategy.depth`. | review |
+| Traefik runs as a DaemonSet behind a Service with `externalTrafficPolicy: Local`. No hop in front of it replaces the client address with SNAT alone. | review |
+| A layer 7 proxy in front of Traefik is listed in `forwardedHeaders.trustedIPs`, and the origin admits connections only from that proxy. | review |
+| Services do not parse `X-Forwarded-For`. A control that keys on the client address runs at the edge. | review |
 | Static browser-security headers are a Traefik middleware on all responses. The per-request CSP nonce belongs to the frontend. | review |
 | An Oathkeeper rule checks the Origin of every cookie-authenticated state-changing request. Bearer-token traffic is exempt. | review |
 | The edge routes each resource prefix to its backing service, and the route table is the single registry of resource ownership. | `lint:service-contract` in CI |

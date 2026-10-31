@@ -14,11 +14,17 @@ traefik:
     requests:
       cpu: 200m
 
+  # A pod on every node and `Local` keep the client address as the source, so the rate limit sees each client, per ADR-0305.
+  # With `Cluster`, Cilium sends a packet to a pod on another node and replaces its source with a node address.
+  deployment:
+    kind: DaemonSet
+
   # Local tier: the host reaches the edge at :8443, then the node's 30443 through the extraPortMappings in
   # `infra/local/kind.yaml`, then this NodePort.
   service:
     spec:
       type: NodePort
+      externalTrafficPolicy: Local
   ports:
     web:
       nodePort: 30080

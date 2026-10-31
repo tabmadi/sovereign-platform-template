@@ -32,6 +32,7 @@ Each would defeat controls here, and each is excluded on purpose, not by oversig
 | **Tampering** with a request in transit | TLS at the edge, verified in every environment | [ADR-0205](../adr/0205-environment-parity.md) |
 | **Repudiation** of an authorization decision | per-decision events from the authorization service into the log store | [ADR-0304](../adr/0304-identity-and-authorization.md) |
 | **Denial of service** by brute force or volume | rate limiting at the edge, per route, with a tighter limit on the authentication paths | [ADR-0305](../adr/0305-edge-auth-and-traffic-policy.md) |
+| **Spoofing** the client address to escape or exhaust a rate limit | the limit keys on the peer address of Traefik. Traefik deletes `X-Forwarded-For` from an untrusted peer, and no hop in front of it replaces the source | [ADR-0305](../adr/0305-edge-auth-and-traffic-policy.md) |
 | **Elevation** through a cross-origin or cross-site request | a strict per-request nonce CSP, `frame-ancestors 'none'`, an origin check on server actions, and Kratos's own anti-CSRF token on self-service flows | [ADR-0400](../adr/0400-frontend.md), [ADR-0304](../adr/0304-identity-and-authorization.md) |
 | **Elevation** from a product session into the ops tier | the ops coarse gate requires an `operator` claim and AAL2. A product session alone reaches nothing | [ADR-0306](../adr/0306-trust-tiers-and-urls.md) |
 | **Information disclosure** through a stolen operator session that uses an XSS | the product-origin CSP, and nothing else. **Accepted risk 1** | [risk 1](risk-register.md) |

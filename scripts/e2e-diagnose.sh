@@ -14,4 +14,4 @@ for workload in ory-oathkeeper authz-server orgs-server grafana temporal-web mai
     grep -E 'level=(ERROR|error|WARN|warn)|status=[45][0-9][0-9]|panic' | grep -v -E 'status=401' | tail -40 | cut -c1-300 || true
 done
 step "edge"
-k -n kube-system logs deploy/traefik --tail=60 2>&1 || warn "traefik has no logs"
+k -n kube-system logs ds/traefik --tail=60 2>&1 || warn "traefik has no logs"

@@ -135,6 +135,14 @@ This platform can observe the first two conditions in its own repository. So its
 
 From day one, Traefik's middleware throttles auth-sensitive routes per source: login, signup, and password reset. This is a security control, independent of any public API.
 
+**The source is the peer address of the connection to Traefik.** Traefik deletes `X-Forwarded-For` from a peer that it does not trust. An `ipStrategy` with a `depth` then resolves to an empty string, and every client shares one bucket. So the middleware keeps the default source criterion.
+
+**Every hop in front of Traefik keeps the client address.** The NodePort Service uses `externalTrafficPolicy: Local`, and Traefik runs as a DaemonSet. A packet then reaches a Traefik pod on the node where it entered. Cilium does not replace its source with a node address. A layer 4 hop in front of the cluster forwards with DNAT or with proxy protocol, never with SNAT alone.
+
+**A layer 7 proxy in front of Traefik is a trust decision.** Examples are a CDN and a cloud HTTP load balancer. Its address ranges go in `forwardedHeaders.trustedIPs` on the entry point. The rate limit lists the same ranges in `ipStrategy.excludedIPs`, so Traefik takes the right-most address that is not a trusted proxy. The origin admits connections only from that proxy, so a direct request cannot choose its own address.
+
+**Services do not parse `X-Forwarded-For`.** The left part of that header is whatever the client sent. A control that keys on the client address runs at the edge, where the trust decision above is made once.
+
 **Per-API-key tiered quotas are deferred.** They are a feature of full API management, and the platform wants nothing else from such a gateway.
 
 | Field | Value |
@@ -212,6 +220,10 @@ Scalar's request console is the reason that the dev portal is same-origin with `
 - Request-schema validation is service-side. There is no edge schema validation.
 - Edge denials return `application/problem+json` in the shape that [ADR-0303](0303-api-contracts-and-lifecycle.md) fixes, and carry `trace_id`. The default error body of Oathkeeper is not shipped. `(ref: RFC 9457)`
 - Rate limiting on auth-sensitive routes is Traefik middleware in `infra/gateway/`.
+- The rate limit keys on the peer address that Traefik sees, or on `ipStrategy.excludedIPs` behind a trusted layer 7 proxy. It never sets an `ipStrategy.depth`.
+- Traefik runs as a DaemonSet behind a Service with `externalTrafficPolicy: Local`. No hop in front of it replaces the client address with SNAT alone.
+- A layer 7 proxy in front of Traefik is listed in `forwardedHeaders.trustedIPs`, and the origin admits connections only from that proxy.
+- Services do not parse `X-Forwarded-For`. A control that keys on the client address runs at the edge.
 - Static browser-security headers are a Traefik middleware on all responses. The per-request CSP nonce belongs to the frontend.
 - An Oathkeeper rule checks the Origin of every cookie-authenticated state-changing request. Bearer-token traffic is exempt.
 - The edge routes each resource prefix to its backing service, and the route table is the single registry of resource ownership. `(CI: lint:service-contract)`
