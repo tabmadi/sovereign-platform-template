@@ -16,12 +16,11 @@ import (
 // minPoolConns is the smallest pool that MustOpen builds, unless the DSN sets `pool_max_conns` higher.
 const minPoolConns = 16
 
-// MustOpen opens a pgxpool with the platform-default tracer.
-// dsn usually comes from a Secret mounted with envFrom, per ADR-0202.
-func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
+// poolConfig parses the DSN and applies the platform defaults.
+func poolConfig(dsn string) (*pgxpool.Config, error) {
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("parse database url: %w", err)
 	}
 	// PgBouncer transaction mode needs this, per ADR-0300. `DescribeExec` describes a statement and creates no
 	// server-side prepared statement. PgBouncer honours prepared statements only when `max_prepared_statements` is
@@ -32,6 +31,16 @@ func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
 	// concurrent requests for one wallet used every connection and stalled every other query until a timeout.
 	if cfg.MaxConns < minPoolConns {
 		cfg.MaxConns = minPoolConns
+	}
+	return cfg, nil
+}
+
+// MustOpen opens a pgxpool with the platform-default tracer.
+// dsn usually comes from a Secret mounted with envFrom, per ADR-0202.
+func MustOpen(ctx context.Context, dsn string) *pgxpool.Pool {
+	cfg, err := poolConfig(dsn)
+	if err != nil {
+		panic(err)
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
