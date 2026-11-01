@@ -1,0 +1,31 @@
+# The settings of `mise run lint:tablint`, per ADR-0001.
+
+[prose]
+status-exempt = ["docs/operational-surface.md", "README.md"]
+slash-terms = ["ci/cd", "i/o", "tcp/ip", "shadcn/ui"]
+# Evidence grades, per ADR-0002, and the grade placeholder of the ADR template.
+ignore = ['\((?:reasoned|documented|measured|grade)\b[^()]*(?:\([^()]*\)[^()]*)*\)']
+
+[comments]
+paths = [
+  "{apps,libs,services,tools,scripts,infra,test}/**/*.{go,ts,tsx,sh,toml,sql,yaml,yml}",
+  "{.github,.forgejo}/workflows/**",
+  ".mise.toml",
+]
+skip-dirs = ["node_modules", ".next", "dist", "build", "_generated", "sdks", "schemas", "secrets", "testdata"]
+directives = ["platform/not-deployed"]
+# tools/shared-components writes these regions of each spec.
+skip-regions = [[">>> shared-components:", "<<< shared-components"]]
+
+[adr]
+header-fields = ["status", "date", "deciders", "related", "decides"]
+# The index shortens each Decides line, per docs/adr/README.md.
+index-matches-decides = false
+
+[docs]
+genre-dirs = ["adr", "guide", "reference", "requirements", "product"]
+root-files = ["README.md", "reading-path.md", "dev-loop.md", "brand.md", "operational-surface.md", "adoption-path.md", "tool-register.md", "security-baseline.md"]
+forbidden-links = [{ from = "docs/**", to = "README.md", reason = "a generated project rewrites the root README" }]
+
+[messages]
+dir = "apps/frontend/src/messages"

@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 196 |
-| Review-enforced | 358 |
-| **Total** | **554** |
+| Review-enforced | 359 |
+| **Total** | **555** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -49,18 +49,18 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Prose follows the Google developer-docs voice, present tense and active, and ISO 24495-1 plain language, organised by Diátaxis genre. An ADR is explanation plus reference, never a tutorial. | standard: Google dev-docs, ISO 24495-1, Diátaxis |
 | Every text in the repository uses the Simple English profile: docs, ADRs, comments, task descriptions, CLI and linter output, API and dashboard descriptions, and UI copy. | standard: ASD-STE100 |
 | General words are at CEFR B1, with the most common word for the meaning. Technical names and technical verbs are always allowed, and are never replaced with a general word that changes the meaning. | review |
-| A word from the complex-word list is replaced with its simple form: `utilize` and `leverage` become `use`, `facilitate` becomes `help`, `prior to` becomes `before`, `in order to` becomes `to`, `hence` and `thus` become `so`. | `lint:prose, lint:comments` in CI |
+| A word from the complex-word list is replaced with its simple form: `utilize` and `leverage` become `use`, `facilitate` becomes `help`, `prior to` becomes `before`, `in order to` becomes `to`, `hence` and `thus` become `so`. | `lint:tablint` in CI |
 | One term names one concept across the set, and a word keeps one meaning. [ADR-0000](../adr/0000-platform-foundations.md) holds the vocabulary. | review |
 | A single verb replaces a phrasal verb when one exists. No idioms. | review |
-| Latin abbreviations and contractions are not used: no `e.g.`, `i.e.`, `etc.`, or `vs.`, and no `don't` or `it's`. | `lint:prose, lint:comments` in CI |
-| A sentence has one idea and at most 25 words. A sentence under `docs/guide/` or in a numbered procedure has at most 20 words. | `lint:prose, lint:comments` in CI |
-| Prose punctuation is period, comma, colon, and the possessive apostrophe. The em dash, en dash, semicolon, parentheses, `?`, `!`, ellipsis, quote marks, `&`, and `/` in the sense of `or` are not used in prose. Markdown syntax, code, paths, URLs, and enforcement annotations are not prose. | `lint:prose, lint:comments` in CI |
-| The em dash, en dash, ellipsis, and curly quotes appear in no tracked text file, code included. A text adopted verbatim from a third party is exempt. | `lint:prose` in CI |
-| A translated UI string carries the meaning of the English string and follows the same punctuation rules, including the locale's own forms. | `lint:prose` in CI |
+| Latin abbreviations and contractions are not used: no `e.g.`, `i.e.`, `etc.`, or `vs.`, and no `don't` or `it's`. | `lint:tablint` in CI |
+| A sentence has one idea and at most 25 words. A sentence under `docs/guide/` or in a numbered procedure has at most 20 words. | `lint:tablint` in CI |
+| Prose punctuation is period, comma, colon, and the possessive apostrophe. The em dash, en dash, semicolon, parentheses, `?`, `!`, ellipsis, quote marks, `&`, and `/` in the sense of `or` are not used in prose. Markdown syntax, code, paths, URLs, and enforcement annotations are not prose. | `lint:tablint` in CI |
+| The em dash, en dash, ellipsis, and curly quotes appear in no tracked text file, code included. A text adopted verbatim from a third party is exempt. | `lint:tablint` in CI |
+| A translated UI string carries the meaning of the English string and follows the same punctuation rules, including the locale's own forms. | `lint:tablint` in CI |
 | Second person is the voice of the tutorial and how-to genres. An ADR addresses no reader: it states what is true of the platform, and its Rules read as law, not as instructions. | review |
 | Every word carries meaning. A clause whose deletion does not change the meaning is deleted. | review |
 | Three or more items that share two or more attributes are a table. Three or more parallel items are a list. | review |
-| Intensifiers, hedges, meta-commentary, questions, and chronology are not used in template docs. | `lint:prose` in CI |
+| Intensifiers, hedges, meta-commentary, questions, and chronology are not used in template docs. | `lint:tablint` in CI |
 | Figurative language is limited to the [ADR-0000](../adr/0000-platform-foundations.md) vocabulary. | review |
 | A number is stated only if doubling it would change the decision: a threshold, a measurement that set a value, or a count of what is on the same page. An illustrative figure becomes the shape it shows. A count of live state elsewhere becomes a link to its registry. | review |
 | A tool's release version is not stated. A specification version, a licence identifier, and a capability boundary stated as a floor are not tool versions. The pin lives in the lockfile, `.mise.toml`, or the chart. | review |
@@ -68,26 +68,27 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Markdown is not hard-wrapped: one line per paragraph, list item, or table row. | `lint:md` in CI |
 | Tables are compact, never padded: one space inside each pipe and a bare `---` delimiter. | `lint:md` in CI |
 | An ADR uses the section order Context, Decision drivers, Considered options, Decision, Consequences, Rules, and omits an empty section instead of padding it. | review |
-| An ADR's header carries a one-sentence `Decides` line that states what is true of the platform because of the ADR. The ADR index carries that line in its *Decides* column. | `lint:adr-xref` in CI |
+| An ADR's header carries a one-sentence `Decides` line that states what is true of the platform because of the ADR. The ADR index carries that line in its *Decides* column. | `lint:tablint` in CI |
 | A decision driver states a property to optimise for. It never restates the chosen option and never describes a rejected option at its worst. With the winner swapped for a loser, the drivers are unmet, not wrong. | review |
 | An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. | review |
-| Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. | `lint:md, lint:prose` in CI |
+| Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. | `lint:md, lint:tablint` in CI |
 | ADR numbers come in blocks of a hundred by layer, per [`docs/adr/README.md`](../adr/README.md). | review |
-| A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups, `docs/requirements/` for journey requirements. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. | `lint:adr-xref` in CI |
-| The filename carries the topic, never a directory that holds a single file. No two documents in `docs/` share a filename. | `lint:adr-xref` in CI |
+| A  annotation names a `mise` task that exists, never the workflow file that calls it. | `<task>` in CI |
+| A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups, `docs/requirements/` for journey requirements. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. | `lint:tablint` in CI |
+| The filename carries the topic, never a directory that holds a single file. No two documents in `docs/` share a filename. | `lint:tablint` in CI |
 | Structured logs carry a lowercase message with no final punctuation and no symbols. Context is in OTel-conventioned attributes, never interpolated into the string. | standard: OTel semconv |
 | Human CLI output uses `→` for a step, `✓` for success, `✗` for a fatal error, and `⚠` for a warning. Sub-detail has a two-space indent. Bare `WARN` or `ERROR` text and other symbols are not used. | standard: clig.dev |
 | The first answer to the need for a comment is to extract a named method. | standard: Fowler, Refactoring |
-| A comment carries only what an expert reader cannot derive from the code and the ADR set. Doubt resolves to deletion. | `lint:comments` in CI |
+| A comment carries only what an expert reader cannot derive from the code and the ADR set. Doubt resolves to deletion. | `lint:tablint` in CI |
 | A comment does not state a measurement of this platform's own workload. The ADR that decides states it. The code states the shape the value was chosen for. | review |
-| A comment is one paragraph of at most three lines. One line is the norm. | `lint:comments` in CI |
-| A fact that outlives the file it describes is an ADR or a doc, and the comment cites it instead of restating it. | `lint:comments` in CI |
-| An exported identifier has a doc comment only when the comment states a fact the signature cannot. A doc comment that restates the signature is deleted. | `lint:comments` in CI |
+| A comment is one paragraph of at most three lines. One line is the norm. | `lint:tablint` in CI |
+| A fact that outlives the file it describes is an ADR or a doc, and the comment cites it instead of restating it. | `lint:tablint` in CI |
+| An exported identifier has a doc comment only when the comment states a fact the signature cannot. A doc comment that restates the signature is deleted. | `lint:tablint` in CI |
 | A comment that survives on one of the five grounds is not deleted to make room for another. | review |
 | No comment describes a state that a later edit makes false. The value it describes states it. | review |
 | A comment does not teach a third-party tool what that tool documents, and does not restate a convention that the path or identifier carries. | review |
-| Commented-out code, changelog, author, or date comments, and decorative banners are not committed. | `lint:comments` in CI |
-| A `TODO` cites an issue or an ADR. | `lint:comments` in CI |
+| Commented-out code, changelog, author, or date comments, and decorative banners are not committed. | `lint:tablint` in CI |
+| A `TODO` cites an issue or an ADR. | `lint:tablint` in CI |
 | A comment that exists to explain confusing code is a defect. The code is rewritten. | review |
 | A workaround for a third-party component or an external service states the behaviour in a sentence that opens with a marker: `Workaround for <name> <version> in <path>:` or `Workaround for <name>, checked <YYYY-MM>:`. The comment names a `Retest:`. | `lint:workarounds` in CI |
 | A pinned workaround names the version that its file pins. A bump of the pin fails the gate until the author runs the retest and removes the workaround or updates the marker. | `lint:workarounds` in CI |
@@ -295,7 +296,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Argo CD is the only mechanism that applies manifests to a cluster. `kubectl apply` is permitted only for the one-time bootstrap step. | review |
 | Every backend service deploys through the shared chart with a values file per environment. Each platform component has one chart. | `lint:service-contract` in CI |
 | Environment differences live in values files, never in chart logic that depends on the environment name. | review |
-| An image is built once and promoted by an update to values files. It is never rebuilt for another environment. | `publish.yml` in CI |
+| An image is built once and promoted by an update to values files. It is never rebuilt for another environment. | review |
 | Promotion to dev and staging is a commit that the publishing workflow makes when every image it built is in the registry. Sync windows enforce the cadence. Promotion to production is automatic on a release tag, through a pull request that merges when its checks pass. Every deployed environment pins by digest. | review |
 | An environment's bootstrap directory names that environment alone. | `lint:gitops-env-scope` in CI |
 | No environment is deployed through a values-bump PR that a person opens by hand. | review |
@@ -389,7 +390,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Cilium NetworkPolicy is the internal trust boundary between services, and each service declares its allowed callers. | `lint:service-contract` in CI |
 | No dedicated service mesh is deployed, with sidecars or ambient. A mesh runs over the CNI, not in place of it. So a mesh is a second component that provides encryption, identity, and L4 policy again, after Cilium. The edge and the app already cover its L7 layer. | review |
 | Each environment has one wildcard `A` record and one wildcard certificate. `external-dns` is not used. | review |
-| Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. | `dns.yml` in CI |
+| Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. | `dns:check` in CI |
 | An environment is provisioned only where the provider offers a DNS API that cert-manager supports and `PTR` delegation on the mail egress IP. | review |
 
 ## ADR-0207: Cluster Storage and Backups

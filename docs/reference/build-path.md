@@ -96,14 +96,13 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lighthouse:down` | Remove the containers and the network of `lighthouse:up`. | lighthouse.yml, publish.yml |
 | `lighthouse:up` | The Lighthouse origin without a cluster, per ADR-0400: the production frontend image, the API mock, a Kratos stub, and Traefik, on port 8444. | lighthouse.yml, publish.yml |
 | `lint:activity-register` | The Temporal registration gate, per ADR-0302: every activity that a workflow names as a string is registered on its service's worker. | .lefthook.yml, ci.yml |
-| `lint:adr-xref` | The internal links of the ADR set. References resolve, and Related names documents that exist. Every ADR has a Decides line and an index row. The two adoption documents name the same components. | .lefthook.yml, ci.yml |
+| `lint:adr-xref` | The two cross-references tablint has no rule for: the adoption documents name the same components, and every deferral has a register row. | .lefthook.yml, ci.yml |
 | `lint:alert-severity` | The alert-severity gate, per ADR-0502. | .lefthook.yml, ci.yml |
 | `lint:api-audience` | The audience and exposure gate, per ADR-0303. A spec's info.x-audience is public only when the service has an /api route at the edge. | .lefthook.yml, ci.yml |
 | `lint:api-breaking` | oasdiff labels breaking contract changes for review. It is not a version gate, per ADR-0303. | ci.yml |
 | `lint:auth-inline` | The single-source guard for auth config, per ADR-0305. It fails if kratos or oathkeeper config is put inline in the Ory chart values instead of infra/auth/*, or if the frontend adds development auth. | .lefthook.yml, ci.yml |
 | `lint:authz` | The edge-auth policy gates, per ADR-0304, ADR-0305, and ADR-0306. They check the OpenFGA model, its assertions, and model.json sync. Ops dashboards authorize through remote_json to the Checker, never `allow`. | .lefthook.yml, ci.yml |
 | `lint:authz-dual-write` | The ADR-0304 dual-write rule, checked statically: a tuple is written from an activity, never from a handler. | .lefthook.yml, ci.yml |
-| `lint:comments` | The part of the ADR-0001 comment rules that a machine can check, over the comments this repository owns. | .lefthook.yml, ci.yml |
 | `lint:commits` | Conventional Commits over the commit range of the pull request, per ADR-0103. | ci.yml |
 | `lint:contrast` | Colour contrast, checked against the design-token file and not for each component, per ADR-0400. A token change moves every surface, so the token file is where a regression starts. | .lefthook.yml, ci.yml |
 | `lint:data-classes` | The drift check for the data-class registry. | .lefthook.yml, ci.yml |
@@ -126,7 +125,6 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint:parity` | ADR-0205 gate: every key in a deployed environment's values exists in the local overlay, or is on the allowlist with its approved reason. | .lefthook.yml, ci.yml |
 | `lint:ports` | The local port registry gate, per ADR-0205: ports are unique, every service is registered, and each service's .mise.toml uses the port the registry assigns. | .lefthook.yml, ci.yml |
 | `lint:project-identity` | ADR-0106 gate: a project created from this template must have its own name before it pushes. | .lefthook.yml, ci.yml |
-| `lint:prose` | The Simple English profile and the banned-constructs table of ADR-0001, enforced. | .lefthook.yml, ci.yml |
 | `lint:readme-drift` | Principle 9, applied to the one document that is not generated. | .lefthook.yml, ci.yml |
 | `lint:requirements` | The trace of ADR-0602. Every requirement has one EARS sentence and an ID under its file's prefix. A test cites each requirement, and every cited ID exists. | .lefthook.yml, ci.yml |
 | `lint:resource-governance` | ADR-0204 gate: render every chart, each service separately, and check the declared resources against the guardrails in infra/helm/platform/resource-governance before they reach a cluster. | .lefthook.yml, ci.yml |
@@ -138,6 +136,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint:service-deps` | The inner loop's dependency graph, checked against the code, per ADR-0600 and ADR-0205. | .lefthook.yml, ci.yml |
 | `lint:shell` | shellcheck over every tracked *.sh, per ADR-0101. | .lefthook.yml, ci.yml |
 | `lint:sql` | SQL: sqruff over every migration and sqlc query. A column with personal data has its pii class, per ADR-0300 and ADR-0301. | .lefthook.yml, ci.yml |
+| `lint:tablint` | The Simple English profile, the banned constructs, the comment rules, and the ADR set of ADR-0001, checked by tablint. | .lefthook.yml, ci.yml |
 | `lint:tasks` | ADR-0600: every mise task has a command or a dependency. | .lefthook.yml, ci.yml |
 | `lint:template-build` | `go build ./...` cannot see services/_template. Every hand-written file there has a //go:build _template constraint, and scripts/new-service.sh removes it when it copies the tree. | .lefthook.yml, ci.yml |
 | `lint:thin-workflows` | ADR-0102: workflow YAML checks out, sets up the toolchain, and calls a mise task. | .lefthook.yml, ci.yml |

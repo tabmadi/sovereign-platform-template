@@ -99,6 +99,7 @@ The tool is a bounded swap behind a stable interface. The owning ADR has a short
 | golangci-lint | Go linting | [0101](adr/0101-monorepo.md) | GPL-3.0 | maintainer-led | `go vet` alone, revive, staticcheck standalone |
 | Biome | TypeScript lint and format | [0101](adr/0101-monorepo.md) | MIT OR Apache-2.0 | maintainer-led | ESLint and Prettier, oxlint, dprint |
 | rumdl | Markdown lint and format | [0101](adr/0101-monorepo.md) | MIT | maintainer-led | markdownlint, Vale, Prettier for Markdown |
+| tablint | prose, comment, and ADR lint | [0101](adr/0101-monorepo.md) | Apache-2.0 | the template's owner | Go linters in `tools/`, Vale with Conftest |
 | gitleaks | plaintext-secret scanning | [0202](adr/0202-secrets.md) | MIT | gitleaks organisation, maintainer-led | trufflehog, detect-secrets, review alone |
 | shellcheck and shfmt | shell lint and format | [0101](adr/0101-monorepo.md) | GPL-3.0 and BSD-3-Clause | maintainer-led | no shell lint, shellharden |
 | lefthook | git hooks | [0101](adr/0101-monorepo.md) | MIT | Evil Martians | husky, pre-commit, a committed `.githooks` directory |

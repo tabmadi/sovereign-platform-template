@@ -1,6 +1,5 @@
-// Command lint-adr-xref checks the internal links of the ADR set: references, Related headers, index rows, and genre
-// paths,
-// per ADR-0001.
+// Command lint-adr-xref checks the two cross-references of this template that tablint has no rule for: the
+// adoption documents name the same components, and every deferral has a register row.
 package main
 
 import (
@@ -15,23 +14,16 @@ import (
 
 const (
 	adrDir      = "docs/adr"
-	docsDir     = "docs"
 	surfacePath = "docs/operational-surface.md"
 	deferPath   = "docs/reference/deferral-register.md"
 	pathPath    = "docs/adoption-path.md"
-	indexPath   = "docs/adr/README.md"
 )
 
 var (
-	adrRef     = regexp.MustCompile(`ADR-(\d{4})`)
-	adrFile    = regexp.MustCompile(`^(\d{4})-[a-z0-9-]+\.md$`)
-	relatedRow = regexp.MustCompile(`^- \*\*Related:\*\* (.+)$`)
-	decidesRow = regexp.MustCompile(`^- \*\*Decides:\*\* \S`)
-	indexRow   = regexp.MustCompile(`^\| \[(\d{4})\]\(([^)]+)\)`)
-	reservedNo = regexp.MustCompile(`^\| (\d{4}) \| `)
+	adrRef  = regexp.MustCompile(`ADR-(\d{4})`)
+	adrFile = regexp.MustCompile(`^(\d{4})-[a-z0-9-]+\.md$`)
 	// Both inventory documents name a component with a bold first table cell.
 	boldCell = regexp.MustCompile(`^\| \*\*([^*|]+)\*\*`)
-	readme   = regexp.MustCompile(`\]\((\.\./)+README\.md`)
 )
 
 func main() {
@@ -39,158 +31,30 @@ func main() {
 }
 
 func run(r *lint.Report) error {
-	set, err := loadSet()
+	files, err := adrFiles()
 	if err != nil {
 		return err
 	}
-	r.Add(checkReferences(set)...)
-	r.Add(checkRelatedExists(set)...)
-	r.Add(checkDecidesAndIndex(set)...)
 	r.Add(checkComponentAgreement()...)
-	r.Add(checkDeferralCoverage(set)...)
-	r.Add(checkReadmeBoundary()...)
-
-	r.Okf("ADR cross-references hold across %d ADRs", len(set.files))
+	r.Add(checkDeferralCoverage(files)...)
+	r.Okf("the adoption documents and the deferral register agree with %d ADRs", len(files))
 	return nil
 }
 
-// adrSet is the allocated numbering: files that exist, and numbers held in reserve.
-type adrSet struct {
-	files    map[string]string   // number -> path
-	reserved map[string]bool     // number -> held
-	related  map[string][]string // number -> numbers named in its Related header
-}
-
-func loadSet() (*adrSet, error) {
-	set := &adrSet{
-		files:    map[string]string{},
-		reserved: map[string]bool{},
-		related:  map[string][]string{},
-	}
+// adrFiles maps each ADR number to its path.
+func adrFiles() (map[string]string, error) {
 	entries, err := os.ReadDir(adrDir)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", adrDir, err)
 	}
+	files := map[string]string{}
 	for _, e := range entries {
 		m := adrFile.FindStringSubmatch(e.Name())
-		if m == nil {
-			continue
-		}
-		path := filepath.Join(adrDir, e.Name())
-		set.files[m[1]] = path
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", path, err)
-		}
-		for line := range strings.SplitSeq(string(body), "\n") {
-			r := relatedRow.FindStringSubmatch(line)
-			if r != nil {
-				for _, ref := range adrRef.FindAllStringSubmatch(r[1], -1) {
-					set.related[m[1]] = append(set.related[m[1]], ref[1])
-				}
-				break
-			}
-		}
-	}
-	index, err := os.ReadFile(indexPath)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", indexPath, err)
-	}
-	inReserved := false
-	for line := range strings.SplitSeq(string(index), "\n") {
-		if strings.HasPrefix(line, "## Reserved") {
-			inReserved = true
-			continue
-		}
-		if inReserved && strings.HasPrefix(line, "## ") {
-			inReserved = false
-		}
-		if inReserved {
-			m := reservedNo.FindStringSubmatch(line)
-			if m != nil {
-				set.reserved[m[1]] = true
-			}
-		}
-	}
-	return set, nil
-}
-
-// checkReferences resolves every ADR-XXXX mention under docs/ and in the root files where a reader starts.
-func checkReferences(set *adrSet) []string {
-	var problems []string
-	for _, path := range markdownFiles() {
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return []string{fmt.Sprintf("%s: %v", path, err)}
-		}
-		seen := map[string]bool{}
-		for _, m := range adrRef.FindAllStringSubmatch(string(body), -1) {
-			num := m[1]
-			if seen[num] {
-				continue
-			}
-			seen[num] = true
-			if set.files[num] == "" && !set.reserved[num] {
-				problems = append(problems, fmt.Sprintf("%s: references ADR-%s, which is neither a file nor reserved", path, num))
-			}
-			if set.files[num] != "" && set.reserved[num] {
-				problems = append(problems, fmt.Sprintf("%s: ADR-%s is both a file and reserved in the index", indexPath, num))
-			}
-		}
-	}
-	return problems
-}
-
-func checkRelatedExists(set *adrSet) []string {
-	var problems []string
-	for num, refs := range set.related {
-		for _, ref := range refs {
-			if set.files[ref] == "" {
-				problems = append(problems, fmt.Sprintf("%s: Related names ADR-%s, which has no file", set.files[num], ref))
-			}
-		}
-	}
-	return problems
-}
-
-// checkDecidesAndIndex keeps the header line and the index in step. The Decides line is the fast way to read the set,
-// so an ADR without one cannot be read at index speed.
-func checkDecidesAndIndex(set *adrSet) []string {
-	var problems []string
-	index, err := os.ReadFile(indexPath)
-	if err != nil {
-		return []string{fmt.Sprintf("%s: %v", indexPath, err)}
-	}
-	indexed := map[string]bool{}
-	for line := range strings.SplitSeq(string(index), "\n") {
-		m := indexRow.FindStringSubmatch(line)
 		if m != nil {
-			indexed[m[1]] = true
-			if set.files[m[1]] == "" {
-				problems = append(problems, fmt.Sprintf("%s: indexes ADR-%s, which has no file", indexPath, m[1]))
-			}
+			files[m[1]] = filepath.Join(adrDir, e.Name())
 		}
 	}
-	for num, path := range set.files {
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return []string{fmt.Sprintf("%s: %v", path, err)}
-		}
-		hasDecides := false
-		for line := range strings.SplitSeq(string(body), "\n") {
-			if decidesRow.MatchString(line) {
-				hasDecides = true
-				break
-			}
-		}
-		if !hasDecides {
-			problems = append(problems, path+": no Decides line in the header")
-		}
-		if !indexed[num] {
-			problems = append(problems, fmt.Sprintf("%s: ADR-%s is not in the index", indexPath, num))
-		}
-	}
-	return problems
+	return files, nil
 }
 
 // checkComponentAgreement keeps the two adoption documents from drifting apart.
@@ -230,7 +94,7 @@ func checkComponentAgreement() []string {
 	return problems
 }
 
-func checkDeferralCoverage(set *adrSet) []string {
+func checkDeferralCoverage(files map[string]string) []string {
 	body, err := os.ReadFile(deferPath)
 	if err != nil {
 		return []string{fmt.Sprintf("%s: %v", deferPath, err)}
@@ -245,7 +109,7 @@ func checkDeferralCoverage(set *adrSet) []string {
 		}
 	}
 	var problems []string
-	for num, path := range set.files {
+	for num, path := range files {
 		adrBody, err := os.ReadFile(path)
 		if err != nil {
 			return []string{fmt.Sprintf("%s: %v", path, err)}
@@ -260,50 +124,4 @@ func checkDeferralCoverage(set *adrSet) []string {
 		}
 	}
 	return problems
-}
-
-// checkReadmeBoundary enforces the ADR-0001 rule that nothing under docs/ links to the root README.
-// A generated project rewrites that file, so the link would point at another project's selection guidance.
-func checkReadmeBoundary() []string {
-	var problems []string
-	for _, path := range markdownFiles() {
-		if !strings.HasPrefix(filepath.ToSlash(path), docsDir+"/") {
-			continue
-		}
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return []string{fmt.Sprintf("%s: %v", path, err)}
-		}
-		if readme.Match(body) {
-			problems = append(problems, path+": links to the root README, which a generated project rewrites")
-		}
-	}
-	return problems
-}
-
-func markdownFiles() []string {
-	var out []string
-	_ = filepath.Walk(
-		docsDir,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() || !strings.HasSuffix(path, ".md") {
-				return nil
-			}
-			if strings.HasSuffix(path, ".local.md") {
-				return nil
-			}
-			out = append(out, path)
-			return nil
-		},
-	)
-	for _, root := range []string{"README.md", "AGENTS.md"} {
-		_, err := os.Stat(root)
-		if err == nil {
-			out = append(out, root)
-		}
-	}
-	return out
 }

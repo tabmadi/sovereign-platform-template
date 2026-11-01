@@ -4,7 +4,7 @@ This directory records every decision that binds more than one service or is har
 
 A new ADR starts from [`_template.md`](_template.md).
 
-Every ADR has a **Decides** line in its header. It is one declarative sentence that names what is true of the platform because of the ADR. The *Decides* column below is that line, shortened for the index. Reading the column is the fastest complete pass over the set. `(CI: lint:adr-xref)`
+Every ADR has a **Decides** line in its header. It is one declarative sentence that names what is true of the platform because of the ADR. The *Decides* column below is that line, shortened for the index. Reading the column is the fastest complete pass over the set. `(CI: lint:tablint)`
 
 ## Numbering
 

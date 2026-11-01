@@ -6,8 +6,8 @@ This guide takes a screen from nothing to shipped, in one repository, with no ha
 
 Answer two questions, in one sentence each:
 
-- **Who is this screen for?** Name a role, not `the user`.
-- **What must it prove?** Name the one thing a person must be able to do or see. A screen with three answers is three screens.
+- **The audience.** Name a role, not `the user`.
+- **The proof.** Name the one thing a person must be able to do or see. A screen with three answers is three screens.
 
 If the answers need research, put it in [`docs/product/`](../product/README.md) first. If they do not, skip this step.
 

@@ -90,9 +90,9 @@ pre-commit:
       glob: "*.sh"
       run: mise run lint:shell
     comments:
-      # The comment rules of ADR-0001, through `lint:comments`, over every file type with comments.
+      # The rules of ADR-0001, through `lint:tablint`, over every file type with comments.
       glob: "*.{go,ts,tsx,sh,yaml,yml,toml}"
-      run: mise run lint:comments
+      run: mise run lint:tablint
     log-vocab:
       # The vocabulary gate for human output, `lint:log-vocab`.
       glob: "scripts/**/*.sh"

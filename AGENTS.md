@@ -22,7 +22,7 @@ Every text you write in this repo follows the Simple English profile in [ADR-000
 - Do not use `e.g.`, `i.e.`, `etc.`, or contractions such as `don't`.
 - Write a citation into the sentence: `..., per [ADR-0204](docs/adr/0204-resource-management.md).` Do not put it in parentheses.
 
-`mise run lint:prose` and `mise run lint:comments` check these rules. Run them before you finish.
+`mise run lint:tablint` checks these rules. Run it before you finish.
 
 ## Read first
 
@@ -46,8 +46,8 @@ The set is large, and each task needs a small part of it. Grep the Rules section
 | Anything at the edge or about identity | [0305](docs/adr/0305-edge-auth-and-traffic-policy.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), [0304](docs/adr/0304-identity-and-authorization.md) | `mise run lint:auth-inline`, and [docs/reference/threat-model.md](docs/reference/threat-model.md) |
 | Frontend code | [0400](docs/adr/0400-frontend.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), and [0700](docs/adr/0700-analytics.md) for anything that emits events | `mise run lint:ts`, `lint:i18n` |
 | A screen's design, the brand, or product research | [0701](docs/adr/0701-product-design-and-discovery.md), [docs/brand.md](docs/brand.md) for the token roles, and [docs/guide/designing-a-screen.md](docs/guide/designing-a-screen.md) for the procedure | `mise run lint:contrast`, `lint:i18n`, `lint:ts` |
-| Any user-facing copy | [0400](docs/adr/0400-frontend.md) §Localisation and the Simple English profile in [0001](docs/adr/0001-documentation-and-output-conventions.md#simple-english). Every string is a key in `apps/frontend/src/messages/<locale>.json`, and all three catalogues change together | `mise run lint:i18n`, `lint:prose`, `lint:ts` |
-| A document, an ADR, or a comment | [0001](docs/adr/0001-documentation-and-output-conventions.md) with its Simple English profile, and `_template.md` for a new ADR | `mise run lint:prose`, `lint:comments`, `lint:adr-xref`, `lint:md` |
+| Any user-facing copy | [0400](docs/adr/0400-frontend.md) §Localisation and the Simple English profile in [0001](docs/adr/0001-documentation-and-output-conventions.md#simple-english). Every string is a key in `apps/frontend/src/messages/<locale>.json`, and all three catalogues change together | `mise run lint:i18n`, `lint:tablint`, `lint:ts` |
+| A document, an ADR, or a comment | [0001](docs/adr/0001-documentation-and-output-conventions.md) with its Simple English profile, and `_template.md` for a new ADR | `mise run lint:tablint`, `lint:adr-xref`, `lint:md` |
 | A rule's wording | the owning ADR only. The rules index and the security baseline are generated | `mise run gen`, then `lint:rules-index` |
 
 ## How the docs are organised

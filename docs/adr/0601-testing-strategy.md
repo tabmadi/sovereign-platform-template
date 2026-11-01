@@ -21,8 +21,8 @@ Testing answers two separate questions. A suite that mixes them answers neither:
 
 | Question | Verdict | Load |
 | --- | --- | --- |
-| **Is it correct?** | works, or broken | about one user |
-| **What does it cost, and where does it break?** | within budget, regressed, or saturated | past the knee, on purpose |
+| **Correctness** | works, or broken | about one user |
+| **Cost and breaking point** | within budget, regressed, or saturated | past the knee, on purpose |
 
 Three accepted decisions depend on the second answer:
 

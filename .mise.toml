@@ -72,6 +72,8 @@ cocogitto = "7.0.0"
 act = "0.2.89"
 golangci-lint = "2.12.2"
 rumdl = "0.2.18"
+# The prose, comments, and ADRs, per ADR-0001 and ADR-0101. tablint.toml holds the settings.
+"github:tabmadi/tablint" = "0.1.1"
 # All glue is bash, per ADR-0101. shellcheck lints and shfmt formats, through lint:shell, format:shell, and the pre-commit hook.
 "aqua:koalaman/shellcheck" = "0.11.0"
 "aqua:mvdan/sh" = "3.13.1"
@@ -299,7 +301,7 @@ description = "shfmt from mvdan/sh formats shell, over the same file set that li
 run = "bash scripts/format-shell.sh"
 
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:l7-routes", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:prose", "lint:comments", "lint:adr-xref", "lint:requirements", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:tasks", "lint:workarounds", "lint:dns", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:l7-routes", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:tablint", "lint:adr-xref", "lint:requirements", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:tasks", "lint:workarounds", "lint:dns", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
 
 [tasks."lint:go"]
 description = "Go correctness and style: golangci-lint's configured analysers over every module, per ADR-0100."
@@ -403,16 +405,12 @@ run = "bash scripts/lint-project-identity.sh"
 description = "Resolve a tag to the index digest that a Dockerfile or values file pins, so the pin comes from the registry and not a manual copy, per ADR-0101 and ADR-0104."
 run = "bash scripts/image-digest.sh"
 
-[tasks."lint:prose"]
-description = "The Simple English profile and the banned-constructs table of ADR-0001, enforced."
-run = "go run ./tools/lint-prose"
-
-[tasks."lint:comments"]
-description = "The part of the ADR-0001 comment rules that a machine can check, over the comments this repository owns."
-run = "go run ./tools/lint-comments"
+[tasks."lint:tablint"]
+description = "The Simple English profile, the banned constructs, the comment rules, and the ADR set of ADR-0001, checked by tablint."
+run = "tablint check"
 
 [tasks."lint:adr-xref"]
-description = "The internal links of the ADR set. References resolve, and Related names documents that exist. Every ADR has a Decides line and an index row. The two adoption documents name the same components."
+description = "The two cross-references tablint has no rule for: the adoption documents name the same components, and every deferral has a register row."
 run = "go run ./tools/lint-adr-xref"
 
 [tasks."lint:requirements"]
@@ -527,7 +525,7 @@ run = "dnscontrol check --config infra/dns/dnsconfig.js"
 
 [tasks."lint:tasks"]
 description = "ADR-0600: every mise task has a command or a dependency."
-run = "go run ./tools/lint-tasks"
+run = "mise tasks validate"
 
 [tasks."lint:workarounds"]
 description = "ADR-0001: every workaround matches the version its file pins, or was checked in the last twelve months."

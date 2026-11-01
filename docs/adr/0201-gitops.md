@@ -241,7 +241,7 @@ Argo CD is the engine for the full local tier only, and it deploys from committe
 - Argo CD is the only mechanism that applies manifests to a cluster. `kubectl apply` is permitted only for the one-time bootstrap step.
 - Every backend service deploys through the shared chart with a values file per environment. Each platform component has one chart. `(CI: lint:service-contract)`
 - Environment differences live in values files, never in chart logic that depends on the environment name.
-- An image is built once and promoted by an update to values files. It is never rebuilt for another environment. `(CI: publish.yml)`
+- An image is built once and promoted by an update to values files. It is never rebuilt for another environment.
 - Promotion to dev and staging is a commit that the publishing workflow makes when every image it built is in the registry. Sync windows enforce the cadence. Promotion to production is automatic on a release tag, through a pull request that merges when its checks pass. Every deployed environment pins by digest.
 - An environment's bootstrap directory names that environment alone. `(CI: lint:gitops-env-scope)`
 - No environment is deployed through a values-bump PR that a person opens by hand.
