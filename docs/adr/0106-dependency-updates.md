@@ -134,7 +134,7 @@ An exclusion is the mechanism, not a deletion. It stops a render, so an update d
 - A CVE that Trivy gates on and that has a fixed version available is proposed at once, outside the batch. `(CI: ci:scan)`
 - A generated project tracks this template through the Copier answers file and updates by 3-way merge. The template makes no compatibility promise, and the project resolves each conflict.
 - The rename runs at generation and at every update. Both renders of an update carry the project's names.
-- A file that fits only one setup belongs to a mode. A mode is a Copier answer, and its paths are templated `_exclude` lines that `project:init` also reads. `(CI: test:template)`
+- A file that fits only one setup belongs to a mode. A mode is a Copier answer, and its paths are templated `_exclude` lines that `project:init` also reads.
 - A mode never deletes a file in a Copier task. A mode that edits files in place runs its script at generation and at every update.
 - A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name does not match its module path has not been renamed. `(CI: lint:project-identity)`
 - Copier and Renovate are pinned in `.mise.toml` like every other tool. Neither runs inside a cluster workload. `(CI: lint:node-scope)`

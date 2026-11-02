@@ -8,8 +8,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 196 |
-| Review-enforced | 359 |
+| Machine-enforced | 195 |
+| Review-enforced | 360 |
 | **Total** | **555** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
@@ -265,7 +265,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A CVE that Trivy gates on and that has a fixed version available is proposed at once, outside the batch. | `ci:scan` in CI |
 | A generated project tracks this template through the Copier answers file and updates by 3-way merge. The template makes no compatibility promise, and the project resolves each conflict. | review |
 | The rename runs at generation and at every update. Both renders of an update carry the project's names. | review |
-| A file that fits only one setup belongs to a mode. A mode is a Copier answer, and its paths are templated `_exclude` lines that `project:init` also reads. | `test:template` in CI |
+| A file that fits only one setup belongs to a mode. A mode is a Copier answer, and its paths are templated `_exclude` lines that `project:init` also reads. | review |
 | A mode never deletes a file in a Copier task. A mode that edits files in place runs its script at generation and at every update. | review |
 | A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name does not match its module path has not been renamed. | `lint:project-identity` in CI |
 | Copier and Renovate are pinned in `.mise.toml` like every other tool. Neither runs inside a cluster workload. | `lint:node-scope` in CI |
