@@ -125,8 +125,10 @@ if has svc prometheus; then
       jq -r '.data.result[0].value[1] // "0"')"
   fi
   if has svc alertmanager && forward alertmanager 19093 9093; then
+    # ImagePullsFailing counts pull errors over one hour. A fresh cluster retries its pulls while zot warms, so it fires for a
+    # tier that is healthy now. The pods check above proves that every image arrived.
     expect "alerts firing" "" "$(curl -s --noproxy '*' 'http://127.0.0.1:19093/api/v2/alerts?active=true&silenced=false&inhibited=false' |
-      jq -r '[.[] | .labels.alertname | select(. != "Watchdog" and . != "InfoInhibitor")] | unique | join(", ")')"
+      jq -r '[.[] | .labels.alertname | select(. != "Watchdog" and . != "InfoInhibitor" and . != "ImagePullsFailing")] | unique | join(", ")')"
   fi
 fi
 
