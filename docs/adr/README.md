@@ -45,6 +45,7 @@ Each layer has a hundred slots, not ten, so a layer can grow without renumbering
 | [0104](0104-supply-chain-security.md) | Supply-Chain Security | Signing, scanning, admission verification |
 | [0105](0105-image-registry.md) | Image Registry | Where images and their attestations live |
 | [0106](0106-dependency-updates.md) | Dependency Updates and Template Propagation | What moves the pins, and how a template fix reaches a generated project |
+| [0107](0107-work-tracking.md) | Work Tracking | The forge's own issues as the task manager in each forge mode, for every team |
 
 ### 02xx: Infrastructure
 

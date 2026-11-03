@@ -32,6 +32,7 @@ An **event** row is not a weaker deferral. Some triggers are commercial or organ
 | Ops-tier token isolation | an origin under the apex that is not first-party, or the product showing user-supplied content to other users | **query** over the ingress set for the first. **event** for the second | [ADR-0306](../adr/0306-trust-tiers-and-urls.md) |
 | A partner credential tier | a party outside the organisation gets credentials for the API | **event** | [ADR-0306](../adr/0306-trust-tiers-and-urls.md) |
 | The forge migration to Forgejo | the platform cluster serves its first environment | **event** | [ADR-0102](../adr/0102-source-control-and-ci.md) |
+| A tracker beside the forge's issues | three issues with the `kind/tracker-gap` label in one quarter | **query**: a label search over the forge's issues API. Labelled a **bet**: no importer reads Forgejo | [ADR-0107](../adr/0107-work-tracking.md) |
 | SemVer for a published artifact | an artifact is published for a consumer outside this repository to pin | **event** | [ADR-0103](../adr/0103-release-and-versioning.md) |
 | Escalation and paging | a response-time obligation outside working hours: an availability target with consequences, or a contract that names one | **event**. This is the largest row here: it is the trigger that bounds [`detection-latency.md`](detection-latency.md) | [ADR-0502](../adr/0502-alerting-and-on-call.md) |
 | Keyless signing | a first-party image is published for an external party to verify | **event** | [ADR-0104](../adr/0104-supply-chain-security.md) |

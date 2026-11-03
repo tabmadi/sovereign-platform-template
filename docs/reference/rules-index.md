@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 195 |
-| Review-enforced | 360 |
-| **Total** | **555** |
+| Review-enforced | 370 |
+| **Total** | **565** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -269,6 +269,23 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A mode never deletes a file in a Copier task. A mode that edits files in place runs its script at generation and at every update. | review |
 | A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name does not match its module path has not been renamed. | `lint:project-identity` in CI |
 | Copier and Renovate are pinned in `.mise.toml` like every other tool. Neither runs inside a cluster workload. | `lint:node-scope` in CI |
+
+## ADR-0107: Work Tracking
+
+[Full decision](../adr/0107-work-tracking.md)
+
+| Rule | Enforced by |
+| --- | --- |
+| The task manager of a project is the issues and projects of its forge, per the `forge` mode of [ADR-0106](../adr/0106-dependency-updates.md). No second tracker holds the state of a task, per principle 5 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
+| A tracker gives no person a new credential. Sign-in goes through an identity that the person already has. | review |
+| Work with no code change lives in a repository named `work`, which holds no code. | review |
+| A request enters through an issue form. The forms and the label set are committed files, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
+| Each team plans on one organization project. | review |
+| A pull request closes the issue that it resolves with a closing keyword. | review |
+| A security report lives in a private repository that only its handlers can read. | review |
+| In the `forgejo` mode, a forge team whose members do not write code has the issues and projects units only, never the code unit. | review |
+| A planning need that the forge cannot hold is filed as an issue with the `kind/tracker-gap` label. Three such issues in one quarter reopen this comparison. | review |
+| A managed tracker in the `forgejo` mode is recorded in principle 3 of [ADR-0000](../adr/0000-platform-foundations.md) before it is adopted. | review |
 
 ## ADR-0200: Cluster Topology and Hosting
 
