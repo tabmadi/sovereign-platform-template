@@ -230,15 +230,25 @@ The service API is a **flat resource namespace**. The URL names the resource, no
 
 Self-hosting multiplies consoles: Forgejo, zot, Grafana, Argo CD, Headlamp, Hubble, the Temporal UI, and pgweb. The cost lands on offboarding. When someone leaves, the question is whether anyone remembers all eight.
 
-**The answer is the identity stack already here, not a ninth component.** Ory Hydra is already in the tree as the OIDC provider, per [ADR-0305](0305-edge-auth-and-traffic-policy.md). Kratos is already the identity source, and the login UI already exists at `/auth/login`. Consoles that speak OIDC consume it. When one Kratos identity is deactivated, access to all of them ends at once.
+**The answer is the identity stack in the tree, not a ninth component.** Kratos is the identity source, and the login UI exists at `/auth/login`. Ory Hydra is the OIDC provider that a console consumes, per [ADR-0305](0305-edge-auth-and-traffic-policy.md). When one Kratos identity is deactivated, access to every console that consumes it ends at once.
+
+**Hydra is Opt-in**, behind the `hydra_thirdparty` flag, per [`operational-surface.md`](../operational-surface.md). Until the flag is on, no console signs in over OIDC. Consoles behind the ops gate need no login of their own, as described above. Forgejo is not behind that gate, so it keeps one local account for each person.
 
 | Option | Verdict |
 | --- | --- |
-| **Hydra and Kratos, already deployed** | **Chosen.** No new component, no second identity source, and one offboarding action. Consent is auto-granted for first-party console clients. This keeps a third-party consent screen from appearing in front of an internal tool *(reasoned)* |
+| **Hydra and Kratos, already in the tree** | **Chosen.** No new component, no second identity source, and one offboarding action. Consent is auto-granted for first-party console clients. This keeps a third-party consent screen from appearing in front of an internal tool *(reasoned)* |
 | Authentik | The best admin experience in the field, and the wrong shape here. It is a second identity system beside Kratos. So every person exists twice, and offboarding becomes two actions: the problem stated again, not solved. It also brings its own PostgreSQL and Redis |
 | Zitadel | A live candidate for this slot. The objections to it are about custom login UIs and config-as-code for *application* identity, and neither applies to hosted-login OIDC. It still loses on the same count as Authentik: a second source of people |
 | Keycloak | The same duplication, on a JVM, with realms and mappers to learn |
 | Authelia | A tiny footprint, and a forward-auth model that this platform already has in Oathkeeper. It replaces a component and does not add SSO |
+
+| Field | Value |
+| --- | --- |
+| **Trigger** | the `hydra_thirdparty` flag is on for another reason, or an offboarding leaves a forge account active |
+| **Seam** | ✓ Hydra is a chart flag. Forgejo adds an OIDC auth source with no data change, and an existing account links to its Kratos identity at its next login |
+| **Cost if adopted late** | each person keeps a separate forge password, and offboarding is two actions: the Kratos identity and the forge account |
+
+**OIDC moves the forge's web login into the cluster's failure domain.** Hydra and Kratos run in the cluster, and the forge runs outside it, per [ADR-0102](0102-source-control-and-ci.md). After a cluster loss, only the forge's break-glass admin signs in to its web UI. Git over SSH does not change.
 
 **Consoles that do not speak OIDC stay edge-gated**, as they are now. Oathkeeper's forward-auth in front of `{tool}.ops.<host>` already requires a Kratos session. So access is single sign-on even where the console does not know it. pgweb, the Hubble UI, and the Temporal UI are in this group.
 

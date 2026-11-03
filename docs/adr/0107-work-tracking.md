@@ -59,7 +59,7 @@ The drivers come in two groups. An option that fails a gate is out. The options 
 
 | Option | 1: viable | 2: no new credential | 3: usable without git | 4: API export | Result |
 | --- | --- | --- | --- | --- | --- |
-| Forgejo issues and projects | yes | yes. The forge account, through Kratos, per [ADR-0306](0306-trust-tiers-and-urls.md) | yes. [Issue forms](https://forgejo.org/docs/latest/user/issue-pull-request-templates/), a filtered issue list across the organization, and [boards](https://forgejo.org/docs/latest/user/project/) | yes | passes |
+| Forgejo issues and projects | yes | yes. The forge account, per [ADR-0306](0306-trust-tiers-and-urls.md) | yes. [Issue forms](https://forgejo.org/docs/latest/user/issue-pull-request-templates/), a filtered issue list across the organization, and [boards](https://forgejo.org/docs/latest/user/project/) | yes | passes |
 | GitHub Issues and Projects | yes | yes. The GitHub account | yes. Forms, tables, boards, and roadmaps | yes | passes |
 | Linear | yes | yes. Google sign-in on every plan, per its [pricing page](https://linear.app/pricing). SAML is in Enterprise | yes | yes | passes |
 | Jira Cloud | yes | yes. Google and Microsoft sign-in. SAML needs the Atlassian Guard add-on | yes | yes | passes |
@@ -107,7 +107,7 @@ The task manager of a project is the issues and projects of its own forge. We do
 | Forge mode | Task manager | Sign-in |
 | --- | --- | --- |
 | `github` | GitHub Issues and Projects | the GitHub account |
-| `forgejo` | Forgejo issues and projects | the forge account, through Hydra and Kratos over OIDC, per [ADR-0306](0306-trust-tiers-and-urls.md) |
+| `forgejo` | Forgejo issues and projects | the forge account. It moves to Kratos over OIDC when Hydra runs, per [ADR-0306](0306-trust-tiers-and-urls.md) |
 
 ### Conventions in both modes
 
