@@ -94,6 +94,7 @@ The table holds the options that passed. A cell shows the facts, and the verdict
 | Vikunja | one Go binary and a Postgres tenant | free | a REST API | no | shared projects with permissions | list, board, Gantt, and table views. No intake form | yes | Loses on rank 1 against Forgejo, which costs nothing new, and on rank 6 against the managed options *(reasoned)* |
 | Asana, ClickUp, Notion, Trello, and Monday | none | free tiers end at a user or feature limit. Single sign-on is in Business or Enterprise plans | APIs | no | varies | strong | no | Each matches Linear on ranks 1 to 5 and does not pass it on rank 6 *(reasoned)* |
 | Huly, Leantime, Tuleap, and WeKan | Huly needs CockroachDB, Elasticsearch, and Redpanda, per [huly-selfhost](https://github.com/hcengineering/huly-selfhost). Leantime and Tuleap need MySQL, per [Tuleap's requirements](https://docs.tuleap.com/installation-guide/step-by-step/requirements.html). WeKan needs MongoDB *(documented)* | free | APIs | no | varies | varies | yes | Each loses on rank 1. A second database engine is the cost that [ADR-0300](0300-data.md) rejects |
+| A view layer over the forge's issues | one stateless app | free, plus the work to build it | the forge's API | yes | the forge's | the views that the app builds: tables, boards by any label scope, and timelines | yes | Not the default, because a project builds and keeps it. It is the first answer to the trigger when the gap is views, not data *(reasoned)* |
 | Two tools: the forge for engineers, a second tracker for the other teams | the second tool | the second tool | the second tool | **no.** Work that crosses teams lives in two places, or a sync keeps two copies | varies | the second tool's | varies | Loses on rank 4 for every task that crosses teams, and adds a sync mechanism to rank 1 *(reasoned)* |
 | The forge's issues with no conventions, the do-nothing baseline | none | free | the forge's API | yes | no rule for it | no forms, no team boards, and no home for work with no code | the forge's answer | The tool of the chosen rows without their Decision. The other teams keep work in chat and documents, so a second backlog grows anyway |
 
@@ -130,12 +131,16 @@ The task manager of a project is the issues and projects of its own forge. We do
 | A managed tracker in the `forgejo` mode | a recorded dependency in principle 3 of [ADR-0000](0000-platform-foundations.md) | it is a component that we do not run |
 | A self-hosted tracker beside the forge | Opt-in, per [`operational-surface.md`](../operational-surface.md) | the forge covers the concern in part, so it cannot join Core |
 
+### A view layer is the first answer to a gap in views
+
+The forge holds the data that a planning view needs: labels, milestones, due dates, dependencies, and tracked time. A small app over the forge's API can show that data as a table, a board by any label scope, or a timeline. The tasks stay in the forge, so ranks 2 to 5 still hold. Leaving the app deletes code, not data.
+
 ### The forge's planning features are watched
 
 | Field | Value |
 | --- | --- |
 | **Trigger** | three issues with the `kind/tracker-gap` label in one quarter. Each one records a planning need that the forge cannot hold, such as a timeline across tasks, a custom field, or a table view |
-| **What fires** | the differentiator table is read again at the team size of that day. Linear, Plane, and GitHub Projects are its first rows. OpenProject replaces them when sovereignty binds for the tracker |
+| **What fires** | a view layer over the forge's API is weighed first, when the gap is views and not data. Otherwise the differentiator table is read again at the team size of that day. Linear, Plane, and GitHub Projects are its first rows. OpenProject replaces them when sovereignty binds for the tracker |
 | **Seam** | ✗ none. No importer reads Forgejo, so a move is a script between two APIs. This is a **bet** |
 | **Cost if adopted late** | the issue body to migrate grows for as long as the decision waits. Commit and pull request links stay in the forge and do not migrate. A managed tracker also loses rank 4: a merge no longer closes its task |
 
