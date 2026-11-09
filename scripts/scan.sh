@@ -17,6 +17,8 @@ SKIP=(
   --skip-dirs "**/dist"
   --skip-dirs "**/test-results"
   --skip-dirs "**/playwright-report"
+  # A `Dockerfile.dockerignore` matches the Dockerfile name pattern, and its parser fails on every line.
+  --skip-files "**/*.dockerignore"
 )
 
 # `report` is the triage view: everything, and it gates nothing. Run it to see what the repo carries, not to decide a merge.
