@@ -283,13 +283,13 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: ops-design-auth
+  name: ops-oauth2-proxy
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^design-auth\.ops\..+`)
+      match: HostRegexp(`^oauth2-proxy\.ops\..+`)
       middlewares:
         - name: strip-identity-headers
         - name: security-headers

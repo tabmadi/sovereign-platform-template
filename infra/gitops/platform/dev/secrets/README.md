@@ -167,7 +167,7 @@ stringData:
 
 ## `design-gate.enc.yaml` skeleton
 
-The sign-in gate of the design previews, per [ADR-0306](../../../../../docs/adr/0306-trust-tiers-and-urls.md). Register an OAuth2 application on the forge with the redirect address `https://design-auth.ops.<apex>/oauth2/callback`. The cookie secret is 32 random bytes, base64-encoded.
+The sign-in gate of the design previews, per [ADR-0306](../../../../../docs/adr/0306-trust-tiers-and-urls.md). Register an OAuth2 application on the forge with the redirect address `https://oauth2-proxy.ops.<apex>/oauth2/callback`. The cookie secret is 32 random bytes, base64-encoded.
 
 ```yaml
 apiVersion: isindir.github.com/v1alpha3

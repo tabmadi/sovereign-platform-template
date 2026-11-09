@@ -42,7 +42,7 @@ spec:
             - --allowed-group={{ required "org is required" $v.org }}
             {{- end }}
             - --email-domain=*
-            - --redirect-url=https://design-auth.ops.{{ required "host is required" $v.host }}/oauth2/callback
+            - --redirect-url=https://oauth2-proxy.ops.{{ required "host is required" $v.host }}/oauth2/callback
             - --cookie-domain=.ops.{{ $v.host }}
             - --whitelist-domain=.ops.{{ $v.host }}
             - --cookie-name=_hatra_design

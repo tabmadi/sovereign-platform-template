@@ -108,7 +108,7 @@ The design preview is the one ops origin that serves the product frontend and is
 | Why not the operator gate | it requires a Kratos operator session at AAL2, which most reviewers do not have |
 | Why not a forge login in Kratos | one Kratos serves the customers and the operators. A Forgejo login method would show in the customer login and registration flows, and it would create staff identities in the customer store |
 | Why oauth2-proxy here | [ADR-0305](0305-edge-auth-and-traffic-policy.md) rejected it for the ops gate, because Kratos does not speak OIDC. The forge does, so that reason does not hold for this gate |
-| Sign-in origin | `design-auth.ops.<host>`. The forge returns the reviewer there, because an OAuth2 client needs a fixed redirect address |
+| Sign-in origin | `oauth2-proxy.ops.<host>`, named after the upstream project like every ops host. The forge returns the reviewer there, because an OAuth2 client needs a fixed redirect address |
 | Cookie | `_hatra_design`, `HttpOnly`, `Secure`, and `SameSite=Lax`, for `.ops.<host>`, so one sign-in covers every preview host. The other ops origins receive it and ignore it. The preview route removes it before the pod |
 | Who passes | a member of the forge organization, read from the `groups` claim |
 

@@ -9,7 +9,7 @@ oauth2Proxy:
     tag: "v7.15.5"
     pullPolicy: IfNotPresent
   replicas: 1
-  # The base host. The sign-in origin is `design-auth.ops.<host>`, and the cookie covers `.ops.<host>`, per ADR-0306.
+  # The base host. The sign-in origin is `oauth2-proxy.ops.<host>`, and the cookie covers `.ops.<host>`, per ADR-0306.
   host: ""
   # `github` for a GitHub forge, or `oidc` for Forgejo, per ADR-0106. `scripts/forge-mode.sh` sets it.
   provider: oidc
