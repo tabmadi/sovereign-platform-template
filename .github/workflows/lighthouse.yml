@@ -1,4 +1,4 @@
-# Web vitals and bundle budgets are merge gates, per ADR-0400. So this runs on every PR, not behind a label.
+# Web vitals and bundle budgets are measured on every PR, not behind a label, per ADR-0400.
 # The origin is the production frontend image with the API mock and a Kratos stub, from scripts/lighthouse-stack.sh. No cluster starts.
 # `/devportal` is not measured: proxy.ts redirects an unauthenticated request to login, so it measures login twice.
 name: lighthouse
@@ -52,8 +52,8 @@ jobs:
       - name: Install the Node island
         run: mise run e2e:install
 
-      # Advisory until B6a1 is done: the app misses the LCP budget by about 340ms on every page.
-      # This finding has an owner, and a PR author cannot fix it. Delete this line when it passes.
+      # Advisory, per ADR-0400: the app misses the LCP budget, and a PR author cannot fix that.
+      # Delete this line when every page meets the budget, and make `lighthouse` a required check.
       - name: Web vitals and bundle budgets
         continue-on-error: true
         run: mise run lighthouse

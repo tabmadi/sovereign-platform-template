@@ -763,7 +763,7 @@ description = "Only the committed screenshot baselines, per ADR-0601, to iterate
 run = "mise run -C test/e2e test:visual"
 
 [tasks."lighthouse"]
-description = "Web vitals and the bundle budget for each route, as merge gates, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile."
+description = "Web vitals and the bundle budget for each route, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile."
 run = "mise run -C test/e2e lighthouse"
 
 [tasks."lighthouse:up"]

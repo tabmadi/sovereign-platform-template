@@ -93,7 +93,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `gen:shared-components` | Writes the canonical error envelope, money, and timestamp components from tools/codegen/shared-components.yaml into every spec, per ADR-0303. | .lefthook.yml |
 | `gen:sqlc` | The typed Go database access, generated from each service's queries, per ADR-0300. | .lefthook.yml |
 | `gen:zod` | The runtime validation schemas for the TypeScript apps, generated from the OpenAPI specs, per ADR-0303. | .lefthook.yml |
-| `lighthouse` | Web vitals and the bundle budget for each route, as merge gates, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile. | lighthouse.yml, publish.yml |
+| `lighthouse` | Web vitals and the bundle budget for each route, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile. | lighthouse.yml, publish.yml |
 | `lighthouse:down` | Remove the containers and the network of `lighthouse:up`. | lighthouse.yml, publish.yml |
 | `lighthouse:up` | The Lighthouse origin without a cluster, per ADR-0400: the production frontend image, the API mock, a Kratos stub, and Traefik, on port 8444. | lighthouse.yml, publish.yml |
 | `lint:activity-register` | The Temporal registration gate, per ADR-0302: every activity that a workflow names as a string is registered on its service's worker. | .lefthook.yml, ci.yml |

@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 203 |
-| Review-enforced | 383 |
-| **Total** | **586** |
+| Review-enforced | 384 |
+| **Total** | **587** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -657,7 +657,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A redirect into or out of the auth subtree replaces the history entry and never pushes one. When the login UI finds an existing session, it replaces its own entry with the destination. | review |
 | A redirect that depends on the session carries `Cache-Control: no-store`. | review |
 | Server components do not call the identity provider. Browser flows reach it through the edge, per [ADR-0304](../adr/0304-identity-and-authorization.md). That is the only path the network policy allows. | review |
-| Bundle budgets and the Lighthouse thresholds are merge gates. | review |
+| Bundle budgets and the Lighthouse thresholds are advisory. The `lighthouse` job reports on every PR and blocks no merge. | review |
+| The trigger for a merge gate is a `master` run where every measured page meets the LCP budget. Then the step drops `continue-on-error`, and `lighthouse` joins the required checks. | review |
 | Images go through `next/image`, and fonts go through `next/font`. | `ci:lint` in CI |
 | Every string that a reader sees comes from `src/messages/<locale>.json` through next-intl. A literal in JSX or in an attribute that carries copy blocks the merge. | `lint:ts` in CI |
 | Every catalogue has identical keys, and the locale set includes at least one right-to-left locale. | `lint:i18n` in CI |

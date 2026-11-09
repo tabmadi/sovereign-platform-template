@@ -276,7 +276,7 @@ CSRF protection applies to state changes authenticated by a cookie. The browser 
 | Mocking in tests | MSW, an in-process double scoped to the test runner |
 | End-to-end and visual | owned by [ADR-0601](0601-testing-strategy.md), and driven by Playwright from the repo-root workspace. MSW and the development API mock are both forbidden there |
 | Bundle size | budgets per route group fail the build on regression |
-| Web vitals | Lighthouse CI on every PR. It gates on **LCP under 2.5s**, **INP under 200ms**, and **CLS under 0.1** on the mobile profile. It beats WebPageTest and Calibre, which are hosted and so fail principle 3. It also beats bundle-size checks alone, which measure a proxy, not the metric |
+| Web vitals | Lighthouse CI on every PR. It measures **LCP under 2.5s**, **INP under 200ms**, and **CLS under 0.1** on the mobile profile. It is advisory until every page meets the LCP budget. It beats WebPageTest and Calibre, which are hosted and so fail principle 3. It also beats bundle-size checks alone, which measure a proxy, not the metric |
 | Images and fonts | `next/image` and `next/font`. Raw `<img>` and `@font-face` are not used |
 
 ### Observability
@@ -366,7 +366,8 @@ Locally, the dev server runs against `cluster:up`, and the edge is how a develop
 - A redirect into or out of the auth subtree replaces the history entry and never pushes one. When the login UI finds an existing session, it replaces its own entry with the destination.
 - A redirect that depends on the session carries `Cache-Control: no-store`.
 - Server components do not call the identity provider. Browser flows reach it through the edge, per [ADR-0304](0304-identity-and-authorization.md). That is the only path the network policy allows.
-- Bundle budgets and the Lighthouse thresholds are merge gates.
+- Bundle budgets and the Lighthouse thresholds are advisory. The `lighthouse` job reports on every PR and blocks no merge.
+- The trigger for a merge gate is a `master` run where every measured page meets the LCP budget. Then the step drops `continue-on-error`, and `lighthouse` joins the required checks.
 - Images go through `next/image`, and fonts go through `next/font`. `(CI: ci:lint)`
 - Every string that a reader sees comes from `src/messages/<locale>.json` through next-intl. A literal in JSX or in an attribute that carries copy blocks the merge. `(CI: lint:ts)`
 - Every catalogue has identical keys, and the locale set includes at least one right-to-left locale. `(CI: lint:i18n)`
