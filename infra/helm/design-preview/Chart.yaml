@@ -1,0 +1,9 @@
+apiVersion: v2
+name: design-preview
+description: |
+  The namespace, sandbox, and route of one design preview, per ADR-0701. The
+  frontend itself comes from the service chart, with
+  infra/gitops/design/frontend.yaml.
+type: application
+version: "2026.9.0"
+appVersion: "2026.9.0"

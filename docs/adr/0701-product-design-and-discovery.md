@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-19
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0205](0205-environment-parity.md), [ADR-0400](0400-frontend.md), [ADR-0601](0601-testing-strategy.md), [ADR-0700](0700-analytics.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0205](0205-environment-parity.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0601](0601-testing-strategy.md), [ADR-0700](0700-analytics.md)
 - **Decides:** Design is authored in this repository against one data seam, and product research is dated evidence that binds nothing until an ADR cites it.
 
 ## Context
@@ -62,7 +62,7 @@ A screen under design differs from a finished screen only in where its data come
 | The seam | `src/lib/data/<domain>.ts`. A screen calls it, and it resolves to the generated SDK or to a fixture |
 | Fixtures | `src/fixtures/<domain>.ts`, committed and deterministic. No `Math.random()`, and no `new Date()` at render |
 | The switch | `NEXT_PUBLIC_FIXTURES=1`, read in `src/lib/data/mode.ts` and nowhere else |
-| The production guard | that module throws when the switch is set in a production build. This fails the build during prerender |
+| The production guard | that module throws when the switch is set in a production build. This fails the build during prerender. The one exception is the design build below, which also sets `NEXT_PUBLIC_DESIGN_BUILD=1` |
 | Enforcement | `noRestrictedImports` in `biome.jsonc`. Nothing under `app/` or `components/` imports `server-fetch`, a generated SDK, or a fixture |
 
 To promote a designed screen:
@@ -74,7 +74,27 @@ To promote a designed screen:
 
 The markup does not change, because it was never a translation.
 
-**Two designs are compared as two preview deployments** of the real application. They run on the tier that [ADR-0205](0205-environment-parity.md) already defines. There is no menu of mock screens, and no prototype route to delete before launch.
+**Two designs are compared as two design previews** of the real application. There is no menu of mock screens, and no prototype route to delete before launch.
+
+### The design preview
+
+A reviewer opens a pull request's design at its own URL and clicks through it before it merges. A design has no backend yet, so the preview is the frontend alone, in fixture mode.
+
+| Concern | Decision |
+| --- | --- |
+| What runs | the frontend only, built with `NEXT_PUBLIC_FIXTURES=1`. No service, Kratos, or database |
+| Trigger | a maintainer adds the `design-preview` label after reading the code. A fork's code reaches the cluster only after that |
+| Source | `refs/pull/<n>/head` in this repository. It exists for a fork's pull request too. Only the image comes from the pull request. The manifests come from `master` |
+| Image | the design build, pushed as `design/frontend:pr-<n>-<sha>` under the first-party prefix and signed like every first-party image. The publish workflow never builds it |
+| The design build | `NEXT_PUBLIC_FIXTURES=1` together with `NEXT_PUBLIC_DESIGN_BUILD=1`. `src/lib/data/mode.ts` admits fixtures in a production build only with both switches |
+| Where | one namespace for each pull request, `design-pr-<n>`, in the dev cluster, per [ADR-0205](0205-environment-parity.md) |
+| Lifetime | an Argo CD ApplicationSet with the pull request generator creates it, and deletes it when the pull request closes or the label goes |
+| URL | `design-pr-<n>.ops.<host>`, behind the operator login, per [ADR-0306](0306-trust-tiers-and-urls.md). It is never public |
+| Notice | CI posts the URL as a comment on the pull request, and edits that one comment on each new build |
+
+A fork's code runs here, so the namespace is a sandbox. Its pods reach nothing but DNS. The edge strips the session cookie before the request reaches the pod. It also replaces the page's Content Security Policy with one that allows no other origin. Admission keeps a `design/` image out of every other namespace, per [ADR-0104](0104-supply-chain-security.md). A push after the label rebuilds the preview with no second review. The sandbox bounds that code, and the maintainer removes the label to stop it.
+
+Screenshots attached to the pull request were rejected. A picture cannot be clicked, and the artifact upload of the forge refuses them, per `infra/helm/platform/forgejo/values.yaml`. The full-platform preview of [ADR-0205](0205-environment-parity.md) stays for smoke tests. It is too large to keep for the life of a pull request.
 
 ### Product research is evidence
 
@@ -100,7 +120,7 @@ Research that nobody needed is not a gap.
 - There is one description of the product: the code that ships.
 - A redesign in year two is the same work as the design in week one.
 - A screen can be built, reviewed on a real URL, and shown to a customer before its service exists.
-- The clickable hi-fi demo is not a separate artefact. It is this application, with the switch on, on a preview deployment.
+- The clickable hi-fi demo is not a separate artefact. It is this application, with the switch on, on a design preview.
 - The accessibility and contrast gates apply while a layout is still cheap to change.
 
 ### Negative and Risks
@@ -108,6 +128,7 @@ Research that nobody needed is not a gap.
 - **Sketching is slower than in a throwaway.** Strict types, Biome, and the axe scan all apply. This is accepted, and the options table states the trade: the port step disappears completely.
 - **The seam decays as soon as a screen bypasses it.** A screen wired straight to the SDK can never be designed against a fixture again. The import restriction mitigates this: it fails `lint:ts`, so review does not have to catch it.
 - **A fixture looks exactly like real data.** That makes it useful, and it also makes a shipped fixture invisible. The build-time guard mitigates this, not discipline.
+- **A design preview runs a fork's code under the parent host.** The sandbox removes its network, the session cookie, and its calls to other origins. Its script can still set a cookie for the parent host. The maintainer's reading of the code before the label is the control for that, and for every push after it.
 - **Research goes stale without a signal.** A competitor's UI changes without notice. The only mitigation is the `as-of` line on every research document. This is a convention, and nothing enforces it.
 - **`docs/product/` can stay empty for the life of a project.** This is accepted. An empty optional directory costs one line in an index. The alternative is six files about someone else's product.
 
@@ -117,9 +138,12 @@ Research that nobody needed is not a gap.
 - The design system's values live only in `apps/frontend/src/styles/theme.css`. What the roles are for lives only in [docs/brand.md](../brand.md). `(CI: lint:contrast)`
 - A screen reads and writes through `src/lib/data/`. It does not import `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. `(CI: lint:ts)`
 - Fixtures are deterministic: no `Math.random()`, and no `new Date()` evaluated at render.
-- Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails.
+- Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails, unless `NEXT_PUBLIC_DESIGN_BUILD=1` is also set. `(CI: test)`
+- Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`.
 - A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline.
-- Two candidate designs are compared as two preview deployments, not as a committed menu of alternatives.
+- Two candidate designs are compared as two design previews, not as a committed menu of alternatives.
+- A design preview is the frontend alone in fixture mode, in the namespace `design-pr-<n>` of the dev cluster, built from `refs/pull/<n>/head`. It exists only while the pull request is open and carries the `design-preview` label.
+- A design-preview pod reaches nothing but DNS. `(enforced: NetworkPolicy design-preview)`
 - Product research lives in `docs/product/` and carries an `as-of` date and its sources. It binds nothing until an ADR cites it.
 - No research document is mandatory, and none is generated into a project that did not ask for it.
 - Third-party screenshots and copy kept as research are not reachable from any public surface.

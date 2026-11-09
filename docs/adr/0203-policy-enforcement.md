@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0101](0101-monorepo.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0204](0204-resource-management.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0101](0101-monorepo.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0204](0204-resource-management.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0701](0701-product-design-and-discovery.md)
 - **Decides:** Each invariant is enforced at the earliest layer that the constrained party cannot bypass, with one layer per class of invariant.
 
 ## Context
@@ -98,5 +98,6 @@ Review enforces an unannotated rule. This is a stated position, not an omission.
 - Every invariant is enforced at exactly one layer, chosen by its class in the assignment table. A second copy at another layer is not added for feedback.
 - CI enforces repository properties. Pod Security Admission enforces workload privilege. Kyverno enforces image provenance. CiliumNetworkPolicy enforces reachability. In-tree API objects enforce resource governance.
 - Kyverno's scope is image provenance. An extension to a class that this ADR assigns elsewhere requires an amendment to this ADR. `(enforced: Kyverno)`
+- Amendment: Kyverno copies the registry pull credential into each `design-pr-<n>` namespace. Those namespaces come and go with pull requests, so no committed Secret can name them, per [ADR-0701](0701-product-design-and-discovery.md).
 - A rule carries the annotation of the layer that enforces it. Review enforces an unannotated rule. `(ref: ADR-0001)`
 - No component is added whose only purpose is to enforce a rule that an in-tree mechanism already enforces.

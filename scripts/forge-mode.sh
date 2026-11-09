@@ -5,13 +5,39 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 forge="${1:-}"
 case "$forge" in
-github)
-  ok "workflows kept for github"
-  exit 0
-  ;;
-forgejo) ;;
+github | forgejo) ;;
 *) fail "usage: forge-mode.sh github|forgejo" ;;
 esac
+
+# The design-preview generator reads pull requests from the forge that holds them, per ADR-0701.
+# The rename has already run, so the module path and the repoURL name this project.
+appset=infra/gitops/dev-bootstrap/appset-design-previews.yaml
+if [ -f "$appset" ]; then
+  if [ "$forge" = github ]; then
+    module="$(awk '/^module /{print $2; exit}' go.mod)"
+    if [[ "$module" =~ ^github\.com/([^/]+)/([^/]+)$ ]]; then
+      owner="${BASH_REMATCH[1]}" repo="${BASH_REMATCH[2]}"
+    else
+      warn "the module path ${module} names no GitHub repository. Set the owner and repo in ${appset} by hand"
+    fi
+  else
+    url="$(sed -n -E 's|^[[:space:]]+- repoURL: (.*)$|\1|p' "$appset" | head -n 1)"
+    [[ "$url" =~ ^(https://[^/]+/)([^/]+)/([^/]+)\.git$ ]] || fail "${appset} has no forge repoURL: '${url}'"
+    api="${BASH_REMATCH[1]}" owner="${BASH_REMATCH[2]}" repo="${BASH_REMATCH[3]}"
+    sed -i -E 's|^([[:space:]]+)github:[[:space:]]*$|\1gitea:|' "$appset"
+    grep -qE '^[[:space:]]+api:' "$appset" ||
+      sed -i -E "s|^([[:space:]]+)(repo: .*)$|\1\2\n\1api: ${api}|" "$appset"
+  fi
+  if [ -n "${owner:-}" ]; then
+    sed -i -E "s|^([[:space:]]+owner:).*|\1 ${owner}|; s|^([[:space:]]+repo:).*|\1 ${repo}|" "$appset"
+    detail "the design-preview generator reads ${owner}/${repo}"
+  fi
+fi
+
+if [ "$forge" = github ]; then
+  ok "workflows kept for github"
+  exit 0
+fi
 
 # Forgejo reads .forgejo/workflows first. A local reusable workflow is named by its folder, so the references move with it.
 # The composite action stays in .github/actions, because a local action is found by any path.

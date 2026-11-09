@@ -32,6 +32,10 @@ kyverno:
           - apiGroups: [temporal.io]
             resources: [workerdeployments]
             verbs: [get, list, watch, update, patch]
+          # `templates/design-images.yaml` copies the registry pull credential into each design namespace, per ADR-0203.
+          - apiGroups: [""]
+            resources: [secrets]
+            verbs: [get, list, watch, create, update, patch, delete]
     resources:
       requests: { cpu: "25m", memory: "96Mi" }
       limits: { memory: "192Mi" }

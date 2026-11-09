@@ -64,10 +64,11 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `ci:affected-adversarial` | Test affected-detection from the other side, per ADR-0101 and ADR-0601. Break each service in a scratch worktree and check that the manifest names it. | ci.yml |
 | `ci:affected-matrix` | The affected manifest, split into the arrays that publish.yml's image jobs need, as forge step-output assignments, per ADR-0102. | publish.yml |
 | `ci:build-images` | Build, push, and sign every affected service or app image in one job, per ADR-0101 and ADR-0104. The argument is `services` or `apps`. | publish.yml |
+| `ci:design-preview` | The design preview of one pull request, per ADR-0701: `build` pushes and signs the design image from refs/pull/<n>/head, and `comment` posts its URL. | design-preview.yml |
 | `ci:e2e-gate` | Whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0102 and ADR-0601. | e2e.yml |
 | `ci:gen` | The one definition behind ci.yml's drift job and the lefthook gen-drift hook. Run it locally to repeat that CI job exactly. | .lefthook.yml, ci.yml |
 | `ci:nightly-gate` | Whether tonight's cluster:up full suite runs, as a forge step-output assignment, per ADR-0102 and ADR-0601. | _nightly-gate.yml |
-| `ci:preview` | The pull-request preview environment, per ADR-0205: the full tier at one pull request's images and manifests. The run that creates it also destroys it. | preview.yml |
+| `ci:preview` | The pull-request preview environment, per ADR-0205: the full tier at the images and manifests of refs/pull/<n>/head. The run that creates it also destroys it. | preview.yml |
 | `ci:prune-registry` | Delete the first-party image tags that no environment pins and the last PRUNE_KEEP commits do not name, per ADR-0105. | publish.yml |
 | `ci:push-promotion` | Commit a promotion's values changes and push them to the default branch, per ADR-0201. | publish.yml |
 | `ci:release-info` | A CalVer release tag resolved to a version and a commit, as forge step-output assignments, per ADR-0102 and ADR-0103. | promote-on-release.yml |
@@ -155,9 +156,10 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `setup` | The git hooks, installed from .lefthook.yml. | .lefthook.yml |
 | `setup:node` | The workspace's node_modules. | .lefthook.yml, ci.yml |
 | `supply-chain:inventory` | Verify the SBOM attestation of every image pinned in committed values, and record its contents, per ADR-0104. | supply-chain.yml |
+| `test:frontend` | The frontend unit and component tests, against MSW, with a line coverage floor for each route group, per ADR-0400. The e2e suite covers its browser behaviour, per ADR-0601. | ci.yml |
 | `test:go` | Every Go package's tests, including the tools, per ADR-0601. | ci.yml |
 | `test:template` | The repository's own generation, per ADR-0106: a fixture matrix through `copier copy`, the refusals its validators must give, and the equality of the two adoption paths. The merge of `copier update` depends on that equality. | template.yml |
-| `test:ts` | The shared TypeScript libraries under libs/ts/. The e2e suite covers the frontend's browser behaviour, per ADR-0601. | ci.yml |
+| `test:ts` | The shared TypeScript libraries under libs/ts/. `test:frontend` runs the frontend's own tests, because they need its preload. | ci.yml |
 
 <!-- machinery:end -->
 

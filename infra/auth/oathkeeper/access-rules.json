@@ -86,5 +86,13 @@
     "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"mailpit\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.metadata_public.operator }}\"}" } },
     "mutators": [{ "handler": "noop" }],
     "errors": [{ "handler": "redirect" }]
+  },
+  {
+    "id": "ops-design",
+    "match": { "url": "<{http,https}>://design-pr-<*>.ops.<**>/<**>", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+    "authenticators": [{ "handler": "cookie_session" }],
+    "authorizer": { "handler": "remote_json", "config": { "remote": "http://authz-server.platform.svc.cluster.local/authorize", "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"design\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.metadata_public.operator }}\"}" } },
+    "mutators": [{ "handler": "noop" }],
+    "errors": [{ "handler": "redirect" }]
   }
 ]

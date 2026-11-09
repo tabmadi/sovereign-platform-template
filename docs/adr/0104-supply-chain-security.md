@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0102](0102-source-control-and-ci.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0105](0105-image-registry.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0102](0102-source-control-and-ci.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0105](0105-image-registry.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md), [ADR-0701](0701-product-design-and-discovery.md)
 - **Decides:** Images are signed by a cosign key pair held in SOPS, carry syft SBOM and SLSA provenance attestations, and are verified at admission.
 
 ## Context
@@ -106,5 +106,7 @@ The digest-pin rule supports [ADR-0103](0103-release-and-versioning.md). Product
 - The signing private key exists only as a SOPS-encrypted secret, and only CI decrypts it. The public key is committed, and the Kyverno policy names it. The private key is never held by a person and never stored unencrypted. There is one platform key pair, not one per environment, because an image is built once and the same digest goes through every environment.
 - Kyverno rejects at admission any image that lacks a valid signature or is referenced by a floating tag. `(enforced: Kyverno)`
 - All images are digest-pinned. `(CI: lint:floating-tags; enforced: Kyverno)`
+- The one exception is the design image of [ADR-0701](0701-product-design-and-discovery.md). Its manifest names the commit tag `pr-<n>-<sha>`, and admission verifies its signature and pins the pod to that digest. `(enforced: Kyverno)`
+- A `design/` image runs only in a `design-pr-<n>` namespace. `(enforced: Kyverno)`
 - Third-party images are pinned by digest and allow-listed. Upstream signatures are verified where the publisher provides them. `(CI: lint:image-allowlist; enforced: Kyverno)`
 - Admission policy is committed YAML that Argo CD reconciles, never applied by hand.

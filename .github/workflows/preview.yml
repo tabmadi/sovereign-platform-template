@@ -30,7 +30,6 @@ jobs:
     timeout-minutes: 75
     env:
       PREVIEW_PR: ${{ github.event.pull_request.number }}
-      PREVIEW_REVISION: ${{ github.head_ref }}
     steps:
       - uses: actions/checkout@v7
         with:

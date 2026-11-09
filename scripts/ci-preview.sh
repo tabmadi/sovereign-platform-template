@@ -26,9 +26,8 @@ if [ "$verb" = down ]; then
   exit 0
 fi
 
-rev="${PREVIEW_REVISION:-}"
-[[ -n "$rev" ]] ||
-  fail "PREVIEW_REVISION is unset. A preview syncs the pull request's branch, not master"
+# The forge keeps this ref for every pull request. A fork's branch is not in this repository, so a branch name fails for a fork, per ADR-0205.
+rev="refs/pull/${pr}/head"
 
 step "preview pr-${pr} on ${rev}"
 

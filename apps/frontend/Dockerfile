@@ -34,6 +34,10 @@ ENV SERVICE_VERSION=$SERVICE_VERSION
 # The RUNTIME origins for server component fetches are separate. They come from the pod env, in infra/gitops/services/<env>/values/frontend.yaml.
 ARG EDGE_PUBLIC_ORIGIN=
 ENV EDGE_PUBLIC_ORIGIN=$EDGE_PUBLIC_ORIGIN
+# The design build of ADR-0701 sets both to 1. Every other build leaves them empty, so mode.ts fails a build that sets only the first.
+ARG NEXT_PUBLIC_FIXTURES=
+ARG NEXT_PUBLIC_DESIGN_BUILD=
+ENV NEXT_PUBLIC_FIXTURES=$NEXT_PUBLIC_FIXTURES NEXT_PUBLIC_DESIGN_BUILD=$NEXT_PUBLIC_DESIGN_BUILD
 # Turbopack keeps its build cache in .next/cache. The mount keeps it in the builder between builds, so a small change compiles only what it touched.
 RUN --mount=type=cache,target=/app/apps/frontend/.next/cache cd apps/frontend && bun run build
 

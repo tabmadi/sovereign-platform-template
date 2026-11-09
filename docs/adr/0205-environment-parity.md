@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0307](0307-outbound-email.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0307](0307-outbound-email.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md), [ADR-0701](0701-product-design-and-discovery.md)
 - **Decides:** Every environment deploys the same charts, and the only sanctioned divergence is a values overlay per environment.
 
 ## Context
@@ -80,6 +80,7 @@ A preview is the full-platform tier from [ADR-0600](0600-local-development-loop.
 | --- | --- |
 | Trigger | A label on the pull request. Bring-up costs minutes of runner time, so it is opt-in per PR, not per push, per [ADR-0601](0601-testing-strategy.md) |
 | Configuration | the same charts and the same `local` values overlay as the full tier, with images from the PR's build |
+| Source | `refs/pull/<n>/head`, which the forge keeps in this repository for every pull request. A fork's branch is not in this repository, so a preview never syncs a branch name |
 | Identity | the committed deterministic test identities, never a copy of the data of any deployed environment |
 | Lifetime | Destroyed when the run ends or the pull request closes. Nothing survives it, and nothing outside it depends on it |
 | Naming | The environment slug comes from the pull request number, per [ADR-0003](0003-naming-and-identifiers.md), so two previews cannot collide |
@@ -87,6 +88,20 @@ A preview is the full-platform tier from [ADR-0600](0600-local-development-loop.
 **A preview holds no real data and no real credential.** It is a throwaway cluster, so it takes the local tier's secret path, not the path of a deployed environment. That path is the committed local age key, per [ADR-0202](0202-secrets.md). An environment that borrowed production data or production secrets to look realistic would be a production system that lives as long as a pull request.
 
 **Previews are not a deployment target.** No preview is promoted, and nothing is released from one. A preview is a test fixture with a URL.
+
+### The design preview
+
+The full-platform preview is destroyed with its run, so nobody can click through it. A design review needs only the frontend in fixture mode, for as long as the pull request is open. That is the design preview of [ADR-0701](0701-product-design-and-discovery.md). It is not a tier, and the parity rules of this ADR do not apply to it.
+
+| Concern | Decision |
+| --- | --- |
+| Where | the namespace `design-pr-<n>` in the dev cluster. The dev environment is the only one that runs a design preview |
+| What runs | the frontend chart alone, at the design image `design/frontend:pr-<n>-<sha>`. No service or data store of the dev environment is in the namespace. The only secret there is the registry pull credential, per [ADR-0105](0105-image-registry.md) |
+| Image reference | the commit tag `pr-<n>-<sha>`, because the pull request generator knows the commit and not the digest. Admission verifies the signature and pins the pod to the digest it verified, per [ADR-0104](0104-supply-chain-security.md) |
+| Lifetime | Argo CD's pull request generator creates the namespace when the label is on an open pull request. It deletes the namespace when the pull request closes or the label goes |
+| Credentials | the generator reads the forge with the read-only credential that Argo CD already clones with, per [ADR-0201](0201-gitops.md). The design preview adds no secret |
+
+**A design preview holds no data at all.** Its pages read committed fixtures, and its pods reach nothing but DNS. So a design preview in the dev cluster does not make dev data reachable from a fork's code.
 
 ### Object storage
 
@@ -134,4 +149,6 @@ The implementation differs because of production's defining property: it reaches
 - A PR preview is the full-platform tier at the images of one pull request. It is label-gated, and it is destroyed with the run. Its slug comes from the pull request number.
 - A preview uses the local secret path and the committed test identities. The data or credentials of a deployed environment are never copied into one.
 - Nothing is promoted or released from a preview.
+- A preview syncs `refs/pull/<n>/head`, never a branch name.
+- A design preview runs only in the dev cluster, in the namespace `design-pr-<n>`, and only the frontend chart at a `design/` image runs there. It holds no data, and its only secret is the registry pull credential.
 - cert-manager issues certificates over ACME in every environment, and they are verified, never bypassed. `(ref: RFC 8555)`

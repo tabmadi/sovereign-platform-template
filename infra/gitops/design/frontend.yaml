@@ -1,0 +1,21 @@
+# The frontend of a design preview, per ADR-0701. The design-previews ApplicationSet sets the tag to `pr-<n>-<sha>`.
+# Admission verifies the signature and pins the pod to that digest, per ADR-0104.
+name: frontend
+image:
+  repository: ghcr.io/tabmadi/sovereign-platform-template/design/frontend
+worker: { enabled: false }
+server:
+  port: 3000
+  # No admin port. A Next standalone server serves one port.
+  adminPort: null
+  replicas: 1
+  probes:
+    readiness: { httpGet: { path: /api/healthz, port: http }, initialDelaySeconds: 2, timeoutSeconds: 4 }
+    liveness:  { httpGet: { path: /api/healthz, port: http }, periodSeconds: 30 }
+ingress: { enabled: false }
+migrations: { enabled: false }
+# The design-preview chart holds the policy of the whole namespace, which allows nothing but DNS.
+networkPolicy: { enabled: false }
+# Kyverno copies this Secret into each design namespace, per ADR-0203.
+imagePullSecrets:
+  - name: registry-pull

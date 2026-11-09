@@ -23,6 +23,8 @@ tuples:
   - { user: group:operator#member, relation: viewer, object: dashboard:headlamp }
   - { user: group:operator#member, relation: viewer, object: dashboard:pgweb }
   - { user: group:operator#member, relation: viewer, object: dashboard:mailpit }
+  # Every design preview, per ADR-0701, is one tool.
+  - { user: group:operator#member, relation: viewer, object: dashboard:design }
   # The analytics panel is granted to the MARKETING group, not to operators, per ADR-0700.
   - { user: group:marketing#member, relation: viewer, object: analytics_panel:funnels }
 
@@ -78,6 +80,9 @@ tests:
       - user: user:alice
         object: dashboard:mailpit
         assertions: { view: true }
+      - user: user:alice
+        object: dashboard:design
+        assertions: { view: true }
       # bob is not an operator, so he reaches no ops dashboard.
       - user: user:bob
         object: group:operator
@@ -87,4 +92,7 @@ tests:
         assertions: { view: false }
       - user: user:bob
         object: dashboard:grafana
+        assertions: { view: false }
+      - user: user:bob
+        object: dashboard:design
         assertions: { view: false }

@@ -156,7 +156,7 @@ spec:
 
 ## `argocd-repo.enc.yaml` skeleton
 
-This is the read-only credential that Argo CD uses to clone a private repository. It is not a Kubernetes object, so Argo CD ignores it here. `mise run argocd:bootstrap dev` decrypts it into a `repo-creds` Secret for the forge's origin, per [ADR-0200](../../../../../docs/adr/0200-cluster-topology.md). A public repository needs no file.
+This is the read-only credential that Argo CD uses to clone a private repository. It is not a Kubernetes object, so Argo CD ignores it here. `mise run argocd:bootstrap dev` decrypts it into a `repo-creds` Secret for the forge's origin, per [ADR-0200](../../../../../docs/adr/0200-cluster-topology.md). A public repository needs the file too, because the design-preview generator of [ADR-0701](../../../../../docs/adr/0701-product-design-and-discovery.md) reads pull requests with it.
 
 ```yaml
 stringData:

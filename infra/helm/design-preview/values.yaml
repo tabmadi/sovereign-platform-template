@@ -1,0 +1,8 @@
+# The pull request number. The design-previews ApplicationSet sets it.
+pr: ""
+# The host of the preview, `design-pr-<n>.ops.<host>`, per ADR-0306.
+host: ""
+# The Service that the service chart renders for the frontend.
+service: { name: frontend-server, port: 80, targetPort: 3000 }
+# One small pod. A design preview has no load.
+quota: { pods: "3", cpu: "500m", memory: "1Gi" }

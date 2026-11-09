@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 195 |
-| Review-enforced | 370 |
-| **Total** | **565** |
+| Machine-enforced | 199 |
+| Review-enforced | 375 |
+| **Total** | **574** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -230,6 +230,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The signing private key exists only as a SOPS-encrypted secret, and only CI decrypts it. The public key is committed, and the Kyverno policy names it. The private key is never held by a person and never stored unencrypted. There is one platform key pair, not one per environment, because an image is built once and the same digest goes through every environment. | review |
 | Kyverno rejects at admission any image that lacks a valid signature or is referenced by a floating tag. | admission: Kyverno |
 | All images are digest-pinned. | `lint:floating-tags` in CI, admission: Kyverno |
+| The one exception is the design image of [ADR-0701](../adr/0701-product-design-and-discovery.md). Its manifest names the commit tag `pr-<n>-<sha>`, and admission verifies its signature and pins the pod to that digest. | admission: Kyverno |
+| A `design/` image runs only in a `design-pr-<n>` namespace. | admission: Kyverno |
 | Third-party images are pinned by digest and allow-listed. Upstream signatures are verified where the publisher provides them. | `lint:image-allowlist` in CI, admission: Kyverno |
 | Admission policy is committed YAML that Argo CD reconciles, never applied by hand. | review |
 
@@ -352,6 +354,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Every invariant is enforced at exactly one layer, chosen by its class in the assignment table. A second copy at another layer is not added for feedback. | review |
 | CI enforces repository properties. Pod Security Admission enforces workload privilege. Kyverno enforces image provenance. CiliumNetworkPolicy enforces reachability. In-tree API objects enforce resource governance. | review |
 | Kyverno's scope is image provenance. An extension to a class that this ADR assigns elsewhere requires an amendment to this ADR. | admission: Kyverno |
+| Amendment: Kyverno copies the registry pull credential into each `design-pr-<n>` namespace. Those namespaces come and go with pull requests, so no committed Secret can name them, per [ADR-0701](../adr/0701-product-design-and-discovery.md). | review |
 | A rule carries the annotation of the layer that enforces it. Review enforces an unannotated rule. | standard: ADR-0001 |
 | No component is added whose only purpose is to enforce a rule that an in-tree mechanism already enforces. | review |
 
@@ -389,6 +392,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A PR preview is the full-platform tier at the images of one pull request. It is label-gated, and it is destroyed with the run. Its slug comes from the pull request number. | review |
 | A preview uses the local secret path and the committed test identities. The data or credentials of a deployed environment are never copied into one. | review |
 | Nothing is promoted or released from a preview. | review |
+| A preview syncs `refs/pull/<n>/head`, never a branch name. | review |
+| A design preview runs only in the dev cluster, in the namespace `design-pr-<n>`, and only the frontend chart at a `design/` image runs there. It holds no data, and its only secret is the registry pull credential. | review |
 | cert-manager issues certificates over ACME in every environment, and they are verified, never bypassed. | standard: RFC 8555 |
 
 ## ADR-0206: Cluster Networking
@@ -574,14 +579,15 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 
 | Rule | Enforced by |
 | --- | --- |
-| Each surface belongs to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain. | review |
+| Each surface belongs to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain. A design preview is an ops tool, per [ADR-0701](../adr/0701-product-design-and-discovery.md). | review |
 | A project that ships a public API adds a deferred external tier: public docs on an apex subdirectory, and the partner credential dashboard on its own subdomain. | review |
 | Anonymous, indexable, first-party content is served from an apex subdirectory. A subdomain is used only for a distinct trust boundary, never only because a surface is public. | review |
 | The public API docs portal is anonymous. Only credential management is authenticated. | review |
 | The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. | `lint:service-contract` in CI |
 | `/.well-known/` on the apex is reserved for web conventions, and no product route claims it. The apex serves `security.txt` with a contact address and a disclosure policy. | standard: RFC 9116, RFC 8615 |
 | The path holds for the public API too. A distinct origin is used only for hard credential isolation, or for separate edge infrastructure at scale. Hard credential isolation needs a separate registrable domain, because a parent-scoped cookie reaches a subdomain. | review |
-| Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](../adr/0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either. | review |
+| Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](../adr/0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either. The one exception is the design preview, `design-pr-<n>.ops.<host>`. | review |
+| The route to a design preview strips the `Cookie` header and sets a Content Security Policy that allows only the preview's own origin. | review |
 | The default is one session cookie scoped to the parent host. Per-tool authorization and an AAL2 requirement on the ops tier enforce tier isolation. This is permitted only while every origin under `<host>` is first-party and edge-gated. | review |
 | A split of the cookie is the optional token-isolation upgrade. It is mandatory if any non-first-party origin is hosted under `<host>`. | review |
 | Each environment provisions both wildcard certificates. | review |
@@ -845,9 +851,12 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The design system's values live only in `apps/frontend/src/styles/theme.css`. What the roles are for lives only in [docs/brand.md](../brand.md). | `lint:contrast` in CI |
 | A screen reads and writes through `src/lib/data/`. It does not import `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. | `lint:ts` in CI |
 | Fixtures are deterministic: no `Math.random()`, and no `new Date()` evaluated at render. | review |
-| Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails. | review |
+| Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails, unless `NEXT_PUBLIC_DESIGN_BUILD=1` is also set. | `test` in CI |
+| Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`. | review |
 | A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline. | review |
-| Two candidate designs are compared as two preview deployments, not as a committed menu of alternatives. | review |
+| Two candidate designs are compared as two design previews, not as a committed menu of alternatives. | review |
+| A design preview is the frontend alone in fixture mode, in the namespace `design-pr-<n>` of the dev cluster, built from `refs/pull/<n>/head`. It exists only while the pull request is open and carries the `design-preview` label. | review |
+| A design-preview pod reaches nothing but DNS. | admission: NetworkPolicy design-preview |
 | Product research lives in `docs/product/` and carries an `as-of` date and its sources. It binds nothing until an ADR cites it. | review |
 | No research document is mandatory, and none is generated into a project that did not ask for it. | review |
 | Third-party screenshots and copy kept as research are not reachable from any public surface. | review |

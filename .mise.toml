@@ -639,8 +639,12 @@ run = "bash scripts/promote-verify.sh"
 depends = ["build"]
 
 [tasks."ci:preview"]
-description = "The pull-request preview environment, per ADR-0205: the full tier at one pull request's images and manifests. The run that creates it also destroys it."
+description = "The pull-request preview environment, per ADR-0205: the full tier at the images and manifests of refs/pull/<n>/head. The run that creates it also destroys it."
 run = "bash scripts/ci-preview.sh"
+
+[tasks."ci:design-preview"]
+description = "The design preview of one pull request, per ADR-0701: `build` pushes and signs the design image from refs/pull/<n>/head, and `comment` posts its URL."
+run = "bash scripts/ci-design-preview.sh"
 
 [tasks."forge:apply"]
 description = "Reconcile the committed branch protection and required checks into the forge, per ADR-0102."

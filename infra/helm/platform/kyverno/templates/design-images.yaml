@@ -1,0 +1,128 @@
+{{- if .Values.policies.imagePrefix }}
+{{- $design := printf "%sdesign/*" (trimSuffix "*" .Values.policies.imagePrefix) }}
+# A design image runs only in a design namespace, per ADR-0701 and ADR-0104. It is a production build with fixtures
+# on, built from a pull request, and signed with the platform key. So the signature alone does not keep it out of dev or prod.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: design-images-stay-in-design-namespaces
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    policies.kyverno.io/title: Design images stay in design namespaces
+    policies.kyverno.io/category: Supply chain
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >-
+      An image under the design/ path of the platform registry serves fixtures
+      as if they were data (ADR-0701). It runs only in a design-pr-<n> namespace.
+spec:
+  validationFailureAction: {{ .Values.policies.validationFailureAction }}
+  background: true
+  rules:
+    - name: design-image-outside-design-namespace
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      exclude:
+        any:
+          - resources:
+              namespaces: ["design-pr-*"]
+      validate:
+        message: >-
+          A design image runs only in a design-pr-<n> namespace, per ADR-0701.
+          It is a build with fixtures on, and it must never serve a real environment.
+        foreach:
+          - list: "request.object.spec.[containers || `[]`, initContainers || `[]`, ephemeralContainers || `[]`][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ `{{ element.image }}` }}"
+                    operator: Equals
+                    value: {{ $design | quote }}
+{{- if .Values.policies.publicKey }}
+---
+# The signature check of a design namespace, per ADR-0104. The ApplicationSet names the commit tag, because the pull
+# request generator knows no digest. So this rule pins the pod to the digest that it verified. It does not rewrite the
+# Deployment, because Argo CD would then see drift on every sync. The `autogen-controllers: none` annotation does that.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-design-signatures
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    pod-policies.kyverno.io/autogen-controllers: none
+    policies.kyverno.io/title: Design images are signed and pinned at admission
+    policies.kyverno.io/category: Supply chain
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >-
+      A pod in a design-pr-<n> namespace runs only images that carry the platform
+      signature, pinned to the digest that admission verified (ADR-0104, ADR-0701).
+spec:
+  validationFailureAction: {{ .Values.policies.validationFailureAction }}
+  background: false
+  webhookTimeoutSeconds: 30
+  failurePolicy: Fail
+  rules:
+    - name: signed-by-the-platform-key
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: ["design-pr-*"]
+      verifyImages:
+        - imageReferences:
+            - {{ .Values.policies.imagePrefix | quote }}
+          mutateDigest: true
+          required: true
+          {{- with .Values.policies.registrySecret }}
+          imageRegistryCredentials:
+            secrets: [{{ . | quote }}]
+          {{- end }}
+          attestors:
+            - count: 1
+              entries:
+                - keys:
+                    publicKeys: |-
+{{ .Values.policies.publicKey | trim | indent 22 }}
+                    signatureAlgorithm: sha256
+                    rekor:
+                      ignoreTlog: true
+                    ctlog:
+                      ignoreSCT: true
+{{- end }}
+{{- with .Values.policies.registrySecret }}
+---
+# The registry pull credential of each design namespace, per ADR-0203 and ADR-0105. A design namespace comes and goes
+# with a pull request, so no committed Secret can name it. Kyverno copies the credential that it pulls signatures with.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: design-namespace-pull-secret
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    policies.kyverno.io/title: Design namespaces get the registry pull credential
+    policies.kyverno.io/category: Supply chain
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Copies the registry pull credential into each design-pr-<n> namespace, so
+      its pod can pull the design image (ADR-0701).
+spec:
+  generateExisting: true
+  rules:
+    - name: clone-registry-pull
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+              names: ["design-pr-*"]
+      generate:
+        apiVersion: v1
+        kind: Secret
+        name: {{ . | quote }}
+        namespace: "{{ `{{ request.object.metadata.name }}` }}"
+        synchronize: true
+        clone:
+          namespace: {{ $.Values.kyverno.namespaceOverride }}
+          name: {{ . | quote }}
+{{- end }}
+{{- end }}

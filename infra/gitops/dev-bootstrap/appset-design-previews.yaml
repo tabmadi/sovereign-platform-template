@@ -1,0 +1,61 @@
+# Design previews, per ADR-0701. The pull request generator makes one Application for each open pull request that has
+# the `design-preview` label. When the pull request closes or the label goes, the Application goes, and its finalizer
+# deletes the namespace with it. Only the image comes from the pull request. The charts and values come from master.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: design-previews
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: design-previews
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - pullRequest:
+        # The forge mode of ADR-0106 fits this block to the forge. The `forgejo` mode makes it `gitea`.
+        github:
+          owner: tabmadi
+          repo: sovereign-platform-template
+          # The read-only credential that Argo CD clones with, per ADR-0201. Reading pull requests is a repository read.
+          # A public repository needs it too, because an anonymous client meets the forge's rate limit.
+          tokenRef: { secretName: forge-creds, key: password }
+          labels: [design-preview]
+        # The forge sends no webhook to Argo CD, so the generator polls. This is how long a label waits for its preview.
+        requeueAfterSeconds: 120
+  template:
+    metadata:
+      name: "design-pr-{{ .number }}"
+      labels:
+        env: dev
+        app.kubernetes.io/part-of: design-previews
+      finalizers: [resources-finalizer.argocd.argoproj.io]
+    spec:
+      project: design
+      sources:
+        - repoURL: https://github.com/tabmadi/sovereign-platform-template.git
+          targetRevision: master
+          path: infra/helm/service
+          helm:
+            releaseName: frontend
+            valueFiles: ["../../gitops/design/frontend.yaml"]
+            # The tag that ci:design-preview pushed for this commit, per ADR-0205.
+            valuesObject:
+              image: { tag: "pr-{{ .number }}-{{ .head_sha }}" }
+        - repoURL: https://github.com/tabmadi/sovereign-platform-template.git
+          targetRevision: master
+          path: infra/helm/design-preview
+          helm:
+            valuesObject:
+              pr: "{{ .number }}"
+              host: "design-pr-{{ .number }}.ops.dev.example.com"
+      destination: { server: https://kubernetes.default.svc, namespace: "design-pr-{{ .number }}" }
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [ServerSideApply=true]
+        # The image may not be pushed yet when the label lands. Backoff stops growing at 2m, per ADR-0201.
+        retry:
+          limit: 20
+          backoff: { duration: 10s, maxDuration: 2m, factor: 2 }

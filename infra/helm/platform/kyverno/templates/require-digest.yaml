@@ -28,6 +28,11 @@ spec:
         any:
           - resources:
               kinds: [Pod]
+      # A design Deployment names its commit tag, and `design-images.yaml` pins its pod to the verified digest, per ADR-0104.
+      exclude:
+        any:
+          - resources:
+              namespaces: ["design-pr-*"]
       preconditions:
         all:
           - key: "{{ `{{ request.operation || 'BACKGROUND' }}` }}"

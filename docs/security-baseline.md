@@ -19,6 +19,8 @@ These are the security controls that every project built from this template inhe
 | The signing private key exists only as a SOPS-encrypted secret, and only CI decrypts it. The public key is committed, and the Kyverno policy names it. The private key is never held by a person and never stored unencrypted. There is one platform key pair, not one per environment, because an image is built once and the same digest goes through every environment. | review |
 | Kyverno rejects at admission any image that lacks a valid signature or is referenced by a floating tag. | admission: Kyverno |
 | All images are digest-pinned. | `lint:floating-tags` in CI, admission: Kyverno |
+| The one exception is the design image of [ADR-0701](adr/0701-product-design-and-discovery.md). Its manifest names the commit tag `pr-<n>-<sha>`, and admission verifies its signature and pins the pod to that digest. | admission: Kyverno |
+| A `design/` image runs only in a `design-pr-<n>` namespace. | admission: Kyverno |
 | Third-party images are pinned by digest and allow-listed. Upstream signatures are verified where the publisher provides them. | `lint:image-allowlist` in CI, admission: Kyverno |
 | Admission policy is committed YAML that Argo CD reconciles, never applied by hand. | review |
 
@@ -69,6 +71,7 @@ These are the security controls that every project built from this template inhe
 | Every invariant is enforced at exactly one layer, chosen by its class in the assignment table. A second copy at another layer is not added for feedback. | review |
 | CI enforces repository properties. Pod Security Admission enforces workload privilege. Kyverno enforces image provenance. CiliumNetworkPolicy enforces reachability. In-tree API objects enforce resource governance. | review |
 | Kyverno's scope is image provenance. An extension to a class that this ADR assigns elsewhere requires an amendment to this ADR. | admission: Kyverno |
+| Amendment: Kyverno copies the registry pull credential into each `design-pr-<n>` namespace. Those namespaces come and go with pull requests, so no committed Secret can name them, per [ADR-0701](adr/0701-product-design-and-discovery.md). | review |
 | A rule carries the annotation of the layer that enforces it. Review enforces an unannotated rule. | standard: ADR-0001 |
 | No component is added whose only purpose is to enforce a rule that an in-tree mechanism already enforces. | review |
 
@@ -181,14 +184,15 @@ These are the security controls that every project built from this template inhe
 
 | Control | Enforced by |
 | --- | --- |
-| Each surface belongs to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain. | review |
+| Each surface belongs to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain. A design preview is an ops tool, per [ADR-0701](adr/0701-product-design-and-discovery.md). | review |
 | A project that ships a public API adds a deferred external tier: public docs on an apex subdirectory, and the partner credential dashboard on its own subdomain. | review |
 | Anonymous, indexable, first-party content is served from an apex subdirectory. A subdomain is used only for a distinct trust boundary, never only because a surface is public. | review |
 | The public API docs portal is anonymous. Only credential management is authenticated. | review |
 | The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. | `lint:service-contract` in CI |
 | `/.well-known/` on the apex is reserved for web conventions, and no product route claims it. The apex serves `security.txt` with a contact address and a disclosure policy. | standard: RFC 9116, RFC 8615 |
 | The path holds for the public API too. A distinct origin is used only for hard credential isolation, or for separate edge infrastructure at scale. Hard credential isolation needs a separate registrable domain, because a parent-scoped cookie reaches a subdomain. | review |
-| Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](adr/0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either. | review |
+| Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](adr/0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either. The one exception is the design preview, `design-pr-<n>.ops.<host>`. | review |
+| The route to a design preview strips the `Cookie` header and sets a Content Security Policy that allows only the preview's own origin. | review |
 | The default is one session cookie scoped to the parent host. Per-tool authorization and an AAL2 requirement on the ops tier enforce tier isolation. This is permitted only while every origin under `<host>` is first-party and edge-gated. | review |
 | A split of the cookie is the optional token-isolation upgrade. It is mandatory if any non-first-party origin is hosted under `<host>`. | review |
 | Each environment provisions both wildcard certificates. | review |

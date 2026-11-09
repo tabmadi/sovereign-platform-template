@@ -1,0 +1,62 @@
+# The design preview of a pull request, per ADR-0701. A maintainer adds the `design-preview` label after reading the code.
+# `pull_request_target` runs this file from the base branch with the registry secrets, so a fork's pull request gets a preview too.
+# The pull request's code is only the Docker build context. No step runs it on the runner. Argo CD deploys the image, per ADR-0205.
+name: design-preview
+
+on:
+  pull_request_target:
+    types: [labeled, synchronize, reopened]
+
+# One build for each pull request. A new push replaces a build that has not finished.
+concurrency:
+  group: design-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+
+env:
+  IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
+  IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || github.repository }}
+  # renovate runs as the dependency bot, never in a job. Its install is the largest in the toolchain and warns on every runner.
+  MISE_DISABLE_TOOLS: npm:renovate
+  # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: init.defaultBranch
+  GIT_CONFIG_VALUE_0: master
+
+jobs:
+  design-preview:
+    if: ${{ !github.event.repository.is_template && contains(github.event.pull_request.labels.*.name, 'design-preview') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PREVIEW_PR: ${{ github.event.pull_request.number }}
+    steps:
+      # The base branch, never the pull request's head. The scripts and the toolchain that run here are reviewed code.
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - if: runner.environment == 'github-hosted'
+        uses: crazy-max/ghaction-github-runtime@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+      - name: Build, push, and sign the design image
+        id: build
+        env:
+          IMAGE_PREFIX: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
+          LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
+          LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
+          LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
+        run: mise run ci:design-preview -- build
+      - name: Post the preview URL
+        env:
+          PREVIEW_SHA: ${{ steps.build.outputs.sha }}
+          GITHUB_TOKEN: ${{ secrets.PROMOTE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: mise run ci:design-preview -- comment

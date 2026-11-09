@@ -1,0 +1,27 @@
+# The AppProject of the design previews, per ADR-0701. A design preview gets the kinds that its two charts render, and
+# no more. The namespace wildcard admits each `design-pr-<n>`. `platform` holds only the route.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: design
+  namespace: argocd
+  labels:
+    env: dev
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  description: Design previews of pull requests, the frontend alone in fixture mode.
+  sourceRepos:
+    - https://github.com/tabmadi/sovereign-platform-template.git
+  destinations:
+    - { server: https://kubernetes.default.svc, namespace: "design-pr-*" }
+    - { server: https://kubernetes.default.svc, namespace: platform }
+  clusterResourceWhitelist:
+    - { group: "", kind: Namespace }
+  namespaceResourceWhitelist:
+    - { group: "", kind: ResourceQuota }
+    - { group: "", kind: Service }
+    - { group: "", kind: ServiceAccount }
+    - { group: apps, kind: Deployment }
+    - { group: networking.k8s.io, kind: NetworkPolicy }
+    - { group: traefik.io, kind: IngressRoute }

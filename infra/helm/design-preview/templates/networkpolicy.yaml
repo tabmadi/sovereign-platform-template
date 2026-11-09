@@ -1,0 +1,23 @@
+# The sandbox of a pull request's code, per ADR-0701. Traefik reaches the pod, and the pod reaches only DNS.
+# A fixture build needs no service, so a pod that tries to reach one is a defect or an attack.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: design-preview
+  namespace: {{ include "design-preview.namespace" . }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: traefik } }
+      ports:
+        - { port: {{ .Values.service.targetPort }}, protocol: TCP }
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }

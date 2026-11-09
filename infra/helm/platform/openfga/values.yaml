@@ -22,7 +22,7 @@ seed:
   # is distroless and cannot script a find-or-create flow.
   image: alpine/k8s:1.31.1
   # Each ops dashboard, per ADR-0306, granted to the members of `group:operator`.
-  dashboards: [lowdefy, hubble, grafana, argocd, temporal, seaweedfs, headlamp, pgweb, mailpit, zot]
+  dashboards: [lowdefy, hubble, grafana, argocd, temporal, seaweedfs, headlamp, pgweb, mailpit, zot, design]
   # Service-account identities granted `group:operator#member`. The Lowdefy admin
   # console, per ADR-0401, calls services east-west with `X-User-Id: admin-console`.
   # This grant lets that identity pass the operator write-gate of the services.

@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0307](0307-outbound-email.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0307](0307-outbound-email.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0701](0701-product-design-and-discovery.md)
 - **Decides:** Product is served from the apex and operator tooling from one origin per tool under `*.ops.<host>`.
 
 ## Context
@@ -97,6 +97,11 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | Mailpit | `mailpit.ops.<host>` | **non-prod only**. The viewer of the mail sink, per [ADR-0307](0307-outbound-email.md) |
 | SeaweedFS admin | `seaweedfs.ops.<host>` | **non-prod only**, and the only exposed surface of that component |
 | zot console | `zot.ops.<host>` | the catalogue of the registry. It carries its own credential after the edge gate, per [ADR-0105](0105-image-registry.md) |
+| Design preview | `design-pr-<n>.ops.<host>` | **dev only**. One pull request's design, per [ADR-0701](0701-product-design-and-discovery.md). The authorization tool is `design` |
+
+The design preview is the one ops origin that serves the product frontend and is not named after an upstream project. A design under review is an operator tool, not a product surface. No customer reaches it, and it shows fixtures, not data. So it sits behind the operator gate, under the existing `*.ops` wildcard certificate.
+
+Its code comes from a pull request, which can come from a fork. A maintainer reads that code before the label, and CI builds and signs it, so the origin is first-party. The edge still treats it as less trusted than the other ops tools. It strips the session cookie before the request reaches the pod. It also replaces the page's Content Security Policy with one that allows only the preview's own origin. So code on that origin cannot read the operator session or call another origin under `<host>`.
 
 ### The one origin outside both tiers
 
@@ -273,14 +278,15 @@ Self-hosting multiplies consoles: Forgejo, zot, Grafana, Argo CD, Headlamp, Hubb
 
 ## Rules
 
-- Each surface belongs to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain.
+- Each surface belongs to exactly one tier: product on the apex, ops tooling on `*.ops.<host>`. No operator dashboard is served from a product path, and no product surface from an `ops.` subdomain. A design preview is an ops tool, per [ADR-0701](0701-product-design-and-discovery.md).
 - A project that ships a public API adds a deferred external tier: public docs on an apex subdirectory, and the partner credential dashboard on its own subdomain.
 - Anonymous, indexable, first-party content is served from an apex subdirectory. A subdomain is used only for a distinct trust boundary, never only because a surface is public.
 - The public API docs portal is anonymous. Only credential management is authenticated.
 - The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. `(CI: lint:service-contract)`
 - `/.well-known/` on the apex is reserved for web conventions, and no product route claims it. The apex serves `security.txt` with a contact address and a disclosure policy. `(ref: RFC 9116, RFC 8615)`
 - The path holds for the public API too. A distinct origin is used only for hard credential isolation, or for separate edge infrastructure at scale. Hard credential isolation needs a separate registrable domain, because a parent-scoped cookie reaches a subdomain.
-- Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either.
+- Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either. The one exception is the design preview, `design-pr-<n>.ops.<host>`.
+- The route to a design preview strips the `Cookie` header and sets a Content Security Policy that allows only the preview's own origin.
 - The default is one session cookie scoped to the parent host. Per-tool authorization and an AAL2 requirement on the ops tier enforce tier isolation. This is permitted only while every origin under `<host>` is first-party and edge-gated.
 - A split of the cookie is the optional token-isolation upgrade. It is mandatory if any non-first-party origin is hosted under `<host>`.
 - Each environment provisions both wildcard certificates.
