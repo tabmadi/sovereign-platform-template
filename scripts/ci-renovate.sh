@@ -11,6 +11,13 @@ platform=forgejo
 export RENOVATE_PLATFORM="$platform" RENOVATE_ENDPOINT="$GITHUB_API_URL" RENOVATE_REPOSITORIES="$GITHUB_REPOSITORY"
 # Lockfile updates run the tools that mise pinned, not a copy that Renovate downloads.
 export RENOVATE_BINARY_SOURCE=global
+if [[ -n "${DOCKERHUB_USERNAME:-}" && -n "${DOCKERHUB_TOKEN:-}" ]]; then
+  RENOVATE_HOST_RULES="$(jq -nc --arg u "$DOCKERHUB_USERNAME" --arg p "$DOCKERHUB_TOKEN" \
+    '[{hostType: "docker", matchHost: "docker.io", username: $u, password: $p}]')"
+  export RENOVATE_HOST_RULES
+else
+  warn "DOCKERHUB_USERNAME or DOCKERHUB_TOKEN unset. Docker Hub lookups are anonymous and rate limited"
+fi
 
 step "running renovate on ${GITHUB_REPOSITORY} through ${platform}"
 renovate

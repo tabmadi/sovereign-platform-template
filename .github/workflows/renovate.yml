@@ -26,6 +26,9 @@ jobs:
       RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
       # Lookups against github.com releases and tags. Anonymous lookups hit the rate limit of the shared runner IP.
       RENOVATE_GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_GITHUB_COM_TOKEN }}
+      # Docker Hub lookups. Anonymous lookups hit the pull rate limit of the shared runner IP.
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - if: env.RENOVATE_TOKEN != ''
         uses: actions/checkout@v7
