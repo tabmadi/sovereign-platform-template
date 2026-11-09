@@ -23,6 +23,8 @@ const nextConfig = {
   // A workspace package of TypeScript source, not a built dependency.
   transpilePackages: ["@libs/id"],
   reactStrictMode: true,
+  // The repository keeps one AGENTS.md at its root, so `next dev` must not write its own, per AGENTS.md.
+  agentRules: false,
   typedRoutes: true,
   // Emit browser source maps in the production build, per ADR-0503. Without them, a browser stack trace names minified chunks and offsets, and every fault shows as one unreadable frame.
   // They are BUILD artefacts, not served files. Collect them from the build and keep them per release. A public source map gives an attacker the unminified app.
