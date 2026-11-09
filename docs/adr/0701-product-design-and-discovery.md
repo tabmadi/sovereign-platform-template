@@ -74,6 +74,22 @@ To promote a designed screen:
 
 The markup does not change, because it was never a translation.
 
+### From an accepted design to production
+
+An accepted design merges. The design PR does not wait for its backend, because a long-lived PR drifts and blocks the designer.
+
+| Case | What merges |
+| --- | --- |
+| The page's endpoints exist | the design PR is also the promotion PR |
+| An endpoint does not exist yet | the page merges as design-only. Its fixture carries `// no-spec: <METHOD> <path>`, and its seam calls `designOnly()`, so the page answers 404 outside fixture mode |
+| The data comes from outside every OpenAPI spec, such as Kratos | the fixture carries `// external: <source> <METHOD> <path>` and keeps a local type |
+
+The backend PR that adds the endpoint also types the fixture from the generated SDK and removes the marker, per [ADR-0303](0303-api-contracts-and-lifecycle.md). A fixture is one more caller. When the shapes differ, that PR fixes the fixture data, as it fixes any other caller.
+
+The frontend then promotes the page and removes the `designOnly()` call. The code holds the state, not the tracker. `lint:fixtures` lists every design-only page, and `mise run release` prints that list before it tags. A design-only page answers 404 in production, so the list never blocks a release.
+
+**Two designs are compared as two design previews** of the real application. There is no menu of mock screens, and no prototype route to delete before launch.
+
 **Two designs are compared as two design previews** of the real application. There is no menu of mock screens, and no prototype route to delete before launch.
 
 ### The design preview
@@ -140,6 +156,11 @@ Research that nobody needed is not a gap.
 - Fixtures are deterministic: no `Math.random()`, and no `new Date()` evaluated at render.
 - Every value exported from `src/fixtures/*.ts` ends with `satisfies <T>`, and `T` is imported from `@sdks/*`. `(CI: lint:fixtures)`
 - A fixture for an endpoint that no spec has keeps a local type under a `// no-spec: <METHOD> <path>` marker. The marker fails once an SDK has that endpoint. `(CI: lint:fixtures)`
+- The backend PR that adds an endpoint also types its fixture from the SDK and removes the no-spec marker.
+- A fixture for data outside every OpenAPI spec carries `// external: <source> <METHOD> <path>` and keeps a local type. `(CI: lint:fixtures)`
+- Every seam that reads a fixture with a no-spec marker calls `designOnly()`, so its page answers 404 outside fixture mode. `(CI: lint:fixtures)`
+- An accepted design merges. A page that waits for an endpoint merges as design-only, and its promotion PR removes the `designOnly()` call.
+- `mise run release` prints the design-only pages before it tags. The list does not block a release.
 - Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails, unless `NEXT_PUBLIC_DESIGN_BUILD=1` is also set. `(CI: test)`
 - Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`.
 - A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline.

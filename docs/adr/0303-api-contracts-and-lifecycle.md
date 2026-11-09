@@ -187,7 +187,10 @@ The field follows Zalando's `x-audience` convention. The three values simplify Z
 
 The live API is whatever the current production release serves, per [ADR-0103](0103-release-and-versioning.md). There is no version in the path, no version header, and no support window.
 
-- **A breaking change is a normal PR.** The only consumer is the co-shipped frontend. So a breaking change updates its caller in the same commit, and the two deploy together. The previous shape is not kept alive.
+- **A breaking change is a normal PR.** The only consumer is the co-shipped frontend. So a breaking change updates its caller in the same commit, and the two deploy together. The previous shape is not kept alive. A frontend fixture is a caller too, per [ADR-0701](0701-product-design-and-discovery.md).
+- **One commit is not one moment.** The frontend and the services roll out separately, and an open browser tab keeps its old bundle. So a rename or a removal fails some requests during a rollout. This short window is accepted.
+- **A stale tab reloads on its next navigation.** The frontend sets the Next.js `deploymentId` to its build version. A tab from an older build then does a full reload when it navigates, and not hours later. Server Action responses skip this check upstream.
+- **Expand and contract is the exception, not the default.** It is for a PR that would be too large to review as one change. That PR adds the new shape first and moves the callers. The old shape goes in a later release.
 - **The contract diff is a review signal, not a gate.** `oasdiff` labels a change as breaking, so the break is intentional and visible in review. It does not require a version bump or a second live surface.
 - **No `Deprecation` or `Sunset` machinery, no transformation layer, and no N-1.** Those belong to the deferred path.
 
@@ -246,6 +249,8 @@ Nothing below is built or operated until then.
 - OpenAPI YAML is hand-written. TypeSpec and equal authoring layers are not used.
 - A spec change is a PR. Merge is blocked until vacuum passes and `mise run gen` produces no diff. `(CI: ci:lint, ci:gen)`
 - The API serves a single live version: the current production release. There is no version in the path or in a header, and no support window.
-- A breaking contract change ships in one PR with its co-shipped caller. The previous shape is not kept alive.
+- A breaking contract change ships in one PR with its co-shipped caller, fixtures included. The previous shape is not kept alive.
+- Expand and contract is allowed only when one PR would be too large to review. The old shape then goes in a later release.
+- The frontend sets the Next.js `deploymentId` to its build version, so a tab from an older build reloads on its next navigation.
 - `oasdiff` labels breaking changes for review. It is not a version gate. `(CI: ci:lint)`
 - Online versioning is deferred behind the trigger of a consumer outside lockstep, and the default does not operate it. It consists of a date `Api-Version` header, an N-1 window, `Deprecation`, `Sunset`, and `Link` headers, and a response-transformation layer bounded to N-1.

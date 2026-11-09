@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveFixtureMode } from "./mode";
+import { designOnly, resolveFixtureMode } from "./mode";
 
 describe("the production guard of fixture mode", () => {
   test("a production build with fixtures fails", () => {
@@ -21,5 +21,15 @@ describe("the production guard of fixture mode", () => {
 
   test("next dev with fixtures needs no design-build switch", () => {
     expect(resolveFixtureMode("1", undefined, "development")).toBe(true);
+  });
+});
+
+describe("a design-only page", () => {
+  test("renders in fixture mode", () => {
+    expect(() => designOnly(true)).not.toThrow();
+  });
+
+  test("is not found outside fixture mode", () => {
+    expect(() => designOnly(false)).toThrow();
   });
 });

@@ -146,6 +146,13 @@ export const member = { id: "x" } satisfies Member;
 			want: []string{"PATCH /members/{member_id} is in @sdks/orgs now. Use its type and remove the no-spec marker"},
 		},
 		{
+			name: "external marker allows a local type",
+			src: `// external: kratos GET /sessions/whoami
+type Whoami = { id: string };
+export const whoami = { id: "x" } satisfies Whoami;
+`,
+		},
+		{
 			name: "malformed no-spec marker",
 			src: `// no-spec: members
 import type { components } from "@sdks/orgs";
@@ -167,6 +174,21 @@ export const members = [] satisfies components["schemas"]["Member"][];
 				}
 			}
 		})
+	}
+}
+
+func TestCheckGuards(t *testing.T) {
+	t.Parallel()
+	pending := map[string][]string{"invoices": {"GET /invoices"}}
+	seams := map[string]string{
+		"guarded.ts":   "import { invoices } from \"@/fixtures/invoices\";\ndesignOnly();\n",
+		"unguarded.ts": "import { invoices } from \"@/fixtures/invoices\";\n",
+		"other.ts":     "import { members } from \"@/fixtures/members\";\n",
+	}
+	got := checkGuards(pending, seams)
+	want := "unguarded.ts: reads @/fixtures/invoices, which waits for GET /invoices"
+	if len(got) != 1 || !strings.HasPrefix(got[0], want) {
+		t.Fatalf("checkGuards = %q, want one finding for unguarded.ts", got)
 	}
 }
 

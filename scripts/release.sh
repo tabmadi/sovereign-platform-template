@@ -29,6 +29,10 @@ semver="${year}.$((10#$month)).${micro}"
 step "releasing ${version}, previous: ${last:-none}"
 detail "stamped version fields: ${semver}"
 
+# The pages that wait for an endpoint, per ADR-0701. They answer 404 in production, so they never block a release.
+step "listing the design-only pages"
+go run ./tools/lint-fixtures
+
 if git rev-parse --verify --quiet "refs/tags/${version}" >/dev/null; then
   fail "${version} already exists. A release tag is immutable"
 fi

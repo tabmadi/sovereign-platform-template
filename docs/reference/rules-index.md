@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 201 |
-| Review-enforced | 375 |
-| **Total** | **576** |
+| Machine-enforced | 203 |
+| Review-enforced | 380 |
+| **Total** | **583** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -511,7 +511,9 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | OpenAPI YAML is hand-written. TypeSpec and equal authoring layers are not used. | review |
 | A spec change is a PR. Merge is blocked until vacuum passes and `mise run gen` produces no diff. | `ci:lint, ci:gen` in CI |
 | The API serves a single live version: the current production release. There is no version in the path or in a header, and no support window. | review |
-| A breaking contract change ships in one PR with its co-shipped caller. The previous shape is not kept alive. | review |
+| A breaking contract change ships in one PR with its co-shipped caller, fixtures included. The previous shape is not kept alive. | review |
+| Expand and contract is allowed only when one PR would be too large to review. The old shape then goes in a later release. | review |
+| The frontend sets the Next.js `deploymentId` to its build version, so a tab from an older build reloads on its next navigation. | review |
 | `oasdiff` labels breaking changes for review. It is not a version gate. | `ci:lint` in CI |
 | Online versioning is deferred behind the trigger of a consumer outside lockstep, and the default does not operate it. It consists of a date `Api-Version` header, an N-1 window, `Deprecation`, `Sunset`, and `Link` headers, and a response-transformation layer bounded to N-1. | review |
 
@@ -853,6 +855,11 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Fixtures are deterministic: no `Math.random()`, and no `new Date()` evaluated at render. | review |
 | Every value exported from `src/fixtures/*.ts` ends with `satisfies <T>`, and `T` is imported from `@sdks/*`. | `lint:fixtures` in CI |
 | A fixture for an endpoint that no spec has keeps a local type under a `// no-spec: <METHOD> <path>` marker. The marker fails once an SDK has that endpoint. | `lint:fixtures` in CI |
+| The backend PR that adds an endpoint also types its fixture from the SDK and removes the no-spec marker. | review |
+| A fixture for data outside every OpenAPI spec carries `// external: <source> <METHOD> <path>` and keeps a local type. | `lint:fixtures` in CI |
+| Every seam that reads a fixture with a no-spec marker calls `designOnly()`, so its page answers 404 outside fixture mode. | `lint:fixtures` in CI |
+| An accepted design merges. A page that waits for an endpoint merges as design-only, and its promotion PR removes the `designOnly()` call. | review |
+| `mise run release` prints the design-only pages before it tags. The list does not block a release. | review |
 | Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails, unless `NEXT_PUBLIC_DESIGN_BUILD=1` is also set. | `test` in CI |
 | Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`. | review |
 | A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline. | review |

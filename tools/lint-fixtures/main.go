@@ -14,6 +14,8 @@ import (
 
 const (
 	fixtureGlob = "apps/frontend/src/fixtures/*.ts"
+	seamDir     = "apps/frontend/src/lib/data/"
+	guardCall   = "designOnly("
 	sdkGlob     = "libs/ts/sdks/*/index.d.ts"
 	sdkPrefix   = "@sdks/"
 	satisfies   = " satisfies "
@@ -21,7 +23,11 @@ const (
 
 var (
 	// `// no-spec: GET /members` names the endpoint that no spec has yet.
-	markerRe     = regexp.MustCompile(`(?m)^//\s*no-spec:(.*)$`) // lint:comments-allow
+	markerRe = regexp.MustCompile(`(?m)^//\s*no-spec:(.*)$`) // lint:comments-allow
+	// `// external: kratos GET /sessions/whoami` names an endpoint that no OpenAPI spec will ever describe.
+	externalRe = regexp.MustCompile( // lint:comments-allow
+		`(?m)^//\s*external:\s*\S+\s+(?:GET|PUT|POST|DELETE|PATCH)\s+/\S*\s*$`,
+	)
 	markerBodyRe = regexp.MustCompile(`^\s*(GET|PUT|POST|DELETE|PATCH)\s+(/\S*)\s*$`)
 	importRe     = regexp.MustCompile(
 		`^import\s+(?:type\s+)?(?:\{([^}]*)\}|\*\s+as\s+([\w$]+)|([\w$]+))\s+from\s+"([^"]+)"`,
@@ -56,7 +62,7 @@ func run(r *lint.Report) error {
 	if err != nil {
 		return err
 	}
-	var unspecced []string
+	pending := map[string][]string{}
 	for _, path := range fixtures {
 		data, err := repo.Read(path)
 		if err != nil {
@@ -65,18 +71,69 @@ func run(r *lint.Report) error {
 		findings, markers := checkFile(path, string(data), endpoints)
 		r.Add(findings...)
 		if len(markers) > 0 {
-			unspecced = append(unspecced, fmt.Sprintf("%s for %s", filepath.Base(path), strings.Join(markers, ", ")))
+			pending[strings.TrimSuffix(filepath.Base(path), ".ts")] = markers
 		}
 	}
+	seams, err := loadSeams()
+	if err != nil {
+		return err
+	}
+	r.Add(checkGuards(pending, seams)...)
 	r.Hintf("End each export with `satisfies <T>`, and import `T` from `@sdks/*`. " +
-		"A fixture for an endpoint that no spec has carries `// no-spec: <METHOD> <path>`.")
-	if len(unspecced) == 0 {
-		r.Okf("%d fixture files are typed against a generated SDK", len(fixtures))
+		"A fixture for an endpoint that no spec has yet carries `// no-spec: <METHOD> <path>`, " +
+		"and every seam that reads it calls `designOnly()`.")
+	if len(pending) == 0 {
+		r.Okf("%d fixture files are typed against a generated SDK. No page waits for an endpoint", len(fixtures))
 		return nil
 	}
-	r.Okf("%d fixture files are typed. These use a local type under a no-spec marker: %s",
-		len(fixtures), strings.Join(unspecced, "; "))
+	r.Okf("%d fixture files are typed. These pages are design-only and wait for an endpoint:\n%s",
+		len(fixtures), pendingList(pending))
 	return nil
+}
+
+// loadSeams reads every seam under seamDir, without its tests.
+func loadSeams() (map[string]string, error) {
+	files, err := repo.Files()
+	if err != nil {
+		return nil, err
+	}
+	seams := map[string]string{}
+	for _, f := range files {
+		if !strings.HasPrefix(f, seamDir) || !strings.HasSuffix(f, ".ts") || strings.HasSuffix(f, ".test.ts") {
+			continue
+		}
+		data, err := repo.Read(f)
+		if err != nil {
+			return nil, err
+		}
+		seams[f] = string(data)
+	}
+	return seams, nil
+}
+
+// checkGuards fails each seam that reads a fixture with a no-spec marker and does not call designOnly. Outside
+// fixture mode such a page has no endpoint to call, so it must not exist there.
+func checkGuards(pending map[string][]string, seams map[string]string) []string {
+	var findings []string
+	for fixture, markers := range pending {
+		for path, src := range seams {
+			if !strings.Contains(src, `"@/fixtures/`+fixture+`"`) || strings.Contains(src, guardCall) {
+				continue
+			}
+			const form = "%s: reads @/fixtures/%s, which waits for %s. Call `designOnly()` before the real call"
+			findings = append(findings, fmt.Sprintf(form, path, fixture, strings.Join(markers, ", ")))
+		}
+	}
+	return findings
+}
+
+func pendingList(pending map[string][]string) string {
+	lines := make([]string, 0, len(pending))
+	for fixture, markers := range pending {
+		lines = append(lines, fmt.Sprintf("  @/fixtures/%s waits for %s", fixture, strings.Join(markers, ", ")))
+	}
+	slices.Sort(lines)
+	return strings.Join(lines, "\n")
 }
 
 // loadEndpoints maps `METHOD /path` to the SDK that serves it. Path parameters are blanked, so their names do not
@@ -134,7 +191,8 @@ func endpointKey(method, path string) string {
 // checkFile returns the findings for one fixture file and the endpoints its no-spec markers name.
 func checkFile(path, src string, endpoints map[string]string) ([]string, []string) {
 	findings, markers := checkMarkers(path, src, endpoints)
-	return append(findings, checkExports(path, src, len(markers) > 0)...), markers
+	local := len(markers) > 0 || externalRe.MatchString(src)
+	return append(findings, checkExports(path, src, local)...), markers
 }
 
 func checkMarkers(path, src string, endpoints map[string]string) ([]string, []string) {
@@ -157,7 +215,7 @@ func checkMarkers(path, src string, endpoints map[string]string) ([]string, []st
 	return findings, markers
 }
 
-// checkExports checks each exported value. A file with a no-spec marker may use a local type.
+// checkExports checks each exported value. A file with a no-spec or external marker may use a local type.
 func checkExports(path, src string, unspecced bool) []string {
 	var findings []string
 	masked := mask(src)

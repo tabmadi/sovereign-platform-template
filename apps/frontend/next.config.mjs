@@ -44,6 +44,9 @@ const nextConfig = {
     // Without this, the shell that renders first pins every later message to the default locale.
     rootParams: true,
   },
+  // A tab from an older build reloads on its next navigation, per ADR-0303. So a rename in one commit breaks a stale tab
+  // for one click, not until the user reloads.
+  deploymentId: process.env.SERVICE_VERSION ?? "dev",
   env: {
     NEXT_PUBLIC_SERVICE_VERSION: process.env.SERVICE_VERSION ?? "dev",
     NEXT_PUBLIC_DEPLOY_ENV: process.env.DEPLOY_ENV ?? "dev",
