@@ -97,9 +97,20 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | Mailpit | `mailpit.ops.<host>` | **non-prod only**. The viewer of the mail sink, per [ADR-0307](0307-outbound-email.md) |
 | SeaweedFS admin | `seaweedfs.ops.<host>` | **non-prod only**, and the only exposed surface of that component |
 | zot console | `zot.ops.<host>` | the catalogue of the registry. It carries its own credential after the edge gate, per [ADR-0105](0105-image-registry.md) |
-| Design preview | `design-pr-<n>.ops.<host>` | **dev only**. One pull request's design, per [ADR-0701](0701-product-design-and-discovery.md). The authorization tool is `design` |
+| Design preview | `design-pr-<n>.ops.<host>` | **dev only**. One pull request's design, per [ADR-0701](0701-product-design-and-discovery.md). Behind the forge sign-in gate, not the operator gate |
 
-The design preview is the one ops origin that serves the product frontend and is not named after an upstream project. A design under review is an operator tool, not a product surface. No customer reaches it, and it shows fixtures, not data. So it sits behind the operator gate, under the existing `*.ops` wildcard certificate.
+The design preview is the one ops origin that serves the product frontend and is not named after an upstream project. A design under review is an operator tool, not a product surface. No customer reaches it, and it shows fixtures, not data. So it sits under the existing `*.ops` wildcard certificate, but behind its own gate.
+
+**A design preview has a forge sign-in gate, not the operator gate.** Its reviewers are designers, product people, and engineers. They all have a forge account, and most have no Kratos operator account with a second factor. So oauth2-proxy, with the forge as its OIDC provider, decides access, and only members of the forge organization pass.
+
+| Concern | Decision |
+| --- | --- |
+| Why not the operator gate | it requires a Kratos operator session at AAL2, which most reviewers do not have |
+| Why not a forge login in Kratos | one Kratos serves the customers and the operators. A Forgejo login method would show in the customer login and registration flows, and it would create staff identities in the customer store |
+| Why oauth2-proxy here | [ADR-0305](0305-edge-auth-and-traffic-policy.md) rejected it for the ops gate, because Kratos does not speak OIDC. The forge does, so that reason does not hold for this gate |
+| Sign-in origin | `design-auth.ops.<host>`. The forge returns the reviewer there, because an OAuth2 client needs a fixed redirect address |
+| Cookie | `_hatra_design`, `HttpOnly`, `Secure`, and `SameSite=Lax`, for `.ops.<host>`, so one sign-in covers every preview host. The other ops origins receive it and ignore it. The preview route removes it before the pod |
+| Who passes | a member of the forge organization, read from the `groups` claim |
 
 Its code comes from a pull request, which can come from a fork. A maintainer reads that code before the label, and CI builds and signs it, so the origin is first-party. The edge still treats it as less trusted than the other ops tools. It strips the session cookie before the request reaches the pod. It also replaces the page's Content Security Policy with one that allows only the preview's own origin. So code on that origin cannot read the operator session or call another origin under `<host>`.
 
@@ -287,6 +298,7 @@ Self-hosting multiplies consoles: Forgejo, zot, Grafana, Argo CD, Headlamp, Hubb
 - The path holds for the public API too. A distinct origin is used only for hard credential isolation, or for separate edge infrastructure at scale. Hard credential isolation needs a separate registrable domain, because a parent-scoped cookie reaches a subdomain.
 - Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either. The one exception is the design preview, `design-pr-<n>.ops.<host>`.
 - The route to a design preview strips the `Cookie` header and sets a Content Security Policy that allows only the preview's own origin.
+- A design preview is behind the forge sign-in gate: oauth2-proxy with the forge as its OIDC provider, which passes only members of the forge organization. No forge login method is added to Kratos.
 - The default is one session cookie scoped to the parent host. Per-tool authorization and an AAL2 requirement on the ops tier enforce tier isolation. This is permitted only while every origin under `<host>` is first-party and edge-gated.
 - A split of the cookie is the optional token-isolation upgrade. It is mandatory if any non-first-party origin is hosted under `<host>`.
 - Each environment provisions both wildcard certificates.

@@ -164,3 +164,22 @@ stringData:
   FORGE_REPO_USERNAME: ""
   FORGE_REPO_PASSWORD: ""
 ```
+
+## `design-gate.enc.yaml` skeleton
+
+The sign-in gate of the design previews, per [ADR-0306](../../../../../docs/adr/0306-trust-tiers-and-urls.md). Register an OAuth2 application on the forge with the redirect address `https://design-auth.ops.<apex>/oauth2/callback`. The cookie secret is 32 random bytes, base64-encoded.
+
+```yaml
+apiVersion: isindir.github.com/v1alpha3
+kind: SopsSecret
+metadata:
+  name: design-gate
+  namespace: platform
+spec:
+  secretTemplates:
+    - name: design-gate
+      stringData:
+        OAUTH2_PROXY_CLIENT_ID: ""
+        OAUTH2_PROXY_CLIENT_SECRET: ""
+        OAUTH2_PROXY_COOKIE_SECRET: ""
+```

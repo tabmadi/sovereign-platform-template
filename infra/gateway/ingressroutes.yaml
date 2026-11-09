@@ -277,3 +277,24 @@ spec:
           port: 80
   tls:
     secretName: wildcard-tls
+---
+# The sign-in origin of the design-preview gate, per ADR-0306. The forge sends the reviewer back here, and the gate sets
+# its cookie for `.ops.<host>`, so it covers every preview host. Without the gate's Service, the route resolves to nothing.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ops-design-auth
+  namespace: platform
+spec:
+  entryPoints: [websecure]
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^design-auth\.ops\..+`)
+      middlewares:
+        - name: strip-identity-headers
+        - name: security-headers
+      services:
+        - name: oauth2-proxy
+          port: 80
+  tls:
+    secretName: wildcard-ops-tls

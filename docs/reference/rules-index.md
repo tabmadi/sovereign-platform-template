@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 204 |
-| Review-enforced | 385 |
-| **Total** | **589** |
+| Review-enforced | 386 |
+| **Total** | **590** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -593,6 +593,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The path holds for the public API too. A distinct origin is used only for hard credential isolation, or for separate edge infrastructure at scale. Hard credential isolation needs a separate registrable domain, because a parent-scoped cookie reaches a subdomain. | review |
 | Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](../adr/0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either. The one exception is the design preview, `design-pr-<n>.ops.<host>`. | review |
 | The route to a design preview strips the `Cookie` header and sets a Content Security Policy that allows only the preview's own origin. | review |
+| A design preview is behind the forge sign-in gate: oauth2-proxy with the forge as its OIDC provider, which passes only members of the forge organization. No forge login method is added to Kratos. | review |
 | The default is one session cookie scoped to the parent host. Per-tool authorization and an AAL2 requirement on the ops tier enforce tier isolation. This is permitted only while every origin under `<host>` is first-party and edge-gated. | review |
 | A split of the cookie is the optional token-isolation upgrade. It is mandatory if any non-first-party origin is hosted under `<host>`. | review |
 | Each environment provisions both wildcard certificates. | review |

@@ -45,6 +45,7 @@ policies:
     - quay.io/jetstack/cert-manager-controller
     - quay.io/jetstack/cert-manager-startupapicheck
     - quay.io/jetstack/cert-manager-webhook
+    - quay.io/oauth2-proxy/oauth2-proxy
     - rancher/local-path-provisioner
     - reg.kyverno.io/kyverno/background-controller
     - reg.kyverno.io/kyverno/cleanup-controller

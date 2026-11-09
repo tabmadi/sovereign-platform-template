@@ -33,6 +33,9 @@ edgeErrors:
 forgejo:
   enabled: false
 
+oauth2Proxy:
+  enabled: false
+
 # Whether zot mirrors the upstream registries, per ADR-0105. This decides whether it can reach them.
 registryMirror: true
 

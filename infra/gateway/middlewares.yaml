@@ -17,6 +17,20 @@ spec:
       - X-Roles
       - X-User-Email
 ---
+# The design-preview gate, per ADR-0306. A signed-in member of the forge organization gets a 202. Anyone else gets the
+# gate's redirect to the forge's sign-in, which Traefik passes to the browser. Kratos and Oathkeeper are not involved.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: design-gate
+  namespace: platform
+spec:
+  forwardAuth:
+    address: http://oauth2-proxy.platform.svc.cluster.local/
+    trustForwardHeader: true
+    authResponseHeaders:
+      - X-Auth-Request-User
+---
 # Anti-spoofing, per ADR-0305 and ADR-0306.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

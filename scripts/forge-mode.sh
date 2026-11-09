@@ -34,6 +34,18 @@ if [ -f "$appset" ]; then
   fi
 fi
 
+# The design-preview gate signs reviewers in with the same forge, per ADR-0306.
+values=infra/gitops/platform/dev/values.yaml
+if [ -n "${owner:-}" ] && grep -q '^oauth2Proxy:' "$values"; then
+  if [ "$forge" = github ]; then
+    yq -i '.oauth2Proxy.provider = "github" | .oauth2Proxy.forgeUrl = ""' "$values"
+  else
+    yq -i ".oauth2Proxy.provider = \"oidc\" | .oauth2Proxy.forgeUrl = \"${api%/}\"" "$values"
+  fi
+  yq -i ".oauth2Proxy.org = \"${owner}\"" "$values"
+  detail "the design-preview gate passes members of ${owner}"
+fi
+
 if [ "$forge" = github ]; then
   ok "workflows kept for github"
   exit 0

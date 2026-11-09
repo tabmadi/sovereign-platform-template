@@ -1,0 +1,24 @@
+# Values are under `oauth2Proxy:`, so this chart shares the single per-environment values overlay of the platform
+# ApplicationSet with no key collisions.
+oauth2Proxy:
+  # Off by default. Only an environment that runs design previews turns it on, per ADR-0701.
+  enabled: false
+  image:
+    repository: quay.io/oauth2-proxy/oauth2-proxy
+    # One patch release behind the head release, so the pinned tag has had weeks of use in the field.
+    tag: "v7.15.5"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  # The base host. The sign-in origin is `design-auth.ops.<host>`, and the cookie covers `.ops.<host>`, per ADR-0306.
+  host: ""
+  # `github` for a GitHub forge, or `oidc` for Forgejo, per ADR-0106. `scripts/forge-mode.sh` sets it.
+  provider: oidc
+  # Only members of this forge organization pass the gate.
+  org: ""
+  # The forge, which is the OIDC provider when `provider` is `oidc`. Its issuer has no trailing slash.
+  forgeUrl: ""
+  # The Secret with OAUTH2_PROXY_CLIENT_ID, OAUTH2_PROXY_CLIENT_SECRET, and OAUTH2_PROXY_COOKIE_SECRET.
+  credentialsSecret: design-gate
+  resources:
+    requests: { cpu: "10m", memory: "32Mi" }
+    limits: { memory: "128Mi" }

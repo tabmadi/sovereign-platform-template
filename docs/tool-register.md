@@ -87,6 +87,7 @@ The tool is a bounded swap behind a stable interface. The owning ADR has a short
 | Hubble UI | flow visibility | [0501](adr/0501-operator-uis-and-dashboards.md) | Apache-2.0 | CNCF, ships with Cilium | the Hubble CLI alone, a service mesh's own map |
 | Lowdefy | internal admin | [0401](adr/0401-internal-admin.md) | Apache-2.0 | maintainer-led, smallest community on the floor | Retool self-hosted, Appsmith, Budibase, Django-admin-style scaffolding, the `(admin)` route group |
 | pgweb | read-only database inspector | [0401](adr/0401-internal-admin.md) | MIT | maintainer-led | pgAdmin, CloudBeaver, `psql` over a port-forward |
+| oauth2-proxy | design-preview sign-in gate | [0306](adr/0306-trust-tiers-and-urls.md) | MIT | CNCF sandbox, maintainer-led | a forge login method in Kratos, the operator gate |
 | maddy | outbound mail | [0307](adr/0307-outbound-email.md) | GPL-3.0 | maintainer-led | Postfix, Exim, Haraka, a transactional provider |
 | Mailpit | non-production mail sink | [0307](adr/0307-outbound-email.md), [0601](adr/0601-testing-strategy.md) | MIT | maintainer-led | MailHog, smtp4dev, a logging sink |
 | Playwright | browser testing | [0601](adr/0601-testing-strategy.md) | Apache-2.0 | Microsoft | Cypress, Selenium, Puppeteer |

@@ -89,6 +89,7 @@ These are real components that most instances never need. A project flag control
 | Component | Concern | Flag or ADR |
 | --- | --- | --- |
 | Hydra | OAuth2 provider for third-party API clients | [0304](adr/0304-identity-and-authorization.md) |
+| oauth2-proxy | The forge sign-in gate of the design previews. `oauth2Proxy.enabled` turns it on where design previews run | [0306](adr/0306-trust-tiers-and-urls.md) |
 
 ## Budget rule
 

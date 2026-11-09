@@ -22,7 +22,7 @@ One gate covers every panel in this table: an operator session at AAL2, per [ADR
 | zot console | `https://zot.ops.<host>/` | browse the image catalogue and its tags | every environment |
 | SeaweedFS admin | `https://seaweedfs.ops.<host>/` | inspect object storage | non-production |
 | Mailpit | `https://mailpit.ops.<host>/` | read the mail that the sink caught | where the environment sinks mail |
-| Design preview | `https://design-pr-<n>.ops.<host>/` | click through the design of pull request `<n>`, per [ADR-0701](../adr/0701-product-design-and-discovery.md) | dev only, while the pull request is open and has the `design-preview` label |
+| Design preview | `https://design-pr-<n>.ops.<host>/` | click through the design of pull request `<n>`, per [ADR-0701](../adr/0701-product-design-and-discovery.md) | dev only, while the pull request is open and has the `design-preview` label. Sign in with your forge account |
 
 The route of a panel exists in every environment. It answers `404` where the panel's chart is off.
 

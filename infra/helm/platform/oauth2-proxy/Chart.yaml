@@ -1,0 +1,9 @@
+apiVersion: v2
+name: oauth2-proxy
+description: |
+  The sign-in gate of the design previews, per ADR-0306 and ADR-0701. A reviewer signs in with their forge account, and
+  only members of the forge organization pass. It is a single stateless Go binary, and its session lives in a sealed
+  cookie. Opt-in: it runs only where design previews run.
+type: application
+version: "2026.11.0"
+appVersion: "7.15.5"

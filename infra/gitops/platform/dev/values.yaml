@@ -101,3 +101,12 @@ oathkeeper:
 policies:
   imagePrefix: "ghcr.io/tabmadi/sovereign-platform-template/*"
   registrySecret: registry-pull
+
+# The sign-in gate of the design previews, per ADR-0306 and ADR-0701. Reviewers sign in with their forge account.
+# `scripts/forge-mode.sh` fits the provider and the organization to the forge.
+oauth2Proxy:
+  enabled: true
+  host: dev.example.com
+  provider: github
+  org: tabmadi
+  forgeUrl: ""

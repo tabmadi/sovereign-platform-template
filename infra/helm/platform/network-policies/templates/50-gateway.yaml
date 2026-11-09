@@ -65,3 +65,25 @@ spec:
       toPorts:
         # Enforced on the pod's real containerPort 8081, not the Service port 80.
         - ports: [{ port: "8081", protocol: TCP }]
+{{- if .Values.oauth2Proxy.enabled }}
+---
+## The design-preview gate, per ADR-0306. The edge asks it on each preview request, and it reads the forge's OIDC API.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: oauth2-proxy
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }
+      toPorts:
+        - ports: [{ port: "4180", protocol: TCP }]
+  egress:
+    # The forge runs outside the cluster on a public address, per ADR-0102.
+    - toEntities: [world]
+      toPorts:
+        - ports: [{ port: "443", protocol: TCP }]
+{{- end }}

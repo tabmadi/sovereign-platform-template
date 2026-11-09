@@ -20,3 +20,4 @@ podDisruptionBudgets             # HA exists only with more than 1 replica
 resourceQuotas                   # quotas sized for the full platform
 cluster.backup.serverName        # the archive that a restore writes to, per environment. See docs/guide/disaster-recovery.md
 cluster.recovery                 # the bootstrap of a restore, set only while a restore runs
+oauth2Proxy                      # the design-preview gate runs only where design previews run, which is dev, per ADR-0701

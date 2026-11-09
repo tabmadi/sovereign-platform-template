@@ -105,7 +105,7 @@ A reviewer opens a pull request's design at its own URL and clicks through it be
 | The design build | `NEXT_PUBLIC_FIXTURES=1` together with `NEXT_PUBLIC_DESIGN_BUILD=1`. `src/lib/data/mode.ts` admits fixtures in a production build only with both switches |
 | Where | one namespace for each pull request, `design-pr-<n>`, in the dev cluster, per [ADR-0205](0205-environment-parity.md) |
 | Lifetime | an Argo CD ApplicationSet with the pull request generator creates it, and deletes it when the pull request closes or the label goes |
-| URL | `design-pr-<n>.ops.<host>`, behind the operator login, per [ADR-0306](0306-trust-tiers-and-urls.md). It is never public |
+| URL | `design-pr-<n>.ops.<host>`, behind a forge sign-in that passes only members of the forge organization, per [ADR-0306](0306-trust-tiers-and-urls.md). It is never public |
 | Notice | CI posts the URL as a comment on the pull request, and edits that one comment on each new build |
 
 A fork's code runs here, so the namespace is a sandbox. Its pods reach nothing but DNS. The edge strips the session cookie before the request reaches the pod. It also replaces the page's Content Security Policy with one that allows no other origin. Admission keeps a `design/` image out of every other namespace, per [ADR-0104](0104-supply-chain-security.md). A push after the label rebuilds the preview with no second review. The sandbox bounds that code, and the maintainer removes the label to stop it.

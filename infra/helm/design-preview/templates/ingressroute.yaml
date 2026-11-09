@@ -13,8 +13,9 @@ spec:
       middlewares:
         - name: problem-json-errors
         - name: strip-identity-headers
-        - name: oathkeeper-forward-auth
-        # After forward-auth, which needs the session cookie. This one removes it before the pod.
+        # The forge sign-in gate, per ADR-0306, not the operator gate.
+        - name: design-gate
+        # After the gate, which needs its cookie. This one removes every cookie before the pod.
         - name: design-preview-sandbox
       services:
         - name: {{ .Values.service.name }}
