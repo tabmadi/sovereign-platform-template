@@ -586,6 +586,8 @@ run = "bash scripts/ci-push-promotion.sh"
 [tasks."ci:renovate"]
 description = "Renovate over this repository, per ADR-0106. The scheduled renovate workflow runs it with the token of the bot."
 run = "bash scripts/ci-renovate.sh"
+# renovate needs a newer Node than the islands. A task-level pin keeps it out of every other task.
+tools = { node = "24.22.2" }
 
 [tasks."ci:release-pr"]
 description = "Open the prod pin as a pull request. The forge merges it when its checks pass, per ADR-0201."
