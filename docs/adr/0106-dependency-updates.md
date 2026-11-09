@@ -67,8 +67,9 @@ Renovate runs on a schedule from CI and opens pull requests. The weekly `renovat
 | Class | Grouping | Schedule |
 | --- | --- | --- |
 | Go modules and Bun packages | one PR per ecosystem, minor and patch together | weekly |
-| Major versions, any ecosystem | one PR each, alone | weekly, and never grouped, because a major is a decision |
-| Container base images and platform chart images | one PR per image, tag and digest together | weekly |
+| Major versions, any ecosystem | one PR each, alone | when a person ticks it on the dashboard, because a major is a decision |
+| Container base images and platform chart images | one PR for the images and one PR for the charts, minor and patch together, tag and digest together | weekly |
+| Pins that add a digest or an exact version to a reference without one | one PR for every pin | weekly |
 | Pinned tools in `.mise.toml` | one PR for the file | weekly |
 | Anything with a fixed CVE that Trivy gates on | one PR each, at once | on detection |
 | Terraform providers and modules | one PR | monthly |
@@ -127,7 +128,7 @@ An exclusion is the mechanism, not a deletion. It stops a render, so an update d
 ## Rules
 
 - Renovate opens every dependency, image, chart, and tool-version update as a pull request. It merges nothing. No update bypasses the gates that a human pull request passes. `(CI: ci:lint, ci:gen, ci:test)`
-- Updates are grouped by ecosystem and batched on a schedule. A major version is proposed alone.
+- Updates are grouped by ecosystem and batched on a schedule. A major version is proposed alone, and only after a person approves it on the dashboard.
 - Renovate runs from the scheduled `renovate` workflow, never from a hosted app. Every other workflow disables its install.
 - A container image update moves the tag and the digest in the same pull request. A digest is never updated on its own. `(CI: lint:floating-tags)`
 - A held-back dependency carries its reason as a comment on the package rule that holds it. A pin with no recorded reason is treated as unreviewed.

@@ -19,12 +19,6 @@
   },
   "packageRules": [
     {
-      "description": "A major version is a decision, so it is proposed alone and never joins a group, per ADR-0106.",
-      "matchUpdateTypes": ["major"],
-      "groupName": null,
-      "groupSlug": null
-    },
-    {
       "description": "One repository has one dependency graph, per ADR-0101. The single go.mod produces one PR, with minor and patch together.",
       "matchManagers": ["gomod"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
@@ -46,12 +40,19 @@
       "groupSlug": "mise"
     },
     {
-      "description": "Container base images and platform chart images: one PR for each image, with tag and digest together, per ADR-0106. A new digest with the same tag is a rebuild of the same version. Base-image patching produces this, and a reviewer cannot judge it from the diff alone.",
+      "description": "Container images: one PR for the ecosystem, minor and patch together, with tag and digest together, per ADR-0106. A new digest with the same tag is a rebuild of the same version. The PR body carries both, because a reviewer cannot judge it from the diff alone.",
       "matchDatasources": ["docker"],
-      "groupName": null,
-      "groupSlug": null,
-      "pinDigests": true,
-      "separateMinorPatch": false
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "container images",
+      "groupSlug": "images",
+      "pinDigests": true
+    },
+    {
+      "description": "Helm chart releases: one PR for the ecosystem, minor and patch together, per ADR-0106.",
+      "matchDatasources": ["helm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "helm charts",
+      "groupSlug": "charts"
     },
     {
       "description": "Terraform moves on its own, slower schedule.",
@@ -73,6 +74,25 @@
       "matchFileNames": ["infra/local/**"],
       "groupName": "local dev stand-ins",
       "groupSlug": "local-deps"
+    },
+    {
+      "description": "A pin adds a digest or an exact version to a reference that has none. It does not change what runs, so all pins share one PR, per ADR-0106.",
+      "matchUpdateTypes": ["pin", "pinDigest"],
+      "groupName": "pins",
+      "groupSlug": "pins"
+    },
+    {
+      "description": "A major version is a decision, so it is proposed alone, never joins a group, and opens only after a person ticks it on the dashboard, per ADR-0106. This rule is after every group rule, so it wins.",
+      "matchUpdateTypes": ["major"],
+      "groupName": null,
+      "groupSlug": null,
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Held at 3.x: postcss depends on nanoid ^3. The root override only lifts the 3.x line to a patched release. A major breaks postcss.",
+      "matchPackageNames": ["nanoid"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
     }
   ],
   "customManagers": [
@@ -105,10 +125,11 @@
     }
   ],
   "vulnerabilityAlerts": {
-    "description": "A CVE with a fixed version is proposed at once, outside the batch. For this class only, the weekly slot is too slow, per ADR-0106 and ADR-0104.",
+    "description": "A CVE with a fixed version is proposed at once, outside the batch, and without dashboard approval even for a major. For this class only, the weekly slot is too slow, per ADR-0106 and ADR-0104.",
     "labels": ["dependencies", "security"],
     "schedule": ["at any time"],
-    "minimumReleaseAge": null
+    "minimumReleaseAge": null,
+    "dependencyDashboardApproval": false
   },
   "osvVulnerabilityAlerts": true,
   "kubernetes": {
