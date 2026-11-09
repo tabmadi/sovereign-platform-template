@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 203 |
-| Review-enforced | 384 |
-| **Total** | **587** |
+| Review-enforced | 385 |
+| **Total** | **588** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -261,6 +261,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | --- | --- |
 | Renovate opens every dependency, image, chart, and tool-version update as a pull request. It merges nothing. No update bypasses the gates that a human pull request passes. | `ci:lint, ci:gen, ci:test` in CI |
 | Updates are grouped by ecosystem and batched on a schedule. A major version is proposed alone. | review |
+| Renovate runs from the scheduled `renovate` workflow, never from a hosted app. Every other workflow disables its install. | review |
 | A container image update moves the tag and the digest in the same pull request. A digest is never updated on its own. | `lint:floating-tags` in CI |
 | A held-back dependency carries its reason as a comment on the package rule that holds it. A pin with no recorded reason is treated as unreviewed. | review |
 | A failing update pull request stays open. The update is never disabled to clear the queue. | review |

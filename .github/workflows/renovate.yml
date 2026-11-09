@@ -1,0 +1,35 @@
+# Dependency updates, per ADR-0106. Renovate opens the pull requests, merges nothing, and the gates decide.
+name: renovate
+
+on:
+  schedule:
+    # Monday 03:00 UTC, inside the `before 6am on monday` window of .github/renovate.json.
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: init.defaultBranch
+  GIT_CONFIG_VALUE_0: master
+
+jobs:
+  renovate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      # A token that can open a pull request whose checks run. The job token cannot. A repository without it skips the run.
+      RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+      # Lookups against github.com releases and tags. Anonymous lookups hit the rate limit of the shared runner IP.
+      RENOVATE_GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_GITHUB_COM_TOKEN }}
+    steps:
+      - if: env.RENOVATE_TOKEN != ''
+        uses: actions/checkout@v7
+      - if: env.RENOVATE_TOKEN != ''
+        uses: ./.github/actions/setup
+      - if: env.RENOVATE_TOKEN != ''
+        run: mise run ci:renovate

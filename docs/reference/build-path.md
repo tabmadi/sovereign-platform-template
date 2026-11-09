@@ -74,6 +74,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `ci:release-info` | A CalVer release tag resolved to a version and a commit, as forge step-output assignments, per ADR-0102 and ADR-0103. | promote-on-release.yml |
 | `ci:release-pr` | Open the prod pin as a pull request. The forge merges it when its checks pass, per ADR-0201. | promote-on-release.yml |
 | `ci:release-publish` | Publish the forge release for $VER, per ADR-0103. | promote-on-release.yml |
+| `ci:renovate` | Renovate over this repository, per ADR-0106. The scheduled renovate workflow runs it with the token of the bot. | renovate.yml |
 | `ci:scan` | The vulnerability merge gate, per ADR-0104. | ci.yml |
 | `cluster:down` | Delete the tier's cluster and its image cache. | e2e.yml, perf.yml |
 | `cluster:up` | Create, resume, or repair a tier. | e2e.yml, perf.yml |

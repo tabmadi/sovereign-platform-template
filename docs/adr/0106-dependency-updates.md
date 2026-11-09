@@ -62,7 +62,7 @@ This ADR decides both. [ADR-0104](0104-supply-chain-security.md) decides what a 
 
 ### Renovate opens the pull request, and the gates decide
 
-Renovate runs on a schedule from CI and opens pull requests. It merges nothing. Every update PR passes the same gates as a human PR: lint, generated-code drift, tests, and the affected-service selection of [ADR-0101](0101-monorepo.md). A bump that skips them is a pin that was never load-bearing.
+Renovate runs on a schedule from CI and opens pull requests. The weekly `renovate` workflow runs it as the `ci` machine user, with the `RENOVATE_TOKEN` secret. It merges nothing. Every update PR passes the same gates as a human PR: lint, generated-code drift, tests, and the affected-service selection of [ADR-0101](0101-monorepo.md). A bump that skips them is a pin that was never load-bearing.
 
 | Class | Grouping | Schedule |
 | --- | --- | --- |
@@ -128,6 +128,7 @@ An exclusion is the mechanism, not a deletion. It stops a render, so an update d
 
 - Renovate opens every dependency, image, chart, and tool-version update as a pull request. It merges nothing. No update bypasses the gates that a human pull request passes. `(CI: ci:lint, ci:gen, ci:test)`
 - Updates are grouped by ecosystem and batched on a schedule. A major version is proposed alone.
+- Renovate runs from the scheduled `renovate` workflow, never from a hosted app. Every other workflow disables its install.
 - A container image update moves the tag and the digest in the same pull request. A digest is never updated on its own. `(CI: lint:floating-tags)`
 - A held-back dependency carries its reason as a comment on the package rule that holds it. A pin with no recorded reason is treated as unreviewed.
 - A failing update pull request stays open. The update is never disabled to clear the queue.
