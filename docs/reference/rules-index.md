@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 203 |
-| Review-enforced | 380 |
-| **Total** | **583** |
+| Review-enforced | 382 |
+| **Total** | **585** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -284,6 +284,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A request enters through an issue form. The forms and the label set are committed files, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
 | Each team plans on one organization project. | review |
 | A pull request closes the issue that it resolves with a closing keyword. | review |
+| In the `github` mode, a sprint is the iteration field of the team's project. | review |
+| In the `forgejo` mode, a sprint is a two-week milestone named `Sprint <year>-W<week>`, due on its last Sunday, in every repository. `mise run forge:sprint` starts it. | review |
 | A security report lives in a private repository that only its handlers can read. | review |
 | In the `forgejo` mode, a forge team whose members do not write code has the issues and projects units only, never the code unit. | review |
 | A planning need that the forge cannot hold is filed as an issue with the `kind/tracker-gap` label. Three such issues in one quarter reopen this comparison. | review |

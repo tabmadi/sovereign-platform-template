@@ -119,9 +119,23 @@ The task manager of a project is the issues and projects of its own forge. We do
 | What is committed | the issue forms and the label set, per principle 1 of [ADR-0000](0000-platform-foundations.md) |
 | How work is planned | one organization project for each team. An issue from any repository of the organization can sit on it |
 | Dates and order | milestones for a release or a date, a due date on an issue, and issue dependencies for order |
+| Sprints | in the `github` mode, the iteration field of the team's project. In the `forgejo` mode, a milestone named `Sprint <year>-W<week>`, per *Sprints in the forgejo mode* below |
 | How work is done | a pull request closes the issue that it resolves with a closing keyword. A task with no code change is closed by hand |
 | Confidential work | a security report lives in a private repository that only its handlers can read |
 | What a team that does not write code reaches | in the `forgejo` mode, issues and projects only, through the unit permissions of its forge team. GitHub has no role with issues and no code, so the `github` mode grants the lowest role that can triage |
+
+### Sprints in the forgejo mode
+
+Forgejo has no sprint object and no iteration field. A milestone with a fixed name is the sprint, so every forge view reads it with no new field.
+
+| Concern | Decision |
+| --- | --- |
+| Length | two weeks, from a Monday to the Sunday 13 days later |
+| Name | `Sprint <year>-W<week>`, with the ISO week of its first Monday, as in `Sprint 2026-W46`. The name holds the start, because a milestone has only a due date |
+| Due date | the last Sunday of the sprint |
+| Scope | every repository of the organization carries the milestone with the same name. Forgejo keeps milestones for each repository |
+| Start | `mise run forge:sprint` creates the sprint that holds today in every repository, moves the open issues of each ended sprint into it, and closes the ended milestone |
+| What is in it | an issue planned for the sprint. Its `status/` label still shows where it is |
 
 ### Where a tracker sits on the adoption path
 
@@ -171,6 +185,8 @@ The forge holds the data that a planning view needs: labels, milestones, due dat
 - A request enters through an issue form. The forms and the label set are committed files, per principle 1 of [ADR-0000](0000-platform-foundations.md).
 - Each team plans on one organization project.
 - A pull request closes the issue that it resolves with a closing keyword.
+- In the `github` mode, a sprint is the iteration field of the team's project.
+- In the `forgejo` mode, a sprint is a two-week milestone named `Sprint <year>-W<week>`, due on its last Sunday, in every repository. `mise run forge:sprint` starts it.
 - A security report lives in a private repository that only its handlers can read.
 - In the `forgejo` mode, a forge team whose members do not write code has the issues and projects units only, never the code unit.
 - A planning need that the forge cannot hold is filed as an issue with the `kind/tracker-gap` label. Three such issues in one quarter reopen this comparison.

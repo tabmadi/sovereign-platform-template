@@ -654,6 +654,10 @@ run = "bash scripts/ci-design-preview.sh"
 description = "Reconcile the committed branch protection and required checks into the forge, per ADR-0102."
 run = "bash scripts/forge-apply.sh"
 
+[tasks."forge:sprint"]
+description = "In the forgejo mode, start the sprint that holds today in every repository, and move the open issues of each ended sprint into it, per ADR-0107."
+run = "bash scripts/forge-sprint.sh"
+
 [tasks."forge:ci-user"]
 description = "Create or refresh the `ci` machine user, per ADR-0102: write access, a new PROMOTE_TOKEN secret, and branch protection. A rerun rotates the token."
 run = "bash scripts/forge-ci-user.sh"
