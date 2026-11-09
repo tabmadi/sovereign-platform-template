@@ -2,13 +2,11 @@
  * Catalog fixtures, per ADR-0701. Only `lib/data/catalog.ts` reads them. They are deterministic: a fixture that changes between renders makes a visual baseline useless.
  * The set is full, not minimal: two rows hide every layout decision that a real table forces.
  */
-import type { Money } from "@libs/money";
+import type { components } from "@sdks/catalog";
 
-export type ProductFixture = { id: string; name: string; price: Money };
+const usd = (amount: string) => ({ amount, currency: "USD" });
 
-const usd = (amount: string): Money => ({ amount, currency: "USD" });
-
-export const products: ProductFixture[] = [
+export const products = [
   { id: "product_01h9xk2m4n8p6q3r5s7t9v0w1x", name: "Starter seat", price: usd("19.00") },
   { id: "product_01h9xk2m4n8p6q3r5s7t9v0w2y", name: "Team seat", price: usd("49.00") },
   { id: "product_01h9xk2m4n8p6q3r5s7t9v0w3z", name: "Business seat", price: usd("99.00") },
@@ -31,4 +29,4 @@ export const products: ProductFixture[] = [
   { id: "product_01h9xk2m4n8p6q3r5s7t9v0w8e", name: "Onboarding workshop", price: usd("1500.00") },
   { id: "product_01h9xk2m4n8p6q3r5s7t9v0w9f", name: "Audit log export", price: usd("0.00") },
   { id: "product_01h9xk2m4n8p6q3r5s7t9v0wag", name: "Sandbox environment", price: usd("35.00") },
-];
+] satisfies components["schemas"]["Product"][];

@@ -301,7 +301,7 @@ description = "shfmt from mvdan/sh formats shell, over the same file set that li
 run = "bash scripts/format-shell.sh"
 
 [tasks.lint]
-depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:l7-routes", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:tablint", "lint:adr-xref", "lint:requirements", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:tasks", "lint:workarounds", "lint:dns", "lint:contrast", "lint:i18n", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
+depends = ["lint:go", "lint:gostyle", "lint:template-build", "lint:determinism", "lint:ts", "lint:sql", "lint:service-deps", "lint:activity-register", "lint:authz-dual-write", "lint:money", "lint:naming", "lint:helm-deps", "lint:openapi", "lint:api-audience", "lint:floating-tags", "lint:md", "lint:shell", "lint:node-scope", "lint:auth-inline", "lint:authz", "lint:log-vocab", "lint:resource-governance", "lint:ports", "lint:l7-routes", "lint:service-databases", "lint:workspace-copies", "lint:service-contract", "lint:tablint", "lint:adr-xref", "lint:requirements", "lint:readme-drift", "lint:rules-index", "lint:data-classes", "lint:image-allowlist", "lint:thin-workflows", "lint:tasks", "lint:workarounds", "lint:dns", "lint:contrast", "lint:i18n", "lint:fixtures", "lint:secrets", "lint:tool-register", "lint:alert-severity", "lint:project-identity", "lint:parity", "lint:gitops-env-scope"]
 
 [tasks."lint:go"]
 description = "Go correctness and style: golangci-lint's configured analysers over every module, per ADR-0100."
@@ -507,6 +507,10 @@ run = "go run ./tools/lint-tool-register"
 [tasks."lint:i18n"]
 description = "Localisation, enforced, per ADR-0400."
 run = "go run ./tools/lint-i18n"
+
+[tasks."lint:fixtures"]
+description = "Every fixture is typed against a generated SDK, per ADR-0701. A spec change then breaks the fixture and not the design."
+run = "go run ./tools/lint-fixtures"
 
 [tasks."lint:contrast"]
 description = "Colour contrast, checked against the design-token file and not for each component, per ADR-0400. A token change moves every surface, so the token file is where a regression starts."

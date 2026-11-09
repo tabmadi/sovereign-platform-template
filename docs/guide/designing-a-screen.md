@@ -14,12 +14,14 @@ If the answers need research, put it in [`docs/product/`](../product/README.md) 
 ## Build it
 
 1. **Create the route at its final URL:** `src/app/[locale]/(<group>)/<path>/page.tsx`. Do not use a prototype path or a `-v2` suffix. Use the URL that the screen ships on.
-2. **Add the seam and its fixture.** Put the function that the screen calls in `src/lib/data/<domain>.ts`. Put its return value in `src/fixtures/<domain>.ts` while the service does not exist. Keep the fixture deterministic: no `Math.random()` and no `new Date()` at render.
-3. **Run with the switch on:** `NEXT_PUBLIC_FIXTURES=1 mise run dev:frontend`.
-4. **Write the copy as keys, not as text.** Add every string to `src/messages/en.json`, `de.json`, and `fa.json` in the same change. If one is missing, `lint:i18n` fails on parity. A literal in the markup fails `lint:ts`. Use `t.rich` for a sentence that contains a link. Never split one sentence into two keys.
-5. **Check the mirror.** Open the screen at `/fa/<path>` before you call it done. Use logical classes such as `ms-`, `pe-`, and `text-start`, so the layout mirrors with no extra work. `mise run lint:i18n -- -fix` converts the mechanical cases.
-6. **Compose from `src/components/ui/`.** Use a primitive before you write markup. Add a missing primitive with `shadcn add <name>`. This also adds it to the job list of the design catalogue. Compose fields with `Field`. Never wire them by hand.
-7. **Use the tokens:** `bg-card`, `text-muted-foreground`, `border-border`. A raw colour in a screen is a token that escaped. [docs/brand.md](../brand.md) gives the purpose of each role.
+2. **Add the seam and its fixture.** Put the function that the screen calls in `src/lib/data/<domain>.ts`. Put its return value in `src/fixtures/<domain>.ts`. Keep the fixture deterministic: no `Math.random()` and no `new Date()` at render.
+3. **Type the fixture against the API.** End each export with `satisfies <T>`, and import `T` from `@sdks/*`. When the spec changes, `mise run gen` breaks the fixture, not the design.
+4. **Mark an endpoint that no spec has.** Put `// no-spec: GET /members` in the fixture file and use a local type. When an SDK adds that endpoint, `lint:fixtures` fails until you use its type and remove the marker.
+5. **Run with the switch on:** `NEXT_PUBLIC_FIXTURES=1 mise run dev:frontend`.
+6. **Write the copy as keys, not as text.** Add every string to `src/messages/en.json`, `de.json`, and `fa.json` in the same change. If one is missing, `lint:i18n` fails on parity. A literal in the markup fails `lint:ts`. Use `t.rich` for a sentence that contains a link. Never split one sentence into two keys.
+7. **Check the mirror.** Open the screen at `/fa/<path>` before you call it done. Use logical classes such as `ms-`, `pe-`, and `text-start`, so the layout mirrors with no extra work. `mise run lint:i18n -- -fix` converts the mechanical cases.
+8. **Compose from `src/components/ui/`.** Use a primitive before you write markup. Add a missing primitive with `shadcn add <name>`. This also adds it to the job list of the design catalogue. Compose fields with `Field`. Never wire them by hand.
+9. **Use the tokens:** `bg-card`, `text-muted-foreground`, `border-border`. A raw colour in a screen is a token that escaped. [docs/brand.md](../brand.md) gives the purpose of each role.
 
 **Make the fixture full.** Use eight to fifteen rows, not two. Add long names, uneven numbers, and a failed row among the successful ones. Two tidy rows hide every layout decision that the real data forces. A screen designed against them breaks on the first production page.
 
@@ -49,6 +51,7 @@ Then delete nothing. The fixture and the seam stay. They let you design the scre
 
 - A production build with `NEXT_PUBLIC_FIXTURES` set fails. Fixtures cannot ship.
 - An import of `server-fetch`, a generated SDK, or a fixture from a page or a component fails `lint:ts`. Data goes through `src/lib/data/`.
+- A fixture export without `satisfies` and a type from `@sdks/*` fails `lint:fixtures`. A stale `no-spec` marker also fails it.
 - A token pair below WCAG AA in either palette fails `lint:contrast`.
 - Copy in the markup fails `lint:ts`.
 - A key missing from one catalogue fails `lint:i18n`. A physical layout class also fails it.

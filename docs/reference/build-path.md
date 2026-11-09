@@ -109,6 +109,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint:data-classes` | The drift check for the data-class registry. | .lefthook.yml, ci.yml |
 | `lint:determinism` | Temporal workflow determinism, per ADR-0302. | .lefthook.yml, ci.yml |
 | `lint:dns` | ADR-0206: infra/dns/dnsconfig.js is a valid zone declaration. It needs no credential. | .lefthook.yml, ci.yml |
+| `lint:fixtures` | Every fixture is typed against a generated SDK, per ADR-0701. A spec change then breaks the fixture and not the design. | .lefthook.yml, ci.yml |
 | `lint:floating-tags` | Image references pin a digest or an explicit version, never a moving tag, per ADR-0101 and ADR-0104. | .lefthook.yml, ci.yml |
 | `lint:gitops-env-scope` | ADR-0201 gate: an environment's bootstrap directory names only that environment. | .lefthook.yml, ci.yml |
 | `lint:go` | Go correctness and style: golangci-lint's configured analysers over every module, per ADR-0100. | .lefthook.yml, ci.yml |

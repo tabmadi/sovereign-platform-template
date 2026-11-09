@@ -60,7 +60,7 @@ A screen under design differs from a finished screen only in where its data come
 | Concern | Decision |
 | --- | --- |
 | The seam | `src/lib/data/<domain>.ts`. A screen calls it, and it resolves to the generated SDK or to a fixture |
-| Fixtures | `src/fixtures/<domain>.ts`, committed and deterministic. No `Math.random()`, and no `new Date()` at render |
+| Fixtures | `src/fixtures/<domain>.ts`, committed and deterministic. No `Math.random()`, and no `new Date()` at render. Each export ends with `satisfies` and a generated type, so a spec change breaks the fixture and not the design |
 | The switch | `NEXT_PUBLIC_FIXTURES=1`, read in `src/lib/data/mode.ts` and nowhere else |
 | The production guard | that module throws when the switch is set in a production build. This fails the build during prerender. The one exception is the design build below, which also sets `NEXT_PUBLIC_DESIGN_BUILD=1` |
 | Enforcement | `noRestrictedImports` in `biome.jsonc`. Nothing under `app/` or `components/` imports `server-fetch`, a generated SDK, or a fixture |
@@ -138,6 +138,8 @@ Research that nobody needed is not a gap.
 - The design system's values live only in `apps/frontend/src/styles/theme.css`. What the roles are for lives only in [docs/brand.md](../brand.md). `(CI: lint:contrast)`
 - A screen reads and writes through `src/lib/data/`. It does not import `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. `(CI: lint:ts)`
 - Fixtures are deterministic: no `Math.random()`, and no `new Date()` evaluated at render.
+- Every value exported from `src/fixtures/*.ts` ends with `satisfies <T>`, and `T` is imported from `@sdks/*`. `(CI: lint:fixtures)`
+- A fixture for an endpoint that no spec has keeps a local type under a `// no-spec: <METHOD> <path>` marker. The marker fails once an SDK has that endpoint. `(CI: lint:fixtures)`
 - Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails, unless `NEXT_PUBLIC_DESIGN_BUILD=1` is also set. `(CI: test)`
 - Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`.
 - A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline.

@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 199 |
+| Machine-enforced | 201 |
 | Review-enforced | 375 |
-| **Total** | **574** |
+| **Total** | **576** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -851,6 +851,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The design system's values live only in `apps/frontend/src/styles/theme.css`. What the roles are for lives only in [docs/brand.md](../brand.md). | `lint:contrast` in CI |
 | A screen reads and writes through `src/lib/data/`. It does not import `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. | `lint:ts` in CI |
 | Fixtures are deterministic: no `Math.random()`, and no `new Date()` evaluated at render. | review |
+| Every value exported from `src/fixtures/*.ts` ends with `satisfies <T>`, and `T` is imported from `@sdks/*`. | `lint:fixtures` in CI |
+| A fixture for an endpoint that no spec has keeps a local type under a `// no-spec: <METHOD> <path>` marker. The marker fails once an SDK has that endpoint. | `lint:fixtures` in CI |
 | Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails, unless `NEXT_PUBLIC_DESIGN_BUILD=1` is also set. | `test` in CI |
 | Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`. | review |
 | A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline. | review |

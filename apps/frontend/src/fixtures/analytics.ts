@@ -2,9 +2,9 @@
  * Analytics fixtures, per ADR-0701. Only `lib/data/analytics.ts` reads them. They have the shape of a real funnel: occurrences
  * drop faster than sessions. Flat, tidy numbers make a broken chart look fine.
  */
-import type { EventSummary } from "@/lib/data/analytics";
+import type { components } from "@sdks/analytics";
 
-export const summary: EventSummary[] = [
+export const summary = [
   { name: "page_view", occurrences: 18_402, sessions: 6120 },
   { name: "signup_started", occurrences: 1944, sessions: 1802 },
   { name: "signup_completed", occurrences: 1207, sessions: 1207 },
@@ -15,4 +15,4 @@ export const summary: EventSummary[] = [
   { name: "checkout_confirmed", occurrences: 431, sessions: 428 },
   { name: "checkout_failed", occurrences: 97, sessions: 91 },
   { name: "support_contacted", occurrences: 143, sessions: 118 },
-];
+] satisfies components["schemas"]["EventSummary"][];

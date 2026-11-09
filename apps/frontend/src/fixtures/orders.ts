@@ -2,12 +2,21 @@
  * Orders fixtures, per ADR-0701. Only `lib/data/orders.ts` reads them. The handle and the settled resource are both fixed,
  * so a screenshot of a design-time checkout has meaning.
  */
-export const order = {
-  handle: {
-    id: "order_01h9xk2m4n8p6q3r5s7t9v0wbh",
-    run_id: "01h9xk2m4n8p6q3r5s7t9v0wbh",
-    status: "running",
-    result_url: "/api/orders/order_01h9xk2m4n8p6q3r5s7t9v0wbh",
-  },
-  settled: { id: "order_01h9xk2m4n8p6q3r5s7t9v0wbh", status: "confirmed" },
-} as const;
+import type { components } from "@sdks/orders";
+
+type O = components["schemas"];
+
+export const handle = {
+  id: "order_01h9xk2m4n8p6q3r5s7t9v0wbh",
+  run_id: "01h9xk2m4n8p6q3r5s7t9v0wbh",
+  status: "running",
+  result_url: "/api/orders/order_01h9xk2m4n8p6q3r5s7t9v0wbh",
+} satisfies O["WorkflowHandle"];
+
+export const settled = {
+  id: "order_01h9xk2m4n8p6q3r5s7t9v0wbh",
+  product_id: "product_01h9xk2m4n8p6q3r5s7t9v0w2y",
+  quantity: 3,
+  total: { amount: "147.00", currency: "USD" },
+  status: "confirmed",
+} satisfies O["Order"];
