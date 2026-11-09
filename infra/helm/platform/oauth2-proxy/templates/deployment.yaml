@@ -48,6 +48,10 @@ spec:
             - --cookie-name=_hatra_design
             - --cookie-secure=true
             - --cookie-samesite=lax
+            # A page and its favicon start two sign-ins at once. One CSRF cookie for each keeps them from overwriting each
+            # other's PKCE proof.
+            - --cookie-csrf-per-request=true
+            - --cookie-csrf-expire=5m
             - --upstream=static://202
             - --reverse-proxy=true
             - --skip-provider-button=true
