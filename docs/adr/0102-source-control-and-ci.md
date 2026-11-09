@@ -130,4 +130,7 @@ The cost is real, and it is a host. Someone patches it, backs it up, and monitor
 - Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
 - Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](0000-platform-foundations.md).
 - The default branch takes a direct push from one identity only: the `ci` machine user. Its `PROMOTE_TOKEN` pushes the dev and staging promotion commit, per [ADR-0201](0201-gitops.md). Every other change reaches the branch through a reviewed pull request.
+- Contributors work in a fork. The Developers team only reads the repository's code, so only the Owners team and the `ci` machine user push a branch to it.
+- Only the Owners team and the `ci` machine user merge into the default branch. `ci` merges the prod pin pull request, per [ADR-0201](0201-gitops.md).
+- An approval counts toward the required review only when it comes from the Owners team or the Developers team.
 - Container images are published to the registry in [ADR-0105](0105-image-registry.md), not to the package registry of the forge.

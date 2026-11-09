@@ -8,6 +8,13 @@ protection:
   enable_push: true
   enable_push_whitelist: true
   push_whitelist_usernames: [ci] # no one else, and no admin
+  # `ci` merges the prod pin pull request, per ADR-0201. It already pushes to the default branch, so this gives it nothing new.
+  enable_merge_whitelist: true
+  merge_whitelist_usernames: [ci]
+  merge_whitelist_teams: [Owners]
+  # The Developers team reads code, per teams.yaml. Without this list the forge counts only a writer's approval.
+  enable_approvals_whitelist: true
+  approvals_whitelist_teams: [Owners, Developers]
   required_approvals: 1
   # An approval dismissed on push means the reviewer approved this change, and
   # not the change that was there when they looked.

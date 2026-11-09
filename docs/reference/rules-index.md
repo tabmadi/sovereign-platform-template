@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 204 |
-| Review-enforced | 386 |
-| **Total** | **590** |
+| Review-enforced | 389 |
+| **Total** | **593** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -201,6 +201,9 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML. | review |
 | Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
 | The default branch takes a direct push from one identity only: the `ci` machine user. Its `PROMOTE_TOKEN` pushes the dev and staging promotion commit, per [ADR-0201](../adr/0201-gitops.md). Every other change reaches the branch through a reviewed pull request. | review |
+| Contributors work in a fork. The Developers team only reads the repository's code, so only the Owners team and the `ci` machine user push a branch to it. | review |
+| Only the Owners team and the `ci` machine user merge into the default branch. `ci` merges the prod pin pull request, per [ADR-0201](../adr/0201-gitops.md). | review |
+| An approval counts toward the required review only when it comes from the Owners team or the Developers team. | review |
 | Container images are published to the registry in [ADR-0105](../adr/0105-image-registry.md), not to the package registry of the forge. | review |
 
 ## ADR-0103: Release, Tagging and Versioning

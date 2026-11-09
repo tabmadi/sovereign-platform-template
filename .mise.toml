@@ -657,7 +657,7 @@ description = "The design preview of one pull request, per ADR-0701: `build` pus
 run = "bash scripts/ci-design-preview.sh"
 
 [tasks."forge:apply"]
-description = "Reconcile the committed branch protection and required checks into the forge, per ADR-0102."
+description = "Reconcile the committed branch protection, required checks, and team access into the forge, per ADR-0102."
 run = "bash scripts/forge-apply.sh"
 
 [tasks."forge:sprint"]

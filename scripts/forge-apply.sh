@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Reconcile infra/forge/branch-protection.yaml into the forge, per ADR-0102.
+# Reconcile infra/forge/branch-protection.yaml and infra/forge/teams.yaml into the forge, per ADR-0102.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 CONFIG="$(dirname "${BASH_SOURCE[0]}")/../infra/forge/branch-protection.yaml"
+TEAMS="$(dirname "${BASH_SOURCE[0]}")/../infra/forge/teams.yaml"
 
 url="${FORGE_URL:-}"
 repo="${FORGE_REPO:-}"
@@ -43,3 +44,18 @@ if [[ "$(yq -r '.actions.approval_for_outside_collaborators' "$CONFIG")" == "tru
 fi
 
 ok "branch protection applied to ${repo}@${branch}"
+
+[[ -f "$TEAMS" ]] || exit 0
+org="${repo%%/*}"
+step "applying team access to ${org}"
+existing="$(curl -sS -H "Authorization: token ${token}" "${url}/api/v1/orgs/${org}/teams?limit=50")"
+while IFS= read -r team; do
+  name="$(jq -r '.name' <<<"$team")"
+  id="$(jq -r --arg n "$name" '.[] | select(.name == $n) | .id' <<<"$existing")"
+  [[ -n "$id" ]] || fail "the forge has no team ${name} in ${org}"
+  code="$(curl -sS -o /dev/null -w '%{http_code}' -X PATCH -H "Authorization: token ${token}" \
+    -H "Content-Type: application/json" --data "$team" "${url}/api/v1/teams/${id}")"
+  [[ "$code" =~ ^2 ]] || fail "forge refused the team ${name}, HTTP ${code}"
+  detail "${name}: code $(jq -r '.units_map["repo.code"]' <<<"$team")"
+done < <(yq -o=json -I=0 '.teams[]' "$TEAMS")
+ok "team access applied to ${org}"
