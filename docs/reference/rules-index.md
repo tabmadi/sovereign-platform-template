@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 203 |
-| Review-enforced | 382 |
-| **Total** | **585** |
+| Review-enforced | 383 |
+| **Total** | **586** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -629,13 +629,14 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Inside that seam, server components fetch through the server-only fetcher, and client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. | `ci:lint` in CI |
 | Hand-written request and response types are not declared. Only generated types are used, and form schemas are generated from the spec. | `ci:gen` in CI |
 | Tailwind is the styling system, wired CSS-first with no config file. CSS Modules, CSS-in-JS, and inline `<style>` are not used in app code. | `ci:lint` in CI |
-| Design tokens come from `apps/frontend/src/styles/theme.css`. There is no JS token mirror, and tokens are not redefined per route group. | review |
+| Design tokens come from `apps/frontend/src/styles/theme.css`. There is no JS token mirror. Whether a route group redefines tokens is the designer's choice, recorded in [docs/brand.md](../brand.md). | review |
 | Class composition uses the `cn` package, because the generated components import it. A second helper is not added. | `ci:lint` in CI |
-| Primitives are the vendored `shadcn/ui` source under `src/components/ui/`. `shadcn add` writes them, and they are composed by explicit path and never duplicated. A primitive is not edited by hand. A deviation goes in the token file. | review |
+| Primitives are the vendored `shadcn/ui` source under `src/components/ui/`. `shadcn add` writes them, and they are composed by explicit path and never duplicated. A designer may edit a primitive by hand. The edit then belongs to the design, and a later `shadcn add` of that primitive is reviewed as a diff. | review |
 | A primitive added under `src/components/ui/` is added to the kitchen-sink page in the same PR. That PR includes a keyboard-only pass of the new section. | review |
 | Every route group targets WCAG 2.2 AA. The Scalar console and vendored operator UIs are excluded, and the exclusion is stated, not assumed. | standard: WCAG 2.2 AA |
 | Every kitchen-sink section and every product journey is scanned with `@axe-core/playwright`. A `serious` or `critical` violation fails the merge. | `e2e` in CI |
-| Colour contrast is verified against the design-token file in both palettes, not per component. | `lint:contrast` in CI |
+| Colour contrast is verified against the design-token file in every palette that it defines, not per component. One palette or two is the designer's choice. | `lint:contrast` in CI |
+| The design is free beyond these gates: WCAG 2.2 AA contrast, the axe suite, right-to-left mirroring for every shipped right-to-left locale, copy as message keys, and every colour value in `theme.css`. The brand, the layout, the themes, and the components are the designer's choice. | review |
 | Icons come from `lucide-react`, the icon set that `components.json` names. Another set requires an ADR amendment. | review |
 | Forms use react-hook-form and zod, and every field is composed with `Field` from `src/components/ui/field.tsx`. | review |
 | URL state uses `nuqs`, and client-only state uses Zustand. Redux and MobX are not used. | `ci:lint` in CI |

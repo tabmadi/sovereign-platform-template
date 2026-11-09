@@ -68,7 +68,7 @@ The copy in the product follows [ADR-0001](adr/0001-documentation-and-output-con
 ## What this brand does not do
 
 - **No second accent colour** beyond the roles above. A screen that needs one usually needs fewer things on it.
-- **No theme for each route.** The token file is global. A route group that redefined a token would make the design system impossible to read from one place, per [ADR-0400](adr/0400-frontend.md).
+- **No theme for each route.** The token file is global, so the design system reads from one place. This is a design choice, and a redesign may change it, per [ADR-0400](adr/0400-frontend.md).
 - **No colour as the only signal.** A status is a word, and it can also have a colour. Colour alone fails for anyone who cannot tell the two colours apart.
 - **No physical layout properties.** Use `ms-`, `me-`, `ps-`, `pe-`, `text-start`, and `text-end`, never their left and right forms. The product ships a right-to-left locale, and a physical inset does not mirror. `lint:i18n` holds this.
 - **No raw values in components.** A hex literal or an `oklch()` in a component is a token that escaped. Review and `noHexColors` catch it.
