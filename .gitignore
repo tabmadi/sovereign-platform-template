@@ -27,6 +27,7 @@ coverage.*
 # Node and Bun
 node_modules/
 .next/
+coverage/
 out/
 .bun/
 *.tsbuildinfo

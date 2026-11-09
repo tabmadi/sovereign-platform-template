@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "types": ["bun"]
+  },
+  "include": ["next-env.d.ts", "src/**/*.test.ts", "src/**/*.test.tsx", "src/test"],
+  "exclude": ["node_modules"]
+}

@@ -467,16 +467,21 @@ bash scripts/lint-strip-headers.sh
 """
 
 [tasks.test]
-depends = ["test:go", "test:ts"]
+depends = ["test:go", "test:ts", "test:frontend"]
 
 [tasks."test:go"]
 description = "Every Go package's tests, including the tools, per ADR-0601."
 run = "go test ./... ./tools/..."
 
 [tasks."test:ts"]
-description = "The shared TypeScript libraries under libs/ts/. The e2e suite covers the frontend's browser behaviour, per ADR-0601."
+description = "The shared TypeScript libraries under libs/ts/. `test:frontend` runs the frontend's own tests, because they need its preload."
 depends = ["setup:node"]
 run = "bun test libs/ts/"
+
+[tasks."test:frontend"]
+description = "The frontend unit and component tests, against MSW, with a line coverage floor for each route group, per ADR-0400. The e2e suite covers its browser behaviour, per ADR-0601."
+depends = ["setup:node"]
+run = "bash scripts/test-frontend.sh"
 
 [tasks.build]
 description = "Every Go module compiles, including the tools, per ADR-0101."

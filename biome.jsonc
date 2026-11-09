@@ -255,9 +255,13 @@
       }
     },
     {
-      // Fixtures hold wire identifiers of 26 base32 characters, per ADR-0003. The entropy check reads them as secrets.
+      // Fixtures and tests hold wire identifiers of 26 base32 characters, per ADR-0003. The entropy check reads them as secrets.
       // gitleaks still scans these files through `lint:secrets`.
-      "includes": ["**/apps/frontend/src/fixtures/**"],
+      "includes": [
+        "**/apps/frontend/src/fixtures/**",
+        "**/apps/frontend/src/**/*.test.ts",
+        "**/apps/frontend/src/**/*.test.tsx"
+      ],
       "linter": { "rules": { "security": { "noSecrets": "off" } } }
     },
     {

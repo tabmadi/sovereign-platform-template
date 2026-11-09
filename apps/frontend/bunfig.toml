@@ -1,0 +1,7 @@
+[test]
+preload = ["./src/test/setup.ts"]
+coverageSkipTestFiles = true
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
+# Vendored shadcn/ui source and the test harness are not first-party product code, per ADR-0400.
+coveragePathIgnorePatterns = ["src/components/ui/**", "src/test/**"]
