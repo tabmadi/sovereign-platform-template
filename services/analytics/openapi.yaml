@@ -28,6 +28,7 @@ paths:
   /analytics/summary:
     get:
       operationId: summariseEvents
+      x-short-example: east-west, and no screen reads it
       description: Event counts over a window. Every funnel question starts from this aggregate.
       tags: [analytics]
       parameters:
@@ -77,6 +78,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
     get:
       operationId: getFunnelRollup
+      x-short-example: east-west, and no screen reads it
       description: Read a funnel's computed rollup, in bucket and then step order.
       tags: [analytics]
       parameters:
@@ -138,6 +140,7 @@ paths:
   /subject-data/analytics:
     get:
       operationId: listAnalyticsSubjects
+      x-short-example: east-west, and no screen reads it
       # The platform worker's retention sweep reads every page, per ADR-0301.
       description: One page of the identities that this store holds data for, in identity order.
       tags: [subjects]
@@ -152,6 +155,7 @@ paths:
   /subject-data/analytics/{identity_id}:
     get:
       operationId: exportAnalyticsSubject
+      x-short-example: east-west, and no screen reads it
       # The platform worker's ExportSubject calls this, per ADR-0301 and GDPR Art. 15 and 20.
       description: Every event and consent record of every session that the subject is known in.
       tags: [subjects]

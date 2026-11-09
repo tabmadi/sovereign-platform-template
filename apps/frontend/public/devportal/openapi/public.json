@@ -65,6 +65,54 @@
                         "amount": "149.00",
                         "currency": "EUR"
                       }
+                    },
+                    {
+                      "id": "product_01kzvy4fkbjz656ba0mn1mdt7z",
+                      "name": "Ergonomic split keyboard with tenting kit, wrist rests, and a carrying case",
+                      "price": {
+                        "amount": "389.95",
+                        "currency": "EUR"
+                      }
+                    },
+                    {
+                      "id": "product_01kzvm62apvkm46fh4th40j8n5",
+                      "name": "USB-C dock",
+                      "price": {
+                        "amount": "0.99",
+                        "currency": "EUR"
+                      }
+                    },
+                    {
+                      "id": "product_01kzvf91es1yz8r61av9ndt036",
+                      "name": "Desk lamp",
+                      "price": {
+                        "amount": "64.50",
+                        "currency": "EUR"
+                      }
+                    },
+                    {
+                      "id": "product_01kzvta0scdnke55xj4ebfaezd",
+                      "name": "Acoustic panel set of 12",
+                      "price": {
+                        "amount": "1240.00",
+                        "currency": "EUR"
+                      }
+                    },
+                    {
+                      "id": "product_01kzvz03k31wssdwkbmknwbm1x",
+                      "name": "Cable tray",
+                      "price": {
+                        "amount": "19.00",
+                        "currency": "EUR"
+                      }
+                    },
+                    {
+                      "id": "product_01kzvn4yw1yan6wq7yqa2pancw",
+                      "name": "Footrest",
+                      "price": {
+                        "amount": "42.10",
+                        "currency": "EUR"
+                      }
                     }
                   ]
                 }

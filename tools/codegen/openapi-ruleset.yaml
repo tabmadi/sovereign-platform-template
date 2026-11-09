@@ -48,6 +48,27 @@ rules:
       field: example
       function: truthy
 
+  # A one-row list hides every layout problem that real data shows, per ADR-0701. Each list in a GET example has eight rows or more.
+  # An operation whose list is short by nature names the reason in `x-short-example`, so review sees the exception.
+  # vacuum's `length` cannot tell a list from a string or an object, so the `schema` function checks only the arrays.
+  list-example-size:
+    description: a list in a GET response example has at least eight rows, or the operation states `x-short-example`
+    given: "$.paths.*[?(@property == 'get' && !@['x-short-example'])].responses['200'].content.*.schema"
+    resolved: true
+    severity: error
+    then:
+      field: example
+      function: schema
+      functionOptions:
+        forceValidation: true
+        schema:
+          if: { type: array }
+          then: { minItems: 8 }
+          else:
+            additionalProperties:
+              if: { type: array }
+              then: { minItems: 8 }
+
   # The mock serves an example unchanged, per ADR-0600. An example that fails validation gives the UI a shape the real API cannot return.
   oas3-valid-schema-example: error
   oas3-example-external-check: error

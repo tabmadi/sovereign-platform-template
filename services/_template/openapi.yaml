@@ -18,6 +18,7 @@ paths:
   /items:
     get:
       operationId: listItems
+      x-short-example: the scaffold. A new service writes its own example
       description: List all items.
       tags: [items]
       responses:

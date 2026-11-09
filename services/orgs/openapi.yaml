@@ -22,8 +22,14 @@ paths:
                 items: { $ref: "#/components/schemas/Org" }
                 # The API mock serves this exactly as written, per ADR-0600.
                 example:
-                  - { id: org_01kztn9tsrea7b1597q3yjdeav, name: Northwind Trading }
-                  - { id: org_01kztne0k0e96sgmrw4bd27ydx, name: Contoso Rail }
+                  - {id: org_01kztn9tsrea7b1597q3yjdeav, name: Northwind Trading}
+                  - {id: org_01kztne0k0e96sgmrw4bd27ydx, name: Contoso Rail}
+                  - {id: org_01kzve0j7e51h3yvekzr1y2cg4, name: Tehran Municipal Water and Wastewater Engineering Consultants}
+                  - {id: org_01kzv9q5z7f44q4kpethnzfsn2, name: Fabrikam}
+                  - {id: org_01kzvwyj9n9p1bk70pt2v9ebv0, name: Bluebird Analytics}
+                  - {id: org_01kzvrw4mvpzgsqdqmpmptqvgg, name: Adatum Health}
+                  - {id: org_01kzvv2xxyxjk87t74z83amk0b, name: Litware Labs}
+                  - {id: org_01kzv830p54hygkdhk8emqxj0w, name: 'Woodgrove Bank, research sandbox'}
         default: { $ref: "#/components/responses/Error" }
     # There is no POST. The registration flow creates an org. Its webhook writes the org, the membership, and the
     # OpenFGA admin tuple as one dual write, per ADR-0304. A bare insert would produce an org with no admin.
@@ -83,6 +89,7 @@ paths:
   /subject-data/orgs:
     get:
       operationId: listMemberSubjects
+      x-short-example: east-west, and no screen reads it
       # East-west, from the platform worker's retention sweep, per ADR-0301. Like `/identity-created`, it skips the
       # edge, and a NetworkPolicy gates it.
       x-audience: cluster
@@ -99,6 +106,7 @@ paths:
   /subject-data/orgs/{identity_id}:
     get:
       operationId: exportOrgsSubject
+      x-short-example: east-west, and no screen reads it
       # East-west, from the platform worker's ExportSubject, per ADR-0301 and GDPR Art. 15 and 20.
       x-audience: cluster
       tags: [cluster]

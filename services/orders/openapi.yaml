@@ -25,9 +25,69 @@ paths:
                 # vary on purpose. With one status in a list example, a UI ships with an
                 # unstyled badge for every other status.
                 example:
-                  - { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total: {amount: "2598.00", currency: EUR}, status: confirmed }
-                  - { id: order_01kztnpc5gfx2a9kkhxe1h4ar3, product_id: product_01kztn1f78evjtsk2gbgjk5hs3, quantity: 1, total: {amount: "899.00", currency: EUR}, status: pending }
-                  - { id: order_01kztnthyrfsj8a9pjx1md2pqs, product_id: product_01kztn5n0gfphac1fsep3b64nj, quantity: 4, total: {amount: "596.00", currency: EUR}, status: cancelled }
+                  - id: order_01kztnj6c8e0jt7vzw0cn1wxvd
+                    product_id: product_01kztmx9e0fq1r13w5d1aerqw6
+                    quantity: 2
+                    total:
+                      amount: "2598.00"
+                      currency: EUR
+                    status: confirmed
+                  - id: order_01kztnpc5gfx2a9kkhxe1h4ar3
+                    product_id: product_01kztn1f78evjtsk2gbgjk5hs3
+                    quantity: 1
+                    total:
+                      amount: "899.00"
+                      currency: EUR
+                    status: pending
+                  - id: order_01kztnthyrfsj8a9pjx1md2pqs
+                    product_id: product_01kztn5n0gfphac1fsep3b64nj
+                    quantity: 4
+                    total:
+                      amount: "596.00"
+                      currency: EUR
+                    status: cancelled
+                  - id: order_01kzv6z1c1ghsqm42k2rb22jhs
+                    product_id: product_01kzvy4fkbjz656ba0mn1mdt7z
+                    quantity: 1
+                    total:
+                      amount: "389.95"
+                      currency: EUR
+                    status: failed
+                  - id: order_01kzv2mykq8rsnn8vy1jp2tzra
+                    product_id: product_01kzvm62apvkm46fh4th40j8n5
+                    quantity: 250
+                    total:
+                      amount: "247.50"
+                      currency: EUR
+                    status: confirmed
+                  - id: order_01kzvehcxtna6bgas6wn4jpd7w
+                    product_id: product_01kzvta0scdnke55xj4ebfaezd
+                    quantity: 1
+                    total:
+                      amount: "1240.00"
+                      currency: EUR
+                    status: confirmed
+                  - id: order_01kzvtnqpy147w91stdhf4yhh6
+                    product_id: product_01kzvf91es1yz8r61av9ndt036
+                    quantity: 3
+                    total:
+                      amount: "193.50"
+                      currency: EUR
+                    status: pending
+                  - id: order_01kzvn0t6kqw3fnqz3815a1547
+                    product_id: product_01kzvn4yw1yan6wq7yqa2pancw
+                    quantity: 12
+                    total:
+                      amount: "505.20"
+                      currency: EUR
+                    status: confirmed
+                  - id: order_01kzvc6ys2b1hj85yf0gp0fa92
+                    product_id: product_01kzvz03k31wssdwkbmknwbm1x
+                    quantity: 40
+                    total:
+                      amount: "760.00"
+                      currency: EUR
+                    status: cancelled
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: checkout
@@ -80,6 +140,7 @@ paths:
   /subject-data/orders:
     get:
       operationId: listOrderSubjects
+      x-short-example: east-west, and no screen reads it
       # East-west, from the platform worker's retention sweep, per ADR-0301. The edge routes only `/api/orders`,
       # so this path has no edge route, and a NetworkPolicy gates it. `x-audience: cluster` keeps it off both portals.
       x-audience: cluster
@@ -96,6 +157,7 @@ paths:
   /subject-data/orders/{identity_id}:
     get:
       operationId: exportOrdersSubject
+      x-short-example: east-west, and no screen reads it
       # East-west, from the platform worker's ExportSubject, per ADR-0301 and GDPR Art. 15 and 20.
       x-audience: cluster
       tags: [cluster]

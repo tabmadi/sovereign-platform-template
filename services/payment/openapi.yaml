@@ -24,9 +24,60 @@ paths:
                 # The API mock serves this exactly as written, per ADR-0600. The statuses
                 # vary, so the UI must render every one of them.
                 example:
-                  - { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount: { amount: "2598.00", currency: EUR }, status: settled }
-                  - { id: charge_01kztp2xh8e6nr9gh2xr7ryye5, order_id: order_01kztnpc5gfx2a9kkhxe1h4ar3, amount: { amount: "899.00", currency: EUR }, status: pending }
-                  - { id: charge_01kztp73agejgvn558snqmna6f, order_id: order_01kztnthyrfsj8a9pjx1md2pqs, amount: { amount: "596.00", currency: EUR }, status: refunded }
+                  - id: charge_01kztnyqr0f13shqqnx8028xx5
+                    order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd
+                    amount:
+                      amount: "2598.00"
+                      currency: EUR
+                    status: settled
+                  - id: charge_01kztp2xh8e6nr9gh2xr7ryye5
+                    order_id: order_01kztnpc5gfx2a9kkhxe1h4ar3
+                    amount:
+                      amount: "899.00"
+                      currency: EUR
+                    status: pending
+                  - id: charge_01kztp73agejgvn558snqmna6f
+                    order_id: order_01kztnthyrfsj8a9pjx1md2pqs
+                    amount:
+                      amount: "596.00"
+                      currency: EUR
+                    status: refunded
+                  - id: charge_01kzvkf6npy6g7r6hsmd6004mm
+                    order_id: order_01kzv6z1c1ghsqm42k2rb22jhs
+                    amount:
+                      amount: "389.95"
+                      currency: EUR
+                    status: failed
+                  - id: charge_01kzv8megwg8j4bzdr5y83fj7h
+                    order_id: order_01kzv2mykq8rsnn8vy1jp2tzra
+                    amount:
+                      amount: "247.50"
+                      currency: EUR
+                    status: settled
+                  - id: charge_01kzv58qqrj18g5a6cgwrc9d4b
+                    order_id: order_01kzvehcxtna6bgas6wn4jpd7w
+                    amount:
+                      amount: "1240.00"
+                      currency: EUR
+                    status: settled
+                  - id: charge_01kzvwsasbwes5mknq8b90yews
+                    order_id: order_01kzvtnqpy147w91stdhf4yhh6
+                    amount:
+                      amount: "193.50"
+                      currency: EUR
+                    status: pending
+                  - id: charge_01kzvxy70ndhetx7xdxq6xk7yt
+                    order_id: order_01kzvn0t6kqw3fnqz3815a1547
+                    amount:
+                      amount: "505.20"
+                      currency: EUR
+                    status: settled
+                  - id: charge_01kzvjgve3tjzx2059bv0q9q6a
+                    order_id: order_01kzvc6ys2b1hj85yf0gp0fa92
+                    amount:
+                      amount: "760.00"
+                      currency: EUR
+                    status: refunded
         default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createCharge

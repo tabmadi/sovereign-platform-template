@@ -22,6 +22,7 @@ paths:
   /identities:
     get:
       operationId: listIdentities
+      x-short-example: east-west, and no screen reads it
       # The console's Users page, per ADR-0401. Only authz may reach Kratos admin, per network-policies/30-ory.yaml, so the
       # console fetches through here. Only list, get, and update exist. A create op would scaffold an add-user page, and an
       # operator is a registered user that the update's operator toggle promotes, per ADR-0304.

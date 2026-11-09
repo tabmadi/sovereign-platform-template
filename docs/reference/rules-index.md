@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 203 |
+| Machine-enforced | 204 |
 | Review-enforced | 385 |
-| **Total** | **588** |
+| **Total** | **589** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -777,6 +777,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The application contains no development-only authentication code. A session bypass, a fake session object, or a branch on the environment in the session path blocks review. A branch on the environment that grants nothing does not. | `lint:auth-inline` in CI |
 | Authenticated local development uses the real Kratos with the committed test identity. Fake identity providers are not used for Kratos. They stay permitted for Hydra, which is a protocol boundary. | review |
 | The mock runs examples first. Schema generation is a fallback behind a flag, for an endpoint without an example. | review |
+| A list in a `GET` response example has eight rows or more. An operation whose list is short by nature names its reason in `x-short-example`. | `lint:openapi` in CI |
 | The mock is forbidden in `mise run test`, `ci:affected`, and the e2e and visual suites. | review |
 | The mock ships as a vendored container and adds no `package.json`, lockfile, or `node_modules`. | `lint:node-scope` in CI |
 | The mock is local tooling and joins no tier in [`docs/operational-surface.md`](../operational-surface.md). | review |
