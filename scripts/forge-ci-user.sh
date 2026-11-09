@@ -20,6 +20,7 @@ api() { # <method> <path> [body]
 }
 
 # A token is created with the user's own password, so each run sets a new random one. Nobody signs in as `ci`.
+# `write:issue` lets it comment on a pull request, as the design-preview workflow does, because Forgejo serves pull request comments through its issue API.
 password="$(openssl rand -base64 36 | tr -d '\n')"
 if [[ "$(api GET "users/${user}")" == 200 ]]; then
   step "resetting the password of ${user}"
@@ -35,7 +36,7 @@ fi
 step "creating a token for ${user}"
 name="promote-$(date -u +%Y%m%d%H%M%S)"
 new="$(curl -sS -u "${user}:${password}" -H "Content-Type: application/json" \
-  --data "$(jq -n --arg n "$name" '{name: $n, scopes: ["write:repository"]}')" \
+  --data "$(jq -n --arg n "$name" '{name: $n, scopes: ["write:repository", "write:issue"]}')" \
   "${url}/api/v1/users/${user}/tokens" | jq -r '.sha1 // empty')"
 [[ -n "$new" ]] || fail "the forge did not return a token for ${user}"
 
