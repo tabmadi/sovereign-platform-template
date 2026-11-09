@@ -25,13 +25,14 @@ protection:
   block_on_outdated_branch: true
   require_signed_commits: false # ADR-0104 signs images, not commits
   enable_status_check: true
-  # The gates, by job name. Each one is a thin caller of `mise run ci:*`, per
-  # ADR-0102. So this list is the CI contract and not a copy of it.
+  # The gates, by status context. Each one is a thin caller of `mise run ci:*`, per
+  # ADR-0102. So this list is the CI contract and not a copy of it. Forgejo names a
+  # context `<workflow> / <job> (<event>)`, so a bare job name matches nothing.
   status_check_contexts:
-    - lint
-    - test
-    - build
-    - drift
+    - ci / lint (pull_request)
+    - ci / test (pull_request)
+    - ci / build (pull_request)
+    - ci / drift (pull_request)
 
 # Workflow runs proposed from OUTSIDE the organisation. A fork's pull request carries code that the runner would
 # run against its own host and secrets.
