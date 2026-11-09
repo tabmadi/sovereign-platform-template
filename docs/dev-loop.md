@@ -89,6 +89,7 @@ By design, the mock does not:
 
 - **serve identity.** It returns no `401`, knows no session, and sends no identity headers. Auth behaviour comes from Kratos and Oathkeeper, which are already in the floor.
 - **keep state.** Two POSTs return the same thing. Nothing persists, and nothing moves forward. The `status` of a workflow stays at the value in the example.
+- **serve a `cluster` endpoint.** Its spec is the `internal.json` projection, which leaves out every east-west operation, per ADR-0303. So a screen that reads an east-west service, such as the analytics screen, shows data only in fixture mode: `NEXT_PUBLIC_FIXTURES=1`.
 - **act as a test fixture.** It is forbidden in `test`, `ci:affected`, and the e2e and visual suites. A suite that passes against a mock has only tested the mock.
 
 Its only input is the committed projection. So if a response is wrong, fix it in `services/<svc>/openapi.yaml` and regenerate. This is the purpose: the accuracy comes from the contract, and the whole team gets it there.
