@@ -10,6 +10,8 @@ metadata:
     app.kubernetes.io/part-of: design-previews
   annotations:
     argocd.argoproj.io/sync-wave: "6"
+    # With no labelled pull request it generates nothing, and that is healthy, per infra/helm/platform/argocd/values.yaml.
+    platform/may-be-empty: "true"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]

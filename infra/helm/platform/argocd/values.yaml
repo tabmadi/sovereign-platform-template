@@ -29,6 +29,18 @@ argo-cd:
           end
           return hs
         end
+        -- An ApplicationSet that may be empty, such as design-previews with no labelled pull request, is healthy once
+        -- its controller reports the generation as current.
+        local ann = obj.metadata.annotations
+        if ann ~= nil and ann["platform/may-be-empty"] == "true" and obj.status ~= nil and obj.status.conditions ~= nil then
+          for i, c in ipairs(obj.status.conditions) do
+            if c.type == "ResourcesUpToDate" and c.status == "True" then
+              hs.status = "Healthy"
+              hs.message = "No Application to generate"
+              return hs
+            end
+          end
+        end
         hs.status = "Progressing"
         hs.message = "Waiting for ApplicationSet to generate Applications"
         return hs

@@ -14,6 +14,13 @@ kyverno:
   # different work. Only the admission controller is in the request path.
   admissionController:
     replicas: 1
+    # Kyverno admits a generate rule only when this controller can read the Secret that the rule clones, per ADR-0203.
+    rbac:
+      clusterRole:
+        extraResources:
+          - apiGroups: [""]
+            resources: [secrets]
+            verbs: [get, list, watch]
     resources:
       requests: { cpu: "50m", memory: "192Mi" }
       limits: { memory: "384Mi" }
