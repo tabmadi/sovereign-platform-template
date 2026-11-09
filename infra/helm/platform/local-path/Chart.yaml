@@ -14,5 +14,5 @@ description: |
   less machinery than a vendored chart. The config below is the important part:
   the data directory must be under /var, the only writable path on a Talos node.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "v0.0.37"

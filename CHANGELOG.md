@@ -1,24 +1,55 @@
-## Unreleased (ed7b4e5..0a8c9a8)
+## Unreleased (ed7b4e5..0b88dd8)
 #### Features
 - (**acceptance**) prove a generated project reaches a serving cluster - (d6b50ef) - Tab
 - (**adr**) count the repository's machinery in the floor budget - (5fbbbd8) - Tab
+- (**api**) fill every list example to eight rows and lint the list size - (bff88ad) - Tab
+- (**authmw**) forward the caller's identity on east-west calls - (3fa5c1b) - Tab
 - (**authz**) promote operators only in the admin console - (5023f62) - Tab
 - (**bootstrap**) provision a fresh checkout with one task - (8ed6621) - Tab
+- (**design**) merge accepted designs as design-only pages and reload stale tabs - (496fdf1) - Tab
+- (**design**) add design previews for pull requests - (0556f2b) - Tab
+- (**dns**) check the zone for drift every night - (931d8f1) - Tab
+- (**dns**) declare the zone in the repository and apply it with dnscontrol - (7dd346f) - Tab
+- (**forge**) add two-week sprints and forge:sprint - (a285b2f) - Tab
+- (**forge**) add a task that sets up the ci machine user - (57393f4) - Tab
 - (**forge**) reconcile generated projects from forge.<apex>/platform/<project> - (b202c80) - Tab
+- (**forge-host**) set up the forge machine from a workstation - (4a66b70) - Tab
+- (**forge-mode**) move the workflows to the folder that Forgejo reads - (fde98a6) - Tab
+- (**frontend**) type every fixture against the generated API types - (4ec6196) - Tab
 - (**frontend**) adopt shadcn/ui, a data seam and day-one localisation - (e40ceae) - Tab
+- (**gitops**) put design previews behind a forge sign-in through oauth2-proxy - (62d7b2a) - Tab
 - (**gitops**) script the bootstrap floor of a deployed environment - (c4af30a) - Tab
+- (**gostyle**) fix partially broken call arguments with -fix and in format:go - (f10bfb4) - Tab
+- (**helm**) let a service reach a third-party https api - (e87a4f8) - Tab
+- (**hypervisor**) add an extra hook to the host render and pin host keys when committed - (b228a44) - Tab
+- (**hypervisor**) run the nodes, the forge, and the runner on the project's own host - (c8a8ab0) - Tab
+- (**identity**) seed the first operator of each environment - (81a906f) - Tab
 - (**kyverno**) roll a Secret's consumers when its data changes - (68abe45) - Tab
+- (**lint**) check each workaround against its pin or its check date - (cedf666) - Tab
+- (**lint**) fail on a mise task with no command - (3c1691c) - Tab
 - (**lint**) enforce the comment rules on every commented surface - (be2c0d6) - Tab
 - (**lint-comments**) budget comment density rather than line count - (3863120) - Tab
+- (**lint-money**) count more words and let display-only files opt out - (fd0cf66) - Tab
 - (**naming**) lower the project slug floor to five characters - (7be4047) - Tab
+- (**netpol**) add route allowlists and the lint:l7-routes gate - (e3ff8ac) - Tab
 - (**parity**) run CNPG backups on the local tier with its credential - (fda9a05) - Tab
 - (**parity**) gate deployed-only values keys against the local overlay - (c5dab4b) - Tab
+- (**platform**) apply the committed schedules each time the worker starts - (8e91571) - Tab
+- (**platform**) run the worker on every tier with the access its activities need - (134b129) - Tab
+- (**platform**) implement erasure, export, retention, the cardinality audit, and restore verification - (fadf5c8) - Tab
+- (**postgres**) keep every service database present on a running cluster - (c6466ea) - Tab
 - (**postgres**) restore a rebuilt cluster from its archive - (53838aa) - Tab
+- (**privacy**) start an erasure or an export with a mise task - (fe2951b) - Tab
+- (**privacy**) serve the erasure and export of a subject in orders and orgs - (3c06c49) - Tab
 - (**registry**) prune the image tags no environment can deploy - (73ebb82) - Tab
+- (**runner**) set up the CI runner machine from a workstation - (754c6be) - Tab
 - (**secrets**) add secrets:updatekeys to re-key every SOPS file - (72446a1) - Tab
+- (**talos**) add an optional virtual IP patch for the control-plane endpoint - (ce32e61) - Tab
+- (**template**) choose the forge and the provisioning as setup modes - (6ad9c08) - Tab
 - (**template**) add project:init and the project-identity gate - (8d6184f) - Tab
 - (**verify**) check a deployed environment end to end - (6e4bdb7) - Tab
 - (**verify**) assert the active tier is up and serving - (013161c) - Tab
+- record service behaviour as requirements that tests cite - (75c6e89) - Tab
 - package the repo as a Copier template with per-environment gitops - (c188403) - Tab
 - move the local tier to kind, and add mail, alerting, storage, registry and analytics - (e57179c) - Tab
 - add the CI gates, supply-chain signing and workload hardening - (9af072b) - Tab
@@ -27,9 +58,24 @@
 - add the monorepo toolchain, local k3d cluster and ArgoCD gitops - (e31ec90) - Tab
 - prototype the Go service layout behind a Tyk gateway - (ed7b4e5) - Tab
 #### Bug Fixes
+- (**acceptance**) serve the generated project to argo cd from a stand-in forge - (104d4a0) - Tab
 - (**admin**) fill a string the record lacks as empty, not null - (0b2eb6a) - Tab
 - (**admin**) restore the dashboard heading a comment cleanup deleted - (400b9da) - Tab
+- (**alerts**) name both eviction floors in the disk alert - (9ee6df2) - Tab
+- (**analytics**) receive marketing events from the collector - (a3ea460) - Tab
+- (**analytics**) grant the read-only role, as every other service does - (1dda6e4) - Tab
+- (**analytics**) create the event partitions, and serve erasure, export, and retention - (0ea422b) - Tab
+- (**argocd**) pull redis from docker hub, not the rate-limited public ecr - (2f0cb6a) - Tab
+- (**auth**) keep product rules off the ops hosts - (6e07563) - Tab
 - (**auth**) keep the operator claim out of self-service identity traits - (b96eeb3) - Tab
+- (**biome**) leave the generated zod schemas as zod-gen writes them - (7998d57) - Tab
+- (**ci**) skip build caches in the identity lint and dockerignore files in the scan - (22a019f) - Tab
+- (**ci**) restore the go cache before mise installs its go tools - (8a1f263) - Tab
+- (**ci**) sign ci commits as the ci identity, not the actor who pushed - (ee3c4fa) - Tab
+- (**ci**) save the registry mirror from template acceptance - (5b332c1) - Tab
+- (**ci**) skip workflows on the promotion commit - (8dbc562) - Tab
+- (**ci**) type the dispatch inputs so the forge can start e2e and perf runs - (4369709) - Tab
+- (**ci**) publish every change since the last promotion - (afe0710) - Tab
 - (**ci**) keep a failed report upload from failing a passing run - (a8550e7) - Tab
 - (**ci**) cache the registry mirror only on hosted runners - (5e84411) - Tab
 - (**ci**) cache the registry mirror under a path that is the same in every job - (51fc3eb) - Tab
@@ -46,6 +92,7 @@
 - (**ci**) run the nightly suite when the last one did not pass - (21fd24b) - Tab
 - (**ci**) save a partial registry mirror, and name the docker hub identity - (499503d) - Tab
 - (**ci**) skip the image matrix when no service is affected - (032b4ca) - Tab
+- (**cluster**) stop on a failed stage and wait for kyverno before the first apply - (a764306) - Tab
 - (**cluster**) let a terminated Argo operation end before re-syncing - (cb7ef14) - Tab
 - (**cluster**) treat a missing registry as a free runner - (f7ffb86) - Tab
 - (**cluster**) hold a shared CI runner through the job-labelled registry - (0ba7b3f) - Tab
@@ -58,42 +105,82 @@
 - (**cluster**) report the registry log of the images that missed, not the tail - (7b089d7) - Tab
 - (**cluster**) print the registry log when the warm misses - (071eb6f) - Tab
 - (**cluster**) retry a missed registry warm, and report the status that missed - (a58b378) - Tab
+- (**dashboards**) compare CPU with the request, since no workload has a limit - (fc21b5c) - Tab
+- (**dbmw**) keep at least sixteen connections in the pool - (7490cc7) - Tab
 - (**deploy**) name the working-tree image for the image allow-list - (779ea8b) - Tab
+- (**deps**) record the golang.org/x/tools hash in go.work.sum - (409f58d) - Tab
+- (**deps**) bump golang.org/x/net to v0.62.0 for CVE-2026-78661 - (0d19064) - Tab
+- (**deps**) bump next, zod, vue, and source-map-js to patched versions - (0d7f72a) - Tab
+- (**deps**) bump next and x/net past the reported vulnerabilities - (50e3f6a) - Tab
+- (**deps**) update next to 16.3.6 - (84f0157) - Tab
 - (**deps**) take bun 1.4.2, which survives the Next 16.3 build on musl - (ada09fd) - Tab
 - (**deps**) take the next and grpc releases that fix CVE-2026-75604 and CVE-2026-84445 - (e89eee2) - Tab
 - (**deps**) take the grpc release that fixes CVE-2026-84304 - (791aaee) - Tab
+- (**docs**) drop the template-only task from an ADR rule - (09d80db) - Tab
+- (**e2e**) restore the rimraf that chrome-launcher calls - (fe39f66) - Tab
 - (**e2e**) expect logs only from workloads that write them - (5132a48) - Tab
 - (**e2e**) name the workloads missing from Loki and give the poll its time - (a32b3f9) - Tab
 - (**e2e**) poll Loki for the stdout-only workloads - (ddb92a5) - Tab
+- (**edge**) rate limit auth routes per client address - (b928974) - Tab
+- (**edge**) request the CPU that traefik's measured peak needs - (7524061) - Tab
+- (**forge**) let the ci token comment on pull requests for the design preview - (a9a11af) - Tab
+- (**forge**) drop the warning about a fork approval setting that does not exist - (6477ffe) - Tab
 - (**forge**) let the ci machine user push the promotion past branch protection - (3538cbd) - Tab
+- (**frontend**) open the panel without Kratos or authz in design mode - (1eed0dc) - Tab
+- (**frontend**) serve the files of public without a locale rewrite - (ca6d853) - Tab
 - (**gen**) emit an empty zod object in the form biome keeps - (d469aec) - Tab
 - (**gen**) render the machinery table in a project without template tasks - (f3f67b9) - Tab
 - (**gen**) fail when helm cannot fetch a chart dependency - (44ddd61) - Tab
 - (**gitignore**) exempt every vendored subchart, not just observability's - (833b50b) - Tab
+- (**gitops**) name the design-gate sign-in host oauth2-proxy.ops after its upstream project - (0b88dd8) - Tab
+- (**gitops**) give each design-gate sign-in its own CSRF cookie - (5331cca) - Tab
+- (**gitops**) let Kyverno admit the design pull-secret policy and an empty design ApplicationSet be healthy - (695da1b) - Tab
 - (**gitops**) scope each cluster's bootstrap to its own environment - (8aebaa5) - Tab
+- (**helm**) let the frontend reach the edge from inside the cluster - (be3a34e) - Tab
 - (**hooks**) resolve pinned tools through mise - (c411a94) - Tab
 - (**kyverno**) keep the control plane out of the allow-list's background scan - (cc1a1d5) - Tab
 - (**kyverno**) admit first-party images by prefix and verify them with registry credentials - (d3ea9a3) - Tab
+- (**lint**) ignore a scratch folder that a parallel task removes during the comment walk - (ac92202) - Tab
+- (**lint**) date workarounds by today in a repository with no commit - (806fb48) - Tab
 - (**lint**) allow the restore keys a deployed overlay carries alone - (32496e7) - Tab
 - (**lint**) check parity for the environments a project keeps - (6d38415) - Tab
 - (**lint**) ignore the answers file and local notes in the identity gate - (61ae2b1) - Tab
 - (**lint**) keep golangci-lint's CI cache inside the job - (917daca) - Tab
 - (**lint**) count only the files git accounts for in the comment budget - (489f878) - Tab
 - (**lint**) ignore comments when checking helm dependency calls - (dc949b7) - Tab
+- (**lint-comments**) read go:embed as a directive - (f2c5b87) - Tab
+- (**lint-i18n**) swap whole utilities and keep physical side variants - (3ff0868) - Tab
+- (**lint-money**) treat a name that ends in pages as a count - (621d7ea) - Tab
 - (**lint-money**) scan the files git accounts for, not the working tree - (8aa744c) - Tab
+- (**lint-readme-drift**) leave customer sizes in product research alone - (9c53d1e) - Tab
+- (**lint-resource-governance**) render traefik into kube-system - (02aa27e) - Tab
+- (**local**) hand a service back to Argo CD without deleting it - (67b2886) - Tab
+- (**local**) build and deploy a worker-only service - (b495187) - Tab
+- (**local**) count the LimitRange defaults and observability in the 4-core budget - (15cb055) - Tab
+- (**local**) size the full tier's CPU requests to fit a 4-core runner - (36dd5b6) - Tab
 - (**maddy**) serve STARTTLS on submission so senders can authenticate - (112f36a) - Tab
 - (**maddy**) mount a writable tmp so it survives startup - (6a40522) - Tab
+- (**mock**) apply the spec server-side so a large spec fits - (59dbfaf) - Tab
 - (**network-policies**) let CNPG instances reach each other's status port - (3d6f6fe) - Tab
+- (**observability**) route browser beacons to the collector and keep pod series apart - (22315d9) - Tab
+- (**orgs**) return the existing personal org when the activity retries - (9a1b593) - Tab
+- (**perf**) restore the command of the seed task - (6f94dfb) - Tab
 - (**perf**) run the scenario from the suite's own directory - (0a8c9a8) - Tab
 - (**perf**) mint the seeded products' UUIDv7 ids - (55a2f93) - Tab
 - (**perf**) seed products with a price and currency - (07202a5) - Tab
 - (**perf**) resolve the repository root from the seed script's own depth - (f0df26e) - Tab
+- (**platform**) call the services without the edge's /api prefix - (15ae11b) - Tab
 - (**postgres**) take a daily base backup and list its credential - (148a4a4) - Tab
 - (**promote**) read the digest from buildx's JSON and refuse anything else - (20694b2) - Tab
+- (**registry**) try Docker Hub before mirror.gcr.io - (1ab32cf) - Tab
 - (**registry**) mirror Docker Hub through mirror.gcr.io before Hub itself - (3f82a37) - Tab
 - (**registry**) authenticate the docker hub sync so a shared runner ip is not the limit - (78f9d98) - Tab
 - (**release**) refresh the lockfile when stamping package versions - (cd9c460) - Tab
 - (**release**) name the template stamp in the dry-run cleanup hint - (3ad2ec6) - Tab
+- (**renovate**) run Renovate on the Node version that it requires - (3574815) - Tab
+- (**runner**) set a default branch name so checkout prints no hint - (b4bea39) - Tab
+- (**runner**) keep the ci-keep builder out of runner garbage collection - (81c96e7) - Tab
+- (**scripts**) migrate every service that has a migrations folder - (0371761) - Tab
 - (**scripts**) skip deleted paths when enumerating shell files - (7550fab) - Tab
 - (**scripts**) resolve lib through an absolute path set before the cd - (ccb6b94) - Tab
 - (**seaweedfs**) give the object store room for a full-tier image mirror - (efbda41) - Tab
@@ -104,16 +191,43 @@
 - (**supply-chain**) skip pins no release has filled yet - (2ae4016) - Tab
 - (**supply-chain**) skip the image inventory in the template, which signs nothing - (ae46d1e) - Tab
 - (**talos**) drop stableHostname, invalid in v1alpha1 on the pinned Talos - (99cc665) - Tab
+- (**template**) drop the forgejo copy of the template workflow and wrap the lint roots - (3d58e6b) - Tab
+- (**template**) rename a project that has no file for a name - (f65d00c) - Tab
+- (**template**) rename at every update and leave a generated project gate-clean - (50e25d8) - Tab
+- (**template**) regenerate before the gates in acceptance - (aee4ac9) - Tab
+- (**template**) keep git gc away from the snapshot copier clones - (e388e19) - Tab
 - (**template**) keep the template's own machinery out of generated projects - (50bf344) - Tab
 - (**template**) check the identity a generated project actually carries - (d935eb0) - Tab
+- (**temporal**) pass the workflow type with the flag the CLI takes and pin the CLI - (ba8489e) - Tab
 - (**toolchain**) improve token handling and add pip configuration for retries - (d693be9) - Tab
+- (**verify**) ignore the image pull alert on a fresh cluster - (2e8faca) - Tab
+- (**verify**) treat a failed CronJob run as history - (4d68663) - Tab
+- (**verify**) ignore failed pods of a Job that a retry finished - (e560f59) - Tab
+- (**verify**) wait for pods to settle and name the ones that stay unready - (277bdff) - Tab
 - (**verify**) require the storefront to answer, not just the edge - (c7c3db8) - Tab
 #### Performance
+- (**admin**) ship the standalone server and cache its dependencies - (571416a) - Tab
+- (**admin**) build the image in two stages without a chown layer - (bf11daa) - Tab
+- (**ci**) measure lighthouse on master after the promotion - (fa581a7) - Tab
+- (**ci**) build and sign up to three images at once - (ad1f936) - Tab
+- (**ci**) measure lighthouse on a container stack without a cluster - (fbe2106) - Tab
+- (**ci**) build every image in one job on a builder that the runner keeps - (bb860a6) - Tab
+- (**ci**) run lighthouse on master only when a measured input changes - (3b90845) - Tab
+- (**ci**) skip the mise and Go cache archives on a self-hosted runner - (5a47454) - Tab
 - (**ci**) restore the registry mirror in the e2e and perf suites - (4dd5afe) - Tab
 - (**ci**) carry the registry mirror between runs - (2a155b6) - Tab
 - (**cluster**) warm only the images the tier will run - (67b5f4c) - Tab
+- (**frontend**) build in one stage and keep the next build cache - (69ac654) - Tab
 - (**gen**) skip the chart fetch when the dependencies are already on disk - (fcbd100) - Tab
 #### Documentation
+- (**adr**) record Lighthouse as advisory until every page meets the LCP budget - (87df282) - Tab
+- (**adr**) leave the brand, themes, and components to the designer beyond the accessibility gates - (e1db465) - Tab
+- (**adr**) defer console sign-on through Hydra while Hydra is opt-in - (7912c68) - Tab
+- (**adr**) name a view layer over the forge's issues as the first answer to a gap in views - (ff22731) - Tab
+- (**adr**) choose the forge's own issues as the task manager in each forge mode - (acda39e) - Tab
+- (**adr**) settle the cluster key and asvs review contradictions - (2235ae1) - Tab
+- (**adr**) rewrite the adr set in simple english - (f66324f) - Tab
+- (**adr**) define simple english as the house style - (ca9574b) - Tab
 - (**adr**) record why decryption stays out of Argo CD's repo-server - (922291b) - Tab
 - (**adr**) defer the CNPG Barman Cloud plugin to the 1.30 upgrade - (a157639) - Tab
 - (**adr**) point the machinery rule at the build path and drop its changelog - (250166a) - Tab
@@ -127,37 +241,74 @@
 - (**adr-0200**) record the hypervisor-operated provisioning mode - (e40bc45) - Tab
 - (**build-path**) generate the machinery table and correct the secret and authz rows - (d858836) - Tab
 - (**deferral**) stop counting the register's rows - (3782bce) - Tab
+- (**dev-loop**) state that the mock serves no cluster endpoint, so the analytics screen needs its fixture - (3978e07) - Tab
 - (**dr**) restore over a live cluster, then drop the recovery value - (a7c9a5b) - Tab
+- (**frontend**) never cache a redirect that depends on the session - (3b21df5) - Tab
+- (**frontend**) replace the history entry on every redirect across sign-in - (ab2e77e) - Tab
+- (**gitops**) document bootstrapping and verifying an environment - (adc046b) - Tab
+- (**gitops**) point the build-once rule at the workflow that holds it - (1c61708) - Tab
+- (**platform**) describe erasure, export, retention, and restore verification - (91328e4) - Tab
+- (**readme**) remove explanation that repeats the tables - (93ce69b) - Tab
+- (**readme**) cite the sources of the data ownership line - (f118100) - Tab
+- (**readme**) draw the service-based and microservices line at data ownership - (0cb0011) - Tab
+- (**reference**) record that Prism publishes no image after 5.15.10 - (ebb724a) - Tab
+- (**reference**) list every operator panel in one place - (7d04140) - Tab
 - (**secrets**) show the maddy SMTP URI Kratos can submit to - (dac65a7) - Tab
 - (**secrets**) register where every credential lives - (a1633c3) - Tab
+- replace the emoji seam markers with words and add the license section - (09e2e06) - Tab
+- correct stale facts about authz, frontend routes, the console, and k6 bodies - (06a865b) - Tab
+- rewrite guides, references, and entry docs in simple english - (b7918eb) - Tab
+- correct references to tasks and paths that no longer exist - (97e9c30) - Tab
 - delete repeated, rotting and measured-figure comments - (89e1156) - Tab
 #### Tests
+- (**dbmw**) check that the pool keeps its minimum size - (98557f9) - Tab
+- (**e2e**) report the cause when an ops tool check fails - (acc02de) - Tab
+- (**e2e**) update the kitchen-sink baseline and pass arguments to the visual task - (b65f00d) - Tab
 - (**e2e**) gate every ops dashboard from one table - (56e5ab5) - Tab
 - (**e2e**) attack registration and settings with the operator field - (6f943f6) - Tab
 - (**e2e**) guard self-service against granting the operator claim - (5114baa) - Tab
+- (**frontend**) add unit and component tests with bun test and MSW - (fe26f2d) - Tab
 - (**redact**) keep the template's apex out of the fixture - (31573c6) - Tab
 - (**template**) add the generation fixture matrix - (82149ec) - Tab
 #### Build
+- (**go**) record golang.org/x/mod in the workspace sums - (01a942b) - Tab
 - (**go**) split tools into their own module behind a workspace - (ecc7988) - Tab
+- (**lint**) check simple english in prose, comments, and every file - (656acc4) - Tab
+- replace the doc linters with tablint - (beebdd0) - Tab
 #### CI
+- (**e2e**) print the ops path logs when the full run fails - (b2e2023) - Tab
+- (**renovate**) run Renovate weekly from a workflow as the ci machine user - (95b7e20) - Tab
 - (**template**) run the full suite in acceptance and one nightly cluster - (dd340df) - Tab
 - run the merge gates as one workflow - (c15207a) - Tab
 #### Refactor
 - (**apierr**) hoist the repeated error-resolution step into a named function - (d26b2f3) - Tab
+- (**apps**) rewrite comments and ui copy in simple english - (dd43573) - Tab
 - (**cluster**) keep the mirror on one path for every environment - (3b58108) - Tab
 - (**hooks**) run the same tasks CI runs - (e79944f) - Tab
+- (**infra**) rewrite comments and descriptions in simple english - (475aec8) - Tab
 - (**lint**) judge each comment on its grounds, drop the density budget - (430775f) - Tab
 - (**scripts**) source one bootstrap and speak one log vocabulary - (841fa54) - Tab
 - (**scripts**) name the identity-seed phases and its repeated lookup - (a938bef) - Tab
+- (**services**) rewrite comments, specs, and messages in simple english - (a50968f) - Tab
 - (**tasks**) drop the second names for cluster:add, bootstrap and Renovate - (0595ffc) - Tab
+- (**template**) move the template tasks out of .config - (9dc39bf) - Tab
+- (**tooling**) rewrite scripts, tools, and config text in simple english - (17dce01) - Tab
 - (**tools**) report findings through a shared lint package - (566c3c2) - Tab
 - replace commented steps with named functions - (265b596) - Tab
 - cut every comment to what the code cannot say - (847a48c) - Tab
 - reset the architecture and record the foundational ADRs - (165857d) - Tab
 #### Chore
+- (**ci**) keep renovate out of ci jobs and give git a default branch - (ac5fd80) - Tab
+- (**ci**) run every action on node 24 and pin runners to ubuntu-24.04 - (34c6dc7) - Tab
+- (**ci**) mark the forgejo artifact and mirror workarounds - (67ff57b) - Tab
 - (**comments**) trim what the backup, policy and maddy fixes added - (e87f86f) - Tab
+- (**e2e**) move to otplib 13, which npm does not report as deprecated - (1423410) - Tab
+- (**forge**) require forks for contributors and limit merges to the Owners team and ci - (72ab2f4) - Tab
+- (**frontend**) stop next dev writing its own AGENTS.md - (812af99) - Tab
+- (**release**) v2026.09.3 - (50d85e9) - Tab
 - (**release**) v2026.09.2 - (5339fc7) - Tab
 - (**release**) v2026.09.1 - (e43d385) - Tab
 - (**release**) v2026.09.0 - (3395ac9) - Tab
+- (**tools**) install oasdiff and dnscontrol from the github backend, not the deprecated ubi - (19f177f) - Tab
 
 

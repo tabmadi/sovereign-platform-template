@@ -2,7 +2,7 @@ apiVersion: v2
 name: ory
 description: Ory Kratos for identity, Oathkeeper for the edge, and Hydra for OAuth2 and OIDC, backed by Postgres, per ADR-0305 and ADR-0304.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "26.2.0"
 
 dependencies:

@@ -8,5 +8,5 @@ description: |
   paths, resources, the Temporal worker, the migration init container, and
   references to Kubernetes Secrets backed by SOPS.
 type: application
-version: "2026.9.3"
-appVersion: "2026.9.3"
+version: "2026.11.0"
+appVersion: "2026.11.0"

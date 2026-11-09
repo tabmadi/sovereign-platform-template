@@ -15,7 +15,7 @@ description: |
   Pod Security Admission is the namespace, per ADR-0200. If it were here, this
   namespace's floor would be `privileged` for every backend next to it.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "1.0.0"
 
 # The subcharts are vendored under `charts/` and rendered directly. There is no `dependencies:` block, on purpose.

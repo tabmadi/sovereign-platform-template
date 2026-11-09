@@ -13,5 +13,5 @@ description: |
   middleware serves the body from a service and keeps the original status code.
   This chart is that service: a static responder with one document per status.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "1.37.0"

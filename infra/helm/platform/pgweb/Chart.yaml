@@ -7,5 +7,5 @@ description: |
   runs with pgweb's own --readonly flag. Read-only is the documented break-glass
   intent.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "0.16.2"

@@ -10,5 +10,5 @@ description: |
   escalation layer ships. To attach a paging service, set that receiver's URL and
   a credential. No rule changes when it arrives.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "0.28.1"

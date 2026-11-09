@@ -10,5 +10,5 @@ description: |
   it. A mailbox system is separate infrastructure, with its own egress IP and its
   own DKIM selector.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "0.9.5"

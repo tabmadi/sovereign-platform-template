@@ -6,7 +6,7 @@ description: |
   rollout that replaced it. This makes Pinned versioning a real guarantee, and
   not a best effort.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "1.8.0"
 
 dependencies:

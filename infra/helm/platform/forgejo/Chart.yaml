@@ -14,5 +14,5 @@ description: |
   rejects a forge's package registry, because an artefact store inside the build
   system makes every pod start depend on the forge.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "16.0.2"

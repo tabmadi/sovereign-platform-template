@@ -5,5 +5,5 @@ description: |
   frontend itself comes from the service chart, with
   infra/gitops/design/frontend.yaml.
 type: application
-version: "2026.9.0"
-appVersion: "2026.9.0"
+version: "2026.11.0"
+appVersion: "2026.11.0"

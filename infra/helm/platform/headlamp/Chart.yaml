@@ -7,5 +7,5 @@ description: |
   default through the built-in `view` ClusterRole. It is a debugging surface, not
   a control surface.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "0.26.0"

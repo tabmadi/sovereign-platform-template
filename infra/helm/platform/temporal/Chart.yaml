@@ -2,7 +2,7 @@ apiVersion: v2
 name: temporal
 description: Self-hosted Temporal cluster, per ADR-0302, backed by Postgres through CNPG.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "1.31.1"
 
 dependencies:

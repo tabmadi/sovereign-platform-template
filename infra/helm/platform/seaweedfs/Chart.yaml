@@ -12,5 +12,5 @@ description: |
   that the ADR does not ask for. What must match production is the S3 dialect,
   and that is the same binary in both cases.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
 appVersion: "4.41"

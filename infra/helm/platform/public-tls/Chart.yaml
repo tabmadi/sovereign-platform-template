@@ -13,4 +13,4 @@ description: |
   - So an ACME issuer in the base tier keeps that tier open. It waits for a
     secret that a later tier delivers, and no later tier ever runs.
 type: application
-version: "2026.9.3"
+version: "2026.11.0"
