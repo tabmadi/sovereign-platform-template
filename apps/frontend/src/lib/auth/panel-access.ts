@@ -3,6 +3,7 @@ import "server-only";
 
 import { forbidden, unauthorized } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
+import { fixturesEnabled } from "@/lib/data/mode";
 import { createInternalClient } from "@/lib/server-fetch/internal";
 
 type AuthzPaths = {
@@ -21,6 +22,10 @@ type AuthzPaths = {
  * No session is `unauthorized()`, because signing in fixes it. A session without the grant is `forbidden()` at the denied address, which the user shares.
  */
 export async function requireRelation(relation: string, object: string): Promise<void> {
+  // Design mode has no Kratos and no authz, per ADR-0701.
+  if (fixturesEnabled) {
+    return;
+  }
   const session = await getSession();
   if (session === null) {
     unauthorized();

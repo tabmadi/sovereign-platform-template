@@ -2,6 +2,7 @@
 import { match as matchLocale } from "@formatjs/intl-localematcher";
 import { type NextRequest, NextResponse } from "next/server";
 import { isLocale, LOCALE_COOKIE, type Locale, routing } from "@/i18n/routing";
+import { fixturesEnabled } from "@/lib/data/mode";
 
 const SESSION_COOKIE = "ory_kratos_session";
 
@@ -198,6 +199,10 @@ export function proxy(req: NextRequest) {
   const hasFlow = req.nextUrl.searchParams.get("flow") !== null;
   const { segment, kind: flowKind } = authFlowFor(path);
 
+  // Design mode has no Kratos, per ADR-0701. A sign-in or a sign-up opens the panel as the fixture identity.
+  if (flowKind && fixturesEnabled) {
+    return NextResponse.redirect(new URL(localised("/panel", locale), req.url));
+  }
   if (flowKind && signedInHasNoFlowToStart(segment, hasSession, hasFlow)) {
     return redirectHome(req, locale);
   }
@@ -206,7 +211,8 @@ export function proxy(req: NextRequest) {
   }
 
   let session: string | undefined;
-  if (isProtected(path)) {
+  // Design mode has no Kratos, per ADR-0701. The seam answers with the fixture identity.
+  if (isProtected(path) && !fixturesEnabled) {
     session = req.cookies.get(SESSION_COOKIE)?.value;
     if (!session) {
       return redirectToLogin(req, locale);
