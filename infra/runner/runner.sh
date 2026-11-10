@@ -30,7 +30,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 # What a provider-hosted image carries and a job assumes: Node for JavaScript actions, buildx for image builds, pipx
 # for mise's pipx tools, and chromium for the shared libraries that the Playwright browser links against.
-apt-get install -y -qq docker.io docker-buildx nodejs git git-lfs curl jq unzip xz-utils zstd \
+apt-get install -y -qq docker.io docker-buildx nodejs git git-lfs gnupg curl jq unzip xz-utils zstd \
   build-essential python3 pipx chromium ca-certificates >/dev/null
 systemctl enable --now docker >/dev/null
 # kind runs a kubelet in each node container. Each one holds inotify instances, and the Debian default runs out.
