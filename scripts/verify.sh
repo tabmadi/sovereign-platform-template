@@ -41,7 +41,7 @@ cleanups=()
 cleanup() {
   local c
   for c in "${cleanups[@]}"; do eval "$c"; done
-  kill "${pids[@]}" 2>/dev/null
+  reap "${pids[@]}"
   rm -rf "$work"
 }
 trap cleanup EXIT

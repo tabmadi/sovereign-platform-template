@@ -17,9 +17,9 @@ if [ -z "$password" ]; then
   echo
 fi
 
-k port-forward svc/ory-kratos-public 4433:80 >/dev/null &
+k port-forward svc/ory-kratos-public 4433:80 >/dev/null 2>&1 &
 pf=$!
-trap 'kill "$pf" 2>/dev/null || true' EXIT
+trap 'reap "$pf"' EXIT
 sleep 3
 
 base="http://localhost:4433"

@@ -22,7 +22,7 @@ k() { kubectl "${ctx_args[@]}" -n "$NS" "$@"; }
 # Arm the cleanup before anything runs in the background. Otherwise a failure in between, such as the secret read, leaves a port-forward behind.
 kpf=""
 opf=""
-trap 'kill "$kpf" "$opf" 2>/dev/null || true' EXIT
+trap 'reap "$kpf" "$opf"' EXIT
 
 # A previous run whose cleanup trap did not fire leaves port-forwards on 4434 and 18080.
 reap_stale_port_forwards() {
@@ -31,10 +31,10 @@ reap_stale_port_forwards() {
 
 # Local 18080, not 8080: the local edge maps host 8080, so a bind on 8080 would collide with it.
 open_admin_apis() {
-  k port-forward svc/ory-kratos-admin 4434:80 >/dev/null &
+  k port-forward svc/ory-kratos-admin 4434:80 >/dev/null 2>&1 &
   kpf=$!
   sk="$(k get secret openfga-creds -o jsonpath='{.data.preshared_key}' | base64 -d)"
-  k port-forward svc/openfga 18080:8080 >/dev/null &
+  k port-forward svc/openfga 18080:8080 >/dev/null 2>&1 &
   opf=$!
   sleep 4
 }

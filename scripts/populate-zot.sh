@@ -33,7 +33,7 @@ step "mirroring first-party images into the in-cluster zot"
 # Port-forward the registry API on 5000, not the console proxy on 5001. A push authenticates against zot's own htpasswd, as CI does.
 k -n "$NS" port-forward svc/zot "${FWD_PORT}:5000" >/dev/null 2>&1 &
 fwd_pid=$!
-trap 'kill "$fwd_pid" 2>/dev/null || true' EXIT
+trap 'reap "$fwd_pid"' EXIT
 for _ in $(seq 1 30); do
   if curl -sf -o /dev/null "http://${DST}/v2/"; then break; fi
   sleep 0.5

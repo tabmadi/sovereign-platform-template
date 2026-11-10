@@ -56,7 +56,7 @@ run_post_registration() {
   step "running the post-registration process for each identity"
   k port-forward svc/orgs-server 18093:80 >/dev/null 2>&1 &
   orgs_pf=$!
-  trap 'kill "$pf" "${orgs_pf:-}" 2>/dev/null || true' EXIT
+  trap 'reap "$pf" "${orgs_pf:-}"' EXIT
   sleep 3
 
   for i in $(seq 0 "$(last_index)"); do
@@ -97,7 +97,7 @@ grant_operator_membership() {
   step "granting group:operator membership in OpenFGA"
   k port-forward svc/openfga 18080:8080 >/dev/null 2>&1 &
   fga_pf=$!
-  trap 'kill "$pf" "${orgs_pf:-}" "$fga_pf" 2>/dev/null || true' EXIT
+  trap 'reap "$pf" "${orgs_pf:-}" "$fga_pf"' EXIT
   sk="$(k get secret openfga-creds -o jsonpath='{.data.preshared_key}' | base64 -d)"
   sleep 3
   sid="$(curl -fsS -H "Authorization: Bearer ${sk}" "http://localhost:18080/stores" |
@@ -117,9 +117,9 @@ grant_operator_membership() {
 }
 
 step "seeding the committed test identities into Kratos"
-k port-forward svc/ory-kratos-admin 4434:80 >/dev/null &
+k port-forward svc/ory-kratos-admin 4434:80 >/dev/null 2>&1 &
 pf=$!
-trap 'kill "$pf" 2>/dev/null || true' EXIT
+trap 'reap "$pf"' EXIT
 sleep 3
 
 seed_identities

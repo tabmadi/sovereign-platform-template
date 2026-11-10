@@ -11,7 +11,7 @@ k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 step "forwarding deps: postgres 5432, temporal 7233 and 8233. Press Ctrl-C to stop"
 pids=()
-cleanup() { kill "${pids[@]}" 2>/dev/null || true; }
+cleanup() { reap "${pids[@]}"; }
 trap cleanup EXIT INT TERM
 
 k port-forward svc/postgres 5432:5432 &
