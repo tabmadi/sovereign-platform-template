@@ -136,6 +136,13 @@ if [ -z "\$(docker ps -q --filter name=registry.localhost)" ]; then
     [ -d "\$d" ] && [ "\$(du -s "\$d" | cut -f1)" -gt 20000000 ] && rm -rf "\$d"
   done
 fi
+# Go trims only entries unused for five days, so the build cache of a busy runner grows past the kubelet's disk
+# threshold, and kind evicts pods. Past 15GB, and with no go process of that user running, it goes.
+for d in /home/runner-*/.cache/go-build; do
+  [ -d "\$d" ] || continue
+  pgrep -u "\$(stat -c %U "\$d")" -x go >/dev/null && continue
+  [ "\$(du -s "\$d" | cut -f1)" -gt 15000000 ] && rm -rf "\$d"
+done
 docker image prune -af --filter until=6h >/dev/null
 docker builder prune -af --filter until=6h >/dev/null
 GC
@@ -182,7 +189,10 @@ done
 for unit in \$(systemctl list-units --all --plain --no-legend 'forgejo-runner@*.service' | cut -d' ' -f1); do
   n=\${unit#forgejo-runner@}
   n=\${n%.service}
-  [ "\$n" -le ${INSTANCES} ] || systemctl disable --now "\$unit" >/dev/null
+  [ "\$n" -le ${INSTANCES} ] && continue
+  systemctl disable --now "\$unit" >/dev/null
+  # Its caches hold tens of GB that no other instance reads.
+  rm -rf /home/runner-\$n/{.cache,.local,.bun,.npm,go,.kube,tmp,work}
 done
 sleep 5
 for n in \$(seq 1 ${INSTANCES}); do
