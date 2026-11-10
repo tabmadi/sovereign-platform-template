@@ -139,9 +139,12 @@ jobs:
         run: mise run ci:e2e-gate >> "$GITHUB_OUTPUT"
 
   smoke:
-    # A golden path and a key dashboard render, on the PRs that need them.
+    # A golden path and a key dashboard render, on the PRs that need them and on a manual smoke run.
+    # A dispatch skips pr-gate, and a skipped need skips this job too, unless the condition starts with always().
     needs: pr-gate
-    if: needs.pr-gate.outputs.run == 'true'
+    if: >-
+      always() && (needs.pr-gate.outputs.run == 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.suite == 'smoke'))
     runs-on: ubuntu-24.04
     # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
     timeout-minutes: 120
