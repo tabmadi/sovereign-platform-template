@@ -63,6 +63,13 @@ creation_rules:
       - *ci_placeholder
       - *ops_recovery
 
+  # The commit-signing key of the `ci` user, per ADR-0102. CI decrypts it to sign the promotion commits. No cluster does.
+  - path_regex: infra/ci/.*\.enc\.ya?ml$
+    age:
+      - *eng_placeholder
+      - *ci_placeholder
+      - *ops_recovery
+
   # The DNS provider credential, per ADR-0206. A person or CI reads it to apply the zone. No cluster does.
   - path_regex: infra/dns/.*\.enc\.ya?ml$
     encrypted_regex: ^(data|stringData)$

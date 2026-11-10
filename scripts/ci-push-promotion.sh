@@ -15,6 +15,7 @@ fi
 # shellcheck source=lib/ci-git.sh
 source "$LIB/ci-git.sh"
 ci_git_identity
+trap ci_git_forget_key EXIT
 git add infra/gitops
 # PROMOTE_TOKEN is a user token, so its push starts workflows. A values-only commit has nothing for them to check.
 git commit -q -m "chore(deploy): promote ${sha:0:12} [skip ci]"

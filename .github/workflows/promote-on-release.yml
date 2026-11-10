@@ -52,6 +52,7 @@ jobs:
         env:
           VER: ${{ steps.rel.outputs.version }}
           GITHUB_TOKEN: ${{ secrets.PROMOTE_TOKEN || secrets.GITHUB_TOKEN }}
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
         run: mise run ci:release-pr
 
       # Argo `Healthy` already means the new ReplicaSet is available.

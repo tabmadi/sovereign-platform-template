@@ -15,6 +15,7 @@ git diff --quiet -- infra/gitops && fail "promote:prod changed no values file"
 # shellcheck source=lib/ci-git.sh
 source "$LIB/ci-git.sh"
 ci_git_identity
+trap ci_git_forget_key EXIT
 git switch -q -c "$branch"
 git add infra/gitops
 git commit -q -m "$title"
@@ -29,5 +30,7 @@ number="$(api POST /pulls "$(jq -nc --arg h "$branch" --arg b "$base" --arg t "$
 [[ "$number" =~ ^[0-9]+$ ]] || fail "the forge returned no pull request number"
 detail "opened #${number}"
 
-api POST "/pulls/${number}/merge" '{"Do":"merge","merge_when_checks_succeed":true,"delete_branch_after_merge":true}' >/dev/null
+# The forge allows squash only. An empty message field keeps the squash commit's body empty, and the title stays the pull request title.
+api POST "/pulls/${number}/merge" "$(jq -nc --arg t "$title" \
+  '{Do: "squash", MergeTitleField: $t, MergeMessageField: "", merge_when_checks_succeed: true, delete_branch_after_merge: true}')" >/dev/null
 ok "#${number} merges when its checks pass"

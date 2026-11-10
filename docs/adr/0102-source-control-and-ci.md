@@ -130,6 +130,11 @@ The cost is real, and it is a host. Someone patches it, backs it up, and monitor
 - Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
 - Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](0000-platform-foundations.md).
 - The default branch takes a direct push from one identity only: the `ci` machine user. Its `PROMOTE_TOKEN` pushes the dev and staging promotion commit, per [ADR-0201](0201-gitops.md). Every other change reaches the branch through a reviewed pull request.
+- **Every commit on the default branch is signed**, by the forge or by the `ci` machine user. Branch protection sets `require_signed_commits`, and Forgejo checks it on each push.
+- Pull requests merge by squash only. Each commit on the default branch is one reviewed pull request, and its title is the pull request title. The repository settings in `infra/forge/branch-protection.yaml` turn the other merge styles off.
+- The forge signs each squash commit with its own key, and `repository.signing` `MERGES` is `always`. The default value also needs signed branch commits, so the forge would sign no merge of a contributor. Contributors need no key.
+- `ci` signs its promotion commits with its own key, which is a SOPS secret that only CI decrypts, per [ADR-0202](0202-secrets.md). The public half is a key of the `ci` account, and its email is a listed email of that account.
+- Forgejo has no linear history rule, so a direct push can still add a merge commit.
 - Contributors work in a fork. The Developers team only reads the repository's code, so only the Owners team and the `ci` machine user push a branch to it.
 - Only the Owners team and the `ci` machine user merge into the default branch. `ci` merges the prod pin pull request, per [ADR-0201](0201-gitops.md).
 - An approval counts toward the required review only when it comes from the Owners team or the Developers team.

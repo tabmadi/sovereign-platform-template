@@ -44,6 +44,14 @@ forgejo:
     disableRegistration: true
     requireSignin: true
 
+  # The forge's commit-signing key, per ADR-0102. Empty `secretName` means the forge signs nothing. The Secret holds
+  # `private.asc`. `key` is the fingerprint.
+  signing:
+    secretName: ""
+    key: ""
+    name: ""
+    email: ""
+
   resources:
     requests: { cpu: "200m", memory: "512Mi" }
     limits:   { memory: "2Gi" }

@@ -27,7 +27,7 @@ api() { # <method> <path> [body]
     -H "Authorization: token ${token}" \
     -H "Content-Type: application/json" \
     ${data:+--data "$data"} \
-    "${url}/api/v1/repos/${repo}/${path}"
+    "${url}/api/v1/repos/${repo}${path:+/${path}}"
 }
 
 step "applying branch protection to ${repo}@${branch}"
@@ -37,6 +37,11 @@ if [[ "$code" == "404" ]]; then
 fi
 [[ "$code" =~ ^2 ]] || fail "forge refused the branch protection, HTTP ${code}"
 detail "$(yq -r '.protection.status_check_contexts | join(", ")' "$CONFIG") required"
+
+step "applying the merge styles to ${repo}"
+code="$(api PATCH "" "$(yq -o=json '.repository' "$CONFIG")")"
+[[ "$code" =~ ^2 ]] || fail "forge refused the merge styles, HTTP ${code}"
+detail "default merge style: $(yq -r '.repository.default_merge_style' "$CONFIG")"
 
 if [[ "$(yq -r '.actions.approval_for_outside_collaborators' "$CONFIG")" == "true" ]]; then
   # Forgejo has no switch for this. It holds a run from an outside collaborator's fork until a maintainer approves it.

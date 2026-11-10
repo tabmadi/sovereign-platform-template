@@ -133,6 +133,7 @@ jobs:
         env:
           SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
         run: mise run ci:push-promotion
       # After the push, because the values just committed decide what is kept.
       - name: Prune the registry

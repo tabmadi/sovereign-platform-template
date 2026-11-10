@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 204 |
-| Review-enforced | 389 |
-| **Total** | **593** |
+| Review-enforced | 395 |
+| **Total** | **599** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -201,6 +201,11 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML. | review |
 | Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
 | The default branch takes a direct push from one identity only: the `ci` machine user. Its `PROMOTE_TOKEN` pushes the dev and staging promotion commit, per [ADR-0201](../adr/0201-gitops.md). Every other change reaches the branch through a reviewed pull request. | review |
+| **Every commit on the default branch is signed**, by the forge or by the `ci` machine user. Branch protection sets `require_signed_commits`, and Forgejo checks it on each push. | review |
+| Pull requests merge by squash only. Each commit on the default branch is one reviewed pull request, and its title is the pull request title. The repository settings in `infra/forge/branch-protection.yaml` turn the other merge styles off. | review |
+| The forge signs each squash commit with its own key, and `repository.signing` `MERGES` is `always`. The default value also needs signed branch commits, so the forge would sign no merge of a contributor. Contributors need no key. | review |
+| `ci` signs its promotion commits with its own key, which is a SOPS secret that only CI decrypts, per [ADR-0202](../adr/0202-secrets.md). The public half is a key of the `ci` account, and its email is a listed email of that account. | review |
+| Forgejo has no linear history rule, so a direct push can still add a merge commit. | review |
 | Contributors work in a fork. The Developers team only reads the repository's code, so only the Owners team and the `ci` machine user push a branch to it. | review |
 | Only the Owners team and the `ci` machine user merge into the default branch. `ci` merges the prod pin pull request, per [ADR-0201](../adr/0201-gitops.md). | review |
 | An approval counts toward the required review only when it comes from the Owners team or the Developers team. | review |
@@ -229,6 +234,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Rule | Enforced by |
 | --- | --- |
 | CI cosign-signs every first-party image with the platform key pair. Every first-party image carries an SBOM and a provenance attestation. | `ci:sign` in CI |
+| Commits are signed by a different mechanism. [ADR-0102](../adr/0102-source-control-and-ci.md) holds the rule. The cosign key signs images only. | review |
 | Vulnerability scanning is a merge gate in CI. Neither the registry nor the cluster scans, per [ADR-0105](../adr/0105-image-registry.md). | review |
 | The signing private key exists only as a SOPS-encrypted secret, and only CI decrypts it. The public key is committed, and the Kyverno policy names it. The private key is never held by a person and never stored unencrypted. There is one platform key pair, not one per environment, because an image is built once and the same digest goes through every environment. | review |
 | Kyverno rejects at admission any image that lacks a valid signature or is referenced by a floating tag. | admission: Kyverno |

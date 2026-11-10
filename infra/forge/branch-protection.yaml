@@ -23,7 +23,8 @@ protection:
   # A merge whose base has moved joins two green runs that were never green
   # together.
   block_on_outdated_branch: true
-  require_signed_commits: false # ADR-0104 signs images, not commits
+  # Every commit on master is signed by the forge or by `ci`, per ADR-0102.
+  require_signed_commits: true
   enable_status_check: true
   # The gates, by status context. Each one is a thin caller of `mise run ci:*`, per
   # ADR-0102. So this list is the CI contract and not a copy of it. Forgejo names a
@@ -33,6 +34,16 @@ protection:
     - ci / test (pull_request)
     - ci / build (pull_request)
     - ci / drift (pull_request)
+
+# Repository settings. A pull request merges by squash only. So each commit on master is one reviewed pull request, and the
+# forge signs it with its own key, per ADR-0102. A contributor needs no key.
+repository:
+  allow_merge_commits: false
+  allow_rebase: false
+  allow_rebase_explicit: false
+  allow_fast_forward_only_merge: false
+  allow_squash_merge: true
+  default_merge_style: squash
 
 # Workflow runs proposed from OUTSIDE the organisation. A fork's pull request carries code that the runner would
 # run against its own host and secrets.

@@ -11,7 +11,9 @@ apex="$(answer apex_host)"
 [ -n "$slug" ] && [ -n "$apex" ] || fail "no project_slug or apex_host in .copier-answers.yml"
 guest() { on "$FORGE_SSH" "$FORGE_JUMP"; }
 
-usage() { fail "usage: forge.sh <install|configure|seed>"; }
+usage() { fail "usage: forge.sh <install|signing|configure|seed>"; }
+
+SIGNING_KEY_FILE="infra/forge-host/signing-key.enc.yaml"
 [ "$#" -eq 1 ] || usage
 
 case "$1" in
@@ -24,7 +26,7 @@ cloud-init status --wait >/dev/null 2>&1 || true
 for _ in \$(seq 1 60); do fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break; sleep 5; done
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq postgresql git git-lfs curl jq ca-certificates >/dev/null
+apt-get install -y -qq postgresql git git-lfs curl jq gnupg ca-certificates >/dev/null
 id forgejo >/dev/null 2>&1 || useradd --system --shell /bin/bash --comment forgejo \
   --home-dir /var/lib/forgejo --create-home forgejo
 install -d -o forgejo -g forgejo /var/lib/forgejo /etc/forgejo /var/log/forgejo
@@ -47,8 +49,36 @@ EOF
   ok "base installed. Run 'configure' next"
   ;;
 
+signing)
+  [ -f "$SIGNING_KEY_FILE" ] || fail "no key at ${SIGNING_KEY_FILE}. Run mise run secrets:gpg once"
+  step "importing the forge's signing key into the Forgejo user"
+  key="$(sops -d "$SIGNING_KEY_FILE" | yq -r '.stringData["private.asc"]')"
+  guest <<EOF
+set -euo pipefail
+install -d -m 700 -o forgejo -g forgejo /var/lib/forgejo/.gnupg
+su forgejo -c "GNUPGHOME=/var/lib/forgejo/.gnupg gpg --batch --quiet --import" <<'KEY'
+${key}
+KEY
+EOF
+  ok "key imported. Run 'configure' to name it in app.ini"
+  ;;
+
 configure)
   step "writing app.ini and the unit"
+  # The forge signs the squash commit of every merge. MERGES = always is needed, because the default also asks that the
+  # commits of the branch are signed, and a contributor has no key.
+  signing_block=""
+  if [ -f "$SIGNING_KEY_FILE" ]; then
+    signing_json="$(sops -d "$SIGNING_KEY_FILE" | yq -o=json '.stringData')"
+    signing_block="[repository.signing]
+SIGNING_KEY   = $(jq -r .fingerprint <<<"$signing_json")
+SIGNING_NAME  = $(jq -r .name <<<"$signing_json")
+SIGNING_EMAIL = $(jq -r .email <<<"$signing_json")
+MERGES        = always
+"
+  else
+    warn "no signing key at ${SIGNING_KEY_FILE}. The forge signs nothing"
+  fi
   # Forgejo's own ACME, not a reverse proxy: the host serves one service on 80 and 443, so a proxy decides no route.
   # Binding 443 needs the capability, not root.
   guest <<EOF
@@ -112,6 +142,7 @@ DISABLE_REGISTRATION = true
 [repository]
 DEFAULT_BRANCH = master
 
+${signing_block}
 [actions]
 ENABLED = true
 # The workflows call actions from GitHub that the default action mirror does not carry.
@@ -131,7 +162,7 @@ WorkingDirectory=/var/lib/forgejo
 ExecStart=/usr/local/bin/forgejo web --config /etc/forgejo/app.ini
 Restart=always
 AmbientCapabilities=CAP_NET_BIND_SERVICE
-Environment=USER=forgejo HOME=/var/lib/forgejo GITEA_WORK_DIR=/var/lib/forgejo
+Environment=USER=forgejo HOME=/var/lib/forgejo GNUPGHOME=/var/lib/forgejo/.gnupg GITEA_WORK_DIR=/var/lib/forgejo
 
 [Install]
 WantedBy=multi-user.target

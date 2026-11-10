@@ -24,8 +24,8 @@ api() { # <method> <path> [body]
 password="$(openssl rand -base64 36 | tr -d '\n')"
 if [[ "$(api GET "users/${user}")" == 200 ]]; then
   step "resetting the password of ${user}"
-  code="$(api PATCH "admin/users/${user}" "$(jq -n --arg p "$password" --arg l "$user" \
-    '{login_name: $l, source_id: 0, password: $p, must_change_password: false}')")"
+  code="$(api PATCH "admin/users/${user}" "$(jq -n --arg p "$password" --arg l "$user" --arg e "${user}@noreply.${host}" \
+    '{login_name: $l, source_id: 0, password: $p, must_change_password: false, email: $e}')")"
 else
   step "creating the ${user} user"
   code="$(api POST admin/users "$(jq -n --arg p "$password" --arg u "$user" --arg e "${user}@noreply.${host}" \
@@ -46,6 +46,26 @@ step "creating the promote and renovate tokens for ${user}"
 promote="$(token_for promote '["write:repository", "write:issue"]')"
 # Renovate's Forgejo platform reads the bot's own user and the organisation of the repository as well.
 renovate="$(token_for renovate '["write:repository", "write:issue", "read:user", "read:organization"]')"
+
+# The commit-signing key of `ci`, per ADR-0102. Its email is the commit email of ci_git_identity, and the forge must list it for the user.
+KEY_FILE="infra/ci/commit-signing-key.enc.yaml"
+if [[ -f "$KEY_FILE" ]]; then
+  step "uploading the commit-signing key of ${user}"
+  plain="$(sops -d "$KEY_FILE")"
+  home="$(mktemp -d)"
+  chmod 700 "$home"
+  yq -r '.stringData["private.asc"]' <<<"$plain" | GNUPGHOME="$home" gpg --batch --quiet --import
+  armored="$(GNUPGHOME="$home" gpg --batch --armor --export "$(yq -r '.stringData.fingerprint' <<<"$plain")")"
+  gpgconf --homedir "$home" --kill gpg-agent 2>/dev/null || true
+  rm -rf "$home"
+  email="$(yq -r '.stringData.email' <<<"$plain")"
+  # Basic auth, because the key and email routes act as the signed-in user. A repeat finds the email or the key already there.
+  as_user() { curl -sS -o /dev/null -w '%{http_code}' -u "${user}:${password}" -H "Content-Type: application/json" "$@"; }
+  code="$(as_user -X POST --data "$(jq -n --arg e "$email" '{emails: [$e]}')" "${url}/api/v1/user/emails")"
+  [[ "$code" =~ ^(2|422) ]] || fail "the forge refused the email of ${user}, HTTP ${code}"
+  code="$(as_user -X POST --data "$(jq -n --arg k "$armored" '{armored_public_key: $k}')" "${url}/api/v1/user/gpg_keys")"
+  [[ "$code" =~ ^(2|422) ]] || fail "the forge refused the signing key of ${user}, HTTP ${code}"
+fi
 
 step "giving ${user} write access to ${repo}"
 code="$(api PUT "repos/${repo}/collaborators/${user}" '{"permission": "write"}')"

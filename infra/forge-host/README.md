@@ -9,7 +9,7 @@ This directory exists in a project whose `forge` answer is `forgejo`, per [modes
 | File | Holds |
 | --- | --- |
 | `forge.env` | how a workstation reaches the machine, the forge's public name, and the Forgejo version |
-| `forge.sh` | the steps `install`, `configure`, and `seed`, run from a workstation over SSH |
+| `forge.sh` | the steps `install`, `signing`, `configure`, and `seed`, run from a workstation over SSH |
 | `lib.sh` | the SSH helper that `infra/runner/` also uses |
 
 ## Building the forge
@@ -19,9 +19,11 @@ Each step is safe to run again. `configure` keeps the secrets of an existing `ap
 1. Create a Debian machine. On the project's own hypervisor, run `bash infra/hypervisor/vm.sh create forge`.
 2. Point `FORGE_DOMAIN` at the machine's public address in DNS, per [ADR-0206](../../docs/adr/0206-cluster-networking.md).
 3. Run `bash infra/forge-host/forge.sh install`.
-4. Run `bash infra/forge-host/forge.sh configure`. Forgejo then gets its certificate from ACME.
-5. Run `bash infra/forge-host/forge.sh seed`.
-6. Register the tokens that `seed` leaves in `/root/.forgejo-*-token`, per the [credential register](../../docs/reference/credential-register.md).
+4. Run `mise run secrets:gpg` once. It makes the signing keys of the forge and of `ci`, per [ADR-0102](../../docs/adr/0102-source-control-and-ci.md). Then run `mise run forge:signing` to import the forge key.
+5. Run `bash infra/forge-host/forge.sh configure`. Forgejo then gets its certificate from ACME.
+6. Run `bash infra/forge-host/forge.sh seed`.
+7. Run `mise run forge:ci-user`. It uploads the public key of `ci`. Branch protection then requires signed commits.
+8. Register the tokens that `seed` leaves in `/root/.forgejo-*-token`, per the [credential register](../../docs/reference/credential-register.md).
 
 `seed` creates the break-glass admin, the `ci` and `argocd` machine users, the repository under `FORGE_ORG`, and the `PROMOTE_TOKEN` secret. With `MIRROR_URL` set, it also creates a push mirror and prints the deploy key that the mirror's host needs.
 

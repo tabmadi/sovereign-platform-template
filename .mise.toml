@@ -708,6 +708,14 @@ run = "bash scripts/ops-grant.sh"
 description = "Generate the platform's image-signing key pair, per ADR-0104. The public half is committed where every environment's Kyverno policy reads it. The private half is encrypted for CI only."
 run = "bash scripts/secrets-cosign.sh"
 
+[tasks."secrets:gpg"]
+description = "Generate the commit-signing keys of the forge and of the `ci` user, per ADR-0102. Both private halves are SOPS secrets."
+run = "bash scripts/secrets-gpg.sh"
+
+[tasks."forge:signing"]
+description = "Import the forge's signing key into the Forgejo user on the forge host, per ADR-0102. Run `bash infra/forge-host/forge.sh configure` after it."
+run = "bash infra/forge-host/forge.sh signing"
+
 [tasks."secrets:age"]
 description = "Idempotent. It also writes .sops.yaml, per ADR-0202."
 run = "bash scripts/secrets-age.sh"

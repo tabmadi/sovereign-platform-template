@@ -34,6 +34,24 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
+      {{- with $f.signing }}
+      {{- if .secretName }}
+      initContainers:
+        # Imports the forge's signing key from its Secret into the GNUPGHOME on the volume, on every start.
+        - name: import-signing-key
+          image: {{ $f.image.repository }}:{{ $f.image.tag }}@{{ $f.image.digest }}
+          command: [sh, -c, "mkdir -p -m 700 /data/git/.gnupg && gpg --batch --quiet --import /signing/private.asc"]
+          env:
+            - { name: GNUPGHOME, value: /data/git/.gnupg }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: signing-key, mountPath: /signing, readOnly: true }
+      {{- end }}
+      {{- end }}
       containers:
         - name: forgejo
           image: {{ $f.image.repository }}:{{ $f.image.tag }}@{{ $f.image.digest }}
@@ -48,6 +66,16 @@ spec:
             - { name: FORGEJO__server__SSH_LISTEN_PORT, value: {{ $f.config.sshPort | quote }} }
             - { name: FORGEJO__service__DISABLE_REGISTRATION, value: {{ $f.config.disableRegistration | quote }} }
             - { name: FORGEJO__service__REQUIRE_SIGNIN_VIEW, value: {{ $f.config.requireSignin | quote }} }
+            {{- with $f.signing }}
+            {{- if .secretName }}
+            # The forge signs every squash commit. MERGES=always, because the default also needs signed branch commits, and a contributor has no key.
+            - { name: GNUPGHOME, value: /data/git/.gnupg }
+            - { name: FORGEJO__repository.signing__SIGNING_KEY, value: {{ .key | quote }} }
+            - { name: FORGEJO__repository.signing__SIGNING_NAME, value: {{ .name | quote }} }
+            - { name: FORGEJO__repository.signing__SIGNING_EMAIL, value: {{ .email | quote }} }
+            - { name: FORGEJO__repository.signing__MERGES, value: always }
+            {{- end }}
+            {{- end }}
             - { name: FORGEJO__database__DB_TYPE, value: postgres }
             # The DSN's parts come from the Secret that CNPG's credentials fill. So no
             # password is rendered into the pod spec.
@@ -80,6 +108,13 @@ spec:
             - { name: data, mountPath: /data }
           resources:
             {{- toYaml $f.resources | nindent 12 }}
+  {{- with $f.signing }}
+  {{- if .secretName }}
+      volumes:
+        - name: signing-key
+          secret: { secretName: {{ .secretName }} }
+  {{- end }}
+  {{- end }}
   volumeClaimTemplates:
     - metadata:
         name: data
