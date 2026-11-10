@@ -67,6 +67,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `ci:design-preview` | The design preview of one pull request, per ADR-0701: `build` pushes and signs the design image from refs/pull/<n>/head, and `comment` posts its URL. | design-preview.yml |
 | `ci:e2e-gate` | Whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0102 and ADR-0601. | e2e.yml |
 | `ci:gen` | The one definition behind ci.yml's drift job and the lefthook gen-drift hook. Run it locally to repeat that CI job exactly. | .lefthook.yml, ci.yml |
+| `ci:lighthouse-gate` | Whether a pull request runs Lighthouse, as a forge step-output assignment, per ADR-0400. | lighthouse.yml |
 | `ci:nightly-gate` | Whether tonight's cluster:up full suite runs, as a forge step-output assignment, per ADR-0102 and ADR-0601. | _nightly-gate.yml |
 | `ci:preview` | The pull-request preview environment, per ADR-0205: the full tier at the images and manifests of refs/pull/<n>/head. The run that creates it also destroys it. | preview.yml |
 | `ci:prune-registry` | Delete the first-party image tags that no environment pins and the last PRUNE_KEEP commits do not name, per ADR-0105. | publish.yml |

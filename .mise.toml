@@ -613,6 +613,10 @@ run = "bash scripts/ci-affected-adversarial.sh"
 description = "Whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0102 and ADR-0601."
 run = "bash scripts/ci-e2e-gate.sh"
 
+[tasks."ci:lighthouse-gate"]
+description = "Whether a pull request runs Lighthouse, as a forge step-output assignment, per ADR-0400."
+run = "bash scripts/ci-lighthouse-gate.sh"
+
 [tasks."ci:nightly-gate"]
 description = "Whether tonight's cluster:up full suite runs, as a forge step-output assignment, per ADR-0102 and ADR-0601."
 run = "bash scripts/ci-nightly-gate.sh"

@@ -23,6 +23,8 @@ REGISTRY="registry.localhost"
 ZOT_DATA="${ZOT_DATA:-${XDG_CACHE_HOME:-$HOME/.cache}/zot/${REGISTRY}}"
 ZOT_IMAGE="ghcr.io/project-zot/zot-linux-amd64:v2.1.20"
 FORCE="${FORCE:-}"
+# RFC 3339 in UTC, the format of Argo CD's startedAt, so a string comparison orders the two.
+UP_STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # Checked when the file is sourced. The functions run as `$(cluster_ctx)`, where an exit ends only the subshell.
 case "${TIER:-}" in
@@ -587,9 +589,15 @@ stage_images() {
   local push_reg="127.0.0.1:5000"
   local rev
   rev="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
-  git diff --quiet 2>/dev/null || rev="${rev}-dirty"
-  local build_id=(--build-arg "GIT_SHA=${rev}" --build-arg BUILD_VERSION=local
-    --build-arg "BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)")
+  # A clean tree takes the commit time, so a second `up` of one commit reuses every cached layer.
+  local built_at
+  built_at="$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ 2>/dev/null || true)"
+  if ! git diff --quiet 2>/dev/null; then
+    rev="${rev}-dirty"
+    built_at=""
+  fi
+  [ -n "$built_at" ] || built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  local build_id=(--build-arg "GIT_SHA=${rev}" --build-arg BUILD_VERSION=local --build-arg "BUILD_TIME=${built_at}")
 
   build_push() { # <image-name> <dockerfile> <context> [build args]
     local name="$1" dockerfile="$2" context="$3" attempt
@@ -604,31 +612,57 @@ stage_images() {
     fail "could not build and push ${name} after 3 attempts"
   }
 
-  step "building and pushing repo images to ${reg}"
   # From the values files: the ApplicationSet generates one Application for each file.
   # A file with no built image stays in ImagePullBackOff.
-  local values svc
-  for values in infra/gitops/services/local/values/*.yaml; do
-    svc="$(basename "$values" .yaml)"
-    # Apps have their own Dockerfile, context, and build args. They are built below.
-    [ -f "services/${svc}/Dockerfile" ] || continue
-    # Not `// true`: yq's alternative operator also replaces an explicit false, so a worker-only service would build a server.
-    if [ "$(yq -r '.server.enabled' "$values")" != false ]; then
-      build_push "${svc}-server" "services/${svc}/Dockerfile" . \
-        --build-arg SERVICE="${svc}" --build-arg APP_CMD=server "${build_id[@]}"
-    fi
-    if [ "$(yq -r '.worker.enabled // false' "$values")" = true ]; then
-      build_push "${svc}-worker" "services/${svc}/Dockerfile" . \
-        --build-arg SERVICE="${svc}" --build-arg APP_CMD=worker "${build_id[@]}"
-    fi
-  done
-  build_push admin apps/admin/Dockerfile apps/admin
+  # shellcheck disable=SC2329  # invoked by name through the lane loop.
+  lane_services() {
+    local values svc
+    for values in infra/gitops/services/local/values/*.yaml; do
+      svc="$(basename "$values" .yaml)"
+      # Apps have their own Dockerfile, context, and build args. They have their own lanes.
+      [ -f "services/${svc}/Dockerfile" ] || continue
+      # Not `// true`: yq's alternative operator also replaces an explicit false, so a worker-only service would build a server.
+      if [ "$(yq -r '.server.enabled' "$values")" != false ]; then
+        build_push "${svc}-server" "services/${svc}/Dockerfile" . \
+          --build-arg SERVICE="${svc}" --build-arg APP_CMD=server "${build_id[@]}"
+      fi
+      if [ "$(yq -r '.worker.enabled // false' "$values")" = true ]; then
+        build_push "${svc}-worker" "services/${svc}/Dockerfile" . \
+          --build-arg SERVICE="${svc}" --build-arg APP_CMD=worker "${build_id[@]}"
+      fi
+    done
+  }
+  # shellcheck disable=SC2329  # invoked by name through the lane loop.
+  lane_admin() { build_push admin apps/admin/Dockerfile apps/admin; }
   # `output: "standalone"` freezes next.config into server.js, so the build sets the server-action CSRF allowlist.
   # It is read from the same values file that the pod reads at runtime, per ADR-0306.
-  build_push frontend apps/frontend/Dockerfile . \
-    --build-arg "SERVICE_VERSION=${rev}" \
-    --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' \
-      infra/gitops/services/local/values/frontend.yaml)"
+  # shellcheck disable=SC2329  # invoked by name through the lane loop.
+  lane_frontend() {
+    build_push frontend apps/frontend/Dockerfile . \
+      --build-arg "SERVICE_VERSION=${rev}" \
+      --build-arg "EDGE_PUBLIC_ORIGIN=$(yq -r '.env.EDGE_PUBLIC_ORIGIN // ""' \
+        infra/gitops/services/local/values/frontend.yaml)"
+  }
+
+  # The lanes share no Dockerfile, so they build at once. One after another, the two Node builds wait for every Go image.
+  step "building and pushing repo images to ${reg}: the services, admin, and frontend lanes run at once"
+  local lanes=(services admin frontend) pids=() logs lane i failed=0
+  logs="$(mktemp -d)"
+  for lane in "${lanes[@]}"; do
+    ("lane_${lane}") >"${logs}/${lane}.log" 2>&1 &
+    pids+=("$!")
+  done
+  for i in "${!lanes[@]}"; do
+    if wait "${pids[$i]}"; then
+      detail "the ${lanes[$i]} lane is built and pushed"
+    else
+      failed=1
+      warn "the ${lanes[$i]} lane failed. Its build log follows"
+      cat "${logs}/${lanes[$i]}.log" >&2
+    fi
+  done
+  rm -rf "$logs"
+  [ "$failed" = 0 ] || fail "a repo image did not build. The lane log above gives the reason"
 }
 
 # Before any apply on a resumed tier. The sopskey stage is the first apply.
@@ -742,8 +776,24 @@ stage_rootapp() {
     fail "ArgoCD did not converge. The applications and pod events above give the reason. \`kubectl --context $(cluster_ctx) -n <ns> describe pod <pod>\` gives the rest."
   }
 
+  # An operation that began before this `up` is a sync that `cluster:stop` froze. It is replaced now, not after a timeout.
+  restart_stale_ops() {
+    local name phase started
+    while read -r name phase started; do
+      [ "$phase" = Running ] && [ -n "$started" ] || continue
+      [[ "$started" < "$UP_STARTED" ]] || continue
+      warn "${name}: its sync began before this cluster:up. Terminating it and syncing again"
+      ac app terminate-op "$name" || true
+      wait_for "${name}'s operation to end" 120 op_ended "$name"
+      ac app sync "$name" --async >/dev/null
+    done < <(k -n argocd get applications -o \
+      jsonpath='{range .items[*]}{.metadata.name} {.status.operationState.phase} {.status.operationState.startedAt}{"\n"}{end}')
+  }
+
   step "waiting for ArgoCD to converge. The first run is slow"
-  wait_apps 900 local-root
+  restart_stale_ops
+  # The root walks every sync wave of ADR-0201 in order. On a 4-core CI runner that alone takes about 20 minutes.
+  wait_apps 1800 local-root
   # Appset generation comes after appset sync, so the set is listed again until it is stable.
   local apps
   while :; do
@@ -758,6 +808,11 @@ stage_rootapp() {
 
 # Fill the in-cluster zot's catalogue with the first-party images, per ADR-0105. Best effort: no pod's start depends on it.
 stage_populatezot() {
+  # No test reads the zot catalogue, and the copy holds a CI job for minutes. `cluster:populate-zot` fills it on demand.
+  if [ -n "${CI:-}" ]; then
+    detail "populate-zot: skipped in CI. Run \`mise run cluster:populate-zot\` to fill the zot.ops catalogue"
+    return 0
+  fi
   bash "$(dirname "${BASH_SOURCE[0]}")/../populate-zot.sh" ||
     warn "populate-zot did not complete. The in-cluster zot console can be empty. This is not fatal"
 }

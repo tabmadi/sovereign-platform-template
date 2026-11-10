@@ -104,3 +104,21 @@ func TestClassifyAllFlag(t *testing.T) {
 		t.Errorf("--all should force Global=true, got %+v", got)
 	}
 }
+
+func TestRuntimeFiles(t *testing.T) {
+	t.Parallel()
+	files := []string{
+		"tools/lint-contrast/main.go",
+		".github/actions/setup/action.yml",
+		".forgejo/workflows/e2e.yml",
+		"apps/frontend/app/page.tsx",
+	}
+	got := classify(runtimeFiles(files), false)
+	want := Manifest{Services: []string{}, Apps: []string{"frontend"}, Libs: []string{}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("classify(runtimeFiles(%v)) = %+v, want %+v", files, got, want)
+	}
+	if !classify(files, false).Global {
+		t.Errorf("classify(%v) without the filter is not global", files)
+	}
+}

@@ -25,7 +25,10 @@ env:
 
 jobs:
   preview:
-    if: contains(github.event.pull_request.labels.*.name, 'run/preview')
+    # A label event starts this job only for its own label, so another label never replaces a running preview.
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'run/preview') &&
+      (!github.event.label || github.event.label.name == 'run/preview')
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:

@@ -23,6 +23,8 @@ type Manifest struct {
 var (
 	baseRef = flag.String("base", "origin/master", "git ref to diff against (merge-base)")
 	all     = flag.Bool("all", false, "force --global=true (override affected detection)")
+	runtime = flag.Bool("runtime", false,
+		"ignore the paths that only build and check the repo, for a suite that tests the running platform")
 )
 
 func main() {
@@ -30,6 +32,9 @@ func main() {
 	files, err := changedFiles(context.Background(), *baseRef)
 	if err != nil {
 		failf("git diff failed: %v", err)
+	}
+	if *runtime {
+		files = runtimeFiles(files)
 	}
 	m := classify(files, *all)
 	enc := json.NewEncoder(os.Stdout)
@@ -114,6 +119,14 @@ func classify(files []string, forceAll bool) Manifest {
 	m.Apps = sortedKeys(appSet)
 	m.Libs = sortedKeys(libSet)
 	return m
+}
+
+// runtimeFiles drops the paths that change how the repo is built and checked, but never what a cluster runs.
+// The linters and generators live under tools/, and the workflows under .github/ and .forgejo/.
+func runtimeFiles(files []string) []string {
+	return slices.DeleteFunc(slices.Clone(files), func(f string) bool {
+		return strings.HasPrefix(f, "tools/") || strings.HasPrefix(f, ".github/") || strings.HasPrefix(f, ".forgejo/")
+	})
 }
 
 // isGlobalTrigger reports whether a changed path forces a full-repo build.

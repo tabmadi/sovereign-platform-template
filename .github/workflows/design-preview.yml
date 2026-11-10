@@ -29,7 +29,11 @@ env:
 
 jobs:
   design-preview:
-    if: ${{ !github.event.repository.is_template && contains(github.event.pull_request.labels.*.name, 'run/design-preview') }}
+    # A label event starts this job only for its own label, so another label never rebuilds the preview.
+    if: >-
+      !github.event.repository.is_template &&
+      contains(github.event.pull_request.labels.*.name, 'run/design-preview') &&
+      (!github.event.label || github.event.label.name == 'run/design-preview')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:

@@ -107,7 +107,8 @@ jobs:
     # A label gates each PR, like run/e2e-smoke. A PR with no label never starts a full cluster.
     if: >-
       github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'run/perf-smoke')
+      contains(github.event.pull_request.labels.*.name, 'run/perf-smoke') &&
+      (!github.event.label || github.event.label.name == 'run/perf-smoke')
     runs-on: ubuntu-24.04
     # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
     timeout-minutes: 120

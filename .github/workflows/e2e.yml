@@ -118,7 +118,10 @@ jobs:
   # Only an e2e test sees a change across more than one service, per ADR-0601.
   # This is a task, not an expression, because it reads the affected manifest, per ADR-0102.
   pr-gate:
-    if: github.event_name == 'pull_request'
+    # A label event starts this job only for its own label. Any other label leaves the result of the last push.
+    if: >-
+      github.event_name == 'pull_request' &&
+      (!github.event.label || github.event.label.name == 'run/e2e-smoke')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:

@@ -15,7 +15,8 @@ decide() {
 
 [[ "${LABELED:-false}" != true ]] || decide true "→ the \`e2e-smoke\` label is set. Running the suite."
 
-manifest="$(mise run ci:affected -- --base "origin/${BASE_REF:-master}")"
+# `--runtime`: a change to a linter or a workflow alone never changes what the smoke suite sees.
+manifest="$(mise run ci:affected -- --base "origin/${BASE_REF:-master}" --runtime)"
 
 # A global change reaches every service, so it is the widest multi-service case.
 # Examples are a shared library, the toolchain, and the platform charts.

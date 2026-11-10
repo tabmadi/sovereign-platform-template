@@ -1,4 +1,4 @@
-# Web vitals and bundle budgets are measured on every PR, not behind a label, per ADR-0400.
+# Web vitals and bundle budgets are measured on every PR that changes what the frontend serves, not behind a label, per ADR-0400.
 # The origin is the production frontend image with the API mock and a Kratos stub, from scripts/lighthouse-stack.sh. No cluster starts.
 # `/devportal` is not measured: proxy.ts redirects an unauthenticated request to login, so it measures login twice.
 name: lighthouse
@@ -25,7 +25,26 @@ env:
   GIT_CONFIG_VALUE_0: master
 
 jobs:
+  # A task, not a path filter, because it reads the affected manifest, per ADR-0102.
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      # Full history: the affected manifest is a diff against the merge base.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - id: check
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: mise run ci:lighthouse-gate >> "$GITHUB_OUTPUT"
+
   lighthouse:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
