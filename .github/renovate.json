@@ -6,7 +6,7 @@
     "It merges nothing. Every update passes the same lint, drift, and test gates as a human PR. A bump that skips them makes the pin useless.",
     "A dependency held back carries its reason on the package rule that holds it. A pin with no recorded reason is treated as unreviewed."
   ],
-  "labels": ["dependencies"],
+  "labels": ["kind/chore"],
   "rangeStrategy": "pin",
   "pinDigests": true,
   "separateMajorMinor": true,
@@ -126,7 +126,7 @@
   ],
   "vulnerabilityAlerts": {
     "description": "A CVE with a fixed version is proposed at once, outside the batch, and without dashboard approval even for a major. For this class only, the weekly slot is too slow, per ADR-0106 and ADR-0104.",
-    "labels": ["dependencies", "security"],
+    "labels": ["kind/chore"],
     "schedule": ["at any time"],
     "minimumReleaseAge": null,
     "dependencyDashboardApproval": false
