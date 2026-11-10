@@ -57,7 +57,7 @@ marker="<!-- design-preview -->"
 body="${marker}
 The design preview of this pull request is at ${url}
 
-It shows commit \`${sha}\` in fixture mode. Log in as an operator to open it. Argo CD deletes it when this pull request closes or the \`design-preview\` label goes, per ADR-0701."
+It shows commit \`${sha}\` in fixture mode. Log in as an operator to open it. Argo CD deletes it when this pull request closes or the \`run/design-preview\` label goes, per ADR-0701."
 
 api() { # <method> <path> [json]
   curl -fsS -X "$1" -H "Authorization: token ${GITHUB_TOKEN}" -H "Content-Type: application/json" \

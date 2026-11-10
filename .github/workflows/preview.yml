@@ -25,7 +25,7 @@ env:
 
 jobs:
   preview:
-    if: contains(github.event.pull_request.labels.*.name, 'preview')
+    if: contains(github.event.pull_request.labels.*.name, 'run/preview')
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:

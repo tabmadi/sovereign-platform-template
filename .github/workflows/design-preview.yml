@@ -1,4 +1,4 @@
-# The design preview of a pull request, per ADR-0701. A maintainer adds the `design-preview` label after reading the code.
+# The design preview of a pull request, per ADR-0701. A maintainer adds the `run/design-preview` label after reading the code.
 # `pull_request_target` runs this file from the base branch with the registry secrets, so a fork's pull request gets a preview too.
 # The pull request's code is only the Docker build context. No step runs it on the runner. Argo CD deploys the image, per ADR-0205.
 name: design-preview
@@ -29,7 +29,7 @@ env:
 
 jobs:
   design-preview:
-    if: ${{ !github.event.repository.is_template && contains(github.event.pull_request.labels.*.name, 'design-preview') }}
+    if: ${{ !github.event.repository.is_template && contains(github.event.pull_request.labels.*.name, 'run/design-preview') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:

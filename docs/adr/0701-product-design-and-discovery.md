@@ -99,7 +99,7 @@ A reviewer opens a pull request's design at its own URL and clicks through it be
 | Concern | Decision |
 | --- | --- |
 | What runs | the frontend only, built with `NEXT_PUBLIC_FIXTURES=1`. No service, Kratos, or database |
-| Trigger | a maintainer adds the `design-preview` label after reading the code. A fork's code reaches the cluster only after that |
+| Trigger | a maintainer adds the `run/design-preview` label after reading the code. A fork's code reaches the cluster only after that |
 | Source | `refs/pull/<n>/head` in this repository. It exists for a fork's pull request too. Only the image comes from the pull request. The manifests come from `master` |
 | Image | the design build, pushed as `design/frontend:pr-<n>-<sha>` under the first-party prefix and signed like every first-party image. The publish workflow never builds it |
 | The design build | `NEXT_PUBLIC_FIXTURES=1` together with `NEXT_PUBLIC_DESIGN_BUILD=1`. `src/lib/data/mode.ts` admits fixtures in a production build only with both switches |
@@ -165,7 +165,7 @@ Research that nobody needed is not a gap.
 - Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`.
 - A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline.
 - Two candidate designs are compared as two design previews, not as a committed menu of alternatives.
-- A design preview is the frontend alone in fixture mode, in the namespace `design-pr-<n>` of the dev cluster, built from `refs/pull/<n>/head`. It exists only while the pull request is open and carries the `design-preview` label.
+- A design preview is the frontend alone in fixture mode, in the namespace `design-pr-<n>` of the dev cluster, built from `refs/pull/<n>/head`. It exists only while the pull request is open and carries the `run/design-preview` label.
 - A design-preview pod reaches nothing but DNS. `(enforced: NetworkPolicy design-preview)`
 - Product research lives in `docs/product/` and carries an `as-of` date and its sources. It binds nothing until an ADR cites it.
 - No research document is mandatory, and none is generated into a project that did not ask for it.

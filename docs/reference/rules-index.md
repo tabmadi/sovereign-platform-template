@@ -874,7 +874,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`. | review |
 | A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline. | review |
 | Two candidate designs are compared as two design previews, not as a committed menu of alternatives. | review |
-| A design preview is the frontend alone in fixture mode, in the namespace `design-pr-<n>` of the dev cluster, built from `refs/pull/<n>/head`. It exists only while the pull request is open and carries the `design-preview` label. | review |
+| A design preview is the frontend alone in fixture mode, in the namespace `design-pr-<n>` of the dev cluster, built from `refs/pull/<n>/head`. It exists only while the pull request is open and carries the `run/design-preview` label. | review |
 | A design-preview pod reaches nothing but DNS. | admission: NetworkPolicy design-preview |
 | Product research lives in `docs/product/` and carries an `as-of` date and its sources. It binds nothing until an ADR cites it. | review |
 | No research document is mandatory, and none is generated into a project that did not ask for it. | review |
