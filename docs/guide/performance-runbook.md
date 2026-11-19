@@ -4,14 +4,14 @@ This guide shows how to run a load test, read it, and record a baseline. [ADR-06
 
 ## Model
 
-- **k6** is the only load generator. It is a single static Go binary. `test/perf/.mise.toml` pins it, not the root toolchain. `just perf*` installs it on first use.
+- **k6** is the only load generator. It is a single static Go binary in the dev shell of `flake.nix`.
 - Scenarios are JavaScript that **k6's own embedded engine** runs. No Node runs here. `test/perf/` has no `package.json`, no lockfile, and no `node_modules`. If you add one, `just lint-node-scope` fails.
 - Runs drive the **edge** at `https://dev.localtest.me:8443/api/<path>`. So Traefik and the Oathkeeper forward-auth hop are inside every measurement.
 - Metrics leave k6 over **OTLP into the cluster's OTel collector**. They land in Prometheus as `k6_*` series, on the same time axis as `k8s_pod_*`. No new component ingests them.
 
 ## Prerequisites
 
-You need a running full tier: `just cluster-up full`. In a fresh checkout, the first `just perf*` also needs `mise trust test/perf/.mise.toml`.
+You need a running full tier: `just cluster-up full`.
 
 ## Run one
 

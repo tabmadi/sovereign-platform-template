@@ -115,16 +115,16 @@ Skaffold, Tilt, DevSpace, and Okteto promote live file sync as their main featur
 | Tilt | **explicitly not**, as documented | Starlark | The healthiest project in the set. Its subset mechanism ignores dependencies, and that is the exact failure to fix |
 | DevSpace | coarse: across repos, always first | `devspace.yaml` | The wrong level of detail |
 | Okteto | no | `okteto.yml` | Built for remote namespaces |
-| **mise, bash, Helm, and Argo** | no. **This is the gap** | none | **Chosen**, and the gap is closed below *(reasoned)* |
+| **`just`, bash, Helm, and Argo** | no. **This is the gap** | none | **Chosen**, and the gap is closed below *(reasoned)* |
 
 **The platform adopts Garden's convention, not Garden.** There are two independent reasons:
 
 - *Stewardship.* A company owns Garden's open-source repository. Its commit and release rate is ten times lower than Tilt's and Skaffold's. Driver 6 makes active maintenance an entry gate, not a scoring column, and Garden does not meet it.
-- *Architecture.* To adopt Garden means to adopt its whole config system: its own build, test, and deploy verbs, and its own environment model. That does not sit beside Helm, Argo CD, and mise. It duplicates them and collides with [ADR-0111](0111-monorepo.md) and [ADR-0201](0201-gitops.md). Two orchestrators would then resolve a graph over six services.
+- *Architecture.* To adopt Garden means to adopt its whole config system: its own build, test, and deploy verbs, and its own environment model. That does not sit beside Helm, Argo CD, and `just`. It duplicates them and collides with [ADR-0111](0111-monorepo.md) and [ADR-0201](0201-gitops.md). Two orchestrators would then resolve a graph over six services.
 
 A like-for-like sizing gave Garden about 210 fewer lines: about 400 against about 610. Most of the difference was readiness-gated ordering and the image build and import.
 
-Garden does **not** win on graph resolution, the property that first made it attractive. mise already removes duplicates and runs tasks in parallel. The three hardest pieces have no Garden model and stay in bash in both designs:
+Garden does **not** win on graph resolution, the property that first made it attractive. `just` already runs a shared dependency once in one invocation. The three hardest pieces have no Garden model and stay in bash in both designs:
 
 - docker-bridge discovery in the edge glue
 - SOPS secret materialisation
@@ -145,7 +145,7 @@ Garden does **not** win on graph resolution, the property that first made it att
 
 | Tool | 3.1 support | Source of truth | Runtime added | Verdict |
 | --- | --- | --- | --- | --- |
-| **Prism, from Stoplight** | full | the spec. It serves committed `examples`, and otherwise generates from schemas | a container, with no `mise` tool and no `package.json` | **Chosen.** Request validation gives free feedback: an unknown route gets 404, and a bad body gets 422 *(documented)* |
+| **Prism, from Stoplight** | full | the spec. It serves committed `examples`, and otherwise generates from schemas | a container, with no tool in the dev shell and no `package.json` | **Chosen.** Request validation gives free feedback: an unknown route gets 404, and a bad body gets 422 *(documented)* |
 | MSW | not applicable | typed handlers | in-process | An in-process double, not a running API. Nothing outside the Next server can reach it. It owns the test layer, and that separate concern is the justification that driver 5 requires |
 | Microcks | full | the spec, native to GitOps | **MongoDB** | The best GitOps fit, and the only one that also does contract testing. But a datastore that joins the floor for a development mock fails the budget rule |
 | `muonsoft/openapi-mock` | **3.0 core, through kin-openapi** | the spec | none, it is a Go binary | The best language fit. It is rejected as the primary mock on a correctness risk: the specs are 3.1. It is the documented fallback if the vendored container becomes unacceptable, on the condition that it proves 3.1 support |
@@ -209,45 +209,44 @@ The identity stack is in the floor on purpose. Kratos and Oathkeeper are cheap. 
 
 A service reached through this edge gets real Oathkeeper identity headers. A service called with curl directly on `:8080` gets forged ones. A backend engineer who wants only Postgres still pays for the edge. This ADR accepts that trade in advance.
 
-**Everything else is opt-in. The service that needs a component declares it** in its own `.mise.toml`:
+**Everything else is opt-in. The service that needs a component declares it** in its own `justfile`:
 
 | Family | Declares | Satisfied by | Guard |
 | --- | --- | --- | --- |
-| `dep:*` | infrastructure that the service reads: Postgres, Temporal, OpenFGA | a label slice of `infra/local/deps.yaml` | Ready or not |
-| `svc:*` | other services that it calls over HTTP | the callee, deployed and forwarded to its registered port | **answered or not** |
+| `dep-*` | infrastructure that the service reads: Postgres, Temporal, OpenFGA | a label slice of `infra/local/deps.yaml` | Ready or not |
+| `svc-*` | other services that it calls over HTTP | the callee, deployed and forwarded to its registered port | **answered or not** |
 
 What runs is **the base plus the declared dependencies of every running service**. No table needs maintenance, because a service knows its own dependencies, and a named profile never can.
 
-`svc:*` exists because a microservices repo cannot leave out the second family. The orders checkout saga calls catalog and payment, per [ADR-0302](0302-temporal.md). Without them, a worker starts cleanly and fails on the first checkout. That failure comes later than a missing database, so its cause is harder to find.
+`svc-*` exists because a microservices repo cannot leave out the second family. The orders checkout saga calls catalog and payment, per [ADR-0302](0302-temporal.md). Without them, a worker starts cleanly and fails on the first checkout. That failure comes later than a missing database, so its cause is harder to find.
 
 **The default is to deploy the callee. The override is to run it natively.** The usual case is work on the caller, and the callees then need no attention. `svc-catalog` checks that *the port answers*, not that a deployment exists. So a native catalog also satisfies the graph. The cross-service debugging case is the single-service case with more callees started by hand.
 
 On purpose, `cluster-add` does **not** address dependency components. `postgres` is both a platform chart and a `deps.yaml` slice. As names that users type, components would be ambiguous. They stay internal to the graph. So `cluster-add` resolves names over two disjoint namespaces: services and platform charts. A name in both is a repo bug, not a user error.
 
-### mise supplies the graph
+### `just` supplies the graph
 
-A service's nested `.mise.toml` can depend on tasks from the root config. mise removes duplicate diamond dependencies, so a shared `cluster-up` runs once. Independent dependencies run in parallel. These are Garden's graph-execution semantics, in a tool that is already pinned.
+A recipe of a service brings up the root recipes it needs in one call: `just --justfile ../../justfile dep-postgres dep-temporal`. In one invocation, `just` runs a shared dependency such as `cluster-up` once. These are the graph semantics that the inner loop needs from Garden, in a tool that the dev shell already holds, per [ADR-0103](0103-tasks.md).
 
-```toml
-# root .mise.toml
-[tasks."dep-temporal"]
-depends = ["cluster-up"]
-run = "bash scripts/dep-apply.sh temporal"
+```just
+# justfile
+dep-temporal: cluster-up
+    bash scripts/dep-apply.sh temporal
 
-# services/orders/.mise.toml
-[tasks.worker]
-depends = ["env", "dep-postgres", "dep-temporal", "svc-catalog", "svc-payment"]
-run = "go run ./cmd/worker"
+# services/orders/justfile
+worker: env in-shell
+    just --justfile ../../justfile dep-postgres dep-openfga dep-temporal svc-catalog svc-payment
+    go run ./cmd/worker
 ```
 
 | Layer | Owns |
 | --- | --- |
-| mise | the dependency graph and the task vocabulary. Declarations only, with no logic in `.mise.toml` |
+| `just` | the dependency graph and the recipe vocabulary. Declarations only, with no logic in a `justfile` |
 | bash | one small idempotent installer for each component, `dep-apply.sh`, or each sibling, `svc-apply.sh` |
 | Helm | the component units: the same charts in every tier |
 | Argo CD | `cluster-up full` only |
 
-**One property is not free.** Garden checks status and skips work that is already done. mise does not. Its `sources` and `outputs` staleness check uses files, and the readiness of Temporal is not a file. Without a guard, every `just server` pays again for a full apply and a rollout wait.
+**One property is not free.** Garden checks status and skips work that is already done. `just` does not, and the readiness of Temporal is not a file. Without a guard, every `just server` pays again for a full apply and a rollout wait.
 
 So the guard is **central**, in `dep-apply.sh` and `svc-apply.sh`, and not written by hand for each component. One shared readiness check of about twenty lines covers everything. A component that forgot its own guard would slow the inner loop with no warning. For this reason, the guard does not live in the components.
 
@@ -259,9 +258,9 @@ Every service takes part in the same way. `lint-service-contract` checks this.
 | --- | --- |
 | Live at `services/<name>/`, with the same name everywhere | `cluster-add` resolves names over two disjoint namespaces |
 | Expose `server`, `test`, `lint`, and `build`, plus `worker`, `migrate`, and `generate` when it has them | CI and `cluster-add` call them by name, per [ADR-0111](0111-monorepo.md) |
-| Register a local port in `scripts/lib/ports.sh`, and set the same `PORT` in its `.mise.toml` | It can then run natively beside other services, and the `<SVC>_URL` of each caller has a working default |
-| Declare `dep:*` for the infrastructure it reads | The graph brings up exactly that, and the deploy path reads the same list |
-| Declare `svc:*` for every service it calls over HTTP | Otherwise it starts cleanly and fails on the first cross-service call |
+| Register a local port in `scripts/lib/ports.sh`, and set the same `PORT` in its `justfile` | It can then run natively beside other services, and the `<SVC>_URL` of each caller has a working default |
+| Declare `dep-*` for the infrastructure it reads | The graph brings up exactly that, and the deploy path reads the same list |
+| Declare `svc-*` for every service it calls over HTTP | Otherwise it starts cleanly and fails on the first cross-service call |
 | Ship a `.env.example` that covers every variable it reads | `just server` seeds `.env` from it. A variable not listed takes a default with no warning |
 | Ship a values file for each environment under `infra/gitops/services/<env>/values/`, or declare `# platform/not-deployed: <env>` | The ApplicationSet generates one Argo Application for each values file. Without a file, the service is absent from that environment, and nothing reports it |
 | Ship a `Dockerfile` and a `README.md` | CI and `cluster-add` build the image by the same path |
@@ -271,7 +270,7 @@ Every service takes part in the same way. `lint-service-contract` checks this.
 
 The set of values files is this platform's deployment surface. It is stated, not inferred.
 
-**The check cannot verify that the declarations are true.** A reviewer checks that a service with `dep-temporal` uses Temporal at all. A reviewer also checks that a new HTTP call has its `svc:*` edge. A cross-service call without its edge is the most likely regression of the local loop.
+**The check cannot verify that the declarations are true.** A reviewer checks that a service with `dep-temporal` uses Temporal at all. A reviewer also checks that a new HTTP call has its `svc-*` edge. A cross-service call without its edge is the most likely regression of the local loop.
 
 ### GitOps locally
 
@@ -366,14 +365,14 @@ A short, listed set of manifests has no production equivalent:
 - No development-only code ships in `apps/frontend/`. A screen cannot work locally and return `403` in staging, because the local gates are the real gates.
 - The mock cannot drift from the contract. Its only input is an artifact that is checked for drift.
 - Examples serve the developer portal and the mock at the same time. The test-identity bootstrap has two consumers, so it runs daily, not only nightly.
-- No new tool to learn. A contributor who knows bash, Helm, and mise can read the whole dev loop.
+- No new tool to learn. A contributor who knows bash, Helm, and `just` can read the whole dev loop.
 
 ### Negative and Risks
 
-- **We own the dependency resolution that Garden gives for free.** The graph is small, and the trade is fair. But it must not grow into a general-purpose engine by accident. The discipline: `.mise.toml` files stay declarations, and each bash script installs exactly one component. Shell logic that grows in task definitions rebuilds Garden badly.
-- **`svc:*` owns the one long-lived process that the dev loop runs.** A mise task must return for the graph to continue, but the callee's port-forward must outlive the task. So `svc-apply.sh` detaches the port-forward and tracks it by pidfile, and `cluster-remove` reaps it. This is the least elegant part of the design and the price of not adopting a process manager. It is limited to one script. If it becomes a source of bugs, mirrord replaces it.
-- **A service's callee list carries weight.** Nothing detects a missing `svc:*` edge. The call fails at runtime.
-- **A third vendored Node tool.** Prism's image is third-party Node software that the repo runs but does not write. The Playwright runner and the Lowdefy console are the other two. Its scope is strict: a local-only container, no Node in any `.mise.toml`, no `package.json`, no lockfile, and never in an image built from our source.
+- **We own the dependency resolution that Garden gives for free.** The graph is small, and the trade is fair. But it must not grow into a general-purpose engine by accident. The discipline: each `justfile` stays declarations, and each bash script installs exactly one component. Shell logic that grows in task definitions rebuilds Garden badly.
+- **`svc-*` owns the one long-lived process that the dev loop runs.** A recipe must return for the next one to start, but the callee's port-forward must outlive the recipe. So `svc-apply.sh` detaches the port-forward and tracks it by pidfile, and `cluster-remove` reaps it. This is the least elegant part of the design and the price of not adopting a process manager. It is limited to one script. If it becomes a source of bugs, mirrord replaces it.
+- **A service's callee list carries weight.** Nothing detects a missing `svc-*` edge. The call fails at runtime.
+- **A third vendored Node tool.** Prism's image is third-party Node software that the repo runs but does not write. The Playwright runner and the Lowdefy console are the other two. Its scope is strict: a local-only container, no Node in any dev shell, no `package.json`, no lockfile, and never in an image built from our source.
 - **The mock is stateless.** A read after a create does not show the write. A `WorkflowHandle`'s `result_url` polls nothing. This is the true limit of the tier.
 - **Examples need maintenance.** `response-example-required` enforces an example on every `2xx` response. Nothing checks that the example is still true after a schema change. Each example is reviewed as part of the contract diff, which reduces this risk. A wrong example is a wrong contract, visible in the same PR.
 - **The floor is not free.** Cilium, Traefik, cert-manager, Kratos, Oathkeeper, and Postgres must be up before any service runs. That cost removes every development-only auth branch.
@@ -395,9 +394,8 @@ A short, listed set of manifests has no production equivalent:
 - No local tier applies a machine config. The delivery mechanism that [ADR-0206](0206-cluster-networking.md) decides is exercised in a deployed environment, and `infra/talos/` carries no local variant.
 - Cilium is in the floor of both tiers. It comes from the committed chart, with WireGuard on and its eBPF dataplane in place of kube-proxy, and is installed imperatively before Argo CD exists. No Cilium value differs between tiers.
 - Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation as a deployed environment, per [ADR-0114](0114-image-registry.md). So the local image path is not a second product.
-- What runs locally is the floor plus the declared dependencies of the running services. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. `(CI: lint-service-contract, lint-service-deps)`
-- `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script for each component, and each script exits fast when its component is already ready.
-- Every mise task has a command or a dependency. A task with neither passes and does nothing. `(CI: lint-tasks)`
+- What runs locally is the floor plus the declared dependencies of the running services. A service declares `dep-*` for infrastructure and `svc-*` for every service it calls over HTTP. `(CI: lint-service-contract, lint-service-deps)`
+- A `justfile` carries declarations only. Component logic lives in one idempotent installer script for each component, and each script exits fast when its component is already ready.
 - Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`. `:8080` stays unassigned. `(CI: lint-ports)`
 - Every service ships a values file for each environment, or declares `# platform/not-deployed: <env>`. Absence is never inferred. `(CI: lint-service-contract)`
 - Argo CD is the engine for `cluster-up full` only. Uncommitted infra changes go through `cluster-add` or a branch `targetRevision`, never through direct edits to cluster state.

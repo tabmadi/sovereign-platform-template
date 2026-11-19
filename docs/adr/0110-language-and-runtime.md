@@ -132,12 +132,12 @@ The vendor of the frontend framework ships first-party Bun support. The self-hos
 
 ### The three Node islands
 
-Node runs vendored third-party tools. It never runs code we author, and it is never a backend runtime. There are exactly three islands, and none is in the root toolchain. So an engineer who touches none of them never installs Node. The islands are the price of the Bun decision, listed here so that nobody has to find them.
+Node runs vendored third-party tools. It never runs code we author, and it is never a backend runtime. `flake.nix` pins every Node, per [ADR-0100](0100-toolchain.md). The default dev shell holds Node only for the CLI of the frontend framework, whose `next` and Turbopack workers are `#!/usr/bin/env node` binaries that Bun starts. The islands below are the price of the Bun decision, listed here so that nobody has to find them.
 
 | Island | Why Node is unavoidable | Containment |
 | --- | --- | --- |
-| Playwright e2e and visual runner, per [ADR-0601](0601-testing-strategy.md) | browser-process control needs extra-fd pipe transport and worker IPC. Bun does not match these. The gap is upstream, not in our usage. The [support patch](https://github.com/microsoft/playwright/pull/28875) by Bun's own author and the [feature request](https://github.com/microsoft/playwright/issues/38095) are both unmerged | `test/e2e/.mise.toml`, runner and CI only |
-| Lowdefy admin console, per [ADR-0401](0401-internal-admin.md) | installed and run, not built, so upstream chooses the runtime. Its CLI stops without `pnpm` on `PATH`, and its build is a `next build` whose bin is `#!/usr/bin/env node`. The image runs the standalone server of that build, which upstream targets at Node | `apps/admin/.mise.toml` and the image of that app |
+| Playwright e2e and visual runner, per [ADR-0601](0601-testing-strategy.md) | browser-process control needs extra-fd pipe transport and worker IPC. Bun does not match these. The gap is upstream, not in our usage. The [support patch](https://github.com/microsoft/playwright/pull/28875) by Bun's own author and the [feature request](https://github.com/microsoft/playwright/issues/38095) are both unmerged | the `.#e2e` dev shell, with the browsers of nixpkgs, runner and CI only |
+| Lowdefy admin console, per [ADR-0401](0401-internal-admin.md) | installed and run, not built, so upstream chooses the runtime. Its CLI stops without `pnpm` on `PATH`, and its build is a `next build` whose bin is `#!/usr/bin/env node`. The image runs the standalone server of that build, which upstream targets at Node | the `.#admin` dev shell and the image of that app |
 | API mock, per [ADR-0600](0600-local-development-loop.md) | the only contract mock that is complete for OpenAPI 3.1 is a Node program | used as a pinned upstream container. It installs no Node anywhere and adds no `package.json` |
 
 ### What makes a language an escape hatch
@@ -171,12 +171,12 @@ Every escape-hatch service has its own ADR that records the measured need. A Rus
 ## Rules
 
 - Every backend service is written in Go. Another language requires its own ADR that admits the service under a documented escape hatch.
-- The root `.mise.toml` pins the Go version, and no service overrides it. Only a release that still receives upstream security fixes is pinned. Per the [Go release policy](https://go.dev/doc/devel/release), that is one of the two most recent major releases. `(CI: ci-lint)`
+- `flake.nix` pins the Go version, and no service overrides it. Only a release that still receives upstream security fixes is pinned. Per the [Go release policy](https://go.dev/doc/devel/release), that is one of the two most recent major releases. `(CI: ci-lint)`
 - A monetary amount is the shared money type, never a floating-point number. It is `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. `(CI: lint-money)`
 - A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. `(CI: lint-money)`
 - The frontend is TypeScript.
 - Bun is the only JS runtime for code we author. No Go service image, no frontend image, and no artifact built from our own source installs Node. `(CI: lint-node-scope)`
-- Node is never pinned in the root `.mise.toml`. An island that installs Node pins it in its own island config, against the root `[env] NODE_VERSION`. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. `(CI: lint-node-scope)`
+- Node comes only from `flake.nix`: the default dev shell for the frontend CLI, and one dev shell for each island. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. `(CI: lint-node-scope)`
 - A Rust service requires its own ADR. It records the measured inadequacy of Go or a Rust-native canonical ecosystem, and how the service meets [ADR-0500](0500-observability.md).
 - A Python service requires its own ADR, and is admitted only where the library ecosystem is the reason the service exists.
 - JVM, .NET, and JavaScript backends are not permitted, with or without an ADR.

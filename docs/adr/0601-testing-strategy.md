@@ -135,7 +135,7 @@ All e2e and visual tests share one Playwright config in the `test/e2e/` workspac
 
 ### Runtime containment
 
-`test/e2e/.mise.toml` pins Node, never the root toolchain. So Node installs only for a developer who runs the suite. `test/perf/.mise.toml` pins k6 as an island tool. The root `perf*` tasks delegate with `mise run -C test/perf <task>`.
+The `.#e2e` dev shell of `flake.nix` holds the Node and the browsers of Playwright. Its browsers come from nixpkgs, so `@playwright/test` in `test/e2e/package.json` matches the version of `playwright-driver` in nixpkgs. The `e2e*` recipes enter that shell, so the default dev shell carries no browser. The default dev shell holds k6, and the `perf*` recipes run `test/perf/run.sh`.
 
 k6 scenarios are JavaScript on k6's own embedded engine. **This does not extend the Node escape hatch.** `test/perf/` has no `package.json`, no lockfile, no `node_modules`, and no Node binary. `lint-node-scope` asserts that npm exists only in `test/e2e/`.
 
@@ -235,11 +235,11 @@ The CI gate diffs committed, accepted snapshots against the baselines in `test/e
 - Service integration tests run against `cluster-up` plus the service's declared components, and drive services through their generated SDK clients. They do not import the code of another service.
 - Visual regression gates on committed `toHaveScreenshot` baselines. An intended UI change updates the baseline in the same PR.
 - E2e provisions a committed deterministic test identity: an AAL1 user plus an AAL2 operator. No test relies on state created by hand.
-- Node is permitted only as the Playwright runner. It is pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. `(CI: lint-node-scope)`
+- In `test/`, Node is permitted only as the Playwright runner, in the `.#e2e` dev shell. `@playwright/test` matches the `playwright-driver` of nixpkgs. `(CI: lint-node-scope)`
 - k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and self-written generators are not used.
 - Performance tests live in `test/perf/` as committed JavaScript, never as a plan written in a GUI or recorded.
 - `test/perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. `(CI: lint-node-scope)`
-- The k6 binary is pinned in `test/perf/.mise.toml`, never in the root `[tools]`.
+- The k6 binary comes from `flake.lock`, in the default dev shell.
 - Load metrics reach Prometheus as an OTLP push through the OTel collector. No private metrics store, exporter sidecar, or remote-write receiver is added.
 - Load series carry the `k6_*` prefix and `service_name="k6"`. k6's `url`, `name`, and `error` tags are not exported. Request identity is a bounded `endpoint` route-template tag.
 - k6 runs with `--no-usage-report`.

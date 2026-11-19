@@ -5,7 +5,7 @@
     "clientKind": "git",
     "useIgnoreFile": true,
     // The config lives in .config/, per ADR-0104. The git root is the working folder of every recipe.
-    "root": "."
+    "root": ".",
   },
   "files": {
     // JSON belongs to dprint, per ADR-0104, so Biome reads only code and CSS.
@@ -33,25 +33,25 @@
       "!**/apps/frontend/public/devportal",
       // The test/e2e/ Playwright workspace is the approved Node island with its own toolchain, per ADR-0601.
       // The frontend React preset does not apply to it. Its own tsconfig and the Playwright compile type-check it.
-      "!**/test/e2e"
-    ]
+      "!**/test/e2e",
+    ],
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "css": {
-    "parser": { "tailwindDirectives": true }
+    "parser": { "tailwindDirectives": true },
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 100,
   },
   "javascript": {
     "formatter": {
       "quoteStyle": "double",
       "semicolons": "always",
-      "trailingCommas": "all"
-    }
+      "trailingCommas": "all",
+    },
   },
   "linter": {
     "enabled": true,
@@ -72,17 +72,17 @@
         // A React Native rule. This is a React app for the web, per ADR-0400.
         "noReactNativeRawText": "off",
         // A Solid.js-only rule. This is a React app, per ADR-0400.
-        "noSolidDestructuredProps": "off"
+        "noSolidDestructuredProps": "off",
       },
       "performance": {
         // A Solid.js-only rule. This is a React app, per ADR-0400.
         "useSolidForComponent": "off",
         // radix-ui is imported as one package, the way shadcn/ui generates it.
-        "noBarrelFile": "off"
+        "noBarrelFile": "off",
       },
       "suspicious": {
         // A Solid.js-only rule. This is a React app, per ADR-0400.
-        "noReactSpecificProps": "off"
+        "noReactSpecificProps": "off",
       },
       "style": {
         // Inline copy blocks a merge, per ADR-0400: every string a reader sees comes from src/messages/.
@@ -116,12 +116,12 @@
               "dynamic",
               "revalidate",
               "fetchCache",
-              "runtime"
-            ]
-          }
-        }
-      }
-    }
+              "runtime",
+            ],
+          },
+        },
+      },
+    },
   },
   "overrides": [
     {
@@ -133,9 +133,9 @@
         "rules": {
           "suspicious": { "noBitwiseOperators": "off" },
           "style": { "noIncrementDecrement": "off" },
-          "security": { "noSecrets": "off" }
-        }
-      }
+          "security": { "noSecrets": "off" },
+        },
+      },
     },
     {
       // App Router route segments and config files use default exports.
@@ -143,9 +143,9 @@
       "includes": ["**/app/**", "**/*.config.{js,cjs,mjs,ts}"],
       "linter": {
         "rules": {
-          "style": { "noDefaultExport": "off", "useComponentExportOnlyModules": "off" }
-        }
-      }
+          "style": { "noDefaultExport": "off", "useComponentExportOnlyModules": "off" },
+        },
+      },
     },
     {
       // The data seam, per ADR-0701. A screen states its data, and `lib/data/` chooses the generated SDK or a fixture.
@@ -161,14 +161,14 @@
                 "patterns": [
                   {
                     "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
-                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
+                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture",
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
     },
     {
       // Route-group isolation, per ADR-0111: a route group does not import from another.
@@ -184,18 +184,18 @@
                 "patterns": [
                   {
                     "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
-                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture"
+                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture",
                   },
                   {
                     "group": ["**/app/(panel)/**", "**/app/(devportal)/**"],
-                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
+                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/",
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
     },
     {
       // Route-group isolation, per ADR-0111: a route group does not import from another.
@@ -211,18 +211,18 @@
                 "patterns": [
                   {
                     "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
-                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture"
+                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture",
                   },
                   {
                     "group": ["**/app/(landing)/**", "**/app/(devportal)/**"],
-                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
+                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/",
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
     },
     {
       // Route-group isolation, per ADR-0111: a route group does not import from another.
@@ -238,25 +238,25 @@
                 "patterns": [
                   {
                     "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
-                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture"
+                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture",
                   },
                   {
                     "group": ["**/app/(landing)/**", "**/app/(panel)/**"],
-                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
+                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/",
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
     },
     {
       // The design catalogue of ADR-0400 is a developer tool behind the devportal session gate.
       // Its labels, such as `Outline` or a token path, name primitives and states. They are not product copy.
       // They stay in English by decision. Translation adds about 75 keys that no reader sees to every catalogue.
       "includes": ["**/devportal/kitchen-sink/**"],
-      "linter": { "rules": { "style": { "noJsxLiterals": "off" } } }
+      "linter": { "rules": { "style": { "noJsxLiterals": "off" } } },
     },
     {
       // The next-intl plugin loads this request configuration by path. Upstream sets its shape:
@@ -264,9 +264,9 @@
       "includes": ["**/apps/frontend/src/i18n/request.ts"],
       "linter": {
         "rules": {
-          "style": { "noDefaultExport": "off", "useComponentExportOnlyModules": "off" }
-        }
-      }
+          "style": { "noDefaultExport": "off", "useComponentExportOnlyModules": "off" },
+        },
+      },
     },
     {
       // Fixtures and tests hold wire identifiers of 26 base32 characters, per ADR-0003. The entropy check reads them as secrets.
@@ -274,14 +274,14 @@
       "includes": [
         "**/apps/frontend/src/fixtures/**",
         "**/apps/frontend/src/**/*.test.ts",
-        "**/apps/frontend/src/**/*.test.tsx"
+        "**/apps/frontend/src/**/*.test.tsx",
       ],
-      "linter": { "rules": { "security": { "noSecrets": "off" } } }
+      "linter": { "rules": { "security": { "noSecrets": "off" } } },
     },
     {
       // Writes to stdout through console before slog and OTLP start.
       "includes": ["**/apps/frontend/src/lib/observability/server.ts"],
-      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } },
     },
     {
       // Vendored shadcn/ui source, per ADR-0400: third-party primitives and the token CSS, unchanged from upstream.
@@ -290,12 +290,12 @@
         "**/apps/frontend/src/components/ui/**",
         "**/apps/frontend/src/utils/is-react-component.ts",
         "**/apps/frontend/src/styles/theme.css",
-        "**/apps/frontend/src/styles/globals.css"
+        "**/apps/frontend/src/styles/globals.css",
       ],
       "linter": { "enabled": false },
       "formatter": { "enabled": false },
       // Import order too. With upstream's order, the next `shadcn add` changes nothing that exists.
-      "assist": { "enabled": false }
+      "assist": { "enabled": false },
     },
     {
       // k6 load scenarios, per ADR-0601. A k6 script cannot meet four rules, so only those rules are off.
@@ -308,21 +308,21 @@
             // There is no package.json to declare them in, and there must not be one.
             "noUndeclaredDependencies": "off",
             // `__ENV` is k6's environment global.
-            "noUndeclaredVariables": "off"
+            "noUndeclaredVariables": "off",
           },
           // A scenario's entrypoint is `export default function`. This is k6's contract.
           "style": { "noDefaultExport": "off" },
           // console is the only output inside the k6 VM. There is no slog and no OTLP logger.
           // The ADR-0500 rule covers services.
-          "suspicious": { "noConsole": "off" }
-        }
-      }
+          "suspicious": { "noConsole": "off" },
+        },
+      },
     },
     {
       // The canonical Oathkeeper access rules, per ADR-0304. They are written by hand with one rule on each line.
       // Helm reads the file unchanged through --set-file. Biome's formatter puts it on one line, so never format it.
       "includes": ["**/infra/auth/oathkeeper/access-rules.json"],
-      "formatter": { "enabled": false }
-    }
-  ]
+      "formatter": { "enabled": false },
+    },
+  ],
 }

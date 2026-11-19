@@ -26,8 +26,8 @@ Everything else is opt-in. **The service that needs a dependency declares it.** 
 
 ```sh
 just cluster-up                 # the floor
-mise run -C services/orders server    # starts dep-postgres, dep-openfga, and dep-temporal first
-mise run -C services/orders worker    # also starts svc-catalog and svc-payment, which the saga calls
+(cd services/orders && just server)    # starts dep-postgres, dep-openfga, and dep-temporal first
+(cd services/orders && just worker)    # also starts svc-catalog and svc-payment, which the saga calls
 ```
 
 `lint-service-deps` checks those `depends` lists against the code. So a dependency that the code has and the list does not have fails in CI. It does not cause a confusing failure at run time.
@@ -36,7 +36,7 @@ mise run -C services/orders worker    # also starts svc-catalog and svc-payment,
 
 | Mode | Command | Use it when | It cannot |
 | --- | --- | --- | --- |
-| **native** | `just service-dev <svc>`, then `mise run -C services/<svc> server` | you want a debugger, or a change every second | see the env or files of the pod. NetworkPolicy does not apply to it |
+| **native** | `just service-dev <svc>`, then `just server` in `services/<svc>/` | you want a debugger, or a change every second | see the env or files of the pod. NetworkPolicy does not apply to it |
 | **in-cluster** | `just cluster-add <svc>` | you need the real pod: its env, its mounts, and its policy | attach a debugger. It also costs one image build for each change |
 
 Both modes sit behind the real edge. Native mode stamps an IngressRoute and an EndpointSlice that point at the host. So Traefik routes to your process, and your process gets **real Oathkeeper identity headers**. These are the same headers that the pod would get.

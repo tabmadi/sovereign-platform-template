@@ -72,9 +72,9 @@ The set is large, and each task needs a small part of it. Grep the Rules section
 - **Planned work goes in a local `*.local.md` file.** `.gitignore` excludes these files, and nothing committed links to them.
   - `PLAN.local.md` is this repo's plan file. Record there any gap you find between a decision and the code.
   - The file can be absent. That is normal, because each engineer keeps their own and it is not tracked.
-  - Never create a committed roadmap, backlog, or status file to replace it. Every generated project inherits a tracked plan and then carries someone else's backlog.
+  - Never create a committed roadmap, backlog, or status file to replace it. A tracked plan turns one engineer's backlog into everyone's.
   - A `*.local.md` file and its content are private to the engineer who wrote it. Never cite, quote, or reference one in a commit, a doc, a PR description, or any other output. If some of its content is worth keeping, write it again in the ADR or doc where it belongs.
-- **Audience.** Every project generated from this repo inherits the ADR set. So write an ADR for the engineer who maintains the platform, not for a person who decides whether to adopt it. Never write `this template targets` or `when not to use this` in an ADR. That is selection guidance, and it belongs in the root `README.md`. Nothing under `docs/` links to that file, because a generated project rewrites it, per [ADR-0001](docs/adr/0001-documentation-conventions.md).
+- **Audience.** Write an ADR for the engineer who maintains the platform, not for a person who decides whether to adopt it. Never write `when not to use this` in an ADR. That is selection guidance, and it belongs in the root `README.md`. Nothing under `docs/` links to that file, per [ADR-0001](docs/adr/0001-documentation-conventions.md).
 - **Component tiers and the operational budget** are in [docs/operational-surface.md](docs/operational-surface.md): Core, Scale, and Opt-in. It is also the **only** place where platform components are counted.
 - **Before you write a number, ask whether doubling it would change the decision.**
   - If it would, the number is a threshold or a sizing measurement. State it with the conditions it was measured under.
@@ -83,12 +83,12 @@ The set is large, and each task needs a small part of it. Grep the Rules section
 
 ## Working in the repo
 
-- The task runner is `mise`, configured in the root `.mise.toml`. Run a task with `mise run <task>`. `just cluster-up` and `cluster-up full` start the local cluster, per [ADR-0600](docs/adr/0600-local-development-loop.md).
-- `mise` pins and installs the tools. In a shell where mise is not active, a bare tool call such as `kubectl`, `helm`, `go`, or `bun` comes from `PATH`. That is usually a version in the home folder, and it is not pinned.
-  - Activate mise with `mise activate` or its shims before you call a pinned tool by name.
-  - `mise run <task>` activates the toolchain for that task only. A bare tool call does not.
+- Nix pins every tool, per [ADR-0100](docs/adr/0100-toolchain.md). Enter the dev shell with `nix develop`, or allow `.envrc` with direnv. Outside it, a bare `kubectl`, `helm`, `go`, or `bun` comes from `PATH`, and it is not pinned.
+- `just` runs every task, per [ADR-0103](docs/adr/0103-tasks.md). `just --list` lists the recipes. A recipe that calls a tool stops outside the dev shell. `just cluster-up` and `just cluster-up full` start the local cluster, per [ADR-0600](docs/adr/0600-local-development-loop.md).
+- The recipes of one service are in `services/<name>/justfile`. Run them from that folder, such as `just server`.
+- The Playwright suite runs in `nix develop .#e2e`, and the Lowdefy console in `nix develop .#admin`. The `e2e*` recipes enter that shell for you.
 - Generated code is committed, and CI checks it for drift, per [ADR-0000](docs/adr/0000-platform-foundations.md) and [ADR-0303](docs/adr/0303-api-contracts-and-lifecycle.md). Regenerate it with `just gen`. Do not edit generated files by hand.
 - Argo CD reconciles the cluster from `master`. A change in the working tree is not visible in the cluster until someone pushes it, per [ADR-0201](docs/adr/0201-gitops.md).
   - To test uncommitted work on the full tier, pause Argo CD first with `just argo-pause`. Resume it with `just argo-resume` when you finish.
   - While Argo CD is paused, the cluster stops tracking `master` and gives no warning. Never leave it paused.
-- Before you finish a change, run `just check` or `just pre-commit` to lint, test, and format. `just test`, `lint`, and `format` run each step alone.
+- Before you finish a change, run `just check`, which lints, tests, and builds. `just ci` runs every check in the Nix sandbox, as CI does. `just format` applies every formatter.

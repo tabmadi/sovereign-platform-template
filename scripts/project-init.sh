@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Turns a copy of the template into a project, per ADR-0117 and ADR-0003: `just init`.
-# It asks the seven questions, renames the project, applies the setup modes, and then removes itself.
-#
-#   just init                          asks each question, with the default in brackets
-#   just init --answers <file.yml>     reads the answers from a file, and takes the default for a missing key
-#   just init --defaults               takes every default
+# Turns a copy into a project, per ADR-0117: seven questions, the rename, and the modes. Then it removes itself.
+# `just init` asks each question. `--answers <file.yml>` reads them from a file, and `--defaults` takes every default.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

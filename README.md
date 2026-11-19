@@ -192,7 +192,8 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 | Backend language | Go | [0110](docs/adr/0110-language-and-runtime.md) |
 | Frontend | Next.js and TypeScript on Bun, one app with route groups | [0110](docs/adr/0110-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) |
 | Design system | `shadcn/ui`, vendored as source, on Tailwind, with the brand in one token file | [0400](docs/adr/0400-frontend.md), [0701](docs/adr/0701-product-design-and-discovery.md) |
-| Task runner | `mise` | [0111](docs/adr/0111-monorepo.md) |
+| Toolchain | Nix with flakes, through the shared tabnix module | [0100](docs/adr/0100-toolchain.md) |
+| Task runner | `just` | [0103](docs/adr/0103-tasks.md), [0111](docs/adr/0111-monorepo.md) |
 | Machines | Talos Linux, configured by machine config | [0200](docs/adr/0200-cluster-topology.md) |
 | Cloud resources | Terraform, for each project. Skipped where the infrastructure is provided | [0200](docs/adr/0200-cluster-topology.md) |
 | Cluster | upstream Kubernetes on etcd in every tier, on kind for both local tiers | [0200](docs/adr/0200-cluster-topology.md), [0600](docs/adr/0600-local-development-loop.md) |
@@ -220,22 +221,24 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 | Internal admin | Lowdefy over the service APIs. pgweb, read-only | [0401](docs/adr/0401-internal-admin.md) |
 | Analytics | Faro events into a first-party service | [0700](docs/adr/0700-analytics.md) |
 | Dependency updates | Renovate, grouped, with digest pinning | [0117](docs/adr/0117-updates-and-setup-modes.md) |
-| Template propagation | Copier, which tracks upstream with a 3-way merge | [0117](docs/adr/0117-updates-and-setup-modes.md) |
+| Making and updating a project | `nix flake new -t` and `just init`. A coding agent applies a later release with `template/UPDATE.md` | [0117](docs/adr/0117-updates-and-setup-modes.md) |
 
 ---
 
 ## Getting started
 
 ```sh
-# One-time setup
-curl https://mise.run | sh
-mise install                    # pinned toolchain from .mise.toml
-just setup                  # git hooks
-just secrets-age            # generate your age key, per ADR-0202
+# A new project
+nix flake new -t github:tabmadi/sovereign-platform-template my-platform
+cd my-platform && git init && git add -A
+nix develop                     # the pinned toolchain from flake.lock, and the git hooks
+just init                       # seven questions: names, forge, and provisioning
+just bootstrap                  # dependencies, .env, and the SOPS keys
+just secrets-age                # your age key, per ADR-0202
 
 # Local cluster: the same charts as production, on two tiers
-just cluster-up             # the floor: edge, identity, Postgres, mocks
-just cluster-up full     # the whole platform, driven by ArgoCD, with observability
+just cluster-up                 # the floor: edge, identity, Postgres, mocks
+just cluster-up full            # the whole platform, driven by Argo CD, with observability
 
 # Inner loop on one service: a native process, no image build
 cd services/catalog
@@ -322,7 +325,7 @@ This repo offers the falsifiable half instead. Every decision states what it was
 ## Using this repo
 
 - **It is a template, not a product.** Fork it and own your copy. There is no support channel and no compatibility promise.
-- **Generated projects** track upstream through the 3-way merge of Copier.
+- **A project** takes a later release through a coding agent that follows `template/UPDATE.md`, and `just ci` decides.
 - **Disagreement is expected.** The ADRs record the reasons so that you can overturn a decision on purpose, not by accident. If a comparison table is wrong, that is the most useful issue you can open.
 
 ## License

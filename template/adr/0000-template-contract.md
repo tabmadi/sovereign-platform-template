@@ -79,7 +79,7 @@ A dependency added here is a dependency of every project. So the template adds o
 
 The root `README.md` describes the template. A new project rewrites it, and the welcome text says so.
 
-`.github/workflows/template.yml` must stay in `.github/workflows/` to run. `scope.nix` leaves it out of the `templates` output, `just init` removes it from a clone, and a check on the repository name stops it in any other copy.
+`.github/workflows/template.yml` must stay in `.github/workflows/` to run. `scope.nix` leaves it out of the `templates` output, and `just init` removes it from a clone. A check on the repository name stops it in any other copy.
 
 An update is only as good as the agent and the gate. The gate catches what breaks, and the review of the pull request catches what the gate cannot see.
 

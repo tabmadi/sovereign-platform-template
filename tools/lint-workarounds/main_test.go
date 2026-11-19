@@ -8,7 +8,7 @@ import (
 func TestCheck(t *testing.T) {
 	t.Parallel()
 	pins := map[string]string{
-		"pins.toml": "[tools]\ncosign = \"2.4.1\"\n",
+		"pins.toml":  "[tools]\ncosign = \"2.4.1\"\n",
 		"Chart.yaml": "dependencies:\n  - name: traefik\n    version: \"37.1.0\"\n",
 	}
 	read := func(path string) (string, bool) {

@@ -6,7 +6,7 @@ import { TracingInstrumentation } from "@grafana/faro-web-tracing";
 import { fingerprint } from "@libs/observability";
 
 const INGEST = "/api/rum";
-const FIRST_PARTY_API = /\/api\//u;
+const FIRST_PARTY_API = /[/]api[/]/u;
 
 let initialized = false;
 

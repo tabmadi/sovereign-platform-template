@@ -4,7 +4,7 @@ These are lookup tables for the local cluster: ports, URLs, and the environment 
 
 ## Service ports on the host
 
-`scripts/lib/ports.sh` assigns the ports, and each service's `.mise.toml` sets its port as `PORT`. `lint-ports` enforces that the two agree and that no two services collide.
+`scripts/lib/ports.sh` assigns the ports, and each service's `justfile` sets its port as `PORT`. `lint-ports` enforces that the two agree and that no two services collide.
 
 | Service | Host port |
 | --- | --- |

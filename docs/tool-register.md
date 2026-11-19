@@ -42,7 +42,6 @@ To leave the tool takes a rewrite or a migration of several months. The owning A
 | Traefik | edge routing | [0305](adr/0305-edge-auth-and-traffic-policy.md) | MIT | Traefik Labs, single-vendor | Envoy Gateway | Envoy Gateway, ingress-nginx, HAProxy, Contour |
 | Forgejo | forge and CI | [0116](adr/0116-forge-and-pipelines.md) | GPL-3.0-or-later | Codeberg e.V., non-profit | Gitea | Gitea, GitLab CE, Gogs, a provider-hosted forge |
 | OpenAPI and REST | service interface contract | [0303](adr/0303-api-contracts-and-lifecycle.md) | specification, not a tool | OpenAPI Initiative, Linux Foundation | gRPC with a transcoding gateway | gRPC, Connect, GraphQL, tRPC, JSON-RPC |
-| Copier | template propagation | [0117](adr/0117-updates-and-setup-modes.md) | MIT | maintainer-led | a git remote with periodic merges | Cookiecutter, a git remote, copy-once |
 
 ## Tier 2: substitutable
 
@@ -96,14 +95,17 @@ The tool is a bounded swap behind a stable interface. The owning ADR has a short
 | Lighthouse CI | frontend performance budget | [0400](adr/0400-frontend.md) | Apache-2.0 | Google | WebPageTest, Calibre, bundle-size checks alone |
 | kind | inner-loop local cluster | [0600](adr/0600-local-development-loop.md) | Apache-2.0 | Kubernetes SIGs | Talos in Docker, k3d, minikube, Docker Desktop and Orbstack Kubernetes, Docker Compose, a remote dev cluster |
 | talosctl | full-tier local cluster, provisioned from the machine config [ADR-0200](adr/0200-cluster-topology.md) decides | [0600](adr/0600-local-development-loop.md) | MPL-2.0 | Sidero Labs, single-vendor | k3d, kind, minikube, Docker Desktop and Orbstack Kubernetes for the full tier |
-| mise | task runner and tool pinning | [0111](adr/0111-monorepo.md) | MIT | maintainer-led | Make, Task, `just`, asdf, Nix |
+| Nix with flakes | tool pinning, dev shells, and the checks of CI | [0100](adr/0100-toolchain.md) | LGPL-2.1 | NixOS Foundation | asdf, Dev Containers, devbox, Flox, devenv, pixi, Guix |
+| `just` | task runner | [0103](adr/0103-tasks.md) | CC0-1.0 | maintainer-led | Make, Task, npm scripts, flake apps, Earthly |
+| dprint | JSON, JSONC, TOML, and YAML format | [0104](adr/0104-formatters-and-linters.md) | MIT | maintainer-led | Biome with Taplo and yamlfmt, Prettier |
+| nixfmt | Nix format | [0104](adr/0104-formatters-and-linters.md) | MPL-2.0 | NixOS | none with the standing of RFC 166 |
 | golangci-lint | Go linting | [0111](adr/0111-monorepo.md) | GPL-3.0 | maintainer-led | `go vet` alone, revive, staticcheck standalone |
 | Biome | TypeScript lint and format | [0111](adr/0111-monorepo.md) | MIT OR Apache-2.0 | maintainer-led | ESLint and Prettier, oxlint, dprint |
-| rumdl | Markdown lint and format | [0111](adr/0111-monorepo.md) | MIT | maintainer-led | markdownlint, Vale, Prettier for Markdown |
+| rumdl | Markdown lint and format | [0104](adr/0104-formatters-and-linters.md) | MIT | maintainer-led | markdownlint-cli2, mdformat |
 | tablint | prose, comment, and ADR lint | [0111](adr/0111-monorepo.md) | Apache-2.0 | the template's owner | Go linters in `tools/`, Vale with Conftest |
-| gitleaks | plaintext-secret scanning | [0202](adr/0202-secrets.md) | MIT | gitleaks organisation, maintainer-led | trufflehog, detect-secrets, review alone |
+| gitleaks | plaintext-secret scanning | [0101](adr/0101-source-control-and-ci.md), [0202](adr/0202-secrets.md) | MIT | gitleaks organisation, maintainer-led | trufflehog, detect-secrets, review alone |
 | shellcheck and shfmt | shell lint and format | [0111](adr/0111-monorepo.md) | GPL-3.0 and BSD-3-Clause | maintainer-led | no shell lint, shellharden |
-| lefthook | git hooks | [0111](adr/0111-monorepo.md) | MIT | Evil Martians | husky, pre-commit, a committed `.githooks` directory |
+| git-hooks.nix and prek | git hooks | [0101](adr/0101-source-control-and-ci.md) | MIT | cachix and maintainer-led | husky, pre-commit |
 | cocogitto | Conventional Commits and CalVer | [0112](adr/0112-release-and-versioning.md) | MIT | maintainer-led | commitlint, semantic-release, release-please, git-cliff |
 | act | local workflow execution | [0116](adr/0116-forge-and-pipelines.md) | MIT | nektos, maintainer-led | pushing to a branch, a self-hosted runner locally |
 | Renovate | dependency updates | [0117](adr/0117-updates-and-setup-modes.md) | AGPL-3.0 | Mend, single-vendor | Dependabot, per-ecosystem updaters, manual sweeps |

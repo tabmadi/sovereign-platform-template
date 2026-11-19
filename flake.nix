@@ -272,7 +272,9 @@
 
           checks = {
             lint-data = lib.mkForce (
-              config.tabnix.check "lint-data" [ dprint ] "DPRINT_CACHE_DIR=$TMPDIR/dprint dprint check ${dprintExcludes}"
+              config.tabnix.check "lint-data" [
+                dprint
+              ] "DPRINT_CACHE_DIR=$TMPDIR/dprint dprint check ${dprintExcludes}"
             );
             build = gate "build" "build";
             test-go = gate "test-go" "test-go";
@@ -281,6 +283,13 @@
             lint-ts = gate "lint-ts" "lint-ts";
             lint-platform = gate "lint-platform" "lint-platform";
             gen = gate "gen" "ci-gen";
+            # The e2e shell runs the browsers of nixpkgs, so the test runner must be the same release, per ADR-0601.
+            e2e-playwright = pkgs.runCommand "e2e-playwright" { nativeBuildInputs = [ pkgs.jq ]; } ''
+              want=${pkgs.playwright-driver.version}
+              have=$(jq -r '.devDependencies["@playwright/test"]' ${./test/e2e/package.json})
+              [ "$have" = "$want" ] || { echo "@playwright/test is $have, and playwright-driver in nixpkgs is $want" >&2; exit 1; }
+              touch $out
+            '';
           };
         };
     };

@@ -4,7 +4,7 @@
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
 - **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0102](0102-dependency-updates.md), [ADR-0111](0111-monorepo.md), [ADR-0113](0113-supply-chain-security.md), [ADR-0116](0116-forge-and-pipelines.md), [ADR-0003](0003-naming-and-identifiers.md)
-- **Decides:** Renovate runs from the scheduled workflow with the update classes of this platform, and `just init` applies the identity and the setup modes of a project once.
+- **Decides:** Renovate runs from a scheduled workflow with the update classes of this platform, and `just init` sets the identity and the modes of a project.
 
 ## Context
 
@@ -26,7 +26,7 @@ Some files also fit one setup of a project and not another. The permissions bloc
 1. **Every forge.** The update run works on each forge of [ADR-0116](0116-forge-and-pipelines.md).
 2. **Config in the repo.** The rules that group the pins are reviewed files, per principle 1 of [ADR-0000](0000-platform-foundations.md).
 3. **A fixed cadence.** Updates arrive in a weekly slot, per [`operational-surface.md`](../operational-surface.md), and a fixed CVE arrives at once.
-4. **The derived files follow.** A bump that changes `go.sum`, `bun.lock`, or a `Chart.lock` also updates the hash or the file that Nix derives from it, so the gate can pass.
+4. **The derived files follow.** A bump of `go.sum`, `bun.lock`, or a `Chart.lock` also updates what Nix derives from it. So the gate can pass.
 5. **One setup per project.** A project holds the files of the setup it chose, and no file of a setup it did not choose.
 
 ## Considered options
@@ -52,7 +52,7 @@ Sources:
 | --- | --- | --- |
 | Ship every setup, and let each project delete what it does not need | No. A project keeps files that do not apply to it until someone notices | Rejected |
 | One template for each setup | Yes, at the cost of a copy of the platform for each setup | Rejected. Six copies of one platform drift apart |
-| **A question of `just init` for each mode. It removes the paths of the modes that the project did not choose, and runs the script of a mode that edits files in place** | **Yes** | **Chosen** |
+| **A question of `just init` for each mode. It removes the paths of the other modes, and runs the script of a mode that edits files in place** | **Yes** | **Chosen** |
 
 ## Decision
 
@@ -88,7 +88,7 @@ The weekly batch is recurring work, in the sense of [`operational-surface.md`](.
 
 `just init` asks seven questions. Five name the project: the product name, the slug of [ADR-0003](0003-naming-and-identifiers.md), the Go module path, the apex host, and the image registry. Two choose a mode: the forge and the provisioning. [`docs/reference/modes.md`](../reference/modes.md) lists the modes and their paths.
 
-`just init` runs `scripts/project-rename.sh`, which replaces the names in every file. It removes the paths of the modes that the project did not choose, and it runs `scripts/forge-mode.sh`, which edits the workflows in place for the `forgejo` mode. It writes the answers into `infra/project.yaml`, which the scripts of `infra/` read. Then it removes these scripts and itself.
+`just init` runs `scripts/project-rename.sh`, which replaces the names in every file. It removes the paths of the modes that the project did not choose. It runs `scripts/forge-mode.sh`, which edits the workflows in place for the `forgejo` mode. It writes the answers into `infra/project.yaml`, which the scripts of `infra/` read. Then it removes these scripts and itself.
 
 ## Consequences
 

@@ -376,7 +376,7 @@ A Rule that a machine can check names the mechanism, so a reader can find and re
 
 | Annotation | Means |
 | --- | --- |
-| `(CI: <recipe>)` | a named `just` recipe rejects the violation. The annotation names the recipe, never the workflow file that calls it. [ADR-0116](0116-forge-and-pipelines.md) makes the recipe the portable name and the workflow a thin caller |
+| `(CI: <task>)` | a named `just` recipe rejects the violation. The annotation names the recipe, never the workflow file that calls it. [ADR-0116](0116-forge-and-pipelines.md) makes the recipe the portable name and the workflow a thin caller |
 | `(enforced: <policy>)` | admission control rejects it in the cluster, and CI cannot bypass that |
 | `(ref: <standard>)` | the adopted external standard is the rule |
 
@@ -433,7 +433,7 @@ The named mechanism is one the ADR set decides on. A recipe or policy that no de
 - An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet.
 - Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. `(CI: lint-md, lint-prose)`
 - ADR numbers come in blocks of a hundred by layer, per [`docs/adr/README.md`](README.md).
-- A `(CI: <recipe>)` annotation names a `just` recipe that exists, never the workflow file that calls it. `(CI: lint-prose)`
+- A `(CI: <task>)` annotation names a `just` recipe that exists, never the workflow file that calls it. `(CI: lint-prose)`
 - A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups, `docs/requirements/` for journey requirements. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. `(CI: lint-prose)`
 - The filename carries the topic, never a directory that holds a single file. No two documents in `docs/` share a filename. `(CI: lint-prose)`
 - Structured logs carry a lowercase message with no final punctuation and no symbols. Context is in OTel-conventioned attributes, never interpolated into the string. `(ref: OTel semconv)`

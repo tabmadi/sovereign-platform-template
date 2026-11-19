@@ -26,7 +26,7 @@ init *args:
 bootstrap: setup-node
     bash scripts/bootstrap.sh
 
-# Create, resume, or repair a local tier: just cluster-up, or just cluster-up full
+# Create, resume, or repair a local tier. The argument `full` selects the full tier
 cluster-up *args: in-shell
     bash scripts/cluster.sh up "$@"
 

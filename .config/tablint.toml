@@ -10,7 +10,6 @@ ignore = ['\((?:reasoned|documented|measured|grade)\b[^()]*(?:\([^()]*\)[^()]*)*
 paths = [
   "{apps,libs,services,tools,scripts,infra,test}/**/*.{go,ts,tsx,sh,toml,sql,yaml,yml}",
   "{.github,.forgejo}/workflows/**",
-  ".mise.toml",
 ]
 skip-dirs = ["node_modules", ".next", "dist", "build", "_generated", "sdks", "schemas", "secrets", "testdata"]
 directives = ["platform/not-deployed"]

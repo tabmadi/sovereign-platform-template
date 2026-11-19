@@ -96,7 +96,7 @@ Under CalVer, a breaking marker computes no version bump. It does three things:
 - It flags the change for review.
 - For the API surface, it is the signal that [ADR-0303](0303-api-contracts-and-lifecycle.md) keys off.
 
-`cocogitto` enforces the format through a lefthook `commit-msg` hook. CI runs `cog check` again over the commit range of the pull request, as part of `just ci-lint`. [ADR-0116](0116-forge-and-pipelines.md) keeps CI logic in tasks, not in workflow steps. A squash-merge produces one commit whose title is a valid Conventional Commit. Merge commits are not used.
+`cocogitto` enforces the format through the `commit-msg` hook of [ADR-0101](0101-source-control-and-ci.md). CI runs `cog check` again over the commit range of the pull request, as part of `just ci-lint`. [ADR-0116](0116-forge-and-pipelines.md) keeps CI logic in recipes, not in workflow steps. A squash-merge produces one commit whose title is a valid Conventional Commit. Merge commits are not used.
 
 ### One repo-wide CalVer line
 

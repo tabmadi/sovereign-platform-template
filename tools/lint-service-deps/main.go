@@ -35,7 +35,6 @@ var recipeHeader = regexp.MustCompile(`(?m)^([a-z][a-z0-9-]*)( [^:\n]*)?:`)
 // rootCall matches the body line of a service recipe that brings up recipes of the root justfile.
 var rootCall = regexp.MustCompile(`(?m)^\s+just --justfile \.\./\.\./justfile (.+)$`)
 
-
 func main() {
 	lint.Main("a service entrypoint does not declare what it uses", run)
 }

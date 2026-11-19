@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 210 |
-| Review-enforced | 407 |
-| **Total** | **617** |
+| Review-enforced | 403 |
+| **Total** | **613** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -33,14 +33,14 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Novelty is spent by exit cost: freely where abandonment costs days, and conservatively where it costs months and customer data. | review |
 | One primitive per concern. Parallel mechanisms for the same problem require an ADR that retires the incumbent. | review |
 | One primitive per concern covers the repository's own machinery. A task, script, test, or workflow names the failure class it owns or the mechanism it replaces. One that names neither, or duplicates the work of another, is deleted. Additions and deletions land in the same change. | review |
-| Go and TypeScript only. No tool may assume a runtime that is not pinned in `.mise.toml`. | `lint-node-scope` in CI |
+| Go and TypeScript only. No tool may assume a runtime that is not pinned in `flake.lock`, per [ADR-0100](../adr/0100-toolchain.md). | `lint-node-scope` in CI |
 | Licence, governing body, and project maturity are **recorded** for every component and **do not veto** a choice. | review |
 | Local and production differ in topology only. Charts, code, and commands do not diverge. | review |
 | Generated code is committed and drift-checked in CI. | `ci-gen` in CI |
 | Service-to-service communication is HTTP through generated OpenAPI clients. Shared databases, shared code, and cross-service workflow calls are forbidden. | `ci-lint` in CI |
 | Local development uses the same Helm charts, container images, and commands as production. Topology may differ, and the interface may not. | review |
 
-## ADR-0001: Documentation and Output Conventions
+## ADR-0001: Documentation Conventions
 
 [Full decision](../adr/0001-documentation-conventions.md)
 
@@ -60,10 +60,10 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Second person is the voice of the tutorial and how-to genres. An ADR addresses no reader: it states what is true of the platform, and its Rules read as law, not as instructions. | review |
 | Every word carries meaning. A clause whose deletion does not change the meaning is deleted. | review |
 | Three or more items that share two or more attributes are a table. Three or more parallel items are a list. | review |
-| Intensifiers, hedges, meta-commentary, questions, and chronology are not used in template docs. | `lint-prose` in CI |
+| Intensifiers, hedges, meta-commentary, questions, and chronology are not used in docs. | `lint-prose` in CI |
 | Figurative language is limited to the [ADR-0000](../adr/0000-platform-foundations.md) vocabulary. | review |
 | A number is stated only if doubling it would change the decision: a threshold, a measurement that set a value, or a count of what is on the same page. An illustrative figure becomes the shape it shows. A count of live state elsewhere becomes a link to its registry. | review |
-| A tool's release version is not stated. A specification version, a licence identifier, and a capability boundary stated as a floor are not tool versions. The pin lives in the lockfile, `.mise.toml`, or the chart. | review |
+| A tool's release version is not stated. A specification version, a licence identifier, and a capability boundary stated as a floor are not tool versions. The pin lives in a lockfile, `flake.lock`, or the chart. | review |
 | A fact appears in exactly one ADR. Every other mention is a link. | review |
 | Markdown is not hard-wrapped: one line per paragraph, list item, or table row. | `lint-md` in CI |
 | Tables are compact, never padded: one space inside each pipe and a bare `---` delimiter. | `lint-md` in CI |
@@ -73,7 +73,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. | review |
 | Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. | `lint-md, lint-prose` in CI |
 | ADR numbers come in blocks of a hundred by layer, per [`docs/adr/README.md`](../adr/README.md). | review |
-| A  annotation names a `mise` task that exists, never the workflow file that calls it. | `<task>` in CI |
+| A  annotation names a `just` recipe that exists, never the workflow file that calls it. | `<recipe>` in CI |
 | A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups, `docs/requirements/` for journey requirements. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. | `lint-prose` in CI |
 | The filename carries the topic, never a directory that holds a single file. No two documents in `docs/` share a filename. | `lint-prose` in CI |
 | Structured logs carry a lowercase message with no final punctuation and no symbols. Context is in OTel-conventioned attributes, never interpolated into the string. | standard: OTel semconv |
@@ -209,12 +209,12 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Rule | Enforced by |
 | --- | --- |
 | Every backend service is written in Go. Another language requires its own ADR that admits the service under a documented escape hatch. | review |
-| The root `.mise.toml` pins the Go version, and no service overrides it. Only a release that still receives upstream security fixes is pinned. Per the [Go release policy](https://go.dev/doc/devel/release), that is one of the two most recent major releases. | `ci-lint` in CI |
+| `flake.nix` pins the Go version, and no service overrides it. Only a release that still receives upstream security fixes is pinned. Per the [Go release policy](https://go.dev/doc/devel/release), that is one of the two most recent major releases. | `ci-lint` in CI |
 | A monetary amount is the shared money type, never a floating-point number. It is `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. | `lint-money` in CI |
 | A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. | `lint-money` in CI |
 | The frontend is TypeScript. | review |
 | Bun is the only JS runtime for code we author. No Go service image, no frontend image, and no artifact built from our own source installs Node. | `lint-node-scope` in CI |
-| Node is never pinned in the root `.mise.toml`. An island that installs Node pins it in its own island config, against the root `[env] NODE_VERSION`. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. | `lint-node-scope` in CI |
+| Node comes only from `flake.nix`: the default dev shell for the frontend CLI, and one dev shell for each island. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. | `lint-node-scope` in CI |
 | A Rust service requires its own ADR. It records the measured inadequacy of Go or a Rust-native canonical ecosystem, and how the service meets [ADR-0500](../adr/0500-observability.md). | review |
 | A Python service requires its own ADR, and is admitted only where the library ecosystem is the reason the service exists. | review |
 | JVM, .NET, and JavaScript backends are not permitted, with or without an ADR. | review |
@@ -232,20 +232,20 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Every backend service lives at `services/<name>/`. Every shared Go package lives under `libs/go/<name>/`. Every shared TypeScript library lives under `libs/ts/<name>/`. | `lint-service-contract` in CI |
 | Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. | `ci-gen` in CI |
 | The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR. | review |
-| Tasks are invoked through `mise run <task>`. Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, and `worker`. | `lint-service-contract` in CI |
-| A task name is `group:member`, grouped by the axis worth listing together, and it spells its script. `activity:target` is `scripts/activity-target.sh`, and `resource:operation` is `scripts/resource.sh operation`. | review |
-| What a task acts on is an argument, never an environment variable: `just cluster-down full`. Environment variables carry the environment of the machine. A variable that a script exports for its own subprocesses is not an interface. | standard: clig.dev, POSIX Utility Conventions |
-| A task validates its operand against a closed set and fails on an unknown operand. It never falls back to a default. | review |
-| Every external tool is pinned. Developer and CI tools are pinned in `.mise.toml`, and runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. | `lint-floating-tags` in CI |
+| A task is a `just` recipe, per [ADR-0103](../adr/0103-tasks.md). Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, and `worker`. | `lint-service-contract` in CI |
+| A recipe name is `group-member`, grouped by the axis worth listing together, and it spells its script. `activity-target` is `scripts/activity-target.sh`, and `resource-operation` is `scripts/resource.sh operation`. | review |
+| What a recipe acts on is an argument, never an environment variable: `just cluster-down full`. Environment variables carry the environment of the machine. A variable that a script exports for its own subprocesses is not an interface. | standard: clig.dev, POSIX Utility Conventions |
+| A recipe validates its operand against a closed set and fails on an unknown operand. It never falls back to a default. | review |
+| Every external tool is pinned. Developer and CI tools are pinned in `flake.lock`, Go code tools in `tools/go.mod`, and runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. | `lint-floating-tags` in CI |
 | A PR that changes a spec, a SQL query, or any codegen input includes the regenerated artifacts. | `ci-gen` in CI |
 | A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. | `ci-affected` in CI |
 | Container images are tagged `<service>:<git-sha>`, and the same SHA goes through every environment. | `lint-floating-tags` in CI |
 | `services/<X>/` does not import `services/<Y>/`. Sharing goes through `libs/` or generated clients. | `lint-go, lint-service-contract` in CI |
 | Route groups inside `apps/frontend/` do not import from each other. | `lint-ts` in CI |
-| `tools/` holds repo-local Go programs and the packages under `tools/internal/` that they share. `scripts/` holds shell. A mise task invokes a Go program directly. A shell script that only shells out to one is not written. | review |
+| `tools/` holds repo-local Go programs and the packages under `tools/internal/` that they share. `scripts/` holds shell. A recipe calls a Go program directly. A shell script that only shells out to one is not written. | review |
 | `test/` holds the external harnesses that drive an assembled system: `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package. | review |
-| Each suite under `test/` pins its own tools. `test/` itself has no toolchain, package manifest, or lockfile. | `lint-node-scope` in CI |
-| Build-graph and hermetic-build tools are not used on day one. These are Nx, moon, Pants, Bazel, and Nix. Adoption requires its own ADR. | review |
+| Each Node island runs in its own dev shell of `flake.nix`. `test/` itself has no package manifest or lockfile. | `lint-node-scope` in CI |
+| Build-graph tools are not used on day one. These are Nx, moon, Pants, and Bazel. Adoption requires its own ADR. | review |
 
 ## ADR-0112: Release, Tagging and Versioning
 
@@ -328,7 +328,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Pipelines run on Forgejo Actions, with runners on controlled infrastructure. No second CI engine is introduced, per principle 5 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
 | A runner executes `ubuntu-24.04` jobs on a dedicated machine. It never runs them inside a job container or on a workload-cluster node. | review |
 | The repository lives at `forge.<apex>/platform/<project>`. An organisation owns it, never a person, and Argo CD reconciles from that URL. | review |
-| Workflow YAML checks out, sets up the toolchain, and calls `just ci:*`. Pipeline logic is not written in YAML. | review |
+| Workflow YAML checks out, sets up the toolchain, and calls a `just` recipe. Pipeline logic is not written in YAML. | `lint-thin-workflows` in CI |
 | Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
 | The default branch takes a direct push from one identity only: the `ci` machine user. Its `PROMOTE_TOKEN` pushes the dev and staging promotion commit, per [ADR-0201](../adr/0201-gitops.md). Every other change reaches the branch through a reviewed pull request. | review |
 | **Every commit on the default branch is signed**, by the forge or by the `ci` machine user. Branch protection sets `require_signed_commits`, and Forgejo checks it on each push. | review |
@@ -341,25 +341,22 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | An approval counts toward the required review only when it comes from the Owners team or the Developers team. | review |
 | Container images are published to the registry in [ADR-0114](../adr/0114-image-registry.md), not to the package registry of the forge. | review |
 
-## ADR-0117: Dependency Updates and Template Propagation
+## ADR-0117: Update Classes and Setup Modes
 
 [Full decision](../adr/0117-updates-and-setup-modes.md)
 
 | Rule | Enforced by |
 | --- | --- |
-| Renovate opens every dependency, image, chart, and tool-version update as a pull request. It merges nothing. No update bypasses the gates that a human pull request passes. | `ci-lint, ci-gen, ci-test` in CI |
+| Renovate opens every dependency, image, chart, and tool update as a pull request. It merges nothing. No update bypasses the gate that a human pull request passes. | `ci` in CI |
+| Renovate runs from the scheduled `renovate` workflow, with `.config/renovate.json` as its self-hosted config. | review |
 | Updates are grouped by ecosystem and batched on a schedule. A major version is proposed alone, and only after a person approves it on the dashboard. | review |
-| Renovate runs from the scheduled `renovate` workflow, never from a hosted app. Every other workflow disables its install. | review |
+| An update that changes `bun.lock`, `go.sum`, or a `Chart.lock` also updates `bun.nix` and the hashes of `flake.nix` in the same pull request. | `ci` in CI |
 | A container image update moves the tag and the digest in the same pull request. A digest is never updated on its own. | `lint-floating-tags` in CI |
-| A held-back dependency carries its reason as a comment on the package rule that holds it. A pin with no recorded reason is treated as unreviewed. | review |
+| A held-back dependency carries its reason as the description of the package rule that holds it. A pin with no recorded reason is treated as unreviewed. | review |
 | A failing update pull request stays open. The update is never disabled to clear the queue. | review |
 | A CVE that Trivy gates on and that has a fixed version available is proposed at once, outside the batch. | `ci-scan` in CI |
-| A generated project tracks this template through the Copier answers file and updates by 3-way merge. The template makes no compatibility promise, and the project resolves each conflict. | review |
-| The rename runs at generation and at every update. Both renders of an update carry the project's names. | review |
-| A file that fits only one setup belongs to a mode. A mode is a Copier answer, and its paths are templated `_exclude` lines that `project-init` also reads. | review |
-| A mode never deletes a file in a Copier task. A mode that edits files in place runs its script at generation and at every update. | review |
-| A project created from this template adopts its own module path, registry namespace, and apex host before its first push. A repository whose name does not match its module path has not been renamed. | `lint-project-identity` in CI |
-| Copier and Renovate are pinned in `.mise.toml` like every other tool. Neither runs inside a cluster workload. | `lint-node-scope` in CI |
+| A file that fits only one setup belongs to a mode. `just init` removes the paths of every mode that the project did not choose. | review |
+| A project adopts its own module path, registry namespace, and apex host before its first push. A repository whose name does not match its module path has not been renamed. | `lint-project-identity` in CI |
 
 ## ADR-0200: Cluster Topology and Hosting
 
@@ -835,9 +832,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | No local tier applies a machine config. The delivery mechanism that [ADR-0206](../adr/0206-cluster-networking.md) decides is exercised in a deployed environment, and `infra/talos/` carries no local variant. | review |
 | Cilium is in the floor of both tiers. It comes from the committed chart, with WireGuard on and its eBPF dataplane in place of kube-proxy, and is installed imperatively before Argo CD exists. No Cilium value differs between tiers. | review |
 | Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation as a deployed environment, per [ADR-0114](../adr/0114-image-registry.md). So the local image path is not a second product. | review |
-| What runs locally is the floor plus the declared dependencies of the running services. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. | `lint-service-contract, lint-service-deps` in CI |
-| `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script for each component, and each script exits fast when its component is already ready. | review |
-| Every mise task has a command or a dependency. A task with neither passes and does nothing. | `lint-tasks` in CI |
+| What runs locally is the floor plus the declared dependencies of the running services. A service declares `dep-*` for infrastructure and `svc-*` for every service it calls over HTTP. | `lint-service-contract, lint-service-deps` in CI |
+| A `justfile` carries declarations only. Component logic lives in one idempotent installer script for each component, and each script exits fast when its component is already ready. | review |
 | Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`. `:8080` stays unassigned. | `lint-ports` in CI |
 | Every service ships a values file for each environment, or declares `# platform/not-deployed: <env>`. Absence is never inferred. | `lint-service-contract` in CI |
 | Argo CD is the engine for `cluster-up full` only. Uncommitted infra changes go through `cluster-add` or a branch `targetRevision`, never through direct edits to cluster state. | review |
@@ -867,11 +863,11 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Service integration tests run against `cluster-up` plus the service's declared components, and drive services through their generated SDK clients. They do not import the code of another service. | review |
 | Visual regression gates on committed `toHaveScreenshot` baselines. An intended UI change updates the baseline in the same PR. | review |
 | E2e provisions a committed deterministic test identity: an AAL1 user plus an AAL2 operator. No test relies on state created by hand. | review |
-| Node is permitted only as the Playwright runner. It is pinned in `test/e2e/.mise.toml` against the root `[env] NODE_VERSION`, never in the root toolchain. | `lint-node-scope` in CI |
+| In `test/`, Node is permitted only as the Playwright runner, in the `.#e2e` dev shell. `@playwright/test` matches the `playwright-driver` of nixpkgs. | `lint-node-scope` in CI |
 | k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and self-written generators are not used. | review |
 | Performance tests live in `test/perf/` as committed JavaScript, never as a plan written in a GUI or recorded. | review |
 | `test/perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. | `lint-node-scope` in CI |
-| The k6 binary is pinned in `test/perf/.mise.toml`, never in the root `[tools]`. | review |
+| The k6 binary comes from `flake.lock`, in the default dev shell. | review |
 | Load metrics reach Prometheus as an OTLP push through the OTel collector. No private metrics store, exporter sidecar, or remote-write receiver is added. | review |
 | Load series carry the `k6_*` prefix and `service_name="k6"`. k6's `url`, `name`, and `error` tags are not exported. Request identity is a bounded `endpoint` route-template tag. | review |
 | k6 runs with `--no-usage-report`. | review |

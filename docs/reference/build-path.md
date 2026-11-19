@@ -78,7 +78,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `ci-renovate` | Run Renovate over this repository, per ADR-0117 | renovate.yml |
 | `ci-scan` | The vulnerability gate, per ADR-0113 | history.yml |
 | `cluster-down` | Delete the cluster of the tier and its image cache | e2e.yml, perf.yml |
-| `cluster-up` | Create, resume, or repair a local tier: just cluster-up, or just cluster-up full | e2e.yml, perf.yml |
+| `cluster-up` | Create, resume, or repair a local tier. The argument `full` selects the full tier | e2e.yml, perf.yml |
 | `dns-apply` | Make the zones of the provider match infra/dns/dnsconfig.js, per ADR-0206 | dns.yml |
 | `dns-check` | Report how the zones of the provider differ from infra/dns/dnsconfig.js, per ADR-0206 | dns.yml |
 | `e2e` | The full browser suite against a running full tier, per ADR-0601 | e2e.yml |

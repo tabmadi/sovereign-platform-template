@@ -70,7 +70,7 @@ Every encrypted file has exactly three recipient classes, declared in `.sops.yam
 - Files under `infra/gitops/platform/<env>/secrets/` are encrypted to the cluster key of that environment, the engineers, and ops-recovery.
 - Files outside an environment path are encrypted to the engineers and ops-recovery only.
 
-**The local tier is the exemption, and the same file bounds it.** A local cluster lives only as long as a `mise` task, and no bootstrap step creates a key for it. So the local private key is committed at `infra/gitops/platform/local/age.key`, and its creation rule names that key as the only recipient. The key is safe because of what it opens, not because it is secret. It opens throwaway values in a cluster that holds no real data, per [ADR-0205](0205-environment-parity.md). A real credential encrypted to this key is a leak, not a shortcut. The preview tier uses the same path for the same reason.
+**The local tier is the exemption, and the same file bounds it.** A local cluster lives only as long as a `just` recipe, and no bootstrap step creates a key for it. So the local private key is committed at `infra/gitops/platform/local/age.key`, and its creation rule names that key as the only recipient. The key is safe because of what it opens, not because it is secret. It opens throwaway values in a cluster that holds no real data, per [ADR-0205](0205-environment-parity.md). A real credential encrypted to this key is a leak, not a shortcut. The preview tier uses the same path for the same reason.
 
 **The committed key is per project, not per template.** A template that ships one local key ships a default credential to every project generated from it. The reasoning that the key is throwaway does not travel with the copy. So `cluster-up` creates a new local key on first use and re-encrypts the local bundle to it, through `just bootstrap`. The shared key then stops opening a project as soon as anyone runs its cluster. This is not a second exemption. It keeps the first one bounded to one repository.
 
@@ -99,10 +99,10 @@ Service authors reference secrets by Kubernetes Secret name in Helm values, in t
 Run `just secrets-age` once. After that, `cluster-up` and any `sops decrypt` work with no more configuration. To run against the secrets of a real environment:
 
 ```sh
-sops exec-env infra/gitops/platform/dev/secrets/platform.enc.yaml -- mise run -C services/<svc> server
+sops exec-env infra/gitops/platform/dev/secrets/platform.enc.yaml -- just --justfile services/<svc>/justfile server
 ```
 
-The inner loop needs no decryption. Each service's `.env.example` carries local development credentials. It is copied to `.env` and loaded by the service's `.mise.toml`, so `just server` works alone.
+The inner loop needs no decryption. Each service's `.env.example` carries local development credentials. It is copied to `.env` and loaded by the service's `justfile`, so `just server` works alone.
 
 ### Key lifecycle
 

@@ -213,7 +213,7 @@ None of these is a soft exit from principle 3. Each one is a dependency at a lay
 
 **The rule governs the repository's own machinery.** Two tasks, scripts, tests, or workflows that own one failure class are one mechanism under two names. The narrower or slower one is deleted. A mechanism that owns no failure class is deleted too.
 
-**6. Two languages, and no ambient runtime.** The languages are Go and TypeScript. An escape hatch, such as Rust or Python, requires its own ADR with a measured need. No tool may assume a runtime that is not pinned in `.mise.toml`.
+**6. Two languages, and no ambient runtime.** The languages are Go and TypeScript. An escape hatch, such as Rust or Python, requires its own ADR with a measured need. No tool may assume a runtime that is not pinned in `flake.lock`, per [ADR-0100](0100-toolchain.md).
 
 - *Anchor:* [12-Factor II](https://12factor.net/dependencies) for the ambient-runtime half: *A twelve-factor app never relies on implicit existence of system-wide packages*. The two-language cap itself is **local**.
 - *Rejected:* Semgrep and sqlfluff, because both need ambient Python. So static analysis is `ast-grep` and SQL lint is `sqruff`.
@@ -421,7 +421,7 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 - Novelty is spent by exit cost: freely where abandonment costs days, and conservatively where it costs months and customer data.
 - One primitive per concern. Parallel mechanisms for the same problem require an ADR that retires the incumbent.
 - One primitive per concern covers the repository's own machinery. A task, script, test, or workflow names the failure class it owns or the mechanism it replaces. One that names neither, or duplicates the work of another, is deleted. Additions and deletions land in the same change.
-- Go and TypeScript only. No tool may assume a runtime that is not pinned in `.mise.toml`. `(CI: lint-node-scope)`
+- Go and TypeScript only. No tool may assume a runtime that is not pinned in `flake.lock`, per [ADR-0100](0100-toolchain.md). `(CI: lint-node-scope)`
 - Licence, governing body, and project maturity are **recorded** for every component and **do not veto** a choice.
 
 ### Construction

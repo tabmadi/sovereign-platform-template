@@ -257,7 +257,7 @@ One table covers every surface, so no surface depends on precedent. Where anothe
 | Hostnames | `{tool}.ops.<host>` and the trust-tier scheme | [ADR-0306](0306-trust-tiers-and-urls.md) |
 | Environment variables | `SCREAMING_SNAKE_CASE` | here |
 | Go and TypeScript identifiers | the language's own convention | [ADR-0001](0001-documentation-conventions.md) |
-| `mise` tasks | `group:member` | [ADR-0111](0111-monorepo.md) |
+| `just` recipes | `group-member` | [ADR-0111](0111-monorepo.md) |
 | Metrics | OTel semantic conventions, else `<service>_<noun>_<unit>_<type>` | [ADR-0500](0500-observability.md) |
 | Git tags, image tags, commit scopes | CalVer and the component path slug | [ADR-0112](0112-release-and-versioning.md) |
 
