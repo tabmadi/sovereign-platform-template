@@ -100,11 +100,11 @@ The tool is a bounded swap behind a stable interface. The owning ADR has a short
 | dprint | JSON, JSONC, TOML, and YAML format | [0104](adr/0104-formatters-and-linters.md) | MIT | maintainer-led | Biome with Taplo and yamlfmt, Prettier |
 | nixfmt | Nix format | [0104](adr/0104-formatters-and-linters.md) | MPL-2.0 | NixOS | none with the standing of RFC 166 |
 | golangci-lint | Go linting | [0111](adr/0111-monorepo.md) | GPL-3.0 | maintainer-led | `go vet` alone, revive, staticcheck standalone |
-| Biome | TypeScript lint and format | [0111](adr/0111-monorepo.md) | MIT OR Apache-2.0 | maintainer-led | ESLint and Prettier, oxlint, dprint |
+| Biome | TypeScript lint and format | [0111](adr/0111-monorepo.md) | MIT OR Apache-2.0 | maintainer-led | ESLint and Prettier, oxlint and oxfmt |
 | rumdl | Markdown lint and format | [0104](adr/0104-formatters-and-linters.md) | MIT | maintainer-led | markdownlint-cli2, mdformat |
 | tablint | prose, comment, and ADR lint | [0111](adr/0111-monorepo.md) | Apache-2.0 | maintainer-led | Go linters in `tools/`, Vale with Conftest |
 | gitleaks | plaintext-secret scanning | [0101](adr/0101-source-control-and-ci.md), [0202](adr/0202-secrets.md) | MIT | gitleaks organisation, maintainer-led | trufflehog, detect-secrets, review alone |
-| shellcheck and shfmt | shell lint and format | [0111](adr/0111-monorepo.md) | GPL-3.0 and BSD-3-Clause | maintainer-led | no shell lint, shellharden |
+| shellcheck and shfmt | shell lint and format | [0111](adr/0111-monorepo.md) | GPL-3.0 and BSD-3-Clause | maintainer-led | no shell lint |
 | git-hooks.nix and prek | git hooks | [0101](adr/0101-source-control-and-ci.md) | MIT | cachix and maintainer-led | husky, pre-commit |
 | cocogitto | Conventional Commits and CalVer | [0112](adr/0112-release-and-versioning.md) | MIT | maintainer-led | commitlint, semantic-release, release-please, git-cliff |
 | act | local workflow execution | [0116](adr/0116-forge-and-pipelines.md) | MIT | nektos, maintainer-led | pushing to a branch, a self-hosted runner locally |

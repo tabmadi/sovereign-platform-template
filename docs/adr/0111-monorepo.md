@@ -28,17 +28,23 @@ This ADR answers seven questions in one place: repository topology, layout, reci
 3. **CI cost tracks what changed, not what exists.** In a repository that holds the whole fleet, every pull request can run the whole fleet unless something scopes it. That cost grows with the repository, and the value of the run does not.
 4. **Local and CI run the same commands.** There are no CI-only shell scripts.
 5. **Orchestration is bought with measured need.** The value of a build-graph tool scales with the number of teams and applications. Here the binding constraint is platform-engineering capacity, per [ADR-0000](0000-platform-foundations.md). The cost of the tool comes out of that budget from day one.
+6. **A change across services is one reviewed change.** A contract change and every consumer that it breaks land in one pull request.
+7. **One binary per tool, with no ambient runtime**, per principle 6 of [ADR-0000](0000-platform-foundations.md).
 
 ## Considered options
 
 ### Repository topology
 
-| Option | A change crossing a service boundary | Dependency drift | CI blast radius | Verdict |
+| Option | 3 CI cost tracks the change | 6 A change across services is one change | Dependency drift | Verdict |
 | --- | --- | --- | --- | --- |
-| **One repository, one Go module** | **one pull request that compiles and tests every consumer** | **structurally impossible** | every change can reach everything, so scoping is mandatory, not optional | **Chosen** *(reasoned)* |
-| Repository per service | N pull requests across N review queues, merged in an order that nothing enforces | the default state. Each service pins its own versions, and they diverge | naturally scoped | The honest baseline, and the result when nobody decides. The isolation is real. It is the wrong purchase at axis A high with one platform team |
-| Hybrid: a platform repository, with services split out | as repository-per-service for the split parts | as repository-per-service for the split parts | mixed | Two toolchains, two CI shapes, and two release paths. The boundary is argued again for each service |
-| One repository of submodules | a submodule bump per repository, plus a superproject bump | as repository-per-service | mixed | The coordination cost of many repositories, with the review surface of one |
+| **One repository, one Go module** | **Only with affected detection, which this ADR builds** | **Yes. One pull request compiles and tests every consumer** | **None. One version of each dependency** | **Chosen** |
+| Repository per service | Yes, by construction | No. N pull requests in N queues, merged in an order that nothing enforces | Each service drifts | Rejected on driver 6 |
+| Hybrid: a platform repo, with services split out | Partly | No, for the split parts | Partly | Rejected on driver 6 |
+| One repo of submodules | Partly | No. A bump per repo and one in the superproject | Each submodule drifts | Rejected on driver 6 |
+
+Sources:
+
+- The trade of a monorepo: [Google, Why Google stores billions of lines of code in a single repository](https://research.google/pubs/why-google-stores-billions-of-lines-of-code-in-a-single-repository/).
 
 **The generated client is the deciding property.** Every service publishes a contract. The contract generates clients that other services compile in, per [ADR-0303](0303-api-contracts-and-lifecycle.md). Across a repository boundary, that generation is a publish-and-consume cycle. A breaking contract change then becomes a version negotiation between queues. In one repository, it is a compile error in the pull request that caused it. At axis A high, the number of those boundaries is the thing that grows.
 
@@ -46,34 +52,50 @@ The choice is reversible in one direction only. Adding a repository is easy. Ext
 
 ### Go module strategy
 
-| Option | Dependency consistency | Cross-cutting refactor | Verdict |
+| Option | 6 A change across services is one change | Dependency drift | Verdict |
 | --- | --- | --- | --- |
-| **Single repo-wide `go.mod`** | **structural: drift is impossible** | one PR | **Chosen** *(reasoned)* |
-| Module per service | isolated | staggered bumps across N modules | Buys isolation that the platform does not need, and costs consistency that it does need |
-| `go.work` overlay | partial | workspace-mode ceremony | Rejected for the product. Taken for `tools/` alone, where the isolation is the point |
+| **Single repo-wide `go.mod`** | **Yes** | **None** | **Chosen** |
+| Module per service | No. A shared bump lands in N modules one by one | Each module drifts | Rejected on driver 6 |
+| A `go.work` overlay of many modules | Yes | Partly | Rejected for the product. Taken for `tools/` alone, where the isolation keeps gate code out of the product graph |
+
+Sources:
+
+- Workspaces and their scope: [Go docs, workspaces](https://go.dev/ref/mod#workspaces).
 
 ### JavaScript workspace orchestration
 
 [ADR-0110](0110-language-and-runtime.md) settles the runtime and package manager: Bun alone, for install and workspaces. This section decides whether a separate orchestrator sits above it.
 
-| Option | Verdict |
-| --- | --- |
-| **Bun workspaces alone** | **Chosen.** The selected tool already has the workspace protocol, so the repository adds no JavaScript component *(reasoned)* |
-| Turborepo | Task orchestration and remote caching for JavaScript. Its value needs several frontend applications, and there is one |
-| Nx for JavaScript only | Splits task invocation across two tools, which driver 1 forbids. The table above considers it as the repo-wide runner instead |
+| Option | 1 One entry point | 5 Bought with measured need | Verdict |
+| --- | --- | --- | --- |
+| **Bun workspaces alone** | **Yes. `just` runs every task** | **Yes. Nothing to add** | **Chosen** |
+| Turborepo | No. A second task runner for JavaScript | No. Its caching pays off with several frontend apps, and there is one | Rejected on drivers 1 and 5 |
+| Nx for JavaScript only | No | No | Rejected on drivers 1 and 5 |
+
+Sources:
+
+- [Bun docs, workspaces](https://bun.com/docs/install/workspaces), [Turborepo](https://turborepo.com/), [Nx](https://nx.dev/).
 
 ### The lint and format toolchain
 
 There is one tool per language. Each is a single binary from the dev shell of [ADR-0100](0100-toolchain.md), with no ambient runtime, per principle 6 of [ADR-0000](0000-platform-foundations.md). [ADR-0104](0104-formatters-and-linters.md) decides the formatters of Markdown, Nix, and the data formats. This table adds the languages of the platform. Each is Tier 2, per [ADR-0002](0002-tool-adoption.md). A swap is a configuration file and a task, and the code it judges does not change.
 
-| Surface | Chosen | Picked over | Why |
-| --- | --- | --- | --- |
-| Go | **golangci-lint** | `go vet` alone, revive, staticcheck standalone | It is the aggregator that runs the others. The alternative is running several of them and reconciling their output *(reasoned)* |
-| TypeScript | **Biome** | ESLint with Prettier, oxlint, dprint | One binary for lint and format. The incumbent pair is two tool ecosystems, two configuration languages, and a plugin resolution model. The cost is the small set of framework-specific rules that only the incumbent has |
-| Markdown | **rumdl** | markdownlint, Vale, Prettier | One binary for lint and format. It holds the compact-table rule that the diffs of this repository depend on, per [ADR-0001](0001-documentation-conventions.md). markdownlint needs Node. Vale judges prose style, not structure, so it would add to rumdl and not replace it |
-| Shell | **shellcheck and shfmt** | no shell lint, shellharden | The two-tool exception. It is the only pairing in the field: no single binary formats and lints shell |
-| SQL | **sqruff** | sqlfluff, no SQL lint | The rule set that the incumbent established, reimplemented without the Python runtime that principle 6 bars *(reasoned)* |
-| Prose, comments, and the ADR set | **tablint** | Go linters in `tools/`, Vale with Conftest | One binary checks the Simple English profile of [ADR-0001](0001-documentation-conventions.md) in every repository of its owner. Vale with Conftest matched the Go linters, but added two rule languages *(measured)* |
+| Surface | Option | 7 One binary, no runtime | Coverage | Verdict |
+| --- | --- | --- | --- | --- |
+| Go | **golangci-lint** | **Yes** | **Runs vet, staticcheck, revive, and about a hundred more as one pass** | **Chosen** |
+| Go | `go vet`, staticcheck, or revive alone | Yes | One analyser each, and several to reconcile | Rejected on coverage |
+| TypeScript and CSS | **Biome** | **Yes** | **Lint and format in one config** | **Chosen** |
+| TypeScript and CSS | ESLint with Prettier | No. Node.js and a plugin tree | The widest rule set, and two configs | Rejected on driver 7 |
+| TypeScript and CSS | oxlint with oxfmt | Yes | Lint mature, format younger | Rejected. It is the runner-up |
+| Shell | **shellcheck and shfmt** | **Yes, two binaries** | **No single binary both lints and formats shell** | **Chosen** |
+| SQL | **sqruff** | **Yes** | **The sqlfluff rules, in Rust** | **Chosen** |
+| SQL | sqlfluff | No. Python | The reference rule set | Rejected on driver 7 |
+| Prose, comments, and the ADR set | **tablint** | **Yes** | **The profile of [ADR-0001](0001-documentation-conventions.md) and the requirement trace of [ADR-0602](0602-behaviour-requirements.md)** | **Chosen** |
+| Prose, comments, and the ADR set | Vale with Conftest | Yes, two binaries | Two rule languages to write the same rules | Rejected. It matched the old Go linters only with two rule languages *(measured)* |
+
+Sources:
+
+- [golangci-lint linters](https://golangci-lint.run/docs/linters/), [Biome](https://biomejs.dev/), [oxc, oxlint and oxfmt](https://oxc.rs/), [ESLint](https://eslint.org/), [shellcheck](https://www.shellcheck.net/), [shfmt](https://github.com/mvdan/sh), [sqruff](https://github.com/quarylabs/sqruff), [sqlfluff](https://sqlfluff.com/), [Vale](https://vale.sh/), [tablint](https://github.com/tabmadi/tablint).
 
 **The pattern is one property, repeated.** Every row picks a single static binary over a runtime plus a dependency tree, and accepts a narrower rule set for it. That trade lost for shell. There the ADR pays for two binaries and does not pretend that one covers it.
 
@@ -275,12 +297,16 @@ Principle 9 of [ADR-0000](0000-platform-foundations.md) states that generated co
 
 Each service has one multi-stage `Dockerfile`. Stage 1 builds with the workspace `go build`. Stage 2 is the runtime base below. The frontend has one Dockerfile that uses standalone output. There is no shared base image.
 
-| Runtime base | Verdict |
-| --- | --- |
-| **`gcr.io/distroless/static-debian13`** | **Chosen.** No shell and no package manager, so a compromised process has nothing to escalate with. Upstream maintains the CA bundle, `/etc/passwd`, and timezone data that a service with outbound TLS calls needs *(reasoned)* |
-| `scratch` | Smaller and truly empty. That means copying the CA bundle, a nonroot passwd entry, and tzdata by hand. It also means owning the CA refresh when roots rotate |
-| Alpine | A shell and a package manager in production. Under Go, musl resolves DNS differently from glibc |
-| Chainguard or Wolfi | Comparable hardening, with a stronger SBOM story. Its free tags track `latest`, which the floating-tag rule forbids |
+| Runtime base | Escalation path in the image | CA bundle, users, and tzdata | Pinned by digest | Verdict |
+| --- | --- | --- | --- | --- |
+| **`gcr.io/distroless/static-debian13`** | **None. No shell and no package manager** | **Kept by upstream** | **Yes, by digest** | **Chosen** |
+| `scratch` | None | Copied by hand, and refreshed by hand when roots rotate | Yes | Rejected. It moves the CA refresh to this repo |
+| Alpine | A shell and a package manager | Yes | Yes | Rejected on the escalation path |
+| Chainguard or Wolfi | None | Yes | No. Its free tags track `latest` | Rejected. The floating-tag rule forbids it |
+
+Sources:
+
+- [distroless images](https://github.com/GoogleContainerTools/distroless), [Chainguard images, free tier](https://www.chainguard.dev/chainguard-images).
 
 **This base is not related to the host operating system.** It gives no kernel and no init. It is a few megabytes of files that come from a Debian release. A change to what the nodes run changes nothing here, per [ADR-0200](0200-cluster-topology.md).
 
