@@ -47,7 +47,7 @@ Sources:
 - ApplicationSet generators: [Argo CD docs, generators](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators/).
 - Sync waves and hooks: [Argo CD docs, sync waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/).
 - Flux ordering with `dependsOn`: [Flux docs, Kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/#dependencies).
-- Flamingo, the Argo CD UI for Flux: [Flamingo](https://flamingo.dev/).
+- Flamingo, the Argo CD UI for Flux: [Flamingo](https://github.com/flux-subsystem-argo/flamingo).
 
 ### Templating
 

@@ -66,7 +66,7 @@ Sources:
 
 Sources:
 
-- Talos has no shell or SSH, and an API applies the machine config: [Talos docs, philosophy](https://www.talos.dev/latest/learn-more/philosophy/).
+- Talos has no shell or SSH, and an API applies the machine config: [Talos docs, philosophy](https://docs.siderolabs.com/talos/v1.14/learn-more/philosophy).
 - Flatcar mounts `/usr` read-only and keeps the rest: [Flatcar docs](https://www.flatcar.org/docs/latest/).
 - Fedora CoreOS and rpm-ostree: [Fedora CoreOS docs](https://docs.fedoraproject.org/en-US/fedora-coreos/).
 - Bottlerocket variants: [Bottlerocket, variants](https://github.com/bottlerocket-os/bottlerocket/blob/develop/variants/README.md).
@@ -86,7 +86,7 @@ Sources:
 
 Sources:
 
-- Talos ships upstream Kubernetes and upgrades it with the OS: [Talos docs, upgrading Kubernetes](https://www.talos.dev/latest/kubernetes-guides/upgrading-kubernetes/).
+- Talos ships upstream Kubernetes and upgrades it with the OS: [Talos docs, upgrading Kubernetes](https://docs.siderolabs.com/kubernetes-guides/advanced-guides/upgrading-kubernetes).
 - k3s bundles and its datastore options: [k3s docs, architecture](https://docs.k3s.io/architecture), [k3s docs, datastore](https://docs.k3s.io/datastore).
 
 ### Day-one node count

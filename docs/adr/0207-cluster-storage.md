@@ -43,7 +43,7 @@ Object storage carries the durable data. So this section decides only the volume
 
 Sources:
 
-- [local-path-provisioner](https://github.com/rancher/local-path-provisioner), [Longhorn on Talos](https://www.talos.dev/latest/kubernetes-guides/configuration/storage/), [OpenEBS Mayastor](https://openebs.io/docs/), [Rook](https://rook.io/).
+- [local-path-provisioner](https://github.com/rancher/local-path-provisioner), [Longhorn on Talos](https://docs.siderolabs.com/kubernetes-guides/csi/storage), [OpenEBS Mayastor](https://openebs.io/docs/), [Rook](https://rook.io/).
 
 ### Object storage
 

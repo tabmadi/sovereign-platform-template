@@ -77,7 +77,7 @@ Conformance makes a chart apply. It does not make the cluster behave the same. A
 
 Sources:
 
-- [kind](https://kind.sigs.k8s.io/), [k3d](https://k3d.io/), [minikube](https://minikube.sigs.k8s.io/docs/), [Talos in Docker](https://www.talos.dev/latest/talos-guides/install/local-platforms/docker/).
+- [kind](https://kind.sigs.k8s.io/), [k3d](https://k3d.io/), [minikube](https://minikube.sigs.k8s.io/docs/), [Talos in Docker](https://docs.siderolabs.com/talos/v1.14/platform-specific-installations/local-platforms/docker).
 
 The measurement behind these verdicts used a bare single-node cluster of each option, with no CNI and no load balancer. It compared the time to a ready API and the idle memory of the node container. To take it again, create one cluster of each and sample both. A result that reverses it makes the k3d row wrong, not stale.
 

@@ -61,7 +61,7 @@ The browser runs JavaScript, so the question is which language compiles to it.
 
 Sources:
 
-- [TypeScript](https://www.typescriptlang.org/), [ReScript, bindings](https://rescript-lang.org/docs/manual/latest/external), [Elm, ports](https://guide.elm-lang.org/interop/ports.html).
+- [TypeScript](https://www.typescriptlang.org/), [ReScript, bindings](https://rescript-lang.org/docs/manual/external/), [Elm, ports](https://guide.elm-lang.org/interop/ports.html).
 
 ## Decision
 

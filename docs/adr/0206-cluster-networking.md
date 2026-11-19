@@ -46,7 +46,7 @@ Sources:
 
 - [Cilium docs, WireGuard encryption](https://docs.cilium.io/en/stable/security/network/encryption-wireguard/), [kube-proxy replacement](https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/), [Hubble](https://docs.cilium.io/en/stable/observability/hubble/).
 - Calico features by edition: [Calico docs](https://docs.tigera.io/calico/latest/about/).
-- [Talos docs, KubeSpan](https://www.talos.dev/latest/talos-guides/network/kubespan/), [Linkerd](https://linkerd.io/2/features/).
+- [Talos docs, KubeSpan](https://docs.siderolabs.com/talos/v1.14/networking/kubespan), [Linkerd](https://linkerd.io/2/features/).
 
 **flannel ships no NetworkPolicy controller.** So the API server accepts a policy, and nothing enforces it. This is worse than no policy, because it gives false confidence.
 
