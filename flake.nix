@@ -153,13 +153,14 @@
             rumdl
             just
             gitMinimal
+            nixfmt
             config.tabnix.tablint
           ];
 
           # A gate runs its just recipes on the tracked files, with the locked node_modules, Go modules, and subcharts.
           gate =
             name: recipes:
-            check name gateTools ''
+            check name (gateTools ++ [ dprint ]) ''
               export IN_NIX_SHELL=pure HOME=$TMPDIR GOPATH=$TMPDIR/go GOCACHE=$TMPDIR/go-cache GOMODCACHE=$TMPDIR/go-mod
               export GOPROXY=file://${goProxy} GOSUMDB=off GOTOOLCHAIN=local GOFLAGS=-mod=readonly CGO_ENABLED=0
               export GOLANGCI_LINT_CACHE=$TMPDIR/golangci-lint
