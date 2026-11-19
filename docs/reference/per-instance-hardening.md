@@ -2,7 +2,7 @@
 
 [`security-baseline.md`](../security-baseline.md) is the floor that every project inherits. It is generated from the Rules sections that own each control. This document is the other half. It lists what a **particular** project turns on for its own risk profile or its own compliance framework.
 
-This document is written by hand and not generated, because its subject is the instance and not the template. Nothing here is a gap in the baseline. Each row is a control that the template does not impose on every project. The row also names the condition that makes the control necessary.
+This document is written by hand and not generated, because its subject is the instance and not the baseline. Nothing here is a gap in the baseline. Each row is a control that the baseline does not impose on every instance. The row also names the condition that makes the control necessary.
 
 ## Conscious omissions from the baseline
 
@@ -19,21 +19,21 @@ Each row is a values change or a policy change that a project makes when the con
 
 ## Which scanner an instance runs
 
-[ADR-0113](../adr/0113-supply-chain-security.md) makes vulnerability scanning a merge gate and leaves the choice of scanner to the instance. This document records the choice, with its ignore policy and its failure threshold. A reviewer needs these parts, and neither is a property of the template.
+[ADR-0113](../adr/0113-supply-chain-security.md) makes vulnerability scanning a merge gate and leaves the choice of scanner to the instance. This document records the choice, with its ignore policy and its failure threshold. A reviewer needs these parts, and neither is a property of the baseline.
 
 ## Reaching a named compliance framework
 
-A project reaches a framework by adding layers on top of the baseline, with no fork of the template. Each row is a values overlay, a policy change, or a CI addition.
+A project reaches a framework by adding layers on top of the baseline, with no fork of the platform. Each row is a values overlay, a policy change, or a CI addition.
 
 | Requirement | Where it lands |
 | --- | --- |
 | Audit retention over the framework's window | the per-environment observability values. The authorization decision events already go to the log store, per [ADR-0500](../adr/0500-observability.md) |
 | Network segmentation beyond default-deny | tighter CiliumNetworkPolicy per namespace for the regulated data path, per [ADR-0206](../adr/0206-cluster-networking.md) |
-| Encryption at rest | the storage class and the database values in the per-environment infrastructure. The template is provider-agnostic and states no default |
+| Encryption at rest | the storage class and the database values in the per-environment infrastructure. The platform is provider-agnostic and states no default |
 | Stronger authentication | required MFA, shorter session lifetimes, and the ops-tier token isolation above |
 | Periodic access review | a scheduled review of the operator group and the dashboard relations. OpenFGA holds them as the source of truth, per [ADR-0304](../adr/0304-identity-and-authorization.md) |
 | Vulnerability management with provable continuity | a scanner's findings are a merge gate. Continuous triage across the fleet against images already built needs a component that this platform does not run, per [`operational-surface.md`](../operational-surface.md) |
-| Penetration-test attestation | a CI artefact and a schedule. Nothing in the template changes |
+| Penetration-test attestation | a CI artefact and a schedule. Nothing in the platform changes |
 
 **PCI DSS depends on scope. It is not a layer.** The platform stores no cardholder data, and a payment integration hands off to a provider. A project that takes card data directly brings the scope with it. That changes [ADR-0300](../adr/0300-data.md) and [ADR-0301](../adr/0301-data-lifecycle-privacy.md), not this document, per [ADR-0000](../adr/0000-platform-foundations.md).
 

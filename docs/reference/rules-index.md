@@ -73,7 +73,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | An ADR states standing law, never planned work. No `Follow-ups` section, no roadmap, no `TODO`, and no note on whether an artefact exists yet. | review |
 | Planned work belongs in the forge's issues, never in a committed document. No committed file links to an untracked one. | `lint-md, lint-prose` in CI |
 | ADR numbers come in blocks of a hundred by layer, per [`docs/adr/README.md`](../adr/README.md). | review |
-| A  annotation names a `just` recipe that exists, never the workflow file that calls it. | `<recipe>` in CI |
+| A  annotation names a `just` recipe that exists, never the workflow file that calls it. | `<task>` in CI |
 | A document's genre decides its directory: `docs/adr/` for decisions, `docs/guide/` for procedures, `docs/reference/` for lookups, `docs/requirements/` for journey requirements. The `docs/` root holds the set's entry documents and the registries an ADR names as canonical, and nothing else. | `lint-prose` in CI |
 | The filename carries the topic, never a directory that holds a single file. No two documents in `docs/` share a filename. | `lint-prose` in CI |
 | Structured logs carry a lowercase message with no final punctuation and no symbols. Context is in OTel-conventioned attributes, never interpolated into the string. | standard: OTel semconv |

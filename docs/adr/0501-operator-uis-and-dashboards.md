@@ -25,7 +25,7 @@ Without a stated dashboard structure, a growing dashboard set leads to two failu
 
 1. **One pane of glass.** Two tools that seem to own the same signals are an operational cost, not redundancy.
 2. **Dashboards as code**, per principle 1 of [ADR-0000](0000-platform-foundations.md). The observability surface lives in git.
-3. **Bounded footprint**, per principle 2 of [ADR-0000](0000-platform-foundations.md). The template pays for signal, not for stacks.
+3. **Bounded footprint**, per principle 2 of [ADR-0000](0000-platform-foundations.md). The platform pays for signal, not for stacks.
 4. **The landing page answers one question in seconds**, without a scan of a table.
 5. **No UI mutates desired state.** A debug surface is not a control surface.
 

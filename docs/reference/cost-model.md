@@ -20,7 +20,7 @@ The claim is not that self-hosting is cheaper. The claim is that its cost curve 
 
 ## What appears on the bill
 
-This is the inventory to price against a provider. Multiply each row by the number of environments, except where a row says otherwise. The template assumes dev, staging, and production, per [ADR-0205](../adr/0205-environment-parity.md).
+This is the inventory to price against a provider. Multiply each row by the number of environments, except where a row says otherwise. The platform assumes dev, staging, and production, per [ADR-0205](../adr/0205-environment-parity.md).
 
 | Line item | Driven by | Notes |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ This is the inventory to price against a provider. Multiply each row by the numb
 | Certificates | none, because of ACME | a cost avoided, and the reason cert-manager is on the floor |
 | Forge and CI runners | pipeline minutes become instance hours on infrastructure you own | self-hosted CI turns a per-minute fee into capacity, per [ADR-0116](../adr/0116-forge-and-pipelines.md) |
 | Backup storage and retention | the recovery objective, and Object Lock retention no shorter than it | |
-| Paging service | the escalation concession, when the trigger fires | the one managed subscription that the template expects, per [ADR-0502](../adr/0502-alerting-and-on-call.md) |
+| Paging service | the escalation concession, when the trigger fires | the one managed subscription that the platform expects, per [ADR-0502](../adr/0502-alerting-and-on-call.md) |
 
 **What is not on the bill.** Every per-seat fee for the tools that this floor replaces:
 

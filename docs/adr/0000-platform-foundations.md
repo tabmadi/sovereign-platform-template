@@ -142,7 +142,7 @@ Each principle is **anchored** to an external standard, or is marked **local** w
 - *Anchor:* Team Topologies by Skelton and Pais, with **cognitive load as the sizing unit**. The direction is **local**. The [*thinnest viable platform*](https://teamtopologies.com/key-concepts-content/what-is-a-thinnest-viable-platform-tvp) bounds what a platform imposes on the teams that build on it. This principle bounds what the platform imposes on the people who run it. The unit is borrowed, and the constraint is ours. A platform can satisfy one and fail the other. The machinery paragraph below extends the same unit to the repository's own automation. It restates the **Rule of Parsimony** of the Unix philosophy, from Raymond's [*The Art of Unix Programming*](https://www.catb.org/esr/writings/taoup/html/), and McIlroy's *do one thing well*. **KISS** is its informal name.
 - *Rejected:* GitLab CE, Coroot, and every second CI system.
 
-**The budget covers the repository's own machinery.** Tasks, scripts, tests, and workflows cost what components cost. Someone has to understand, run, and repair them, and every generated project inherits them. A new mechanism names the failure class it owns or the mechanism it replaces. A mechanism that owns neither, or duplicates the work of another, is deleted. Additions and deletions land together, so the machinery budget falls as the platform grows. Review enforces this against [`docs/reference/build-path.md`](../reference/build-path.md), which records the failure class that each mechanism owns. A count ratchet never enforces it, because a ratchet deletes valuable checks to pay for new files. The binding definition of *simple* is local. It is the fewest independent mechanisms that cover the requirement:
+**The budget covers the repository's own machinery.** Tasks, scripts, tests, and workflows cost what components cost. Someone has to understand, run, and repair them. A new mechanism names the failure class it owns or the mechanism it replaces. A mechanism that owns neither, or duplicates the work of another, is deleted. Additions and deletions land together, so the machinery budget falls as the platform grows. Review enforces this against [`docs/reference/build-path.md`](../reference/build-path.md), which records the failure class that each mechanism owns. A count ratchet never enforces it, because a ratchet deletes valuable checks to pay for new files. The binding definition of *simple* is local. It is the fewest independent mechanisms that cover the requirement:
 
 - one owner per failure class
 - no second mechanism for a concern
@@ -279,7 +279,7 @@ Single-service implementation details do **not** get an ADR. They live in the se
 
 There is no `Rejected` or `Draft` status. A rejected proposal is a closed PR, not a committed file.
 
-**Scope:** the last two statuses belong to a project generated from this template. Such a project is a living system with real history. **This template's own set carries no history.** Every ADR here reads `Accepted` and carries the date the set was written. An ADR that must change is rewritten in place, per [ADR-0001](0001-documentation-conventions.md).
+**Scope:** the last two statuses belong to a set with real history. A set with no history reads `Accepted` in every ADR, with the date the set was written. An ADR that must change is rewritten in place, per [ADR-0001](0001-documentation-conventions.md).
 
 ### Structure, numbering, and prose
 

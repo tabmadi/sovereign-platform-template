@@ -214,7 +214,7 @@ func declaredDeps(path string) (map[string]map[string]bool, error) {
 
 		deps := map[string]bool{}
 		for _, call := range rootCall.FindAllStringSubmatch(section, -1) {
-			for _, dep := range strings.Fields(call[1]) {
+			for dep := range strings.FieldsSeq(call[1]) {
 				deps[dep] = true
 			}
 		}

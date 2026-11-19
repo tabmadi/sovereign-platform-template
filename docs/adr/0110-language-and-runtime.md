@@ -157,7 +157,7 @@ Every escape-hatch service has its own ADR that records the measured need. A Rus
 - **A service engineer and a platform engineer come from adjacent pools.** Cover during an absence does not need a second language. Growth from the first role into the second does not need one either.
 - The own working set of a service dominates its resident memory, not its runtime. So fleet capacity tracks workload, per [ADR-0204](0204-resource-management.md).
 - Generated TypeScript clients share types across languages without a second backend language, per [ADR-0303](0303-api-contracts-and-lifecycle.md).
-- The decision comes from the axis position. A project that adopts this template at a different position knows which driver to re-run. It does not have to argue the language again.
+- The decision comes from the axis position. A project at a different position knows which driver to re-run. It does not have to argue the language again.
 
 ### Negative and Risks
 

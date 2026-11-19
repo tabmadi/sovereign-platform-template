@@ -131,7 +131,9 @@ func runtimeFiles(files []string) []string {
 
 // isGlobalTrigger reports whether a changed path forces a full-repo build.
 func isGlobalTrigger(f string) bool {
-	exact := []string{"go.mod", "go.sum", "go.work", "go.work.sum", "package.json", "bun.lock", "bun.nix", "flake.nix", "flake.lock"}
+	exact := []string{
+		"go.mod", "go.sum", "go.work", "go.work.sum", "package.json", "bun.lock", "bun.nix", "flake.nix", "flake.lock",
+	}
 	if slices.Contains(exact, f) {
 		return true
 	}

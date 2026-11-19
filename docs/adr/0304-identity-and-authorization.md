@@ -84,7 +84,7 @@ Any two Zanzibar engines are interchangeable at the architecture level. The `Che
 
 ### Why ReBAC from day one, not RBAC with a later migration
 
-The template creates many products, and only some need ReBAC. So the obvious alternative is to ship flat RBAC and migrate later. This ADR rejects it. The switching cost is three separate costs, and they differ greatly.
+Many products run on this platform, and only some need ReBAC. So the obvious alternative is to ship flat RBAC and migrate later. This ADR rejects it. The switching cost is three separate costs, and they differ greatly.
 
 | Cost | Difficulty | Why |
 | --- | --- | --- |

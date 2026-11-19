@@ -2,6 +2,9 @@ module github.com/tabmadi/sovereign-platform-template
 
 go 1.26.0
 
+// The Bun workspace installs packages that can carry Go files. No Go pattern reads them.
+ignore node_modules
+
 require (
 	github.com/exaring/otelpgx v0.11.1
 	github.com/go-faster/errors v0.7.1

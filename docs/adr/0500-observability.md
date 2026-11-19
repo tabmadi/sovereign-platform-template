@@ -211,7 +211,7 @@ An SLO is a definition, not a component. This ADR decides it for two reasons. Th
 
 **The objective is a per-project number. The platform states its ceiling, not its value.** A target is a claim about response, so the floor's detection latency limits it. An objective tighter than the time to notice a fault is a number nobody can meet. [`docs/reference/detection-latency.md`](../reference/detection-latency.md) holds that composition per failure class. The escalation trigger of [ADR-0502](0502-alerting-and-on-call.md) raises the ceiling.
 
-So the template ships the **mechanism and the default thresholds**, and it does not ship the objective. A number inherited from a template is a number nobody chose. Nobody spends an error budget that nobody chose. They ignore it.
+So the platform ships the **mechanism and the default thresholds**, and it does not ship the objective. An inherited number is a number nobody chose. Nobody spends an error budget that nobody chose. They ignore it.
 
 ### Dashboards and alerts as code
 
@@ -240,7 +240,7 @@ Service code is the same locally and in production. The same `obs.Init` works ag
 
 ### Positive
 
-- Zero observability work per service. The template is the contract, and a service that follows it is fully observable.
+- Zero observability work per service. `services/_template/` is the contract, and a service that follows it is fully observable.
 - One UI, four signals, and deep correlation.
 - OTel first keeps the backend replaceable.
 - Logging to stdout first handles failure modes by default.

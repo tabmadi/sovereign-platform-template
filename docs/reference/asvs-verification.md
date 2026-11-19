@@ -20,7 +20,7 @@ A row's owner is the owner of its owning ADR.
 
 **Every row starts at *unverified*, and this shows the table works correctly.** [ADR-0304](../adr/0304-identity-and-authorization.md) says the ASVS bar is a design claim that nobody has examined. The third verdict exists to record this honestly. The table fails only when it shows *met* for a row that nobody walked.
 
-**A first walk is a full pass. It is different work from the cadence that follows.** A project chooses one of two ways to do it. The template does not choose:
+**A first walk is a full pass. It is different work from the cadence that follows.** A project chooses one of two ways to do it. The platform does not choose:
 
 | Way | Cost | Result |
 | --- | --- | --- |

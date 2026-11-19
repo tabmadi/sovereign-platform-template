@@ -1,6 +1,6 @@
 # Operational Surface and Component Tiers
 
-This document is the running inventory of every platform component that the template operates. It sorts them into three tiers. It also holds the budget rule for adding to the always-on floor. [`adoption-path.md`](adoption-path.md) runs the other way: it governs *removing* from the floor. This document makes principle 2 of [ADR-0000](adr/0000-platform-foundations.md), the *thinnest viable platform*, checkable and not only a goal.
+This document is the running inventory of every platform component that the platform operates. It sorts them into three tiers. It also holds the budget rule for adding to the always-on floor. [`adoption-path.md`](adoption-path.md) runs the other way: it governs *removing* from the floor. This document makes principle 2 of [ADR-0000](adr/0000-platform-foundations.md), the *thinnest viable platform*, checkable and not only a goal.
 
 [ADR-0000](adr/0000-platform-foundations.md) sets the platform-engineering budget. Under that budget, the raw component count is not the unit that matters. Most of these components are the real production floor for a multi-tenant application at meaningful load. The unit that matters is the **operational surface that the platform team must understand at 3am**. The tiers make that surface explicit and bounded.
 
@@ -96,7 +96,7 @@ These are real components that most instances never need. A project flag control
 The floor has a cost. Every Core component is a system that the platform team must be able to reason about during an incident. So:
 
 - **Nothing joins Core without an answer to one question: does the floor already cover this.** A new always-on component must show that no existing Core part serves its concern. If an existing part covers 90% of the need, that is the answer.
-- **Prefer the Core floor over a Scale variant until a measured signal appears.** To pick the scale-tier variant of a component before the scale exists is the typical over-commitment of this template. Ship the floor, and document the seam.
+- **Prefer the Core floor over a Scale variant until a measured signal appears.** To pick the scale-tier variant of a component before the scale exists is the typical over-commitment of this platform. Ship the floor, and document the seam.
 - **A Scale swap needs a written trigger**, not a preference. The trigger is a measurable condition, such as ingest volume, tenant count, or retention window. The table above and the owning ADR state it.
 - **An Opt-in component ships off.** It adds no operational surface until a project turns its flag on. From then on, that project owns its runbook.
 

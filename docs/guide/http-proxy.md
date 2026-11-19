@@ -1,6 +1,6 @@
 # Working behind an HTTP proxy
 
-Proxy configuration belongs to **your machine**, not to this template. The repo carries no proxy values and no proxy logic. After the one-time steps below, the `cluster:*` tasks work with no change. On a network without a proxy, none of this applies.
+Proxy configuration belongs to **your machine**, not to this repo. The repo carries no proxy values and no proxy logic. After the one-time steps below, the `cluster-*` recipes work with no change. On a network without a proxy, none of this applies.
 
 **Most of the image-pull steps below are optional.** zot mirrors docker.io, quay.io, ghcr.io, and registry.k8s.io as a pull-through cache, per [ADR-0114](../adr/0114-image-registry.md). When zot is up, the cluster nodes fetch images from it, not from the internet. So one component needs egress, not every node.
 

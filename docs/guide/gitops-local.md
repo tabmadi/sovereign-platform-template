@@ -55,7 +55,7 @@ sed -i -E 's/(revision|targetRevision): master/\1: my-gitops-change/' \
 just cluster-up full
 ```
 
-Revert the `sed` before you merge. `master` is the committed default. ArgoCD must be able to clone the repo. This template's repo is public, so a local run needs no credentials.
+Revert the `sed` before you merge. `master` is the committed default. ArgoCD must be able to clone the repo. A public repo needs no credentials. A private repo needs a read token in the Argo CD repository secret.
 
 ## CNI and CRD-operator changes, for example Cilium
 

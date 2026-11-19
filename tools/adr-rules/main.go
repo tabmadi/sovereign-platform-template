@@ -32,13 +32,13 @@ const (
 		" per [ADR-0001](../adr/0001-documentation-conventions.md).\n\n"
 	rulesRatio = "The ratio is a fact about the set, not a target. A rule moves into the first row when someone" +
 		" writes a check for it. A count that moves the wrong way is the signal to read.\n"
-	baselineIntro = "These are the security controls that every project built from this template inherits." +
+	baselineIntro = "These are the security controls that every instance of this platform holds." +
 		" Each one is a rule from the ADR that owns it, with the mechanism that enforces it. This document is" +
 		" generated from those Rules sections, so a control cannot be described here and decided differently there.\n\n"
 	baselineScope = "**Scope.** These controls hold for every instance. A particular project turns on more controls for" +
 		" its own risk profile or compliance framework. Those are in" +
 		" [`per-instance-hardening.md`](reference/per-instance-hardening.md). That file is written by hand," +
-		" because it is a property of the project, not of the template.\n\n"
+		" because it is a property of the instance, not of the baseline.\n\n"
 	baselineReview = "**Review enforces a control with no annotation.** Review is a weaker gate, but the rule binds" +
 		" in both cases. The difference is visible here for the same reason it is visible in the ADRs.\n"
 )

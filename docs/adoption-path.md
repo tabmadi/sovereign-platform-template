@@ -1,8 +1,8 @@
 # Adoption Path: Reducing and Growing the Floor
 
-[`operational-surface.md`](operational-surface.md) is the inventory. It lists what the template runs, and it holds the budget rule for what can join it. This document runs in the other direction. It answers **what a project gives up, in what order, and what it costs to take back.**
+[`operational-surface.md`](operational-surface.md) is the inventory. It lists what the platform runs, and it holds the budget rule for what can join it. This document runs in the other direction. It answers **what a project gives up, in what order, and what it costs to take back.**
 
-The Core floor is **a position on a path, not the start of one.** A project can arrive with less capacity than the floor needs. The template does not exclude it. The project enters below the floor and records the rungs it skipped. A project that grows past the floor moves up into the Scale tier. Both directions use the same mechanism, and this document holds both ends of it.
+The Core floor is **a position on a path, not the start of one.** A project can arrive with less capacity than the floor needs. The platform does not exclude it. The project enters below the floor and records the rungs it skipped. A project that grows past the floor moves up into the Scale tier. Both directions use the same mechanism, and this document holds both ends of it.
 
 ## Three ways to get smaller, and they are not the same
 
@@ -95,7 +95,7 @@ These rows are **bets**. There is no seam. Without the component, the applicatio
 
 That is a legitimate place to be. It is not a legitimate place to *drift* into. A project that takes any Band 3 row records it in **an ADR of its own**. That ADR states the new position on the axes, and it explicitly supersedes the affected decisions. [ADR-0000](adr/0000-platform-foundations.md) requires the same for a move down axis B. If you delete a component and keep the ADR that requires it, the result is a documented system that nobody runs. The conventions of this repository exist to prevent that failure.
 
-If more than one row here looks necessary, this template is not the right starting point for that project. A smaller template costs less than this one held together by exceptions.
+If more than one row here looks necessary, this platform is the wrong size for the project. A smaller platform costs less than this one held together by exceptions.
 
 ## Irreducible
 
@@ -122,7 +122,7 @@ Read each row as: *you can stop operating this. You cannot stop having it.*
 
 ## Hardenings a project takes on its own
 
-These are the reverse of a reduction. The template holds each position at a chosen default. The risk profile of a project can justify paying more than the floor does. Each hardening is additive, so none of them moves a band.
+These are the reverse of a reduction. The platform holds each position at a chosen default. The risk profile of a project can justify paying more than the floor does. Each hardening is additive, so none of them moves a band.
 
 | Hardening | The default, and why | Take it when |
 | --- | --- | --- |
@@ -150,7 +150,7 @@ The full ladder, from smallest to largest:
 | Band 3 taken | a different platform, at a different point on the axes, recorded in its own ADR |
 | Bands 1 and 2 taken | the capabilities of the floor, thinner, and partly operated by others |
 | Band 1 taken | the floor without its convenience surfaces and third-signal surfaces |
-| **The Core floor** | what this template ships |
+| **The Core floor** | what this platform runs by default |
 | Scale rows swapped in | the heavier variants of the floor, each on a measured trigger |
 
 No rung on this ladder is a *maturity level*, and moving up is not progress. [ADR-0000](adr/0000-platform-foundations.md) makes this point about the axes, and it holds here too. A higher position is a more expensive answer to a pressure that a system may not have.

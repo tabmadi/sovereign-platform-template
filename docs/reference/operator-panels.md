@@ -4,7 +4,7 @@ This page lists every web panel that an operator of this project can open, and w
 
 `<host>` is the environment host. On the local tier it is `dev.localtest.me:8443`. In a deployed environment it is the `envHost` of that environment's values file.
 
-**A generated project fills in the last table.** The ops tier is the same in every project. The panels outside it belong to the project's own forge and infrastructure.
+**A project fills in the last table.** The ops tier is the same in every project. The panels outside it belong to the project's own forge and infrastructure.
 
 ## The ops tier
 

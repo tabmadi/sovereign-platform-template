@@ -8,7 +8,7 @@
 
 ## Context
 
-**One instance of this repo is one project.** Each project instantiates the template once, so the project name is the identity of everything that the instance owns. A project is operated independently and **may run on any provider**. This scope is wider than [ADR-0200](0200-cluster-topology.md), which documents the default topology and not a provider.
+**One instance of this repo is one project.** Each project is one copy of the platform, so the project name is the identity of everything that the instance owns. A project is operated independently and **may run on any provider**. This scope is wider than [ADR-0200](0200-cluster-topology.md), which documents the default topology and not a provider.
 
 Two families of names run through the platform. Both fail in the same way when taste decides them.
 
@@ -35,7 +35,7 @@ This ADR owns the **grammar and charset** of every name that the platform assign
 ## Decision drivers
 
 1. **File and console parity.** A name written in the repo is the exact string that the provider's console shows.
-2. **Provider agnostic.** The scheme rests on published standards, not on a survey of one set of providers. A project that adopts this template may run anywhere.
+2. **Provider agnostic.** The scheme rests on published standards, not on a survey of one set of providers. A project may run anywhere.
 3. **The project name is globally unique.** Each project picks a slug that is distinctive enough to stand alone in the global namespace of any provider. So no org prefix is ever needed.
 4. **Mechanical, not conditional.** The scheme applies with no judgement call per resource, per principle 5 of [ADR-0000](0000-platform-foundations.md). A vocabulary that this ADR does not close is a vocabulary that the next engineer invents.
 5. **Adopt, do not invent**, per [ADR-0001](0001-documentation-conventions.md). Every charset, cap, and identifier format below is a published standard, or is derived from one in the open.

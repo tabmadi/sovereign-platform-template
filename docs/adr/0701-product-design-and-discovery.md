@@ -116,7 +116,7 @@ Screenshots attached to the pull request were rejected. A picture cannot be clic
 
 Research lives in `docs/product/`, and it is a genre of its own: dated observations of the outside world, with sources. It is not a decision, and it has no authority. A research document is never the reason for a change. A finding becomes binding when an ADR cites it in its Context. From then on, the decision is the law, not the evidence, per [ADR-0001](0001-documentation-conventions.md).
 
-The template ships only that directory's README and a template. A product adds the files it needs, and no file is required. Examples are:
+The repo holds only that directory's README and a starting file. A product adds the files it needs, and no file is required. Examples are:
 
 - landscape
 - terminology

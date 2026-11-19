@@ -29,7 +29,7 @@ So the decision is not which analytics tool to use. It is **which store holds Fa
 ## Decision drivers
 
 1. **An error is connectable to the journey that produced it**, without a match on timestamp and IP.
-2. **A platform component costs more than a service here.** A component pays the full cost of resources, supply chain, network policy, and backups. A service inherits all of it from the template.
+2. **A platform component costs more than a service here.** A component pays the full cost of resources, supply chain, network policy, and backups. A service inherits all of it from `services/_template/`.
 3. **PII discipline is already decided.** An analytics store meets [ADR-0301](0301-data-lifecycle-privacy.md) on day one, not through a later retrofit.
 4. **Marketing serves itself without ops-tier access.** Marketing staff are not operators, and Grafana is not their tool, per [ADR-0306](0306-trust-tiers-and-urls.md).
 5. **Collection stays vendor-neutral.** The backend is the replaceable part.
@@ -70,7 +70,7 @@ It is added configuration on a component that already runs. There is no gateway 
 
 ### The store is a service, not a platform component
 
-`services/analytics/` is an ordinary first-party service built from the template. It has these parts:
+`services/analytics/` is an ordinary first-party service built from `services/_template/`. It has these parts:
 
 - a partitioned events table on the existing cluster
 - generated queries

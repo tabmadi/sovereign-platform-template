@@ -28,7 +28,7 @@ This document puts them together. It adds no risk and decides none again. Every 
 
 **Rows 3, 6, and 7 are one risk.** Nothing pages. The regression window is a day. The failure of the alerting stack itself is invisible. Together they mean that human attention sets the platform's mean time to detect, and its floor is the next working day. [`detection-latency.md`](detection-latency.md) states this composition as a table. An availability objective is checked against it.
 
-**Rows 1 and 2 are the security pair.** Both give up a boundary to stay simple. Both rely on controls that are strong until they fail. Both have seams with triggers that this platform can observe. Read these two rows before you decide that this template fits a project.
+**Rows 1 and 2 are the security pair.** Both give up a boundary to stay simple. Both rely on controls that are strong until they fail. Both have seams with triggers that this platform can observe. Read these two rows before you decide that this platform fits a project.
 
 **Rows 8 and 13 are the two unbounded residuals of the build path.** [`build-path.md`](build-path.md) states this composition as a table. It is the merge-path partner of `detection-latency.md`. Together the two documents give the two dominant terms. Human attention sets the run-time exposure. Whether a machine can see a property sets the merge-time exposure.
 

@@ -4,7 +4,7 @@ This page records where each credential of this project is kept. It **never hold
 
 A newcomer reads this page and knows what to ask for and what to generate. If a credential is not on this page, nobody can find it during an incident. This register exists to prevent that failure.
 
-**A generated project fills in the tables.** The project inherits the classes and the rule that sorts them. The rows belong to the project, and it adds each row when the credential comes into existence.
+**A project fills in the tables.** The project inherits the classes and the rule that sorts them. The rows belong to the project, and it adds each row when the credential comes into existence.
 
 ## The rule: sort by what a reader needs in hand
 

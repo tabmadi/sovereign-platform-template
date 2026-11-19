@@ -52,7 +52,7 @@ This separation lets [ADR-0116](0116-forge-and-pipelines.md) hold that a forge o
 
 ### Where the pipeline pushes
 
-The registry that the pipeline pushes to is **configuration, not a constant**. A project generated from this template has a forge and no cluster. So the default is the own registry of the forge. A deployment that runs zot re-points the pipeline by setting two forge variables and two secrets. No workflow is edited.
+The registry that the pipeline pushes to is **configuration, not a constant**. A new project has a forge and no cluster. So the default is the own registry of the forge. A deployment that runs zot re-points the pipeline by setting two forge variables and two secrets. No workflow is edited.
 
 | Setting | Default | Set it to |
 | --- | --- | --- |

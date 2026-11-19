@@ -164,6 +164,8 @@
               export GOPROXY=file://${goProxy} GOSUMDB=off GOTOOLCHAIN=local GOFLAGS=-mod=readonly CGO_ENABLED=0
               export GOLANGCI_LINT_CACHE=$TMPDIR/golangci-lint
               cp -r --no-preserve=mode ${helmCharts}/infra .
+              # The tools list the repo files with git, and the sandbox has no .git. An index of the tracked files is enough.
+              git init -q . && git add -A
               just ${recipes}
             '';
           # The dprint wrapper of tabnix, which passes the shared config and the plugins.

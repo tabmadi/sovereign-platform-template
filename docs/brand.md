@@ -4,7 +4,7 @@ This file says what each design token is *for*. The values are in `apps/frontend
 
 This file has no colour values. One source for a value means one place to change it. A document that repeated the palette would be a second source, and it would drift with no warning, per [ADR-0001](adr/0001-documentation-conventions.md).
 
-**A generated project changes its brand by editing `:root` and `.dark` in that file.** Everything below describes what the roles mean. So an editor knows which role to change.
+**A project changes its brand by editing `:root` and `.dark` in that file.** Everything below describes what the roles mean. So an editor knows which role to change.
 
 ## Colour roles
 
