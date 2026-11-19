@@ -23,7 +23,7 @@ spec:
               elements:
                 # Sync windows, such as staging's 05:00 UTC gate, live on the
                 # per-environment AppProject, not here. See `bootstrap/appproject.yaml`.
-                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: dev, server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master

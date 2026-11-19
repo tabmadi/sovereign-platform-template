@@ -1,0 +1,18 @@
+# Findings that `just ci-scan` does not fail on, each with the reason it cannot be fixed here, per ADR-0113.
+#
+# An entry here means the manifest is already correct and the checker cannot see why.
+# A fix that is only hard or not scheduled goes in the plan, not here.
+#
+# `statement` gives the reason, not the rule again, so the next reader does not rebuild the argument.
+
+misconfigurations:
+  - id: KSV-0014
+    paths:
+      - "infra/local/deps.yaml"
+    statement: >-
+      The inner-loop Postgres cannot take a read-only root filesystem. The official
+      entrypoint chmods PGDATA before initdb runs, and it writes its socket and
+      lockfile under /var/run/postgresql. Both destinations are emptyDir mounts here,
+      not image layers, and that is the property the rule protects. The check reads
+      only the boolean. The container already runs as uid 70, non-root, with ALL
+      capabilities dropped and privilege escalation off.

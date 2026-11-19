@@ -1,5 +1,5 @@
-# Team access, per ADR-0102: Developers read code, so a change comes from a fork through a pull request.
-# `forge:apply` updates these teams in the organization that owns FORGE_REPO. It never creates a team or changes membership.
+# Team access, per ADR-0116: Developers read code, so a change comes from a fork through a pull request.
+# `forge-apply` updates these teams in the organization that owns FORGE_REPO. It never creates a team or changes membership.
 
 teams:
   - name: Developers

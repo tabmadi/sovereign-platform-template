@@ -10,11 +10,11 @@ grep -rn '(measured)' docs/adr/*.md | sed 's/^/    /' | head -20 || true
 
 echo
 detail "resource governance, computed from the charts as they stand now:"
-mise run lint:resource-governance 2>&1 | grep -E 'requests|containers' | sed 's/^/    /' || true
+just lint-resource-governance 2>&1 | grep -E 'requests|containers' | sed 's/^/    /' || true
 
 echo
 detail "load suite. This needs a running cluster, per ADR-0601:"
-if mise run perf:smoke 2>&1 | tail -20 | sed 's/^/    /'; then
+if just perf-smoke 2>&1 | tail -20 | sed 's/^/    /'; then
   ok "load suite ran"
 else
   warn "load suite did not run. It needs a cluster, and a missing cluster is not drift"

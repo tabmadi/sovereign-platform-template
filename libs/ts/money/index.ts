@@ -1,5 +1,5 @@
 /**
- * Monetary amounts on the TypeScript side, per ADR-0300 and ADR-0100. It is much smaller than libs/go/money on purpose.
+ * Monetary amounts on the TypeScript side, per ADR-0300 and ADR-0110. It is much smaller than libs/go/money on purpose.
  * The amount is always a string. `JSON.parse` turns a JSON number into an IEEE-754 double, and 12.10 is not a double.
  * There is no arithmetic here. A total that a client computes, the server computes again.
  */
@@ -20,9 +20,9 @@ export class InvalidMoneyError extends Error {
   }
 }
 
-const AMOUNT_PATTERN = /^-?[0-9]+(\.[0-9]+)?$/;
+const AMOUNT_PATTERN = /^-?[0-9]+(?:\.[0-9]+)?$/u;
 
-const CURRENCY_PATTERN = /^[A-Z]{3}$/;
+const CURRENCY_PATTERN = /^[A-Z]{3}$/u;
 
 /**
  * The internal scale of `libs/go/money`, and the most decimal places an amount can

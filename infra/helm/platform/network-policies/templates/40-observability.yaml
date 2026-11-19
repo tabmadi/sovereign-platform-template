@@ -54,7 +54,7 @@ spec:
       toPorts:
         - ports: [{ port: "9090", protocol: TCP }]
 ---
-## otel-cluster to Kyverno's metrics, per ADR-0104 and ADR-0500.
+## otel-cluster to Kyverno's metrics, per ADR-0113 and ADR-0500.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

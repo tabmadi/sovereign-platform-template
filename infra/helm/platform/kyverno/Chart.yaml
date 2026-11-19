@@ -1,7 +1,7 @@
 apiVersion: v2
 name: kyverno
 description: |
-  Admission control for image provenance, per ADR-0104. Every first-party image
+  Admission control for image provenance, per ADR-0113. Every first-party image
   carries a signature that this platform made, and every image reference is a digest.
 
   The upstream chart is the mechanism. The policies are this chart's own templates,

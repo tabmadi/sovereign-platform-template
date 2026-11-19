@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Open the prod pin as a pull request, and let the forge merge it when its checks pass, per ADR-0201 and ADR-0102.
+# Open the prod pin as a pull request, and let the forge merge it when its checks pass, per ADR-0201 and ADR-0116.
 # Prod is promoted through review, not pushed.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
@@ -11,7 +11,7 @@ base="${BASE:-master}"
 branch="deploy/prod-${ver}"
 title="chore(deploy): promote ${ver} to prod"
 
-git diff --quiet -- infra/gitops && fail "promote:prod changed no values file"
+git diff --quiet -- infra/gitops && fail "promote-prod changed no values file"
 # shellcheck source=lib/ci-git.sh
 source "$LIB/ci-git.sh"
 ci_git_identity

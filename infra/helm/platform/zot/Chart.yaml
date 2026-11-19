@@ -1,10 +1,10 @@
 apiVersion: v2
 name: zot
 description: |
-  The image registry, per ADR-0105. There is one instance per environment, backed
+  The image registry, per ADR-0114. There is one instance per environment, backed
   by the platform's object storage, per ADR-0207.
 
-  It uses first-party templates, because ADR-0105 decides that the registry IS a
+  It uses first-party templates, because ADR-0114 decides that the registry IS a
   committed configuration file. Projects, quotas, and retention are never set
   through an API call or a UI. A wrapper around an upstream chart would put that
   file behind a values schema that renders it. That is the same file with a

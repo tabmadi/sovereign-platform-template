@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One command for a fresh checkout, per ADR-0106. Idempotent.
+# One command for a fresh checkout, per ADR-0117. Idempotent.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -8,9 +8,10 @@ if [ ! -f .env ] && [ -f .env.example ]; then
   detail ".env seeded from .env.example"
 fi
 
-# A template checkout keeps the shipped keys. A new key would encrypt its secrets to one engineer's machine.
-if [ ! -f .copier-answers.yml ]; then
-  ok "template checkout: project keys are not changed"
+# A copy before `just init` keeps the shipped keys. A new key would encrypt its secrets to one engineer's machine.
+# `just init` removes scripts/project-init.sh, so the script marks a copy that is not a project yet.
+if [ -f scripts/project-init.sh ]; then
+  ok "not initialised: the project keys are not changed. Run 'just init' first"
   exit 0
 fi
 
@@ -32,7 +33,7 @@ bash scripts/rotate-local-age-key.sh
 step "re-encrypting the committed secrets to the current recipients"
 bash scripts/secrets-updatekeys.sh
 
-ok "bootstrap complete. Run 'mise run cluster:up'"
+ok "bootstrap complete. Run 'just cluster-up'"
 if [ ! -s infra/auth/cosign/cosign.pub ]; then
-  printf '  Signing key: add the CI and ops-recovery age recipients to .sops.yaml, then run '\''mise run secrets:cosign'\''.\n'
+  printf '  Signing key: add the CI and ops-recovery age recipients to .sops.yaml, then run '\''just secrets-cosign'\''.\n'
 fi

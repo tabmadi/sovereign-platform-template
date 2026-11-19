@@ -1,21 +1,62 @@
-# Editors
+# JetBrains
 .idea/
-*.iml
 .run/
+
+# Visual Studio Code and Visual Studio
 .vscode/
-.history
+.history/
+.vs/
+
+# Vim and Neovim
 *~
 *.swp
 *.swo
 
+# Emacs
+\#*\#
+.#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Helix
+.helix/
+
+# AI coding agents. AGENTS.md is the one shared file, per AGENTS.md
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.codex/
+.opencode/
+opencode.json
+opencode.jsonc
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.gemini/
+GEMINI.md
+.aider*
+.github/copilot-instructions.md
+
+# Environment variable files
+.env*
+!.env.example
+!.envrc
+
+# Personal notes that stay out of git
+*.local.md
+
+# Nix, per ADR-0100
+.direnv/
+result
+result-*
+.pre-commit-config.yaml
+
 # OS
 .DS_Store
 Thumbs.db
-
-# Env files. Never commit a real secret, per ADR-0202. An encrypted .enc.yaml is allowed.
-.env
-.env.*
-!.env.example
 
 # Go
 /bin/
@@ -67,23 +108,16 @@ test/perf/results/
 crash.log
 core.*
 
-
-# Mise local cache
-.mise.local.toml
-
-# Rumble cache
+# rumdl cache
 .rumdl_cache
 
 # Compiled Go binaries at the repo root. `go build ./tools/<name>` with no -o writes a binary named after the package into the CWD.
-# Every tool runs with `go run`, as the lint tasks in .mise.toml show, so a built binary is scratch.
+# Every tool runs with `go run`, as the lint recipes in justfile show, so a built binary is scratch.
 /lint-*
 /gen-*
 /data-classes
 /zod-gen
 
-# Local working files. They are never committed, per AGENTS.md.
-*.local.md
-
-# proxy:setup writes these. They hold this machine's egress route into the cluster.
+# proxy-setup writes these. They hold this machine's egress route into the cluster.
 infra/local/proxy.local.yaml
 infra/local/proxy.local.env

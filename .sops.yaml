@@ -1,27 +1,27 @@
 # SOPS recipient rules, per ADR-0202.
 # The `name` entries are placeholders. Replace them with real age public keys before use.
-# Each engineer adds a key in a PR through the `mise run secrets:age` onboarding.
+# Each engineer adds a key in a PR through the `just secrets-age` onboarding.
 
 keys:
   # Engineer keys: one for each active engineer.
   - &eng_placeholder age1example0engineer000000000000000000000000000000000000000000
 
   # One key for each cluster. The private half lives only in that cluster.
-  - &cluster_dev     age1example0cluster0dev000000000000000000000000000000000000000
+  - &cluster_dev age1example0cluster0dev000000000000000000000000000000000000000
   - &cluster_staging age1example0cluster0staging00000000000000000000000000000000000
-  - &cluster_prod    age1example0cluster0prod0000000000000000000000000000000000000000
+  - &cluster_prod age1example0cluster0prod0000000000000000000000000000000000000000
 
   # `local` is the one exception to that rule, per ADR-0205. No bootstrap step creates its private key,
   # so the key is committed at infra/gitops/platform/local/age.key. It encrypts throwaway values only.
   # Never reuse this key pair for a real environment.
-  - &cluster_local   age1aapmzzzcs8qm2n9exkel8vtknqsmy9t3k9g99wpypfez8av4uaps0f9gpp
+  - &cluster_local age1aapmzzzcs8qm2n9exkel8vtknqsmy9t3k9g99wpypfez8av4uaps0f9gpp
 
   # CI's key is the only non-human recipient. Its private half is a forge secret.
-  # It is a recipient of exactly one file: the image-signing key, per ADR-0104.
-  - &ci_placeholder     age1example0ci0000000000000000000000000000000000000000000000000
+  # It is a recipient of exactly one file: the image-signing key, per ADR-0113.
+  - &ci_placeholder age1example0ci0000000000000000000000000000000000000000000000000
 
   # Ops-recovery keys. Two or three senior engineers hold the private halves offline.
-  - &ops_recovery    age1example0ops0recovery000000000000000000000000000000000000000
+  - &ops_recovery age1example0ops0recovery000000000000000000000000000000000000000
 
 creation_rules:
   # Secret files for each env, encrypted to the cluster, the engineers, and ops-recovery.
@@ -54,7 +54,7 @@ creation_rules:
     age:
       - *cluster_local
 
-  # The image-signing private key, per ADR-0104. CI decrypts it to sign. Kyverno verifies with the public half, so no cluster decrypts it.
+  # The image-signing private key, per ADR-0113. CI decrypts it to sign. Kyverno verifies with the public half, so no cluster decrypts it.
   # The recipients are the people who can re-issue it and the CI identity that uses it.
   # No cluster key is a recipient, because a cluster can be made to read any secret it receives.
   - path_regex: infra/auth/cosign/.*\.enc\.ya?ml$
@@ -63,7 +63,7 @@ creation_rules:
       - *ci_placeholder
       - *ops_recovery
 
-  # The commit-signing key of the `ci` user, per ADR-0102. CI decrypts it to sign the promotion commits. No cluster does.
+  # The commit-signing key of the `ci` user, per ADR-0116. CI decrypts it to sign the promotion commits. No cluster does.
   - path_regex: infra/ci/.*\.enc\.ya?ml$
     age:
       - *eng_placeholder

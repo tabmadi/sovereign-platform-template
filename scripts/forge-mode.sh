@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fit the workflows to the forge that runs them, per ADR-0106 and ADR-0102. It runs at generation and at every update.
+# Fit the workflows to the forge that runs them, per ADR-0117 and ADR-0116. It runs at generation and at every update.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -59,7 +59,7 @@ if [ -d .github/workflows ] && [ ! -d .forgejo/workflows ]; then
   sed -i 's|\./\.github/workflows/|./.forgejo/workflows/|g' .forgejo/workflows/*.yml
 fi
 
-# Forgejo ignores `permissions` and warns on every run. Its token scope is fixed, per ADR-0102.
+# Forgejo ignores `permissions` and warns on every run. Its token scope is fixed, per ADR-0116.
 # A block is the key line and every deeper line after it. A blank line that the removal doubles goes too.
 for f in .forgejo/workflows/*.yml; do
   awk '

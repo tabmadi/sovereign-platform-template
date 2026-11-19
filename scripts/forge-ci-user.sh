@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create or refresh the `ci` machine user that pushes promotion commits and runs Renovate, per ADR-0102, ADR-0201, and ADR-0106.
+# Create or refresh the `ci` machine user that pushes promotion commits and runs Renovate, per ADR-0116, ADR-0201, and ADR-0117.
 # It gives `ci` write access to the repository, stores new tokens of `ci` as the PROMOTE_TOKEN and RENOVATE_TOKEN secrets, and applies branch protection.
 # A rerun rotates the tokens. FORGE_TOKEN is an admin token. The new token goes only to the secret and is never printed.
 set -euo pipefail
@@ -47,7 +47,7 @@ promote="$(token_for promote '["write:repository", "write:issue"]')"
 # Renovate's Forgejo platform reads the bot's own user and the organisation of the repository as well.
 renovate="$(token_for renovate '["write:repository", "write:issue", "read:user", "read:organization"]')"
 
-# The commit-signing key of `ci`, per ADR-0102. Its email is the commit email of ci_git_identity, and the forge must list it for the user.
+# The commit-signing key of `ci`, per ADR-0116. Its email is the commit email of ci_git_identity, and the forge must list it for the user.
 KEY_FILE="infra/ci/commit-signing-key.enc.yaml"
 if [[ -f "$KEY_FILE" ]]; then
   step "uploading the commit-signing key of ${user}"

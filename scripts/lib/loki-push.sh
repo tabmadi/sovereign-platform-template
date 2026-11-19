@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Push one structured line to Loki from outside the cluster, per ADR-0104 and ADR-0500.
+# Push one structured line to Loki from outside the cluster, per ADR-0113 and ADR-0500.
 
 # loki_push <stream-labels-json> <line-json>
 loki_push() {

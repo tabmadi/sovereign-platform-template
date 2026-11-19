@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Conventional Commit gate over a commit range, per ADR-0103. A rebase or cherry-pick can bring a bad message past the commit-msg hook there.
+# Conventional Commit gate over a commit range, per ADR-0112. A rebase or cherry-pick can bring a bad message past the commit-msg hook there.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

@@ -32,7 +32,7 @@ spec:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
         ADMIN_PASSWORD: ""
-    # The registry's own logins, per ADR-0105. `htpasswd` has one BCRYPT line per
+    # The registry's own logins, per ADR-0114. `htpasswd` has one BCRYPT line per
     # identity: a push identity and a pull identity. `consoleAuthorization` is the
     # `Basic` header that the console proxy sends for the browser.
     - name: zot-credentials
@@ -41,7 +41,7 @@ spec:
         AWS_SECRET_ACCESS_KEY: ""
         htpasswd: ""
         consoleAuthorization: ""
-    # The registry pull credential as a docker config, per ADR-0105. Every chart
+    # The registry pull credential as a docker config, per ADR-0114. Every chart
     # that runs a first-party image names this Secret in `imagePullSecrets`. A
     # kubelet has no credential of its own, and the node cannot hold one.
     - name: registry-pull
@@ -138,7 +138,7 @@ spec:
 
 ## `kyverno.enc.yaml` skeleton
 
-Kyverno reads an image's signature from the registry that holds the image. It uses a credential from its own namespace, per [ADR-0104](../../../../../docs/adr/0104-supply-chain-security.md). The value is the `registry-pull` docker config above. A SopsSecret creates Secrets only in its own namespace. So this one is a second CR, not a second template in the first CR.
+Kyverno reads an image's signature from the registry that holds the image. It uses a credential from its own namespace, per [ADR-0113](../../../../../docs/adr/0113-supply-chain-security.md). The value is the `registry-pull` docker config above. A SopsSecret creates Secrets only in its own namespace. So this one is a second CR, not a second template in the first CR.
 
 ```yaml
 apiVersion: isindir.github.com/v1alpha3
@@ -156,7 +156,7 @@ spec:
 
 ## `argocd-repo.enc.yaml` skeleton
 
-This is the read-only credential that Argo CD uses to clone a private repository. It is not a Kubernetes object, so Argo CD ignores it here. `mise run argocd:bootstrap dev` decrypts it into a `repo-creds` Secret for the forge's origin, per [ADR-0200](../../../../../docs/adr/0200-cluster-topology.md). A public repository needs the file too, because the design-preview generator of [ADR-0701](../../../../../docs/adr/0701-product-design-and-discovery.md) reads pull requests with it.
+This is the read-only credential that Argo CD uses to clone a private repository. It is not a Kubernetes object, so Argo CD ignores it here. `just argocd-bootstrap dev` decrypts it into a `repo-creds` Secret for the forge's origin, per [ADR-0200](../../../../../docs/adr/0200-cluster-topology.md). A public repository needs the file too, because the design-preview generator of [ADR-0701](../../../../../docs/adr/0701-product-design-and-discovery.md) reads pull requests with it.
 
 ```yaml
 stringData:

@@ -17,32 +17,32 @@ The starting skeleton for every backend service. **Do not edit this directory to
 | `internal/store/` | Generated sqlc output: typed Go |
 | `migrations/` | dbmate migrations, per ADR-0300 |
 | `sqlc.yaml` | sqlc config for this service |
-| `.mise.toml` | Service-local tasks: `server`, `worker`, `test`, `lint`, `migrate`, `generate`, and `build` |
-| `Dockerfile` | Multi-stage build with a `CMD` build arg, per ADR-0101 |
+| `justfile` | The recipes of the service: `server`, `worker`, `test`, `lint`, `migrate`, `generate`, and `build` |
+| `Dockerfile` | Multi-stage build with a `CMD` build arg, per ADR-0111 |
 
 ## Checklist for a new service
 
-`scripts/new-service.sh` copies the skeleton. It cannot decide the items below for you. The service contract in [ADR-0205](../../docs/adr/0205-environment-parity.md) gives the full reasons. `mise run lint:service-contract` fails on any item you miss.
+`scripts/new-service.sh` copies the skeleton. It cannot decide the items below for you. The service contract in [ADR-0205](../../docs/adr/0205-environment-parity.md) gives the full reasons. `just lint-service-contract` fails on any item you miss.
 
-1. **Register a local port** in `scripts/lib/ports.sh`. Set the same `PORT` in your `.mise.toml`. The skeleton ships `80XX`, so the lint fails until you do. Ports must be unique, and `:8080` is reserved for the local edge mapping.
-2. **Trim `dep:*`** to what the service reads. Drop `dep:temporal` if there is no worker, and `dep:postgres` if there is no database.
+1. **Register a local port** in `scripts/lib/ports.sh`. Set the same `PORT` in its `justfile`. The skeleton ships `80XX`, so the lint fails until you do. Ports must be unique, and `:8080` is reserved for the local edge mapping.
+2. **Trim `dep:*`** to what the service reads. Drop `dep-temporal` if there is no worker, and `dep-postgres` if there is no database.
 3. **Add `svc:*`** for every other service that you call over HTTP. If you miss one, the service starts cleanly and then fails on the first outbound call.
 4. **Write `.env.example`** with every variable that you read. It creates a fresh clone's `.env`, so an unlisted variable gets a default with no warning.
 5. **Add a values file per environment** under `infra/gitops/services/<env>/values/`. This step deploys the service. The ApplicationSet generates one Argo Application *per values file*. If you skip an environment, the service is absent there and nothing reports it. If that is on purpose, declare `# platform/not-deployed: <env>` in your `.mise.toml` instead.
 6. **Decide your edge exposure** in those values: `ingress.enabled`, `ingress.resources`, and `networkPolicy.allowFrom` for east-west callers. An internal service must set `networkPolicy.allowFromGateway: false`. `services/authz` is a worked example.
-7. **Write `requirements.md`** under a new prefix, and cite each ID in a test name, per [ADR-0602](../../docs/adr/0602-behaviour-requirements.md). `mise run lint:requirements` fails while the prefix is `TPL` or a requirement has no test.
+7. **Write `requirements.md`** under a new prefix, and cite each ID in a test name, per [ADR-0602](../../docs/adr/0602-behaviour-requirements.md). `just lint-requirements` fails while the prefix is `TPL` or a requirement has no test.
 8. **Replace this README** with one that describes the purpose of the service.
 
 ## Standard tasks
 
 ```sh
-mise run server     # HTTP server
-mise run worker     # Temporal worker
-mise run test
-mise run lint
-mise run migrate    # dbmate up
-mise run generate   # sqlc and openapi codegen
-mise run build      # go build
+just server     # HTTP server
+just worker     # Temporal worker
+just test
+just lint
+just migrate    # dbmate up
+just generate   # sqlc and openapi codegen
+just build      # go build
 ```
 
 ## Build tags

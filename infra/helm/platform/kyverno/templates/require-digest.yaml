@@ -1,5 +1,5 @@
 {{- if .Values.policies.imagePrefix }}
-# Every first-party image reference is a digest, per ADR-0101 and ADR-0104.
+# Every first-party image reference is a digest, per ADR-0111 and ADR-0113.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -15,7 +15,7 @@ metadata:
       An image reference from this platform's own registry must name a digest. A
       tag is a mutable pointer, so a tagged reference means the bytes that ran
       yesterday and the bytes that run today are the same only by convention
-      (ADR-0101).
+      (ADR-0111).
 spec:
   validationFailureAction: {{ .Values.policies.validationFailureAction }}
   # Background scanning is ON, unlike the signature policy. This check needs no registry round trip, so it is cheap to
@@ -28,7 +28,7 @@ spec:
         any:
           - resources:
               kinds: [Pod]
-      # A design Deployment names its commit tag, and `design-images.yaml` pins its pod to the verified digest, per ADR-0104.
+      # A design Deployment names its commit tag, and `design-images.yaml` pins its pod to the verified digest, per ADR-0113.
       exclude:
         any:
           - resources:
@@ -40,7 +40,7 @@ spec:
             value: DELETE
       validate:
         message: >-
-          A first-party image must use a digest, not a tag, per ADR-0101.
+          A first-party image must use a digest, not a tag, per ADR-0111.
           Promotion writes the digest into the values file. A tag there is the
           defect that lint:floating-tags catches before it reaches a cluster.
         foreach:

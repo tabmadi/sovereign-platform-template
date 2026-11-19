@@ -14,7 +14,7 @@ decide() {
 }
 
 base="origin/${BASE_REF:-master}"
-manifest="$(mise run ci:affected -- --base "$base" --runtime)"
+manifest="$(just ci-affected --base "$base" --runtime)"
 
 [[ "$(jq -r '.global' <<<"$manifest")" != true ]] ||
   decide true "→ a global change. Measuring the frontend."

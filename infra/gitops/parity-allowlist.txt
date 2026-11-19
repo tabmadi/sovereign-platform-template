@@ -1,5 +1,5 @@
 # Values keys that a deployed environment can carry and the local overlay does not.
-# Each key has a divergence that ADR-0205 permits. lint:parity fails a deployed key
+# Each key has a divergence that ADR-0205 permits. lint-parity fails a deployed key
 # that is absent from the local overlay and not listed here. The local tier covers
 # the code path before a deployed environment adds configuration for it. Every
 # entry has a reason, and a reviewer judges the reason.

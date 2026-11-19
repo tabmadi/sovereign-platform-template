@@ -11,7 +11,7 @@ description: |
   CR fails with `no matches for kind Connection`. With the split, the CRDs are in
   the base tier at wave 0. The controller and its Connection are in core at wave 3.
   This makes the order explicit, and it does not depend on Argo CD applying CRDs
-  first. It also keeps `mise run cluster:add` working for it, because that path is
+  first. It also keeps `just cluster-add` working for it, because that path is
   a plain `helm upgrade --install` with no special case for CRDs.
 type: application
 version: "2026.11.0"

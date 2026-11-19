@@ -8,8 +8,8 @@ localPath:
   image:
     repository: rancher/local-path-provisioner
     tag: "v0.0.37"
-    # Pinned by digest, per ADR-0104. A human reads the tag above. The digest is
-    # what is pulled. `lint:floating-tags` checks the two against each other.
+    # Pinned by digest, per ADR-0113. A human reads the tag above. The digest is
+    # what is pulled. `lint-floating-tags` checks the two against each other.
     digest: sha256:e757967a5ec338f6a9b371c5a9688bedaa8c3578ea3dd4db329ea0084be0a86f
     pullPolicy: IfNotPresent
 

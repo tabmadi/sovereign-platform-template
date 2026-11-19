@@ -15,7 +15,7 @@ COPY services/${SERVICE} ./services/${SERVICE}
 # how to read every past bucket. So the change belongs to a release, not to a config
 # edit that can happen under a running release.
 COPY infra/analytics/funnels.yaml ./funnels.yaml
-# The build identity goes into the binary, per ADR-0103, so the running pod reports its
+# The build identity goes into the binary, per ADR-0112, so the running pod reports its
 # git SHA and release. The build scripts and CI pass it. Without it, the VCS stamp is used.
 ARG GIT_SHA=""
 ARG BUILD_VERSION=dev

@@ -54,7 +54,7 @@ edge_gates pgweb
 edge_gates mailpit
 
 if [ "$failed" -gt 0 ]; then
-  printf '\npreflight: %d failed checks. cluster:up full is not ready: the infra is down, the app is not broken\n' "$failed" >&2
+  printf '\npreflight: %d failed checks. cluster-up full is not ready: the infra is down, the app is not broken\n' "$failed" >&2
   exit 1
 fi
 printf '\npreflight: all checks passed\n'

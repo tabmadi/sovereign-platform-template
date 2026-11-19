@@ -9,7 +9,7 @@ CLUSTER="${CLUSTER:-platform}"
 source "$LIB/cluster.sh"
 NS="platform"
 
-CHART="${1:?usage: mise run cluster:add -- <chart>}"
+CHART="${1:?usage: just cluster-add <chart>}"
 CHART_DIR="infra/helm/platform/${CHART}"
 [ -d "$CHART_DIR" ] || fail "no such platform chart: ${CHART_DIR}"
 

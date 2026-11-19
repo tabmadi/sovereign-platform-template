@@ -84,7 +84,7 @@ This is not committed in the clear. The machine config that carries it is SOPS-e
 
 ## Pulling from the platform's own registry
 
-The registry authenticates every pull, per ADR-0105. An anonymous client gets nothing. A **kubelet** is such a client. So every workload that runs a first-party image needs a pull credential. It comes as an `imagePullSecret` from the environment's `SopsSecret`, and that chart's values name it.
+The registry authenticates every pull, per ADR-0114. An anonymous client gets nothing. A **kubelet** is such a client. So every workload that runs a first-party image needs a pull credential. It comes as an `imagePullSecret` from the environment's `SopsSecret`, and that chart's values name it.
 
 **The node cannot hold the credential instead, and the attempt looks like it worked.** Talos takes registry credentials in the machine config:
 

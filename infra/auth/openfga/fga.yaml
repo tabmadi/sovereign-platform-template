@@ -1,4 +1,4 @@
-# The OpenFGA store test, per ADR-0304. `mise run lint:authz` runs it with `fga model test --tests fga.yaml`. It
+# The OpenFGA store test, per ADR-0304. `just lint-authz` runs it with `fga model test --tests fga.yaml`. It
 # holds sample tuples and check assertions that pin the model's behaviour.
 name: platform-authz
 model_file: ./model.fga
@@ -6,27 +6,43 @@ model_file: ./model.fga
 tuples:
   # Business sample: the acme org and two orders.
   - { user: user:alice, relation: member, object: org:acme }
-  - { user: org:acme,   relation: org,    object: order:o1 }
-  - { user: user:alice, relation: owner,  object: order:o1 }
-  - { user: org:acme,   relation: org,    object: order:o2 }
-  - { user: user:bob,   relation: owner,  object: order:o2 }
-  - { user: order:o1,   relation: order,  object: charge:c1 }
+  - { user: org:acme, relation: org, object: order:o1 }
+  - { user: user:alice, relation: owner, object: order:o1 }
+  - { user: org:acme, relation: org, object: order:o2 }
+  - { user: user:bob, relation: owner, object: order:o2 }
+  - { user: order:o1, relation: order, object: charge:c1 }
   # Ops tier, per ADR-0306: alice is an operator. The admin console is a direct
   # grant. Every other dashboard is granted to the operator group.
-  - { user: user:alice,            relation: member, object: group:operator }
-  - { user: user:alice,            relation: viewer, object: dashboard:lowdefy }
+  - { user: user:alice, relation: member, object: group:operator }
+  - { user: user:alice, relation: viewer, object: dashboard:lowdefy }
   - { user: group:operator#member, relation: viewer, object: dashboard:hubble }
   - { user: group:operator#member, relation: viewer, object: dashboard:grafana }
   - { user: group:operator#member, relation: viewer, object: dashboard:argocd }
-  - { user: group:operator#member, relation: viewer, object: dashboard:temporal }
-  - { user: group:operator#member, relation: viewer, object: dashboard:seaweedfs }
-  - { user: group:operator#member, relation: viewer, object: dashboard:headlamp }
+  - {
+      user: group:operator#member,
+      relation: viewer,
+      object: dashboard:temporal,
+    }
+  - {
+      user: group:operator#member,
+      relation: viewer,
+      object: dashboard:seaweedfs,
+    }
+  - {
+      user: group:operator#member,
+      relation: viewer,
+      object: dashboard:headlamp,
+    }
   - { user: group:operator#member, relation: viewer, object: dashboard:pgweb }
   - { user: group:operator#member, relation: viewer, object: dashboard:mailpit }
   # Every design preview, per ADR-0701, is one tool.
   - { user: group:operator#member, relation: viewer, object: dashboard:design }
   # The analytics panel is granted to the MARKETING group, not to operators, per ADR-0700.
-  - { user: group:marketing#member, relation: viewer, object: analytics_panel:funnels }
+  - {
+      user: group:marketing#member,
+      relation: viewer,
+      object: analytics_panel:funnels,
+    }
 
 tests:
   - name: business-and-ops-authz

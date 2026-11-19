@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pin every prod values file to a release commit by digest, and label the images with the CalVer, per ADR-0103 and ADR-0201.
+# Pin every prod values file to a release commit by digest, and label the images with the CalVer, per ADR-0112 and ADR-0201.
 # A digest cannot be pushed again.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"

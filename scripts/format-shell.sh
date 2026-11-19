@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shell formatter: shfmt in place over every script, with `-i 2` to match the repo's style, per ADR-0101.
+# Shell formatter: shfmt in place over every script, with `-i 2` to match the repo's style, per ADR-0111.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/repo-files.sh

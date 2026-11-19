@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate the two commit-signing keys, per ADR-0102 and ADR-0202: one for the forge, one for the `ci` machine user.
+# Generate the two commit-signing keys, per ADR-0116 and ADR-0202: one for the forge, one for the `ci` machine user.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=../infra/forge-host/forge.env
@@ -12,7 +12,7 @@ if [ -f "$FORGE_KEY" ] || [ -f "$CI_KEY" ]; then
   fail "a commit-signing key already exists. A second one is a rotation. Follow docs/guide/secrets-runbook.md."
 fi
 if grep -q 'age1example' .sops.yaml; then
-  fail ".sops.yaml still has placeholder recipients. Add your real engineer and CI age keys first, with mise run secrets:age."
+  fail ".sops.yaml still has placeholder recipients. Add your real engineer and CI age keys first, with just secrets-age."
 fi
 
 work="$(mktemp -d)"
@@ -53,5 +53,5 @@ generate "$CI_KEY" "ci" "ci@noreply.${FORGE_DOMAIN}"
 echo
 echo "Next:"
 echo "  1. Commit both files. Only their values are ciphertext."
-echo "  2. mise run forge:signing imports the forge key and sets the signing keys of app.ini."
-echo "  3. mise run forge:ci-user uploads the public key of ci. Only then turn on require_signed_commits."
+echo "  2. just forge-signing imports the forge key and sets the signing keys of app.ini."
+echo "  3. just forge-ci-user uploads the public key of ci. Only then turn on require_signed_commits."

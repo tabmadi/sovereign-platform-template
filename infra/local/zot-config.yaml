@@ -1,4 +1,4 @@
-# The LOCAL registry, per ADR-0105 and ADR-0600. It is the same implementation that every deployed environment runs,
+# The LOCAL registry, per ADR-0114 and ADR-0600. It is the same implementation that every deployed environment runs,
 # as a host container next to the kind clusters. So the image path is not a place where environments differ.
 distSpecVersion: "1.1.1"
 
@@ -34,7 +34,7 @@ extensions:
     enable: true
   search:
     enable: true
-  # PULL-THROUGH MIRRORING, per ADR-0105.
+  # PULL-THROUGH MIRRORING, per ADR-0114.
   sync:
     enable: true
     downloadDir: /var/lib/zot/sync

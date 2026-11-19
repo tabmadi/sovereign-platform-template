@@ -1,0 +1,166 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-global-schema.json",
+  "description": [
+    "The self-hosted run of the renovate workflow reads this file through RENOVATE_CONFIG_FILE, per ADR-0117.",
+    "The repository config in .github/renovate.json merges on top of it. These rules group the pins of the platform."
+  ],
+  "binarySource": "global",
+  "allowedCommands": [
+    "^just bun-nix$",
+    "^bash scripts/nix-hashes\\.sh$"
+  ],
+  "pinDigests": true,
+  "separateMultipleMajor": true,
+  "packageRules": [
+    {
+      "description": "One repository has one dependency graph, per ADR-0111. The single go.mod produces one PR, with minor and patch together.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "go modules",
+      "groupSlug": "gomod"
+    },
+    {
+      "description": "Bun packages: also one PR for the ecosystem.",
+      "matchManagers": [
+        "bun",
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "bun packages",
+      "groupSlug": "bun"
+    },
+    {
+      "description": "The flake inputs: one PR for nixpkgs, tabnix, and flake-parts, so the toolchain moves as one, per ADR-0100.",
+      "matchManagers": [
+        "nix"
+      ],
+      "groupName": "nix inputs",
+      "groupSlug": "nix"
+    },
+    {
+      "description": "Container images: one PR for the ecosystem, minor and patch together, with tag and digest together, per ADR-0117. A new digest with the same tag is a rebuild of the same version. The PR body carries both, because a reviewer cannot judge it from the diff alone.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "container images",
+      "groupSlug": "images",
+      "pinDigests": true
+    },
+    {
+      "description": "Helm chart releases: one PR for the ecosystem, minor and patch together, per ADR-0117.",
+      "matchDatasources": [
+        "helm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "helm charts",
+      "groupSlug": "charts"
+    },
+    {
+      "description": "Terraform moves on its own, slower schedule.",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "terraform",
+      "groupSlug": "terraform",
+      "schedule": [
+        "before 6am on the first day of the month"
+      ]
+    },
+    {
+      "description": "The inner loop's local stand-ins in infra/local/*.yaml: Postgres, the Temporal dev server, OpenFGA, and the API mock. They get one PR, because together they are the floor an engineer runs against, per ADR-0600. None of them is deployed anywhere.",
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchFileNames": [
+        "infra/local/**"
+      ],
+      "groupName": "local dev stand-ins",
+      "groupSlug": "local-deps"
+    },
+    {
+      "description": "A pin adds a digest or an exact version to a reference that has none. It does not change what runs, so all pins share one PR, per ADR-0117.",
+      "matchUpdateTypes": [
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "pins",
+      "groupSlug": "pins"
+    },
+    {
+      "description": "A major version is a decision, so it is proposed alone, never joins a group, and opens only after a person ticks it on the dashboard, per ADR-0117. This rule is after every group rule, so it wins.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "groupName": null,
+      "groupSlug": null,
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Held at 3.x: postcss depends on nanoid ^3. The root override only lifts the 3.x line to a patched release. A major breaks postcss.",
+      "matchPackageNames": [
+        "nanoid"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    }
+  ],
+  "postUpgradeTasks": {
+    "commands": [
+      "just bun-nix",
+      "bash scripts/nix-hashes.sh"
+    ],
+    "executionMode": "branch"
+  },
+  "customManagers": [
+    {
+      "description": "The forge and runner kits pin the release they install on a machine, per ADR-0116. A marker comment above each pin names its image, so the release moves with the same weekly batch as the chart that pins the same Forgejo.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^infra/(forge-host|runner)/[^/]+\\.env$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>\\S+)\\s+[A-Z_]+=(?<currentValue>\\S+)"
+      ]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "description": "A CVE with a fixed version is proposed at once, outside the batch, and without dashboard approval even for a major. For this class only, the weekly slot is too slow, per ADR-0117 and ADR-0113.",
+    "labels": [
+      "dependencies"
+    ],
+    "schedule": [
+      "at any time"
+    ],
+    "minimumReleaseAge": null,
+    "dependencyDashboardApproval": false
+  },
+  "osvVulnerabilityAlerts": true,
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/^infra/local/.+\\.ya?ml$/"
+    ]
+  }
+}

@@ -159,7 +159,7 @@ func checkInventories(roles map[string]bool) ([]string, error) {
 				problems = append(problems, path+": "+problem)
 				continue
 			}
-			slug := strings.SplitN(host, "-", 2)[0]
+			slug, _, _ := strings.Cut(host, "-")
 			if project == "" {
 				project = slug
 			} else if slug != project {

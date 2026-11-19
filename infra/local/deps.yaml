@@ -38,12 +38,12 @@ spec:
         - name: postgres
           image: postgres:17-alpine
           env:
-            - { name: POSTGRES_USER,     value: dev }
+            - { name: POSTGRES_USER, value: dev }
             - { name: POSTGRES_PASSWORD, value: dev }
-            - { name: POSTGRES_DB,       value: dev }
+            - { name: POSTGRES_DB, value: dev }
             # A SUBDIRECTORY of the mount. This makes a non-root Postgres work on a volume. The entrypoint runs chmod on
             # PGDATA, and chmod needs ownership, not the group write bit that fsGroup grants.
-            - { name: PGDATA,            value: /var/lib/postgresql/data/pgdata }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
           ports: [{ containerPort: 5432 }]
           readinessProbe:
             exec: { command: ["pg_isready", "-U", "dev"] }
@@ -57,13 +57,13 @@ spec:
             readOnlyRootFilesystem: false
           volumeMounts:
             - { name: initdb, mountPath: /docker-entrypoint-initdb.d }
-            - { name: data,   mountPath: /var/lib/postgresql/data }
-            - { name: run,    mountPath: /var/run/postgresql }
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: run, mountPath: /var/run/postgresql }
       volumes:
         - name: initdb
           configMap: { name: postgres-initdb }
         - { name: data, emptyDir: {} }
-        - { name: run,  emptyDir: {} }
+        - { name: run, emptyDir: {} }
 ---
 apiVersion: v1
 kind: Service
@@ -98,13 +98,13 @@ spec:
       containers:
         - name: temporal
           # A concrete tag, not `latest`. This is the version that an inner-loop run gets.
-          # With a moving tag, two engineers debug different Temporals, per ADR-0101.
+          # With a moving tag, two engineers debug different Temporals, per ADR-0111.
           # Renovate bumps it with the other local stand-ins.
           image: temporalio/temporal:1.8.2
           args: ["server", "start-dev", "--ip", "0.0.0.0"]
           ports:
             - { name: grpc, containerPort: 7233 }
-            - { name: ui,   containerPort: 8233 }
+            - { name: ui, containerPort: 8233 }
           # readOnlyRootFilesystem holds, because `start-dev` with no --db-filename keeps
           # its SQLite in memory. It writes only scratch files to disk, under /tmp. That
           # is the emptyDir below, and not the image layer.
@@ -130,7 +130,7 @@ spec:
   selector: { app: temporal }
   ports:
     - { name: grpc, port: 7233, targetPort: 7233 }
-    - { name: ui,   port: 8233, targetPort: 8233 }
+    - { name: ui, port: 8233, targetPort: 8233 }
 ---
 # OpenFGA: in-memory datastore, with a fixed dev preshared key.
 apiVersion: apps/v1
@@ -155,7 +155,15 @@ spec:
       containers:
         - name: openfga
           image: openfga/openfga:v1.14.2
-          args: ["run", "--datastore-engine", "memory", "--authn-method", "preshared", "--authn-preshared-keys", "dev"]
+          args: [
+            "run",
+            "--datastore-engine",
+            "memory",
+            "--authn-method",
+            "preshared",
+            "--authn-preshared-keys",
+            "dev",
+          ]
           ports: [{ name: http, containerPort: 8080 }]
           securityContext:
             allowPrivilegeEscalation: false
@@ -182,7 +190,9 @@ metadata:
   name: orders-db
   namespace: platform
   labels: { local.platform/component: db-secrets }
-stringData: { DATABASE_URL: "postgres://dev:dev@postgres:5432/orders?sslmode=disable" }
+stringData: {
+  DATABASE_URL: "postgres://dev:dev@postgres:5432/orders?sslmode=disable",
+}
 ---
 apiVersion: v1
 kind: Secret
@@ -190,7 +200,9 @@ metadata:
   name: catalog-db
   namespace: platform
   labels: { local.platform/component: db-secrets }
-stringData: { DATABASE_URL: "postgres://dev:dev@postgres:5432/catalog?sslmode=disable" }
+stringData: {
+  DATABASE_URL: "postgres://dev:dev@postgres:5432/catalog?sslmode=disable",
+}
 ---
 apiVersion: v1
 kind: Secret
@@ -198,7 +210,9 @@ metadata:
   name: orgs-db
   namespace: platform
   labels: { local.platform/component: db-secrets }
-stringData: { DATABASE_URL: "postgres://dev:dev@postgres:5432/orgs?sslmode=disable" }
+stringData: {
+  DATABASE_URL: "postgres://dev:dev@postgres:5432/orgs?sslmode=disable",
+}
 ---
 apiVersion: v1
 kind: Secret
@@ -206,4 +220,6 @@ metadata:
   name: payment-db
   namespace: platform
   labels: { local.platform/component: db-secrets }
-stringData: { DATABASE_URL: "postgres://dev:dev@postgres:5432/payment?sslmode=disable" }
+stringData: {
+  DATABASE_URL: "postgres://dev:dev@postgres:5432/payment?sslmode=disable",
+}

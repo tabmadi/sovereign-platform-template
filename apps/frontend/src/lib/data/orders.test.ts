@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test as it } from "bun:test";
 import { ordersApi, server } from "@/test/msw";
 import { awaitOrder, startOrder } from "./orders";
 
@@ -12,13 +12,13 @@ const handle = {
 const draft = { product_id: "product_01h9xk2m4n8p6q3r5s7t9v0wbh", quantity: 1 };
 
 describe("the orders seam", () => {
-  test("a started order answers the workflow handle", async () => {
+  it("a started order answers the workflow handle", async () => {
     server.use(ordersApi.ok("post", "/orders", handle, 202));
 
     expect(await startOrder(draft)).toEqual(handle);
   });
 
-  test("a refused order throws", async () => {
+  it("a refused order throws", async () => {
     server.use(
       ordersApi.problem("post", "/orders", {
         type: "urn:problem-type:orders:out-of-stock",
@@ -30,7 +30,7 @@ describe("the orders seam", () => {
     await expect(startOrder(draft)).rejects.toThrow("could not place the order");
   });
 
-  test("an order resolves when the poll reaches a terminal status", async () => {
+  it("an order resolves when the poll reaches a terminal status", async () => {
     server.use(
       ordersApi.ok("get", "/orders/{id}", {
         id: handle.id,

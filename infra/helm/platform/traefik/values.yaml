@@ -31,7 +31,7 @@ traefik:
     websecure:
       nodePort: 30443
       # An image push is the longest request through this edge: one streamed layer, on one connection, for as long as
-      # the client's link needs, per ADR-0105.
+      # the client's link needs, per ADR-0114.
       transport:
         respondingTimeouts:
           readTimeout: 10m

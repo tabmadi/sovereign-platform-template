@@ -1,0 +1,5 @@
+# The identity of the project, per ADR-0003 and ADR-0117. `just init` writes it, and the scripts of infra/ read it.
+slug: example
+apex: example.com
+forge: github
+provisioning: terraform

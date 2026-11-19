@@ -2,7 +2,7 @@ name: frontend
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/frontend
   tag: "0000000000000000000000000000000000000000"
-  digest: ""   # promote-on-release pins prod by digest, per ADR-0103
+  digest: "" # promote-on-release pins prod by digest, per ADR-0112
 worker: { enabled: false }
 server:
   port: 3000
@@ -11,8 +11,12 @@ server:
   adminPort: null
   replicas: 1
   probes:
-    readiness: { httpGet: { path: /api/healthz, port: http }, initialDelaySeconds: 2, timeoutSeconds: 4 }
-    liveness:  { httpGet: { path: /api/healthz, port: http }, periodSeconds: 30 }
+    readiness: {
+      httpGet: { path: /api/healthz, port: http },
+      initialDelaySeconds: 2,
+      timeoutSeconds: 4,
+    }
+    liveness: { httpGet: { path: /api/healthz, port: http }, periodSeconds: 30 }
 ingress: { enabled: true, host: prod.example.com, pathPrefix: "/" }
 migrations: { enabled: false }
 # Server components fetch `/api` through the edge, per ADR-0305.

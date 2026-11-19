@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scaffold a new service from services/_template/, per ADR-0101.
+# Scaffold a new service from services/_template/, per ADR-0111.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -28,16 +28,16 @@ mv "${DEST}/migrations/"*_init.sql "${DEST}/migrations/${ts}_init.sql"
 
 ok "created ${DEST}. Next:"
 detail "  1. Register a local port in scripts/lib/ports.sh, and set the same PORT in"
-detail "     ${DEST}/.mise.toml. It ships 80XX and fails lint until you do"
+detail "     ${DEST}/justfile. It ships 80XX and fails lint until you do"
 detail "  2. Edit ${DEST}/openapi.yaml to define your routes"
-detail "  3. mise run gen"
+detail "  3. just gen"
 detail "  4. Write ${DEST}/requirements.md under a new prefix, per ADR-0602. Then put each"
 detail "     ID in the name of the test that proves it. TPL fails lint until you do"
 detail "  5. Implement handlers/ and wire them in cmd/server/main.go"
-detail "  6. Keep only the dep:* tasks you read, and add svc:* for every service"
+detail "  6. Keep only the dep-* recipes you read, and add svc-* for every service"
 detail "     you call over HTTP. An undeclared callee fails at runtime, not at startup"
 detail "  7. Add infra/gitops/services/<env>/values/${NAME}.yaml for every env."
 detail "     The ApplicationSet generates one Argo app for each values file, so with a"
 detail "     missing file the service is absent from that environment, with no error"
 printf '\n'
-detail "Then: mise run lint:service-contract   # checks all of the above, per ADR-0205"
+detail "Then: just lint-service-contract   # checks all of the above, per ADR-0205"

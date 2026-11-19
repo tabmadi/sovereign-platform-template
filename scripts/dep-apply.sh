@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Add one opt-in local dependency component on top of `cluster:up`. It backs the `dep:*` tasks that services declare, per ADR-0205 and ADR-0600.
+# Add one opt-in local dependency component on top of `cluster-up`. It backs the `dep:*` tasks that services declare, per ADR-0205 and ADR-0600.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/cluster.sh
@@ -43,15 +43,15 @@ esac
 # `rollout status --timeout=0` returns non-zero and does not block when the Deployment is not complete. That answers `up or not`.
 if [ "$kind" = deploy ]; then
   if k -n "$NS" rollout status "deploy/${probe}" --timeout=0 >/dev/null 2>&1; then
-    detail "dep:${COMPONENT} already up, skipping"
+    detail "dep-${COMPONENT} already up, skipping"
     exit 0
   fi
 elif k -n "$NS" get "secret/${probe}" >/dev/null 2>&1; then
-  detail "dep:${COMPONENT} already up, skipping"
+  detail "dep-${COMPONENT} already up, skipping"
   exit 0
 fi
 
-step "adding dep:${COMPONENT}"
+step "adding dep-${COMPONENT}"
 # The namespace is not in this file. It comes from the namespaces chart, with its pod-security profile, per ADR-0200.
 # The selection here is the component itself.
 k apply -f infra/local/deps.yaml -l "local.platform/component=${COMPONENT}"

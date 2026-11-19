@@ -11,8 +11,12 @@ server:
   adminPort: null
   replicas: 1
   probes:
-    readiness: { httpGet: { path: /api/healthz, port: http }, initialDelaySeconds: 2, timeoutSeconds: 4 }
-    liveness:  { httpGet: { path: /api/healthz, port: http }, periodSeconds: 30 }
+    readiness: {
+      httpGet: { path: /api/healthz, port: http },
+      initialDelaySeconds: 2,
+      timeoutSeconds: 4,
+    }
+    liveness: { httpGet: { path: /api/healthz, port: http }, periodSeconds: 30 }
 ingress: { enabled: true, host: staging.example.com, pathPrefix: "/" }
 migrations: { enabled: false }
 # Server components fetch `/api` through the edge, per ADR-0305.

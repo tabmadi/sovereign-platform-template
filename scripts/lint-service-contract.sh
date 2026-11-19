@@ -14,21 +14,21 @@ envs=()
 for d in infra/gitops/services/*/; do envs+=("$(basename "$d")"); done
 
 # A service can opt out of an environment on purpose, but it must say so in the file that the opt-out affects. This check exists to remove silent gaps.
-opted_out() { grep -qs "platform/not-deployed: *${2}" "services/${1}/.mise.toml"; }
+opted_out() { grep -qs "platform/not-deployed: *${2}" "services/${1}/justfile"; }
 
 for dir in services/*/; do
   svc="$(basename "$dir")"
   [ "${svc#_}" = "$svc" ] || continue # _template is the source, not a service
   checked=$((checked + 1))
 
-  for f in .mise.toml .env.example Dockerfile README.md requirements.md; do
+  for f in justfile .env.example Dockerfile README.md requirements.md; do
     [ -f "${dir}${f}" ] || {
       warn "${svc}: missing ${f}"
       rc=1
     }
   done
 
-  # `server` only for a service that has one. A worker-only deployable declares `worker`, per ADR-0101.
+  # `server` only for a service that has one. A worker-only deployable declares `worker`, per ADR-0111.
   # `generate` and `migrate` are required of a service that has the input, and of no other service.
   tasks="test lint build"
   if [ -d "services/${svc}/cmd/server" ]; then
@@ -43,8 +43,8 @@ for dir in services/*/; do
     tasks="migrate ${tasks}"
   fi
   for t in ${tasks}; do
-    grep -q "^\[tasks\.${t}\]" "${dir}.mise.toml" 2>/dev/null || {
-      warn "${svc}: .mise.toml declares no [tasks.${t}]"
+    grep -qE "^${t}( [^:]*)?:" "${dir}justfile" 2>/dev/null || {
+      warn "${svc}: justfile has no ${t} recipe"
       rc=1
     }
   done
@@ -55,14 +55,14 @@ for dir in services/*/; do
     rc=1
   fi
 
-  # A depguard rule is a file pattern with a deny list, so the constraint between services needs one rule for each service, per ADR-0101.
+  # A depguard rule is a file pattern with a deny list, so the constraint between services needs one rule for each service, per ADR-0111.
   # A new service with no block breaks no rule, and this check closes that gap.
-  grep -q "service-isolation-${svc}:" .golangci.yml || {
-    warn "${svc}: no 'service-isolation-${svc}' depguard rule in .golangci.yml. Nothing stops another service from importing it"
+  grep -q "service-isolation-${svc}:" .config/golangci.yml || {
+    warn "${svc}: no 'service-isolation-${svc}' depguard rule in .config/golangci.yml. Nothing stops another service from importing it"
     rc=1
   }
 
-  # Only for a service that binds a port. lint:ports checks uniqueness and the reverse direction.
+  # Only for a service that binds a port. lint-ports checks uniqueness and the reverse direction.
   if [ -d "services/${svc}/cmd/server" ]; then
     service_port "$svc" >/dev/null 2>&1 || {
       warn "${svc}: no local port in scripts/lib/ports.sh"
@@ -76,7 +76,7 @@ for dir in services/*/; do
       detail "${svc}: not deployed to ${env}, as declared"
       continue
     fi
-    warn "${svc}: no infra/gitops/services/${env}/values/${svc}.yaml. The ApplicationSet does not deploy it to ${env}, and nothing reports it. Add the file, or declare '# platform/not-deployed: ${env}' in services/${svc}/.mise.toml"
+    warn "${svc}: no infra/gitops/services/${env}/values/${svc}.yaml. The ApplicationSet does not deploy it to ${env}, and nothing reports it. Add the file, or declare '# platform/not-deployed: ${env}' in services/${svc}/justfile"
     rc=1
   done
 done

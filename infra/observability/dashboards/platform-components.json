@@ -380,7 +380,7 @@
     {
       "type": "timeseries",
       "title": "Admission review latency p50, p95, p99",
-      "description": "kyverno_admission_review_duration_seconds. This is time that the API SERVER spends waiting: every create and update in the cluster waits for it. The webhook timeout is 30s. For a review that reaches the timeout, the failurePolicy decides, and not the policy, per ADR-0104.",
+      "description": "kyverno_admission_review_duration_seconds. This is time that the API SERVER spends waiting: every create and update in the cluster waits for it. The webhook timeout is 30s. For a review that reaches the timeout, the failurePolicy decides, and not the policy, per ADR-0113.",
       "datasource": "Prometheus",
       "gridPos": {
         "h": 8,

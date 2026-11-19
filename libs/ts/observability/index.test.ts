@@ -1,28 +1,28 @@
 // These tests pin the browser fingerprint's rules, per ADR-0503.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test as it } from "bun:test";
 
 import { appFrames, fingerprint, normalise } from "./index";
 
-const HEX8 = /^[0-9a-f]{8}$/;
+const HEX8 = /^[0-9a-f]{8}$/u;
 
 describe("normalise", () => {
-  test("an entity id becomes a placeholder", () => {
+  it("an entity id becomes a placeholder", () => {
     expect(normalise("order order_01kztmx9e0fq1r13w5d1aerqw6 not found")).toBe(
       "order order_<x> not found",
     );
   });
 
-  test("digit runs become a placeholder", () => {
+  it("digit runs become a placeholder", () => {
     expect(normalise("retry 3 of 5")).toBe("retry <n> of <n>");
   });
 
   // Words that are also hex are words, not values.
-  test("short words survive", () => {
+  it("short words survive", () => {
     expect(normalise("deadlock detected")).toBe("deadlock detected");
     expect(normalise("add failed")).toBe("add failed");
   });
 
-  test("a message with no varying part is unchanged", () => {
+  it("a message with no varying part is unchanged", () => {
     expect(normalise("the pool is closed")).toBe("the pool is closed");
   });
 });
@@ -35,15 +35,15 @@ describe("appFrames", () => {
     "    at handler (https://app.example.com/_next/static/chunks/panel.js:88:2)",
   ].join("\n");
 
-  test("keeps first-party frames in order", () => {
+  it("keeps first-party frames in order", () => {
     expect(appFrames(stack)).toEqual(["placeOrder", "handler"]);
   });
 
-  test("drops vendor frames", () => {
+  it("drops vendor frames", () => {
     expect(appFrames(stack)).not.toContain("onSubmit");
   });
 
-  test("an absent stack yields no frames", () => {
+  it("an absent stack yields no frames", () => {
     expect(appFrames(undefined)).toEqual([]);
   });
 });
@@ -51,28 +51,28 @@ describe("appFrames", () => {
 describe("fingerprint", () => {
   const base = { name: "TypeError", message: "order order_1 not found", stack: "at f (a.js:1:1)" };
 
-  test("is stable for the same fault", () => {
+  it("is stable for the same fault", () => {
     expect(fingerprint(base)).toBe(fingerprint({ ...base }));
   });
 
   // This is the purpose of the normaliser: an id must not make a new fault.
-  test("ignores the varying part of the message", () => {
+  it("ignores the varying part of the message", () => {
     const other = { ...base, message: "order order_2 not found" };
     expect(fingerprint(other)).toBe(fingerprint(base));
   });
 
-  test("separates distinct faults", () => {
+  it("separates distinct faults", () => {
     const other = { ...base, message: "the pool is closed" };
     expect(fingerprint(other)).not.toBe(fingerprint(base));
   });
 
   // A line-number change is a cosmetic edit and must not change the fault.
-  test("ignores line and column numbers", () => {
+  it("ignores line and column numbers", () => {
     const moved = { ...base, stack: "at f (a.js:99:7)" };
     expect(fingerprint(moved)).toBe(fingerprint(base));
   });
 
-  test("is short and hex", () => {
+  it("is short and hex", () => {
     expect(fingerprint(base)).toMatch(HEX8);
   });
 });

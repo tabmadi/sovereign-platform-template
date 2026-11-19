@@ -22,8 +22,6 @@ permissions:
   actions: read
 
 env:
-  # renovate runs only in renovate.yml. Its install is the largest in the toolchain and warns on every runner.
-  MISE_DISABLE_TOOLS: npm:renovate
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
   GIT_CONFIG_COUNT: "1"
   GIT_CONFIG_KEY_0: init.defaultBranch
@@ -47,4 +45,4 @@ jobs:
           EVENT: ${{ github.event_name }}
           WORKFLOW_FILE: ${{ inputs.workflow_file }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: mise run ci:nightly-gate >> "$GITHUB_OUTPUT"
+        run: nix develop --command just ci-nightly-gate >> "$GITHUB_OUTPUT"

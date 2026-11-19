@@ -28,15 +28,17 @@ spec:
               directories:
                 - { path: "infra/helm/platform/namespaces" }
                 - { path: "infra/helm/platform/local-path" }
-                  # Admission control, per ADR-0104. It is in the BASE tier, because admission runs once, at creation. A policy
-                  # that arrives after the workloads it gates has already missed them.
+                # Admission control, per ADR-0113. It is in the BASE tier, because admission runs once, at creation. A policy
+                # that arrives after the workloads it gates has already missed them.
                 - { path: "infra/helm/platform/kyverno" }
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
-                  # The ADR-0204 guardrails: PriorityClass, LimitRange, ResourceQuota, and PDB.
+                # The ADR-0204 guardrails: PriorityClass, LimitRange, ResourceQuota, and PDB.
                 - { path: "infra/helm/platform/resource-governance" }
-                - { path: "infra/helm/platform/temporal-worker-controller-crds" }
+                - {
+                    path: "infra/helm/platform/temporal-worker-controller-crds",
+                  }
   template:
     metadata:
       name: "{{ .env }}-platform-{{ .path.basename }}"
@@ -242,7 +244,7 @@ spec:
                 - { path: "infra/helm/platform/zot" }
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
-                  # The edge's error responder, per ADR-0305.
+                # The edge's error responder, per ADR-0305.
                 - { path: "infra/helm/platform/edge-errors" }
                 - { path: "infra/helm/platform/mailpit" }
                 - { path: "infra/helm/platform/maddy" }

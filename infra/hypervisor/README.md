@@ -42,7 +42,7 @@ A project adds what this directory cannot know in `extra/`: `nat.rules`, `dnsmas
 
 Set `KNOWN_HOSTS` in `hypervisor.env` and `forge-host/forge.env` to a file of the host's keys that you verified out of band. Then no run accepts an unknown key.
 
-The scripts read the inventory with `yq`, so run them as `mise exec -- bash infra/hypervisor/<script>`.
+The scripts read the inventory with `yq`, so run them inside the dev shell: `bash infra/hypervisor/<script>`.
 
 ## What the NAT does
 

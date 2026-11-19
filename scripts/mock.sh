@@ -15,7 +15,7 @@ k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
 case "${1:-}" in
 start)
-  [ -f "$SPEC" ] || fail "missing ${SPEC}. Run \`mise run gen\` first"
+  [ -f "$SPEC" ] || fail "missing ${SPEC}. Run \`just gen\` first"
 
   step "stamping the committed projection into the mock's spec ConfigMap"
   # The dry-run output piped to a server-side apply updates the existing object. A client-side apply copies the spec into
@@ -28,7 +28,7 @@ start)
   k apply -f "$MANIFEST" >/dev/null
 
   # Prism reads the document once at startup, so a changed spec needs a new pod.
-  # The content-hash annotation makes that automatic and idempotent: an unchanged spec leaves the pod alone, so `mock:start` is safe to run again.
+  # The content-hash annotation makes that automatic and idempotent: an unchanged spec leaves the pod alone, so `mock-start` is safe to run again.
   hash="$(sha256sum "$SPEC" | cut -c1-16)"
   k patch deployment mock --type merge \
     -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"local.platform/spec-hash\":\"${hash}\"}}}}}" >/dev/null
@@ -51,6 +51,6 @@ logs)
   ;;
 
 *)
-  fail "usage: mise run mock:start, mock:stop, or mock:logs"
+  fail "usage: just mock-start, mock-stop, or mock-logs"
   ;;
 esac

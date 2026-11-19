@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Walk every image pinned in committed values, verify its SBOM attestation, and record its contents, per ADR-0104 and ADR-0103.
+# Walk every image pinned in committed values, verify its SBOM attestation, and record its contents, per ADR-0113 and ADR-0112.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/loki-push.sh
@@ -10,12 +10,12 @@ PUB_KEY="infra/auth/cosign/cosign.pub"
 # Report that once and stop, instead of reporting every image as unverifiable.
 if [ ! -s "$PUB_KEY" ]; then
   # The template has no signing key: every generated project would inherit it, with a private half that no adopter can decrypt.
-  # `copier.yml` tells them apart: the template has it, and `_exclude` drops it from every generated project.
-  if [ -f copier.yml ]; then
+  # scripts/project-init.sh tells them apart: `just init` removes it from every project.
+  if [ -f scripts/project-init.sh ]; then
     ok "no signing key, and none belongs here. The template publishes no environment images"
     exit 0
   fi
-  fail "no public key at ${PUB_KEY}. Run 'mise run secrets:cosign' once, at bootstrap"
+  fail "no public key at ${PUB_KEY}. Run 'just secrets-cosign' once, at bootstrap"
 fi
 
 work="$(mktemp -d)"

@@ -138,16 +138,16 @@ func ServeError(ctx context.Context, w http.ResponseWriter, _ *http.Request, err
 // As unwraps err to an *Error. It also recognises the errors that the generated server produces before a handler
 // runs. Those are the client's mistake and belong in the 4xx range. Without this, they get a 500.
 func As(err error) (*Error, bool) {
-	var e *Error
-	if errors.As(err, &e) {
+	e, ok := errors.AsType[*Error](err)
+	if ok {
 		return e, true
 	}
-	var decodeParams *ogenerrors.DecodeParamsError
-	if errors.As(err, &decodeParams) {
+	decodeParams, ok := errors.AsType[*ogenerrors.DecodeParamsError](err)
+	if ok {
 		return BadRequest(decodeParams.Error()), true
 	}
-	var decodeRequest *ogenerrors.DecodeRequestError
-	if errors.As(err, &decodeRequest) {
+	decodeRequest, ok := errors.AsType[*ogenerrors.DecodeRequestError](err)
+	if ok {
 		return BadRequest(decodeRequest.Error()), true
 	}
 	return nil, false

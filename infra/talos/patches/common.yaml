@@ -6,7 +6,7 @@ machine:
     # value in this file that changes per fleet.
     disk: /dev/sda
     # The custom installer built from `infra/talos/schematic.yaml`, pinned by digest,
-    # per ADR-0104, and not by tag. A tag can change. The installer image is the one
+    # per ADR-0113, and not by tag. A tag can change. The installer image is the one
     # artefact that decides what the node IS.
     image: factory.talos.dev/metal-installer/<schematic-id>@sha256:<digest>
     # An upgrade keeps the machine's data partition. Only a reprovision wipes it.

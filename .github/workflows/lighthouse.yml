@@ -17,15 +17,13 @@ permissions:
   contents: read
 
 env:
-  # renovate runs only in renovate.yml. Its install is the largest in the toolchain and warns on every runner.
-  MISE_DISABLE_TOOLS: npm:renovate
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
   GIT_CONFIG_COUNT: "1"
   GIT_CONFIG_KEY_0: init.defaultBranch
   GIT_CONFIG_VALUE_0: master
 
 jobs:
-  # A task, not a path filter, because it reads the affected manifest, per ADR-0102.
+  # A task, not a path filter, because it reads the affected manifest, per ADR-0116.
   gate:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -40,7 +38,7 @@ jobs:
       - id: check
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: mise run ci:lighthouse-gate >> "$GITHUB_OUTPUT"
+        run: nix develop --command just ci-lighthouse-gate >> "$GITHUB_OUTPUT"
 
   lighthouse:
     needs: gate
@@ -64,18 +62,18 @@ jobs:
 
       # The production container, not `next dev`, behind Traefik with the API mock and a Kratos stub. A development server serves unminified output, so its bundle budget means nothing.
       - name: Start the Lighthouse stack
-        run: mise run lighthouse:up
+        run: nix develop --command just lighthouse-up
         env:
           GIT_SHA: ${{ github.sha }}
 
       - name: Install the Node island
-        run: mise run e2e:install
+        run: nix develop --command just e2e-install
 
       # Advisory, per ADR-0400: the app misses the LCP budget, and a PR author cannot fix that.
       # Delete this line when every page meets the budget, and make `lighthouse` a required check.
       - name: Web vitals and bundle budgets
         continue-on-error: true
-        run: mise run lighthouse
+        run: nix develop --command just lighthouse
 
       - name: Upload the Lighthouse report
         if: always()
@@ -90,4 +88,4 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: mise run lighthouse:down
+        run: nix develop --command just lighthouse-down

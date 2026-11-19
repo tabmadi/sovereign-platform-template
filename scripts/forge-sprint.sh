@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start the sprint that holds today, per ADR-0107. A sprint is a two-week milestone named `Sprint <year>-W<week>`.
+# Start the sprint that holds today, per ADR-0115. A sprint is a two-week milestone named `Sprint <year>-W<week>`.
 # The task creates it in every repository of the organization, moves the open issues of each ended sprint into it, and
 # closes the ended milestone. A second run in the same sprint changes nothing.
 set -euo pipefail
@@ -51,7 +51,7 @@ for repo in "${repos[@]}"; do
   milestones="$(api GET "repos/${org}/${repo}/milestones?state=all&limit=50")"
   id="$(jq -r --arg t "$title" '.[] | select(.title == $t) | .id' <<<"$milestones")"
   if [[ -z "$id" ]]; then
-    body="$(jq -nc --arg t "$title" --arg d "$due" '{title: $t, due_on: $d, description: "A two-week sprint, per ADR-0107."}')"
+    body="$(jq -nc --arg t "$title" --arg d "$due" '{title: $t, due_on: $d, description: "A two-week sprint, per ADR-0115."}')"
     id="$(api POST "repos/${org}/${repo}/milestones" "$body" | jq -r '.id')"
     detail "${repo}: created ${title}"
   fi

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emit the affected manifest as forge step-output assignments, with services and apps as separate JSON arrays, per ADR-0102.
+# Emit the affected manifest as forge step-output assignments, with services and apps as separate JSON arrays, per ADR-0116.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -20,7 +20,7 @@ if [ -n "${BEFORE:-}" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; the
     exit 0
   fi
 fi
-manifest="$(mise run ci:affected -- "${args[@]}")"
+manifest="$(just ci-affected "${args[@]}")"
 
 # A global manifest names no components, so here it expands to every component that builds an image.
 if [ "$(printf '%s' "$manifest" | jq -r '.global')" = true ]; then

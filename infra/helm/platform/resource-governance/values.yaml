@@ -1,5 +1,5 @@
 # ADR-0204 guardrails. Every number here comes from a run of the ADR-0601 load
-# suite. `mise run perf:re-derive` reproduces one.
+# suite. `just perf-re-derive` reproduces one.
 
 # PriorityClass tiers: the eviction order under real node
 # pressure. Batch is evicted first, and Core last.
@@ -88,12 +88,18 @@ podDisruptionBudgets:
   temporal-frontend:
     enabled: false
     minAvailable: 1
-    selector: { app.kubernetes.io/name: temporal, app.kubernetes.io/component: frontend }
+    selector: {
+      app.kubernetes.io/name: temporal,
+      app.kubernetes.io/component: frontend,
+    }
     rationale: Every workflow start and query enters here. Scale out before you turn this on.
   temporal-history:
     enabled: false
     minAvailable: 1
-    selector: { app.kubernetes.io/name: temporal, app.kubernetes.io/component: history }
+    selector: {
+      app.kubernetes.io/name: temporal,
+      app.kubernetes.io/component: history,
+    }
     rationale: >-
       Owns workflow state and shard ownership. Measured at 2.1 cores and 647Mi
       under checkout load. It is the first Temporal component that needs more
@@ -101,7 +107,10 @@ podDisruptionBudgets:
   temporal-matching:
     enabled: false
     minAvailable: 1
-    selector: { app.kubernetes.io/name: temporal, app.kubernetes.io/component: matching }
+    selector: {
+      app.kubernetes.io/name: temporal,
+      app.kubernetes.io/component: matching,
+    }
     rationale: Task-queue dispatch. If it is lost, every worker stalls.
   loki:
     enabled: false
@@ -114,7 +123,10 @@ podDisruptionBudgets:
   tempo:
     enabled: false
     minAvailable: 1
-    selector: { app.kubernetes.io/name: tempo, app.kubernetes.io/instance: observability }
+    selector: {
+      app.kubernetes.io/name: tempo,
+      app.kubernetes.io/instance: observability,
+    }
     rationale: Trace ingest. Measured at 1858Mi under load, the heaviest single pod.
   openfga:
     enabled: false

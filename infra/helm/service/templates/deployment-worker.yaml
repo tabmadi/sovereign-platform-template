@@ -50,7 +50,7 @@ spec:
         component: worker
     spec:
       {{- with .Values.imagePullSecrets }}
-      # The registry authenticates every pull, per ADR-0105, and a kubelet holds no credential of its own.
+      # The registry authenticates every pull, per ADR-0114, and a kubelet holds no credential of its own.
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}

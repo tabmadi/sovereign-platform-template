@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pin the dev and staging values files for every component that a push published to its digest, per ADR-0201 and ADR-0105.
+# Pin the dev and staging values files for every component that a push published to its digest, per ADR-0201 and ADR-0114.
 # Prod is pinned on release, in promote-prod.sh.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
@@ -27,7 +27,7 @@ bump() { # <values-file> <yaml-path-to-image-block>
   digest="$(image_digest "${repo}:${sha}")"
   yaml_set_scalar "$path" "${block}.tag" "$sha" || true
   yaml_set_scalar "$path" "${block}.digest" "$digest" ||
-    fail "${path}: ${block} has no digest key. Kyverno admits first-party images by digest only, per ADR-0104"
+    fail "${path}: ${block} has no digest key. Kyverno admits first-party images by digest only, per ADR-0113"
   detail "$(basename "$path") ${block} → ${digest}"
 }
 

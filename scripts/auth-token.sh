@@ -10,7 +10,7 @@ source "$LIB/cluster.sh"
 NS="platform"
 k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 
-email="${1:?usage: mise run auth:token -- <email>}"
+email="${1:?usage: just auth-token <email>}"
 password="${KRATOS_PASSWORD:-}"
 if [ -z "$password" ]; then
   read -rsp "password for ${email}: " password

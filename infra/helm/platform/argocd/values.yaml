@@ -3,7 +3,7 @@ argo-cd:
     domain: argocd.example.com
   configs:
     params:
-      server.insecure: "true"          # TLS ends upstream, at Traefik
+      server.insecure: "true" # TLS ends upstream, at Traefik
       # Diff against the API SERVER's dry-run, not against the manifest alone.
       controller.diff.server.side: "true"
       # A wave that waits on an ApplicationSet waits on the health check below. It reads `.status.resources`. The
@@ -87,7 +87,9 @@ argo-cd:
       policy.default: role:admin
   server:
     service: { type: ClusterIP }
-  redis-ha: { enabled: false }         # 3-node embedded etcd, so HA Redis is more than needed, per ADR-0200
+  redis-ha: {
+    enabled: false,
+  } # 3-node embedded etcd, so HA Redis is more than needed, per ADR-0200
   redis:
     # The chart default host publishes only AAAA records. Docker Hub has the same image over IPv4,
     # and the mirror pulls it with the Docker Hub login. public.ecr.aws limits an anonymous pull.

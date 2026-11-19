@@ -28,7 +28,7 @@ PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
 if [[ -z "$PROXY" ]]; then
   ok "no proxy configured anywhere this script can see"
   detail "If your network reaches ghcr.io, github.com, and the chart repos directly,"
-  detail "none of this applies. Run 'mise run cluster:up' as it is."
+  detail "none of this applies. Run 'just cluster-up' as it is."
   detail "If it does not, export HTTPS_PROXY and run this again."
   exit 0
 fi
@@ -78,19 +78,19 @@ else
   fi
 fi
 
-step "step 1b: the environment that cluster:up runs kind in"
+step "step 1b: the environment that cluster-up runs kind in"
 # Only kind can add the node's name to the node's NO_PROXY. kubeadm dials the API server by name, and no CIDR exempts a name.
 if ((APPLY)); then
   mkdir -p "$(dirname "$PROXY_ENV")"
   cat >"$PROXY_ENV" <<EOF
-# Written by \`mise run proxy:setup\`. Machine-local, and absent on a direct network.
+# Written by \`just proxy-setup\`. Machine-local, and absent on a direct network.
 # scripts/lib/cluster.sh loads it, so every cluster command uses this machine's egress,
 # and no cluster script names a proxy.
 HTTP_PROXY=${PROXY}
 HTTPS_PROXY=${PROXY}
 NO_PROXY=${NO_PROXY_VALUE}
 EOF
-  ok "wrote ${PROXY_ENV}. cluster:up loads it"
+  ok "wrote ${PROXY_ENV}. cluster-up loads it"
 elif [[ -f "$PROXY_ENV" ]]; then
   ok "${PROXY_ENV} present"
 else
@@ -138,7 +138,7 @@ if ! repo_want="$(addr_from_network kind)"; then
 elif ((APPLY)); then
   mkdir -p "$(dirname "$PROXY_VALUES")"
   cat >"$PROXY_VALUES" <<EOF
-# Written by \`mise run proxy:setup\`. Machine-local: the address is this host's
+# Written by \`just proxy-setup\`. Machine-local: the address is this host's
 # docker gateway. Not committed, and absent on a direct network.
 argo-cd:
   repoServer:
@@ -150,7 +150,7 @@ argo-cd:
       - name: NO_PROXY
         value: ${NO_PROXY_VALUE}
 EOF
-  ok "wrote ${PROXY_VALUES}. Every cluster:up full applies it"
+  ok "wrote ${PROXY_VALUES}. Every cluster-up full applies it"
 elif [[ -f "$PROXY_VALUES" ]]; then
   ok "${PROXY_VALUES} present"
 else
@@ -158,7 +158,7 @@ else
 fi
 
 if ! kubectl get deploy argocd-repo-server -n argocd >/dev/null 2>&1; then
-  detail "no repo-server running. The overlay applies at the next cluster:up full"
+  detail "no repo-server running. The overlay applies at the next cluster-up full"
 elif ! repo_want="$(addr_from_network kind)"; then
   :
 else
@@ -197,9 +197,9 @@ EOF
   step "step 1 needs root. The file is written for you. Paste this:"
   detail "sudo install -Dm644 ${DROPIN} /etc/systemd/system/docker.service.d/http-proxy.conf"
   detail "sudo systemctl daemon-reload && sudo systemctl restart docker"
-  detail "then run again: mise run proxy:setup"
+  detail "then run again: just proxy-setup"
 fi
 
 printf '\n'
 ((GAPS == 0)) || fail "${GAPS} gap(s) above. Details are in docs/guide/http-proxy.md"
-ok "proxy setup complete. 'mise run cluster:up' works unchanged from here"
+ok "proxy setup complete. 'just cluster-up' works unchanged from here"

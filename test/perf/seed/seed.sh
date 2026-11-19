@@ -16,7 +16,7 @@ k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 # and with a fixed name the seed writes nothing and reports no error.
 primary="$(k get pods -l 'cnpg.io/instanceRole=primary' -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
 if [ -z "$primary" ]; then
-  fail "no CNPG primary found in namespace ${NS}. Check that the full tier is up: mise run cluster:up -- full"
+  fail "no CNPG primary found in namespace ${NS}. Check that the full tier is up: just cluster-up full"
 fi
 
 # psql over the pod's local socket as the superuser: no port-forward, no credentials to pass, and it works the same on every tier.
@@ -39,7 +39,7 @@ fi
 
 n="${1:-5000}"
 case "$n" in
-'' | *[!0-9]*) fail "usage: mise run perf:seed -- [count|--clean], got ${n}" ;;
+'' | *[!0-9]*) fail "usage: just perf-seed [count|--clean], got ${n}" ;;
 esac
 
 step "seeding ${n} products into catalog, primary: ${primary}"
@@ -57,4 +57,4 @@ psql_catalog -c "
 total="$(psql_catalog -c 'select count(*) from products;')"
 detail "seeded:        $(count_seeded)"
 detail "catalog total: ${total}"
-ok "catalog seeded. Run \`mise run perf:seed -- --clean\` to undo"
+ok "catalog seeded. Run \`just perf-seed --clean\` to undo"

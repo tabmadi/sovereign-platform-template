@@ -21,7 +21,7 @@ seaweedfs:
     - loki-ruler
     - loki-admin
     - tempo-traces
-    # The registry's own store, per ADR-0105: images, and the signatures, SBOMs, and
+    # The registry's own store, per ADR-0114: images, and the signatures, SBOMs, and
     # provenance attached to them as OCI referrers.
     - zot-images
 

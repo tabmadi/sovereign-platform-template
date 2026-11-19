@@ -1,6 +1,6 @@
 {{- if .Values.zot.enabled }}
 {{- /*
-The registry's configuration. ADR-0105 makes it a committed file, and not API
+The registry's configuration. ADR-0114 makes it a committed file, and not API
 state. It is rendered from values, so the per-environment deltas, bucket and
 endpoint, stay in the environment's values file. Everything that is NOT a
 per-environment delta is written literally here, where people can read it.
@@ -113,7 +113,7 @@ data:
         {{- if .Values.zot.sync.enabled }}
         {{- /*
         The sync extension, which makes zot a pull-through cache for the upstreams,
-        per ADR-0105. Anonymous pulls of a MIRRORED image still pass through the
+        per ADR-0114. Anonymous pulls of a MIRRORED image still pass through the
         accessControl above. So the pull identity is the same one that the cluster
         already uses. Mirroring does not open a second, unauthenticated door into the
         registry.

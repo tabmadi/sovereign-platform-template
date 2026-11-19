@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cut a repo-wide CalVer release, per ADR-0103. A release is the production deploy.
+# Cut a repo-wide CalVer release, per ADR-0112. A release is the production deploy.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/yaml.sh
@@ -65,8 +65,8 @@ if [[ "$stamped_pkg" == true ]]; then
   detail "refreshed bun.lock"
 fi
 
-# The template's release stamp lives in the tree, not the tag, per ADR-0106.
-# A forge copy is squashed with no history, and `project:init` reads this to write `_commit`.
+# The template's release stamp lives in the tree, not the tag, per ADR-0117.
+# A forge copy is squashed with no history, and `project-init` reads this to write `_commit`.
 echo "$version" >.template-version
 detail "stamped .template-version"
 

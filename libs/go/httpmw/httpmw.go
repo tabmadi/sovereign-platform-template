@@ -22,7 +22,7 @@ func Chain(h http.Handler, serviceName string) http.Handler {
 	return version(traced)
 }
 
-// version adds the running binary's identity to every response, per ADR-0103. A client,
+// version adds the running binary's identity to every response, per ADR-0112. A client,
 // such as the frontend, a curl, or DevOps, can then confirm which build answered without
 // trusting the deploy pipeline. It is outermost, so the headers are set before any write.
 func version(next http.Handler) http.Handler {

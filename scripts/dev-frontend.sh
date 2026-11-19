@@ -13,17 +13,16 @@ CA_FILE="${CA_DIR}/local-ca.crt"
 
 k() { kubectl --context "$(cluster_ctx)" "$@"; }
 
-# Extract it again on every run. A cluster:down creates a new CA, and an old file fails verification in a way that looks like a code problem.
+# Extract it again on every run. A cluster-down creates a new CA, and an old file fails verification in a way that looks like a code problem.
 if k -n "$NS" get secret local-ca-tls >/dev/null 2>&1; then
   mkdir -p "$CA_DIR"
   k -n "$NS" get secret local-ca-tls -o jsonpath='{.data.ca\.crt}' | base64 -d >"$CA_FILE"
   export NODE_EXTRA_CA_CERTS="$CA_FILE"
   detail "trusting the local CA from ${CA_FILE}"
 else
-  warn "local-ca-tls not found. Check that cluster:up is running. TLS calls to the edge will fail"
+  warn "local-ca-tls not found. Check that cluster-up is running. TLS calls to the edge will fail"
 fi
 
-# Run through the island's own mise config, apps/frontend/.mise.toml, so the pinned node is on PATH, per ADR-0100.
-# The `next` CLI and Turbopack's workers are `#!/usr/bin/env node` binaries, and bun starts node for them.
+# The `next` CLI and Turbopack's workers are `#!/usr/bin/env node` binaries, and bun starts the Node.js of the dev shell for them.
 cd apps/frontend
-exec mise run dev
+exec bun run next dev -H 0.0.0.0

@@ -1,6 +1,7 @@
 name: template
 
-# The template's own gates. Generated projects exclude them, per ADR-0106. Acceptance is this repository's nightly e2e.
+# The gates of the template itself, per TPL-0000. Each job runs only in the template repository, so a copy that keeps
+# this file runs nothing. `just init` removes it. Acceptance is the nightly e2e of this repository.
 on:
   push:
     branches: [master]
@@ -15,8 +16,6 @@ permissions:
   contents: read
 
 env:
-  # renovate runs only in renovate.yml. Its install is the largest in the toolchain and warns on every runner.
-  MISE_DISABLE_TOOLS: npm:renovate
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
   GIT_CONFIG_COUNT: "1"
   GIT_CONFIG_KEY_0: init.defaultBranch
@@ -24,19 +23,22 @@ env:
 
 jobs:
   generation:
-    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled') }}
+    if: >-
+      github.repository == 'tabmadi/sovereign-platform-template' &&
+      (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - name: Generate every fixture and compare the adoption paths
-        run: mise run test:template
+      - name: Make a project from every fixture and compare the two ways
+        run: nix develop --command just test-template
 
   acceptance:
     if: >-
-      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && github.event.label.name == 'template-acceptance')
+      github.repository == 'tabmadi/sovereign-platform-template' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'template-acceptance'))
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     concurrency:
@@ -47,8 +49,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
-        with:
-          go-cache: "true"
       # On this repository, e2e.yml's full job never runs on its schedule, so this job writes the mirror cache.
       - name: Restore the registry mirror
         id: registry-cache
@@ -60,7 +60,7 @@ jobs:
           path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
       - name: Generate a project and prove it serves
-        run: mise run acceptance
+        run: nix develop --command just acceptance
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

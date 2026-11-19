@@ -75,7 +75,7 @@ func Init(ctx context.Context, cfg Config) (func(context.Context) error, error) 
 		local = true
 	}
 
-	// service.version and service.build.sha come from the build identity in the binary, per ADR-0103. So every
+	// service.version and service.build.sha come from the build identity in the binary, per ADR-0112. So every
 	// signal reports which binary emitted it.
 	res, err := resource.New(
 		ctx,
@@ -257,7 +257,7 @@ func serveAdmin(addr string) {
 			w.WriteHeader(http.StatusOK)
 		},
 	)
-	// Build identity of the running binary, per ADR-0103. A script or curl can read
+	// Build identity of the running binary, per ADR-0112. A script or curl can read
 	// it per pod, so it shows directly if a pod runs the released version.
 	mux.HandleFunc(
 		"/version",

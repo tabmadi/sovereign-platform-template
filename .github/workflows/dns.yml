@@ -1,5 +1,5 @@
 # DNS drift, per ADR-0206. The repository declares the zone, and this job fails when the provider holds something else.
-# It changes nothing. A person runs `mise run dns:apply` to reconcile.
+# It changes nothing. A person runs `just dns-apply` to reconcile.
 name: dns
 
 on:
@@ -18,8 +18,6 @@ permissions:
   contents: read
 
 env:
-  # renovate runs only in renovate.yml. Its install is the largest in the toolchain and warns on every runner.
-  MISE_DISABLE_TOOLS: npm:renovate
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
   GIT_CONFIG_COUNT: "1"
   GIT_CONFIG_KEY_0: init.defaultBranch
@@ -35,4 +33,4 @@ jobs:
         env:
           # CI's age key, which is a recipient of the provider credential, per ADR-0202. It is unset on a fork.
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
-        run: mise run dns:check
+        run: nix develop --command just dns-check

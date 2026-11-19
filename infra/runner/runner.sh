@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The CI runner machine, per ADR-0102: a dedicated Debian machine beside the forge, never on it and never a cluster node.
+# The CI runner machine, per ADR-0116: a dedicated Debian machine beside the forge, never on it and never a cluster node.
 # A job controls the Docker of this machine, which is root on it. Each step is safe to run again.
 set -euo pipefail
 here="$(dirname "${BASH_SOURCE[0]}")"
@@ -9,18 +9,13 @@ source "$here/../forge-host/forge.env"
 # shellcheck source=runner.env
 source "$here/runner.env"
 
-slug="$(answer project_slug)"
-[ -n "$slug" ] || fail "no project_slug in .copier-answers.yml"
+slug="$(answer slug)"
+[ -n "$slug" ] || fail "no slug in infra/project.yaml"
 name="${slug}-runner"
 guest() { on "$RUNNER_SSH" "$RUNNER_JUMP"; }
 
 usage() { fail "usage: runner.sh install"; }
 [ "$#" -eq 1 ] && [ "$1" = install ] || usage
-
-# The forge injects a GITHUB_TOKEN of its own, and api.github.com rejects it. mise reads MISE_GITHUB_TOKEN first.
-mise_token="${MISE_GITHUB_TOKEN:-}"
-[ -n "$mise_token" ] ||
-  warn "MISE_GITHUB_TOKEN is unset: jobs that install github: or ubi: tools hit the API's anonymous limit"
 
 step "installing Docker and forgejo-runner ${RUNNER_VERSION} on ${RUNNER_SSH}"
 guest <<EOF
@@ -28,16 +23,20 @@ set -euo pipefail
 cloud-init status --wait >/dev/null 2>&1 || true
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-# What a provider-hosted image carries and a job assumes: Node for JavaScript actions, buildx for image builds, pipx
-# for mise's pipx tools, and chromium for the shared libraries that the Playwright browser links against.
-apt-get install -y -qq docker.io docker-buildx nodejs git git-lfs gnupg curl jq unzip xz-utils zstd \
-  build-essential python3 pipx chromium ca-certificates >/dev/null
+# What a provider-hosted image carries and a job assumes: Node for JavaScript actions and buildx for image builds.
+apt-get install -y -qq docker.io docker-buildx nodejs git git-lfs gnupg curl jq unzip xz-utils zstd ca-certificates >/dev/null
 systemctl enable --now docker >/dev/null
 # kind runs a kubelet in each node container. Each one holds inotify instances, and the Debian default runs out.
 printf 'fs.inotify.max_user_watches = 524288\nfs.inotify.max_user_instances = 512\n' >/etc/sysctl.d/90-kind.conf
 sysctl -q --system
 # Every checkout runs $(git init), which prints a hint on each job while git has no default branch name.
 git config --system init.defaultBranch master
+# Nix with flakes, per ADR-0100. The daemon keeps one store for every job, so a job downloads only what changed.
+if [ ! -x /nix/var/nix/profiles/default/bin/nix ]; then
+  curl -fsSL https://nixos.org/nix/install | sh -s -- --daemon --yes >/dev/null
+fi
+grep -q '^experimental-features' /etc/nix/nix.conf || echo 'experimental-features = nix-command flakes' >>/etc/nix/nix.conf
+systemctl restart nix-daemon
 if ! /usr/local/bin/forgejo-runner --version 2>/dev/null | grep -q "${RUNNER_VERSION}"; then
   curl -fsSL -o /tmp/fr \
     "https://code.forgejo.org/forgejo/runner/releases/download/v${RUNNER_VERSION}/forgejo-runner-${RUNNER_VERSION}-linux-amd64"
@@ -71,7 +70,7 @@ su ${user} -c "/usr/local/bin/forgejo-runner register --no-interactive --instanc
 EOF
   fi
 
-  # `ubuntu-24.04` is the machine itself, as on a provider-hosted runner, per ADR-0102.
+  # `ubuntu-24.04` is the machine itself, as on a provider-hosted runner, per ADR-0116.
   # One cache, served by instance 1. Separate caches would each warm the registry mirror against one shared Docker Hub limit.
   if [ "$n" = 1 ]; then
     cache="dir: /var/lib/forgejo-runner/cache
@@ -97,7 +96,7 @@ runner:
   timeout: 3h
   labels: ["ubuntu-24.04:host", "ubuntu-latest:host"]
   envs:
-    MISE_GITHUB_TOKEN: "${mise_token}"
+    PATH: /nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     XDG_RUNTIME_DIR: /home/${user}/run
     TMPDIR: /home/${user}/tmp
 host:
@@ -116,7 +115,7 @@ cat > /usr/local/sbin/runner-gc <<'GC'
 #!/bin/sh
 cutoff=\$(date -d '-3 hours' +%s)
 old() { [ "\$(date -d "\$(docker inspect -f '{{.Created}}' "\$1")" +%s)" -lt "\$cutoff" ]; }
-# A \`ci-keep-\` builder is the cache that ci:build-images keeps between jobs on purpose, and BuildKit's own GC bounds it.
+# A \`ci-keep-\` builder is the cache that ci-build-images keeps between jobs on purpose, and BuildKit's own GC bounds it.
 docker ps -a --filter name=buildx_buildkit_ --format '{{.Names}}' | while read -r c; do
   case "\$c" in buildx_buildkit_ci-keep-*) continue ;; esac
   old "\$c" || continue

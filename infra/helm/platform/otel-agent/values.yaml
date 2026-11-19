@@ -18,7 +18,7 @@ opentelemetry-collector:
   # process.
   resources:
     requests: { cpu: "100m", memory: "384Mi" }
-    limits:   { memory: "768Mi" }
+    limits: { memory: "768Mi" }
   # The contrib distro. The kubernetesAttributes preset, with the k8sattributes processor, and the `faro` receiver
   # below need it. faroreceiver arrived in contrib 0.128.0.
   image: { repository: otel/opentelemetry-collector-contrib, tag: "0.154.0" }
@@ -58,16 +58,26 @@ opentelemetry-collector:
   # Expose the Faro receiver port on that Service, so Traefik can route to it.
   # See `infra/gateway/frontend-observability.yaml` and ADR-0400.
   ports:
-    faro: { enabled: true, containerPort: 8027, servicePort: 8027, protocol: TCP }
+    faro: {
+      enabled: true,
+      containerPort: 8027,
+      servicePort: 8027,
+      protocol: TCP,
+    }
     # The chart declares Jaeger and Zipkin receiver ports by default. This collector runs none of them: no `jaeger` or
     # `zipkin` receiver appears in the config below.
     jaeger-compact: { enabled: false }
-    jaeger-thrift:  { enabled: false }
-    jaeger-grpc:    { enabled: false }
-    zipkin:         { enabled: false }
+    jaeger-thrift: { enabled: false }
+    jaeger-grpc: { enabled: false }
+    zipkin: { enabled: false }
   config:
     receivers:
-      otlp: { protocols: { grpc: { endpoint: 0.0.0.0:4317 }, http: { endpoint: 0.0.0.0:4318 } } }
+      otlp: {
+        protocols: {
+          grpc: { endpoint: 0.0.0.0:4317 },
+          http: { endpoint: 0.0.0.0:4318 },
+        },
+      }
       # Browser RUM from the frontend's Grafana Faro agent, per ADR-0400. It emits
       # web traces and RUM logs and events. They go into the traces and logs pipelines
       # below, so browser signals land in the same Tempo and Loki as services.
@@ -142,7 +152,7 @@ opentelemetry-collector:
             condition: 'attributes["kind"] == "event" and IsMatch(body, "(^| )event_name=marketing[.]")'
             pipelines: [logs/marketing]
     exporters:
-      otlphttp/tempo:      { endpoint: http://tempo.platform.svc.cluster.local:4318 }
+      otlphttp/tempo: { endpoint: http://tempo.platform.svc.cluster.local:4318 }
       # The analytics service, per ADR-0700: an ordinary in-cluster endpoint. It reads OTLP JSON at its one route outside
       # the spec.
       otlphttp/analytics:
@@ -150,16 +160,40 @@ opentelemetry-collector:
         encoding: json
       # The Prometheus native OTLP receiver, `--web.enable-otlp-receiver`. The otlphttp
       # exporter adds `/v1/metrics` to this base path.
-      otlphttp/prometheus: { endpoint: http://prometheus.platform.svc.cluster.local:9090/api/v1/otlp }
+      otlphttp/prometheus: {
+        endpoint: http://prometheus.platform.svc.cluster.local:9090/api/v1/otlp,
+      }
       # Loki's native OTLP endpoint. The Collector removed the standalone `loki` exporter
       # by v0.112, so logs go over OTLP.
-      otlphttp/loki:       { endpoint: http://loki.platform.svc.cluster.local:3100/otlp }
+      otlphttp/loki: {
+        endpoint: http://loki.platform.svc.cluster.local:3100/otlp,
+      }
     service:
       pipelines:
-        traces:  { receivers: [otlp, faro], processors: [memory_limiter, probabilistic_sampler, batch], exporters: [otlphttp/tempo] }
-        metrics: { receivers: [otlp, prometheus/hubble, prometheus/kubelet, kubeletstats], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
+        traces: {
+          receivers: [otlp, faro],
+          processors: [memory_limiter, probabilistic_sampler, batch],
+          exporters: [otlphttp/tempo],
+        }
+        metrics: {
+          receivers: [
+            otlp,
+            prometheus/hubble,
+            prometheus/kubelet,
+            kubeletstats,
+          ],
+          processors: [memory_limiter, batch],
+          exporters: [otlphttp/prometheus],
+        }
         # Every log and browser signal enters here, and the routing connector below
         # splits it. Nothing else changes in the ops path.
-        logs:            { receivers: [otlp, faro], processors: [memory_limiter, batch], exporters: [routing] }
-        logs/ops:        { receivers: [routing], exporters: [otlphttp/loki] }
-        logs/marketing:  { receivers: [routing], exporters: [otlphttp/analytics] }
+        logs: {
+          receivers: [otlp, faro],
+          processors: [memory_limiter, batch],
+          exporters: [routing],
+        }
+        logs/ops: { receivers: [routing], exporters: [otlphttp/loki] }
+        logs/marketing: {
+          receivers: [routing],
+          exporters: [otlphttp/analytics],
+        }

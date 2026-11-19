@@ -1,4 +1,4 @@
-# Branch protection and required checks, as configuration, per ADR-0102.
+# Branch protection and required checks, as configuration, per ADR-0116.
 
 branch: master
 
@@ -23,20 +23,18 @@ protection:
   # A merge whose base has moved joins two green runs that were never green
   # together.
   block_on_outdated_branch: true
-  # Every commit on master is signed by the forge or by `ci`, per ADR-0102.
+  # Every commit on master is signed by the forge or by `ci`, per ADR-0116.
   require_signed_commits: true
   enable_status_check: true
-  # The gates, by status context. Each one is a thin caller of `mise run ci:*`, per
-  # ADR-0102. So this list is the CI contract and not a copy of it. Forgejo names a
+  # The gates, by status context. Each one is a thin caller of a just recipe, per
+  # ADR-0116. So this list is the CI contract and not a copy of it. Forgejo names a
   # context `<workflow> / <job> (<event>)`, so a bare job name matches nothing.
   status_check_contexts:
-    - ci / lint (pull_request)
-    - ci / test (pull_request)
-    - ci / build (pull_request)
-    - ci / drift (pull_request)
+    - check / check (pull_request)
+    - history / history (pull_request)
 
 # Repository settings. A pull request merges by squash only. So each commit on master is one reviewed pull request, and the
-# forge signs it with its own key, per ADR-0102. A contributor needs no key.
+# forge signs it with its own key, per ADR-0116. A contributor needs no key.
 repository:
   allow_merge_commits: false
   allow_rebase: false

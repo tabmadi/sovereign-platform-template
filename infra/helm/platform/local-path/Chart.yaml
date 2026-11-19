@@ -10,7 +10,7 @@ description: |
 
   It uses first-party templates, not upstream's chart. Upstream publishes its
   chart from a git tree and not a released index. So there is no versioned
-  artefact to depend on and pin, per ADR-0104. Four small vendored manifests need
+  artefact to depend on and pin, per ADR-0113. Four small vendored manifests need
   less machinery than a vendored chart. The config below is the important part:
   the data directory must be under /var, the only writable path on a Talos node.
 type: application

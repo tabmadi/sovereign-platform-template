@@ -4,7 +4,7 @@ The worker that owns work that belongs to the platform and not to any one servic
 
 ```sh
 cd services/platform
-mise run worker
+just worker
 ```
 
 ## Why this exists
@@ -31,8 +31,8 @@ It is **worker-only**, with no HTTP surface, because it answers no requests. The
 Nothing in the product starts them. An operator does, from a workstation with the environment's kubeconfig:
 
 ```sh
-mise run privacy:export -- <identity-id> > export.json   # GDPR Art. 15 and 20
-mise run privacy:erase -- <identity-id>                  # GDPR Art. 17
+just privacy-export <identity-id> > export.json   # GDPR Art. 15 and 20
+just privacy-erase <identity-id>                  # GDPR Art. 17
 ```
 
 Both run the Temporal CLI in the cluster's admin-tools pod. The export is the workflow's result, as JSON. It fails, and says so, when it would pass Temporal's payload limit of about 2 MB.

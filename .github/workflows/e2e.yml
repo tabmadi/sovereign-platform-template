@@ -1,12 +1,12 @@
-# End-to-end and visual acceptance, per ADR-0601. Every full-platform e2e needs a `cluster:up full`, so these jobs are not part of ci:affected.
-# The nightly run has an activity gate. cluster:up full uses about 16GB, all of a standard runner. A larger runner adds margin only.
+# End-to-end and visual acceptance, per ADR-0601. Every full-platform e2e needs a `cluster-up full`, so these jobs are not part of ci-affected.
+# The nightly run has an activity gate. cluster-up full uses about 16GB, all of a standard runner. A larger runner adds margin only.
 name: e2e
 
 on:
   schedule:
     - cron: "0 3 * * *" # nightly full suite
   push:
-    tags: ["v*", "services/*/v*"] # pre-release, per ADR-0103
+    tags: ["v*", "services/*/v*"] # pre-release, per ADR-0112
   pull_request:
     types: [labeled, synchronize, reopened]
   workflow_dispatch:
@@ -26,8 +26,6 @@ permissions:
   contents: read
 
 env:
-  # renovate runs only in renovate.yml. Its install is the largest in the toolchain and warns on every runner.
-  MISE_DISABLE_TOOLS: npm:renovate
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
   GIT_CONFIG_COUNT: "1"
   GIT_CONFIG_KEY_0: init.defaultBranch
@@ -53,7 +51,7 @@ jobs:
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && inputs.suite == 'full'))
     runs-on: ubuntu-24.04
-    # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
+    # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0116.
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
@@ -61,7 +59,7 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
-        run: mise run secrets:age
+        run: nix develop --command just secrets-age
       # Authenticated Docker Hub pulls for zot's sync. Anonymous pulls have a limit for each source IP, and the whole forge shares this IP.
       # Unset on a fork, where the secrets do not resolve. This job is the one writer of the mirror cache, and the smoke job only restores it.
       - name: Restore the registry mirror
@@ -74,8 +72,8 @@ jobs:
           path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
-      - name: Bring up cluster:up full
-        run: mise run cluster:up -- full
+      - name: Bring up cluster-up full
+        run: nix develop --command just cluster-up full
         env:
           # The job's token clones a private repository for the full tier's Argo CD.
           ARGOCD_REPO_USERNAME: ${{ github.actor }}
@@ -92,13 +90,13 @@ jobs:
           path: ~/.cache/zot/registry.localhost
           key: ${{ steps.registry-cache.outputs.cache-primary-key }}
       - name: Install Playwright in the Node island
-        run: mise run e2e:install
+        run: nix develop --command just e2e-install
       - name: Run the full e2e and visual suite
-        run: mise run e2e
+        run: nix develop --command just e2e
       - name: Print the ops path logs
         if: failure()
         continue-on-error: true
-        run: mise run e2e:diagnose
+        run: nix develop --command just e2e-diagnose
       - name: Upload Playwright report
         if: always()
         # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
@@ -113,10 +111,10 @@ jobs:
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:down -- full
+        run: nix develop --command just cluster-down full
 
   # Only an e2e test sees a change across more than one service, per ADR-0601.
-  # This is a task, not an expression, because it reads the affected manifest, per ADR-0102.
+  # This is a task, not an expression, because it reads the affected manifest, per ADR-0116.
   pr-gate:
     # A label event starts this job only for its own label. Any other label leaves the result of the last push.
     if: >-
@@ -136,7 +134,7 @@ jobs:
         env:
           LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'run/e2e-smoke') }}
           BASE_REF: ${{ github.base_ref }}
-        run: mise run ci:e2e-gate >> "$GITHUB_OUTPUT"
+        run: nix develop --command just ci-e2e-gate >> "$GITHUB_OUTPUT"
 
   smoke:
     # A golden path and a key dashboard render, on the PRs that need them and on a manual smoke run.
@@ -146,7 +144,7 @@ jobs:
       always() && (needs.pr-gate.outputs.run == 'true' ||
       (github.event_name == 'workflow_dispatch' && inputs.suite == 'smoke'))
     runs-on: ubuntu-24.04
-    # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0102.
+    # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0116.
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
@@ -154,7 +152,7 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup
       - name: Provision the local SOPS age key
-        run: mise run secrets:age
+        run: nix develop --command just secrets-age
       - name: Restore the registry mirror
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
@@ -164,8 +162,8 @@ jobs:
           path: ~/.cache/zot/registry.localhost
           key: zot-all-${{ runner.os }}-${{ hashFiles('infra/local/image-refs.txt') }}
 
-      - name: Bring up cluster:up full
-        run: mise run cluster:up -- full
+      - name: Bring up cluster-up full
+        run: nix develop --command just cluster-up full
         env:
           # The job's token clones a private repository for the full tier's Argo CD.
           ARGOCD_REPO_USERNAME: ${{ github.actor }}
@@ -173,9 +171,9 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Install Playwright in the Node island
-        run: mise run e2e:install
+        run: nix develop --command just e2e-install
       - name: Run smoke suite
-        run: mise run e2e:smoke
+        run: nix develop --command just e2e-smoke
       - name: Upload Playwright report
         if: always()
         # Workaround for forgejo 16.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
@@ -190,4 +188,4 @@ jobs:
           retention-days: 7
       - name: Tear down
         if: always()
-        run: mise run cluster:down -- full
+        run: nix develop --command just cluster-down full

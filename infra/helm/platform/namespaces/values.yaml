@@ -28,7 +28,7 @@ namespaces:
       through a hostPath and runs as root, neither of which `baseline` permits.
       It runs alone so the exception covers one workload.
   - name: kyverno
-    # Admission control lives apart from what it admits, per ADR-0104 and ADR-0200. Kyverno excludes its own namespace
+    # Admission control lives apart from what it admits, per ADR-0113 and ADR-0200. Kyverno excludes its own namespace
     # from every policy, because a webhook that gates its own controllers cannot restart them. So if it shared
     # `platform`, the platform would be exempt.
     enforce: restricted

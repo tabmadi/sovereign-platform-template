@@ -11,6 +11,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
 
 cp .env.example .env
 step "seeded .env from .env.example"
-detail "review it, then run again. mise reads .env when it loads the config,"
+detail "review it, then run again. just reads .env when it loads the justfile,"
 detail "so this run has no environment yet."
 exit 1

@@ -2,7 +2,7 @@
 {{- /*
 A Deployment, not a StatefulSet. Every byte that matters is in the object store.
 `/var/lib/zot` holds only the metadata cache, which zot rebuilds from the bucket.
-ADR-0105 states the result: registry durability is object-storage durability, and
+ADR-0114 states the result: registry durability is object-storage durability, and
 a registry rebuild is a redeploy, not a restore.
 
 That cache is the reason the pod needs a writable directory. zot refuses to start

@@ -1,0 +1,328 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.5/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    // The config lives in .config/, per ADR-0104. The git root is the working folder of every recipe.
+    "root": "."
+  },
+  "files": {
+    // JSON belongs to dprint, per ADR-0104, so Biome reads only code and CSS.
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.mjs",
+      "**/*.cjs",
+      "**/*.css",
+      "!.config",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/dist",
+      "!**/build",
+      "!**/libs/ts/sdks",
+      // tools/zod-gen writes these, and ci-gen drift-checks the raw output. A rewrite here makes every commit drift.
+      "!**/libs/ts/schemas/*.ts",
+      "**/libs/ts/schemas/index.test.ts",
+      "!**/apps/admin/_generated",
+      // The configuration language of dnscontrol, per ADR-0206. It is JavaScript in syntax only: its globals belong to the tool.
+      "!**/infra/dns/dnsconfig.js",
+      // scripts/gen-openapi-public.sh generates the merged devportal spec projections. ci-gen drift-checks them.
+      "!**/apps/frontend/public/devportal",
+      // The test/e2e/ Playwright workspace is the approved Node island with its own toolchain, per ADR-0601.
+      // The frontend React preset does not apply to it. Its own tsconfig and the Playwright compile type-check it.
+      "!**/test/e2e"
+    ]
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "css": {
+    "parser": { "tailwindDirectives": true }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      // Every Biome rule, including nursery, except the rules that conflict with Next.js or the ADRs.
+      "preset": "all",
+      "correctness": {
+        // The resolver cannot see the Next 16 type-only re-exports from next/server.
+        "noUnresolvedImports": "off",
+        // Route files and the design catalogue use literal ids so a <Label> can point at its control.
+        // These ids are written by hand, not generated.
+        "useUniqueElementIds": "off",
+        // A Qwik-only rule. This is a React app, per ADR-0400.
+        "useQwikValidLexicalScope": "off",
+        // The bundler resolves path aliases and extensionless specifiers.
+        "useImportExtensions": "off",
+        "noProcessGlobal": "off",
+        // A React Native rule. This is a React app for the web, per ADR-0400.
+        "noReactNativeRawText": "off",
+        // A Solid.js-only rule. This is a React app, per ADR-0400.
+        "noSolidDestructuredProps": "off"
+      },
+      "performance": {
+        // A Solid.js-only rule. This is a React app, per ADR-0400.
+        "useSolidForComponent": "off",
+        // radix-ui is imported as one package, the way shadcn/ui generates it.
+        "noBarrelFile": "off"
+      },
+      "suspicious": {
+        // A Solid.js-only rule. This is a React app, per ADR-0400.
+        "noReactSpecificProps": "off"
+      },
+      "style": {
+        // Inline copy blocks a merge, per ADR-0400: every string a reader sees comes from src/messages/.
+        // This parser finds wrapped JSX text and copy passed as an attribute, which a regex cannot find.
+        // `lint-i18n` checks catalogue parity and mirroring.
+        "noJsxLiterals": "error",
+        "noProcessEnv": "off",
+        // ADR-0303 snake_case fields and Next.js SCREAMING_SNAKE env keys.
+        "useNamingConvention": "off",
+        // Colour literals live only in the token file, src/styles/theme.css.
+        "noHexColors": "off",
+        "useGlobalThis": "off",
+        // Next.js declares `metadata` at the top of route files.
+        "useExportsLast": "off",
+        "noMagicNumbers": "off",
+        "noImplicitBoolean": "off",
+        "noTernary": "off",
+        // `type` for object shapes. The one Window-augmentation interface has a biome-ignore.
+        "useConsistentTypeDefinitions": { "level": "error", "options": { "style": "type" } },
+        // Next.js route files export route-segment config next to the component. These names are Next's API.
+        // metadata and viewport describe the document. dynamic, revalidate, fetchCache, and runtime describe the render.
+        // A route that must not render statically, such as an authorization boundary, sets `dynamic`.
+        "useComponentExportOnlyModules": {
+          "level": "error",
+          "options": {
+            "allowExportNames": [
+              "metadata",
+              "generateMetadata",
+              "viewport",
+              "generateViewport",
+              "dynamic",
+              "revalidate",
+              "fetchCache",
+              "runtime"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "overrides": [
+    {
+      // libs/ts/id packs a 128-bit value into 26 base32 characters, five bits at a time, per ADR-0003.
+      // Bitwise operators and an index counter are correct here. The rules that ban them target React code.
+      // The alphabet and the TypeID conformance vectors look like high-entropy secrets to the scanner.
+      "includes": ["**/libs/ts/id/**"],
+      "linter": {
+        "rules": {
+          "suspicious": { "noBitwiseOperators": "off" },
+          "style": { "noIncrementDecrement": "off" },
+          "security": { "noSecrets": "off" }
+        }
+      }
+    },
+    {
+      // App Router route segments and config files use default exports.
+      // Next's contract exports `generateStaticParams` and `generateMetadata` next to the route's component.
+      "includes": ["**/app/**", "**/*.config.{js,cjs,mjs,ts}"],
+      "linter": {
+        "rules": {
+          "style": { "noDefaultExport": "off", "useComponentExportOnlyModules": "off" }
+        }
+      }
+    },
+    {
+      // The data seam, per ADR-0701. A screen states its data, and `lib/data/` chooses the generated SDK or a fixture.
+      // A page that calls `server-fetch` directly can no longer be designed against a fixture.
+      // The three route-group overrides below repeat this rule, because a later override replaces it.
+      "includes": ["**/apps/frontend/src/app/**", "**/apps/frontend/src/components/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
+                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // Route-group isolation, per ADR-0111: a route group does not import from another.
+      // The groups are separate surfaces with separate trust tiers, per ADR-0306.
+      // A component that two groups share goes in components/ or lib/, where the sharing is visible.
+      "includes": ["**/app/(landing)/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
+                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture"
+                  },
+                  {
+                    "group": ["**/app/(panel)/**", "**/app/(devportal)/**"],
+                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // Route-group isolation, per ADR-0111: a route group does not import from another.
+      // The groups are separate surfaces with separate trust tiers, per ADR-0306.
+      // A component that two groups share goes in components/ or lib/, where the sharing is visible.
+      "includes": ["**/app/(panel)/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
+                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture"
+                  },
+                  {
+                    "group": ["**/app/(landing)/**", "**/app/(devportal)/**"],
+                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // Route-group isolation, per ADR-0111: a route group does not import from another.
+      // The groups are separate surfaces with separate trust tiers, per ADR-0306.
+      // A component that two groups share goes in components/ or lib/, where the sharing is visible.
+      "includes": ["**/app/(devportal)/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/lib/server-fetch/*", "@/fixtures/*", "@sdks/*"],
+                    "message": "data reaches a screen through @/lib/data/, per ADR-0701. A page must not choose between the generated SDK and a fixture"
+                  },
+                  {
+                    "group": ["**/app/(landing)/**", "**/app/(panel)/**"],
+                    "message": "route groups do not import from each other, per ADR-0111. Share through components/ or lib/"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // The design catalogue of ADR-0400 is a developer tool behind the devportal session gate.
+      // Its labels, such as `Outline` or a token path, name primitives and states. They are not product copy.
+      // They stay in English by decision. Translation adds about 75 keys that no reader sees to every catalogue.
+      "includes": ["**/devportal/kitchen-sink/**"],
+      "linter": { "rules": { "style": { "noJsxLiterals": "off" } } }
+    },
+    {
+      // The next-intl plugin loads this request configuration by path. Upstream sets its shape:
+      // one default export and no component. Both rules target route files, and this is not one.
+      "includes": ["**/apps/frontend/src/i18n/request.ts"],
+      "linter": {
+        "rules": {
+          "style": { "noDefaultExport": "off", "useComponentExportOnlyModules": "off" }
+        }
+      }
+    },
+    {
+      // Fixtures and tests hold wire identifiers of 26 base32 characters, per ADR-0003. The entropy check reads them as secrets.
+      // gitleaks still scans these files through `lint-secrets`.
+      "includes": [
+        "**/apps/frontend/src/fixtures/**",
+        "**/apps/frontend/src/**/*.test.ts",
+        "**/apps/frontend/src/**/*.test.tsx"
+      ],
+      "linter": { "rules": { "security": { "noSecrets": "off" } } }
+    },
+    {
+      // Writes to stdout through console before slog and OTLP start.
+      "includes": ["**/apps/frontend/src/lib/observability/server.ts"],
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    },
+    {
+      // Vendored shadcn/ui source, per ADR-0400: third-party primitives and the token CSS, unchanged from upstream.
+      // `shadcn add` and a yearly bump then stay clean diffs. The first-party lint and format rules skip them, and tsc still type-checks them.
+      "includes": [
+        "**/apps/frontend/src/components/ui/**",
+        "**/apps/frontend/src/utils/is-react-component.ts",
+        "**/apps/frontend/src/styles/theme.css",
+        "**/apps/frontend/src/styles/globals.css"
+      ],
+      "linter": { "enabled": false },
+      "formatter": { "enabled": false },
+      // Import order too. With upstream's order, the next `shadcn add` changes nothing that exists.
+      "assist": { "enabled": false }
+    },
+    {
+      // k6 load scenarios, per ADR-0601. A k6 script cannot meet four rules, so only those rules are off.
+      // test/perf/ is not excluded like test/e2e/, so every other rule still finds bugs in scenario code.
+      "includes": ["**/test/perf/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            // `k6/http`, `k6/metrics`, and the other k6 modules are engine builtins. k6 resolves them.
+            // There is no package.json to declare them in, and there must not be one.
+            "noUndeclaredDependencies": "off",
+            // `__ENV` is k6's environment global.
+            "noUndeclaredVariables": "off"
+          },
+          // A scenario's entrypoint is `export default function`. This is k6's contract.
+          "style": { "noDefaultExport": "off" },
+          // console is the only output inside the k6 VM. There is no slog and no OTLP logger.
+          // The ADR-0500 rule covers services.
+          "suspicious": { "noConsole": "off" }
+        }
+      }
+    },
+    {
+      // The canonical Oathkeeper access rules, per ADR-0304. They are written by hand with one rule on each line.
+      // Helm reads the file unchanged through --set-file. Biome's formatter puts it on one line, so never format it.
+      "includes": ["**/infra/auth/oathkeeper/access-rules.json"],
+      "formatter": { "enabled": false }
+    }
+  ]
+}

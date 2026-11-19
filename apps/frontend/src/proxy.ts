@@ -10,7 +10,7 @@ const SESSION_COOKIE = "ory_kratos_session";
 const PROTECTED = ["/panel", "/devportal", "/analytics"];
 
 // The matcher does not exclude these, so a file under a protected path keeps the session gate.
-const PUBLIC_FILE = /\.[a-zA-Z0-9]+$/;
+const PUBLIC_FILE = /\.[a-zA-Z0-9]+$/u;
 
 // A Kratos browser flow cannot start on our side: Kratos sets its CSRF cookie and returns a flow id.
 // The redirect is issued here and not from the page, because this measurably improves LCP, per ADR-0400.

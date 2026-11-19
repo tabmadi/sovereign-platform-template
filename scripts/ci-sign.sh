@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Sign a published image and attach its SBOM and provenance, per ADR-0104.
+# Sign a published image and attach its SBOM and provenance, per ADR-0113.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/loki-push.sh
 source "$LIB/loki-push.sh"
 
 IMAGE="${1:-}"
-[ -n "$IMAGE" ] || fail "usage: mise run ci:sign -- <image>@sha256:<digest>"
+[ -n "$IMAGE" ] || fail "usage: just ci-sign <image>@sha256:<digest>"
 case "$IMAGE" in
 *@sha256:*) ;;
-*) fail "refusing to sign a tag: pass an image by digest, per ADR-0104. Got: ${IMAGE}" ;;
+*) fail "refusing to sign a tag: pass an image by digest, per ADR-0113. Got: ${IMAGE}" ;;
 esac
 
 PRIVATE="infra/auth/cosign/signing-key.enc.yaml"
-[ -f "$PRIVATE" ] || fail "no signing key at ${PRIVATE}. Run 'mise run secrets:cosign' once, at bootstrap"
+[ -f "$PRIVATE" ] || fail "no signing key at ${PRIVATE}. Run 'just secrets-cosign' once, at bootstrap"
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -26,7 +26,7 @@ COSIGN_PASSWORD="$(yq -r '.stringData.COSIGN_PASSWORD' "$work/secret.yaml")"
 export COSIGN_PASSWORD
 rm -f "$work/secret.yaml"
 
-# The cosign 2.x pin in .mise.toml keeps this flag available.
+# The cosign of flake.nix keeps this flag available.
 step "signing ${IMAGE}"
 cosign sign --yes --tlog-upload=false --key "$work/cosign.key" "$IMAGE"
 
@@ -63,7 +63,7 @@ cosign attest --yes --tlog-upload=false --key "$work/cosign.key" \
 
 # Recorded here, not in a separate step: the record says the digest was signed and attested, which is true only at this line.
 # Labels are only `service` and `env`: Loki builds one stream for each label set, so a digest label would create a stream for each build.
-# `env` is where the image was published from, not where it runs, per ADR-0103.
+# `env` is where the image was published from, not where it runs, per ADR-0112.
 step "filing the supply-chain record"
 name="${IMAGE##*/}"
 name="${name%@*}"

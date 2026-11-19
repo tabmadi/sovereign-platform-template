@@ -212,7 +212,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# zot's console, per ADR-0105 and ADR-0306. It is the SAME pod as the `registry` route below, on a second origin
+# zot's console, per ADR-0114 and ADR-0306. It is the SAME pod as the `registry` route below, on a second origin
 # with a different gate. That different gate is the reason to separate them.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -235,7 +235,7 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# The registry, per ADR-0105. It is the one origin at the edge that is NOT gated on an operator session. Every
+# The registry, per ADR-0114. It is the one origin at the edge that is NOT gated on an operator session. Every
 # other route here is a browser tool, so forward-auth to Oathkeeper is the right gate.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute

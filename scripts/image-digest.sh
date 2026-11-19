@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Resolve a tag to the immutable index digest that a values file pins, from the registry's own `Docker-Content-Digest`, per ADR-0101 and ADR-0104.
+# Resolve a tag to the immutable index digest that a values file pins, from the registry's own `Docker-Content-Digest`, per ADR-0111 and ADR-0113.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 ref="${1:-}"
-[[ -n "$ref" ]] || fail "usage: mise run image:digest -- <registry>/<repo>:<tag>"
+[[ -n "$ref" ]] || fail "usage: just image-digest <registry>/<repo>:<tag>"
 
 case "$ref" in
 *@sha256:*) fail "already digest-pinned: $ref" ;;

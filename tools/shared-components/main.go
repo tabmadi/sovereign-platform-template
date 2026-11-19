@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -169,7 +170,7 @@ func run(r *lint.Report) error {
 		written = append(written, spec)
 	}
 
-	r.Hintf("Run `mise run gen:shared-components` and commit the result.")
+	r.Hintf("Run `just gen-shared-components` and commit the result.")
 	if *check {
 		r.Okf("%d specs carry the canonical form of every shared component they use", len(specs))
 		return nil
@@ -194,8 +195,10 @@ func apply(spec string, sections []section, blocks map[string]string, dryRun boo
 	if updated == original {
 		return false, nil
 	}
+	// dprint formats the specs after this tool writes them, per ADR-0104. So the check compares values, not text.
+	// ci-gen compares the text after the formatter.
 	if dryRun {
-		return true, nil
+		return !sameValues(original, updated, sections), nil
 	}
 	// The write target is rebuilt from a validated service name and does not reuse the globbed path.
 	// So this tool can write only a service spec.
@@ -210,6 +213,39 @@ func apply(spec string, sections []section, blocks map[string]string, dryRun boo
 		return false, fmt.Errorf("write: %w", err)
 	}
 	return true, nil
+}
+
+// sameValues reports whether every shared region holds the same YAML values in both documents.
+func sameValues(a, b string, sections []section) bool {
+	for _, sec := range sections {
+		var left, right any
+		if yaml.Unmarshal([]byte(region(a, sec.key)), &left) != nil ||
+			yaml.Unmarshal([]byte(region(b, sec.key)), &right) != nil ||
+			!reflect.DeepEqual(left, right) {
+			return false
+		}
+	}
+	return true
+}
+
+// region returns the lines between the sentinels of one section, with their indent removed.
+func region(doc, key string) string {
+	begin := fmt.Sprintf(beginFmt, key)
+	var out []string
+	inside, indent := false, ""
+	for line := range strings.SplitSeq(doc, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case !inside && trimmed == begin:
+			inside = true
+			indent = line[:len(line)-len(strings.TrimLeft(line, " "))]
+		case inside && trimmed == endMark:
+			return strings.Join(out, "\n")
+		case inside:
+			out = append(out, strings.TrimPrefix(line, indent))
+		}
+	}
+	return strings.Join(out, "\n")
 }
 
 // specPath rebuilds services/<name>/openapi.yaml from the service name in the given path, and rejects any other shape.

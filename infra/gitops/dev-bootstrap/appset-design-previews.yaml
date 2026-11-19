@@ -17,7 +17,7 @@ spec:
   goTemplateOptions: ["missingkey=error"]
   generators:
     - pullRequest:
-        # The forge mode of ADR-0106 fits this block to the forge. The `forgejo` mode makes it `gitea`.
+        # The forge mode of ADR-0117 fits this block to the forge. The `forgejo` mode makes it `gitea`.
         github:
           owner: tabmadi
           repo: sovereign-platform-template
@@ -43,7 +43,7 @@ spec:
           helm:
             releaseName: frontend
             valueFiles: ["../../gitops/design/frontend.yaml"]
-            # The tag that ci:design-preview pushed for this commit, per ADR-0205.
+            # The tag that ci-design-preview pushed for this commit, per ADR-0205.
             valuesObject:
               image: { tag: "pr-{{ .number }}-{{ .head_sha }}" }
         - repoURL: https://github.com/tabmadi/sovereign-platform-template.git
@@ -53,7 +53,10 @@ spec:
             valuesObject:
               pr: "{{ .number }}"
               host: "design-pr-{{ .number }}.ops.dev.example.com"
-      destination: { server: https://kubernetes.default.svc, namespace: "design-pr-{{ .number }}" }
+      destination: {
+        server: https://kubernetes.default.svc,
+        namespace: "design-pr-{{ .number }}",
+      }
       syncPolicy:
         automated: { prune: true, selfHeal: true }
         syncOptions: [ServerSideApply=true]

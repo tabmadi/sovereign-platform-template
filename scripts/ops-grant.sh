@@ -13,7 +13,7 @@ email="${1:-}"
 action="write"
 [ "${2:-}" = "--revoke" ] && action="delete"
 if [ -z "$email" ]; then
-  echo "usage: mise run ops:grant -- <email> [--revoke]" >&2
+  echo "usage: just ops-grant <email> [--revoke]" >&2
   exit 2
 fi
 

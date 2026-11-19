@@ -1,5 +1,5 @@
 {{- if .Values.policies.allowedImageSources }}
-# The only places an image can come from, per ADR-0104. The other two policies check OUR images.
+# The only places an image can come from, per ADR-0113. The other two policies check OUR images.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -11,7 +11,7 @@ metadata:
     policies.kyverno.io/severity: high
     policies.kyverno.io/description: >-
       Every image must come from a repository this platform has declared it pulls
-      from (ADR-0104). The list is generated from the platform's own charts, so a
+      from (ADR-0113). The list is generated from the platform's own charts, so a
       new entry is a registry that has never been used here before.
 spec:
   validationFailureAction: {{ .Values.policies.validationFailureAction }}
@@ -31,8 +31,8 @@ spec:
       validate:
         message: >-
           This image comes from a repository that is not in the allow-list,
-          per ADR-0104. If the repository is valid, add it. To do this, run
-          `mise run gen:image-allowlist`.
+          per ADR-0113. If the repository is valid, add it. To do this, run
+          `just gen-image-allowlist`.
         foreach:
           - list: "request.object.spec.[containers || `[]`, initContainers || `[]`, ephemeralContainers || `[]`][]"
             deny:

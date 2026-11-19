@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The git identity of a commit that CI makes, per ADR-0201. It is never the actor who pushed: CI wrote the commit, not that person.
 # GitHub shows its own bot for the github-actions address. Another forge has no such account, so the commit names the `ci` machine user.
-# That commit is signed with the key of `ci`, per ADR-0102.
+# That commit is signed with the key of `ci`, per ADR-0116.
 ci_git_identity() {
   local host="${GITHUB_SERVER_URL:-https://github.com}"
   host="${host#*://}"

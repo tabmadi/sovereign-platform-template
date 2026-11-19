@@ -1,6 +1,13 @@
 openapi: 3.1.0
-info: { title: payment, version: 0.1.0, description: Payment charge and settlement service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace, per ADR-0306. Paths are globally unique
+info: {
+  title: payment,
+  version: 0.1.0,
+  description: Payment charge and settlement service.,
+  x-audience: public,
+}
+servers: [
+  { url: /api },
+] # flat resource namespace, per ADR-0306. Paths are globally unique
 # `x-admin: crud` marks the resource group for the admin generator in tools/admin-gen, per
 # ADR-0401. A workflow creates charges, and they are immutable. So the generator makes only
 # the list and detail read pages and the `refund` action below, with no edit or delete.
@@ -86,7 +93,13 @@ paths:
         Starts the Charge Temporal workflow. It is idempotent on the Idempotency-Key header.
         Returns a workflow handle, per ADR-0302.
       parameters:
-        - { name: Idempotency-Key, in: header, required: true, description: Client-generated key that makes the charge request idempotent., schema: { type: string } }
+        - {
+            name: Idempotency-Key,
+            in: header,
+            required: true,
+            description: Client-generated key that makes the charge request idempotent.,
+            schema: { type: string },
+          }
       requestBody:
         required: true
         description: The charge to create.
@@ -105,9 +118,24 @@ paths:
       operationId: getCharge
       description: Fetch a charge by id.
       tags: [charges]
-      parameters: [{ name: id, in: path, required: true, description: Charge id., schema: { $ref: "#/components/schemas/ChargeId" } }]
+      parameters: [
+        {
+          name: id,
+          in: path,
+          required: true,
+          description: Charge id.,
+          schema: { $ref: "#/components/schemas/ChargeId" },
+        },
+      ]
       responses:
-        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Charge" } } } }
+        "200": {
+          description: OK,
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Charge" },
+            },
+          },
+        }
         default: { $ref: "#/components/responses/Error" }
   /charges/{id}/refund:
     post:
@@ -117,11 +145,23 @@ paths:
       x-audience: internal
       description: Refund a settled charge. Starts the Refund workflow, per ADR-0302.
       tags: [charges]
-      parameters: [{ name: id, in: path, required: true, description: Id of the charge to refund., schema: { $ref: "#/components/schemas/ChargeId" } }]
+      parameters: [
+        {
+          name: id,
+          in: path,
+          required: true,
+          description: Id of the charge to refund.,
+          schema: { $ref: "#/components/schemas/ChargeId" },
+        },
+      ]
       requestBody:
         required: true
         description: The refund request.
-        content: { application/json: { schema: { $ref: "#/components/schemas/RefundInput" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/RefundInput" },
+          },
+        }
       responses:
         "202":
           description: Refund accepted
@@ -136,7 +176,7 @@ components:
       description: An error, as RFC 9457 problem details.
       content:
         application/problem+json:
-          schema: {$ref: "#/components/schemas/Problem"}
+          schema: { $ref: "#/components/schemas/Problem" }
     # <<< shared-components
   schemas:
     # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
@@ -236,7 +276,7 @@ components:
         A charge identifier: `charge_` and the UUIDv7 in 26 characters of Crockford
         base32. The first character is at most 7, because 26 characters hold 130 bits and
         a UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.
-      pattern: '^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      pattern: "^charge_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"
       example: charge_01kztnyqr0f13shqqnx8028xx5
     # orders mints it and this service carries it. So the prefix names the owning
     # service's resource, not a resource of this service.
@@ -245,28 +285,37 @@ components:
       description: |
         An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
         base32. It is opaque to a consumer: nothing parses, orders, or builds one.
-      pattern: '^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      pattern: "^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"
       example: order_01kztnj6c8e0jt7vzw0cn1wxvd
     WorkflowHandle:
       type: object
       description: Handle to an async Temporal workflow run.
       required: [id, run_id, status]
       properties:
-        id:     { type: string }
+        id: { type: string }
         run_id: { type: string }
         status: { type: string, enum: [running, completed, failed, cancelled] }
         # uri-reference, not uri. The value is a path on this origin, and `format: uri` means an absolute URI. Then the committed example would fail its own schema.
-        result_url: { type: string, format: uri-reference, description: "GET it to fetch the terminal status and result" }
+        result_url: {
+          type: string,
+          format: uri-reference,
+          description: "GET it to fetch the terminal status and result",
+        }
       # As in orders, the real 202 returns `running`, and the mock's poll never moves
       # past it, per ADR-0600.
-      example: { id: charge-charge_01kztnyqr0f13shqqnx8028xx5, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e002, status: running, result_url: /api/charges/charge_01kztnyqr0f13shqqnx8028xx5 }
+      example: {
+        id: charge-charge_01kztnyqr0f13shqqnx8028xx5,
+        run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e002,
+        status: running,
+        result_url: /api/charges/charge_01kztnyqr0f13shqqnx8028xx5,
+      }
     ChargeInput:
       type: object
       description: Request body to create a charge.
       required: [order_id, amount]
       properties:
         order_id: { $ref: "#/components/schemas/OrderId" }
-        amount:   { $ref: "#/components/schemas/Money" }
+        amount: { $ref: "#/components/schemas/Money" }
     RefundInput:
       type: object
       description: Request body to refund a charge.
@@ -278,8 +327,13 @@ components:
       description: A payment charge against an order.
       required: [id, order_id, amount, status]
       properties:
-        id:       { $ref: "#/components/schemas/ChargeId" }
+        id: { $ref: "#/components/schemas/ChargeId" }
         order_id: { $ref: "#/components/schemas/OrderId" }
-        amount:   { $ref: "#/components/schemas/Money" }
-        status:   { type: string, enum: [pending, settled, failed, refunded] }
-      example: { id: charge_01kztnyqr0f13shqqnx8028xx5, order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd, amount: { amount: "2598.00", currency: EUR }, status: settled }
+        amount: { $ref: "#/components/schemas/Money" }
+        status: { type: string, enum: [pending, settled, failed, refunded] }
+      example: {
+        id: charge_01kztnyqr0f13shqqnx8028xx5,
+        order_id: order_01kztnj6c8e0jt7vzw0cn1wxvd,
+        amount: { amount: "2598.00", currency: EUR },
+        status: settled,
+      }

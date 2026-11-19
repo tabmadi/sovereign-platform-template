@@ -282,7 +282,7 @@ func TestSQLRoundTrip(t *testing.T) {
 	}
 }
 
-// A float8 column is the schema defect that ADR-0100 forbids. Accepting the scan
+// A float8 column is the schema defect that ADR-0110 forbids. Accepting the scan
 // hides it until a total comes out wrong.
 func TestScanRefusesAFloat(t *testing.T) {
 	t.Parallel()

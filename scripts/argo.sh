@@ -27,7 +27,7 @@ k -n argocd get "$STS" >/dev/null 2>&1 ||
 if [ "$verb" = pause ]; then
   step "pausing Argo CD on $(cluster_ctx). The cluster stops tracking master"
   k -n argocd scale "$STS" --replicas=0 >/dev/null
-  ok "paused. Resume with 'mise run argo:resume' when the patch is committed"
+  ok "paused. Resume with 'just argo-resume' when the patch is committed"
   exit 0
 fi
 
@@ -37,7 +37,7 @@ k -n argocd scale "$STS" --replicas=1 >/dev/null
 k -n argocd rollout status "$STS" --timeout=180s >/dev/null ||
   fail "the application-controller did not come back. Run 'kubectl -n argocd describe ${STS}'"
 
-# A pause that cluster:add sets on one app is narrower, and it survives a controller restart.
+# A pause that cluster-add sets on one app is narrower, and it survives a controller restart.
 # custom-columns and awk, not jsonpath: kubectl's jsonpath has no negation, so the filter would match nothing.
 mapfile -t manual < <(
   k -n argocd get application.argoproj.io --no-headers \
@@ -45,7 +45,7 @@ mapfile -t manual < <(
     awk '$2 == "<none>" { print $1 }'
 )
 if [ "${#manual[@]}" -gt 0 ]; then
-  warn "${#manual[@]} application(s) still have auto-sync off. cluster:add pauses the app it deploys:"
+  warn "${#manual[@]} application(s) still have auto-sync off. cluster-add pauses the app it deploys:"
   printf '    · %s\n' "${manual[@]}" >&2
   detail "turn auto-sync on again with: argocd app set <name> --sync-policy automated"
 fi

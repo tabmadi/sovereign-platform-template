@@ -14,14 +14,14 @@ The internal admin tool, per [ADR-0401](../../docs/adr/0401-internal-admin.md). 
 - A tag with `x-admin: crud` makes a CRUD page for that resource. The page has a list table. It adds a create form when the collection `POST` returns `201`, an edit form on `PUT`, and a delete control on `DELETE`. An async `202` workflow create stays list-only.
 - An operation with `x-admin: action` makes a page with one button or form action.
 
-Run `mise run gen:admin` to regenerate. `mise run gen` includes it, and CI checks the output for drift. `custom/` and `pages/` hold only what the generator cannot make, for example the cross-service dashboard. The generated `_generated/pages.yaml` manifest is the page index that `lowdefy.yaml` references. It lists hand-written pages first, then generated pages.
+Run `just gen-admin` to regenerate. `just gen` includes it, and CI checks the output for drift. `custom/` and `pages/` hold only what the generator cannot make, for example the cross-service dashboard. The generated `_generated/pages.yaml` manifest is the page index that `lowdefy.yaml` references. It lists hand-written pages first, then generated pages.
 
 The edge enforces auth. Lowdefy reads the authenticated identity from the `X-User-Email` header that Oathkeeper forwards, per ADR-0305 and ADR-0401.
 
 ## Standard tasks
 
 ```sh
-mise run build   # produces .lowdefy/build
-mise run run     # lowdefy dev with local hot reload
-mise run lint    # lowdefy validate
+just build   # produces .lowdefy/build
+just run     # lowdefy dev with local hot reload
+just lint    # lowdefy validate
 ```

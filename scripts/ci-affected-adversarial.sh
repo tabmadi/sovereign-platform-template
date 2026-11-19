@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test affected-detection from the other side, per ADR-0101 and ADR-0601.
+# Test affected-detection from the other side, per ADR-0111 and ADR-0601.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

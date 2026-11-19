@@ -226,7 +226,7 @@ func checkLogicalProperties(fix bool) ([]string, error) {
 		// Name the lines, not only the file. A message that names only the file costs a grep to act on.
 		for i, before := range strings.Split(body, "\n") {
 			if toLogical(before) != before {
-				const form = "%s:%d: physical property does not mirror. Run `mise run lint:i18n -- -fix`"
+				const form = "%s:%d: physical property does not mirror. Run `just lint-i18n -fix`"
 				problems = append(problems, fmt.Sprintf(form, path, i+1))
 			}
 		}

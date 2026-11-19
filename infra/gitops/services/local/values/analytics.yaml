@@ -2,16 +2,16 @@
 name: analytics
 image:
   repository: registry.localhost:5000/analytics-server
-  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
-  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
+  tag: local # the local registry stands in for CI. Prod uses a git SHA, per ADR-0111
+  pullPolicy: Always # pull the rebuilt :local again on each cluster-up full run
 worker: { enabled: false }
-server:  { replicas: 1 }
+server: { replicas: 1 }
 # No `/api` edge route. Nothing in a browser calls this service. The browser emits
 # through Faro, and the collector's routing connector delivers here east-west, per
 # ADR-0700. An edge route would be a public surface for an internal write path.
 ingress: { enabled: false }
 # Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
-otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
+otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 secrets: { envFrom: [analytics-db] }
 networkPolicy:
   allowFromGateway: false

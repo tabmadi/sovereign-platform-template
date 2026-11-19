@@ -19,7 +19,7 @@ NS="${NS:-platform}"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 KIND_CONFIG="infra/local/kind.yaml"
 REGISTRY="registry.localhost"
-# A path, never a named volume: a forge cache can restore a directory. A warm from nothing is most of the cost of `cluster:up`, per ADR-0205.
+# A path, never a named volume: a forge cache can restore a directory. A warm from nothing is most of the cost of `cluster-up`, per ADR-0205.
 ZOT_DATA="${ZOT_DATA:-${XDG_CACHE_HOME:-$HOME/.cache}/zot/${REGISTRY}}"
 ZOT_IMAGE="ghcr.io/project-zot/zot-linux-amd64:v2.1.20"
 FORCE="${FORCE:-}"
@@ -35,7 +35,7 @@ esac
 cluster_tier() { printf '%s' "$TIER"; }
 # The tier is an argument, so a message naming a command names its tier too.
 up_hint() {
-  if [ "$TIER" = full ]; then printf 'mise run cluster:up -- full'; else printf 'mise run cluster:up'; fi
+  if [ "$TIER" = full ]; then printf 'just cluster-up full'; else printf 'just cluster-up'; fi
 }
 # The full tier's name includes the tier, so `docker ps` and `kubectl config get-contexts` both show which cluster is which.
 cluster_name_of() {
@@ -68,7 +68,7 @@ other_tier_hint() {
   local other
   other="$(other_tier)"
   cluster_exists "$(cluster_name_of "$other")" &&
-    detail "the ${other} tier is up. To use it, run 'mise run cluster:${1} -- ${other}'"
+    detail "the ${other} tier is up. To use it, run 'just cluster:${1} -- ${other}'"
   return 0
 }
 cluster_ctx() { printf 'kind-%s' "$(cluster_name)"; }
@@ -138,7 +138,7 @@ require_tools() {
   local tool
   for tool in "$@"; do
     command -v "$tool" >/dev/null 2>&1 ||
-      fail "${tool} not found on PATH. Run this through mise, as \`mise run <task>\`, which puts the pinned toolchain there"
+      fail "${tool} not found on PATH. Run this through just, inside the dev shell of flake.nix, which puts the pinned toolchain there"
   done
 }
 
@@ -161,7 +161,7 @@ argo_service_app() {
   done
 }
 
-# zot, the registry every environment runs, per ADR-0105, as a host container next to both clusters.
+# zot, the registry every environment runs, per ADR-0114, as a host container next to both clusters.
 # It mirrors the upstreams on demand, so nothing is preloaded and no image list needs upkeep. It survives a cluster delete and recreate.
 stage_registry() {
   [ -z "${CI:-}" ] || ci_wait_for_runner
@@ -226,7 +226,7 @@ $(docker logs --tail 15 "$REGISTRY" 2>&1 | sed 's/^/    /')"
   done
 }
 
-# Fill zot with every third-party image that the cluster pulls, before the cluster exists, per ADR-0105.
+# Fill zot with every third-party image that the cluster pulls, before the cluster exists, per ADR-0114.
 # zot's on-demand sync copies a whole image before it answers, so about 18 pods at once exceed containerd's pull deadline.
 # The list is generated with Kyverno's allow-list, so the two always agree.
 stage_warm() {
@@ -235,7 +235,7 @@ stage_warm() {
   # The normalised repository path of each miss, kept next to the display form.
   # The failure report uses it to find that image's lines in the registry log.
   local missed_paths=()
-  [ -f "$refs" ] || fail "${refs} is missing. Run 'mise run gen:image-allowlist'"
+  [ -f "$refs" ] || fail "${refs} is missing. Run 'just gen-image-allowlist'"
   # The tier's part of the list, by its first column: a base tier runs no ArgoCD and nothing that ArgoCD deploys.
   # WARM_TIER=full lets the job that saves the mirror cache fill it for both tiers.
   local wanted tier="${WARM_TIER:-$TIER}"
@@ -246,7 +246,7 @@ stage_warm() {
   ' "$refs" >"$wanted"
   total="$(grep -cvE '^\s*$' "$wanted" || true)"
   [ "$total" -gt 0 ] ||
-    fail "${refs} names no image for the ${tier} tier. Run 'mise run gen:image-allowlist'"
+    fail "${refs} names no image for the ${tier} tier. Run 'just gen-image-allowlist'"
   step "warming the registry with ${total} third-party image(s) for the ${tier} tier"
 
   local ref host path reference name tag status attempt
@@ -333,7 +333,7 @@ stage_warm() {
     fi
     fail "${#missed[@]} image(s) above could not be cached. The nodes pull only from
   this registry, so the cluster cannot start without them. Run it again to retry.
-  If it still fails, check egress with 'mise run proxy:setup -- --check'."
+  If it still fails, check egress with 'just proxy-setup --check'."
   fi
 }
 
@@ -349,7 +349,7 @@ stage_cluster() {
   if cluster_exists "$other" && cluster_running "$other"; then
     fail "cluster '${other}' is running and holds the edge ports 8080 and 8443.
   Run one tier at a time:
-    mise run cluster:stop -- $([ "$TIER" = full ] && echo base || echo full)"
+    just cluster-stop $([ "$TIER" = full ] && echo base || echo full)"
   fi
 
   if ! kind get clusters 2>/dev/null | grep -qx "$name"; then
@@ -519,7 +519,7 @@ stage_certs() {
   k -n "$NS" wait --for=condition=Ready certificate/wildcard --timeout=120s
 }
 
-# Only the PriorityClasses, per ADR-0204. The service chart always sets priorityClassName, so without them `cluster:add` fails at pod creation.
+# Only the PriorityClasses, per ADR-0204. The service chart always sets priorityClassName, so without them `cluster-add` fails at pod creation.
 # The quotas, limit ranges, and PDBs in that chart are sized for the full platform.
 stage_priority() {
   step "applying the priority classes services are scheduled by"
@@ -556,7 +556,7 @@ stage_secrets() {
 }
 
 # Kratos and Oathkeeper, wired as the platform ApplicationSet wires them: the canonical infra/auth overlays and the string artefacts.
-# They are never inline in chart values, per `lint:auth-inline`. The first-operator Job is off: this tier has no OpenFGA, and `identities` seeds it.
+# They are never inline in chart values, per `lint-auth-inline`. The first-operator Job is off: this tier has no OpenFGA, and `identities` seeds it.
 stage_ory() {
   step "installing kratos and oathkeeper"
   chart_deps infra/helm/platform/ory
@@ -686,7 +686,7 @@ stage_kyverno() {
 stage_argocd() {
   step "installing ArgoCD"
   chart_deps infra/helm/platform/argocd
-  # Machine-local values that proxy:setup writes. They are absent on a direct network.
+  # Machine-local values that proxy-setup writes. They are absent on a direct network.
   # The repo-server is the one component that reaches git and the chart repositories from inside the cluster, so it needs the host's egress route.
   local overlay=()
   [ -f infra/local/proxy.local.yaml ] && overlay=(-f infra/local/proxy.local.yaml)
@@ -733,7 +733,7 @@ stage_rootapp() {
   kubectl --kubeconfig "$kubeconfig" config set-context --current --namespace argocd >/dev/null
   ac() { KUBECONFIG="$kubeconfig" argocd --core "$@"; }
 
-  # `cluster:stop` freezes a sync in progress. On resume the controller reuses its old task plan, which never converges against changed manifests.
+  # `cluster-stop` freezes a sync in progress. On resume the controller reuses its old task plan, which never converges against changed manifests.
   # `argocd app wait` reports only a timeout, so the reason is in pod events, which nothing else prints.
   dump_unhealthy() {
     local app ns
@@ -763,7 +763,7 @@ stage_rootapp() {
     local timeout="$1" app
     shift
     ac app wait "$@" --sync --health --operation --timeout "$timeout" && return 0
-    warn "[$*] did not converge in ${timeout}s. Terminating their operations, which are probably stale from a cluster:stop, and syncing again"
+    warn "[$*] did not converge in ${timeout}s. Terminating their operations, which are probably stale from a cluster-stop, and syncing again"
     for app in "$@"; do ac app terminate-op "$app" || true; done
     # Termination is asynchronous, and a sync sent while it runs is refused with `another operation is already in progress`.
     for app in "$@"; do
@@ -776,13 +776,13 @@ stage_rootapp() {
     fail "ArgoCD did not converge. The applications and pod events above give the reason. \`kubectl --context $(cluster_ctx) -n <ns> describe pod <pod>\` gives the rest."
   }
 
-  # An operation that began before this `up` is a sync that `cluster:stop` froze. It is replaced now, not after a timeout.
+  # An operation that began before this `up` is a sync that `cluster-stop` froze. It is replaced now, not after a timeout.
   restart_stale_ops() {
     local name phase started
     while read -r name phase started; do
       [ "$phase" = Running ] && [ -n "$started" ] || continue
       [[ "$started" < "$UP_STARTED" ]] || continue
-      warn "${name}: its sync began before this cluster:up. Terminating it and syncing again"
+      warn "${name}: its sync began before this cluster-up. Terminating it and syncing again"
       ac app terminate-op "$name" || true
       wait_for "${name}'s operation to end" 120 op_ended "$name"
       ac app sync "$name" --async >/dev/null
@@ -806,11 +806,11 @@ stage_rootapp() {
   ok "all ArgoCD applications Synced and Healthy"
 }
 
-# Fill the in-cluster zot's catalogue with the first-party images, per ADR-0105. Best effort: no pod's start depends on it.
+# Fill the in-cluster zot's catalogue with the first-party images, per ADR-0114. Best effort: no pod's start depends on it.
 stage_populatezot() {
-  # No test reads the zot catalogue, and the copy holds a CI job for minutes. `cluster:populate-zot` fills it on demand.
+  # No test reads the zot catalogue, and the copy holds a CI job for minutes. `cluster-populate-zot` fills it on demand.
   if [ -n "${CI:-}" ]; then
-    detail "populate-zot: skipped in CI. Run \`mise run cluster:populate-zot\` to fill the zot.ops catalogue"
+    detail "populate-zot: skipped in CI. Run \`just cluster-populate-zot\` to fill the zot.ops catalogue"
     return 0
   fi
   bash "$(dirname "${BASH_SOURCE[0]}")/../populate-zot.sh" ||

@@ -82,7 +82,7 @@ func run(r *lint.Report) error {
 	if check {
 		got, readErr := os.ReadFile(outPath)
 		if readErr != nil || string(got) != want {
-			return fmt.Errorf("%s is stale. Run `mise run gen:data-classes`", outPath)
+			return fmt.Errorf("%s is stale. Run `just gen-data-classes`", outPath)
 		}
 		r.Okf("%s matches the migrations and retention.yaml", outPath)
 		return nil

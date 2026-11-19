@@ -1,5 +1,5 @@
 {{- if and .Values.policies.imagePrefix .Values.policies.publicKey }}
-# Every first-party image carries a signature that this platform made, per ADR-0104. `verifyImages` is a MUTATING
+# Every first-party image carries a signature that this platform made, per ADR-0113. `verifyImages` is a MUTATING
 # rule and also a validating one. On success, Kyverno rewrites the image reference to the digest it verified.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -15,7 +15,7 @@ metadata:
     policies.kyverno.io/description: >-
       Every image from this platform's own registry must carry a cosign signature
       made with the platform key pair, plus an SBOM and provenance attestation
-      (ADR-0104). Third-party images are out of scope: they are pinned by digest
+      (ADR-0113). Third-party images are out of scope: they are pinned by digest
       and allow-listed instead, and a signature rule that matched them would reject
       every upstream component in the cluster.
 spec:
@@ -61,7 +61,7 @@ spec:
                     # and the key above is one. But a policy that accepts any algorithm that
                     # the signature claims accepts a downgrade.
                     signatureAlgorithm: sha256
-                    # No transparency log, on purpose, in both directions. ADR-0104 chose a key pair over keyless, because the only
+                    # No transparency log, on purpose, in both directions. ADR-0113 chose a key pair over keyless, because the only
                     # verifier here is our own admission controller. Keyless gives the trust root to an outside party.
                     rekor:
                       ignoreTlog: true

@@ -16,7 +16,7 @@ if [[ ${#targets[@]} -eq 0 ]]; then
 fi
 
 step "linting ${#targets[@]} SQL target(s) with sqruff"
-sqruff lint "${targets[@]}"
+sqruff lint --config .config/sqruff.cfg "${targets[@]}"
 
 # PII tagging, per ADR-0301: a column with personal data has its pii:<class> comment in the DDL.
 # So erasure, export, and redaction find their targets by query, not by memory.

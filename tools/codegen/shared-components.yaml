@@ -1,5 +1,5 @@
 # Canonical OpenAPI components that every service spec shares, per ADR-0303. This file is the source.
-# Each spec has a copy, and `lint:openapi` fails when one diverges. A spec gets what it references, transitively.
+# Each spec has a copy, and `lint-openapi` fails when one diverges. A spec gets what it references, transitively.
 
 schemas:
   # RFC 9457 problem details. `instance` is absent on purpose: `trace_id` identifies the occurrence and leads to the trace.

@@ -34,7 +34,7 @@ check)
   if dnscontrol preview --expect-no-changes --config "$CONFIG" --creds "$CREDS"; then
     ok "the provider matches ${CONFIG}"
   else
-    fail "the provider differs from ${CONFIG}. Run 'mise run dns:apply'"
+    fail "the provider differs from ${CONFIG}. Run 'just dns-apply'"
   fi
   ;;
 apply)

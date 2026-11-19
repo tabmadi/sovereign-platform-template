@@ -6,7 +6,7 @@ create table orgs (
 );
 
 create table org_members (
-  org_id uuid not null references orgs (id) on delete cascade,
+  org_id uuid not null references orgs(id) on delete cascade,
   user_id text not null,
   role text not null check (role in ('admin', 'member')),
   primary key (org_id, user_id)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build, push, and sign every affected image of one kind in one job, per ADR-0101 and ADR-0104.
+# Build, push, and sign every affected image of one kind in one job, per ADR-0111 and ADR-0113.
 # One job, not one for each image: on one runner, the setup of a job costs more than an image build from a warm cache.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
@@ -7,7 +7,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 kind="${1:-}"
 case "$kind" in
 services | apps) ;;
-*) fail "usage: mise run ci:build-images -- services|apps" ;;
+*) fail "usage: just ci-build-images services|apps" ;;
 esac
 [ -n "${IMAGE_PREFIX:-}" ] || fail "IMAGE_PREFIX is unset"
 [ -n "${GIT_SHA:-}" ] || fail "GIT_SHA is unset"
@@ -39,8 +39,8 @@ build() {
   }
   digest="$(jq -r '."containerimage.digest"' "$meta")"
   rm -f "$meta"
-  # By digest, not by the new tag, per ADR-0104. A tag can move between two resolves.
-  mise run ci:sign -- "${IMAGE_PREFIX}/${name}@${digest}"
+  # By digest, not by the new tag, per ADR-0113. A tag can move between two resolves.
+  just ci-sign "${IMAGE_PREFIX}/${name}@${digest}"
 }
 
 # Every image is tried, so one failure does not hide another. promote then sees the failed job and pins nothing.
@@ -73,7 +73,7 @@ case "$kind" in
 services)
   while IFS=$'\t' read -r -u 3 svc cmd; do
     [ -n "$svc" ] || continue
-    # The build identity, per ADR-0103. BUILD_VERSION stays `dev` for master builds. The release stamps prod's CalVer.
+    # The build identity, per ADR-0112. BUILD_VERSION stays `dev` for master builds. The release stamps prod's CalVer.
     start "${svc}-${cmd}" . "services/${svc}/Dockerfile" \
       --build-arg "APP_CMD=${cmd}" --build-arg "GIT_SHA=${GIT_SHA}" \
       --build-arg BUILD_VERSION=dev --build-arg "BUILD_TIME=${BUILD_TIME:-}" </dev/null

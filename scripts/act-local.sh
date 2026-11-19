@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Local act runner that bakes the mise toolchain into one base image.
+# Runs a workflow locally with act, per ADR-0116. Each job installs Nix itself, so the base image holds no toolchain.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-PROXY="${ACT_PROXY:-http://127.0.0.1:8118}"
-IMAGE="${ACT_IMAGE:-act-local:latest}"
+PROXY="${ACT_PROXY:-}"
+IMAGE="${ACT_IMAGE:-catthehacker/ubuntu:act-latest}"
 EVENT="${ACT_EVENT:-pull_request}"
 ENV_FILE="${ACT_ENV_FILE:-.env}"
 
@@ -12,119 +12,23 @@ NO_PROXY="127.0.0.1,localhost"
 HOST_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "src") print $(i + 1)}' || true)"
 [[ -n "$HOST_IP" ]] && NO_PROXY+=",$HOST_IP"
 
-REBUILD=0
 ACT_ARGS=()
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-  --rebuild) REBUILD=1 ;;
-  --)
-    shift
-    ACT_ARGS+=("$@")
-    break
-    ;;
-  *) ACT_ARGS+=("$1") ;;
-  esac
-  shift
-done
-
-WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
-
-# The mise version that CI pins, from the setup action, which Renovate manages.
-MISE_VERSION="$(sed -n '/depName=jdx\/mise/,+1p' .github/actions/setup/action.yml | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
-[[ -n "$MISE_VERSION" ]] || fail "cannot read the mise version from .github/actions/setup/action.yml"
-
-# Rebuild whenever a tool or the mise binary changes.
-SOURCE_HASH="$({
-  cat .mise.toml
-  sed -n '/depName=jdx\/mise/,+1p' .github/actions/setup/action.yml
-} | cksum | awk '{print $1}')"
-
-TOKEN=""
-if [[ -f "$ENV_FILE" ]]; then
-  TOKEN="$(grep -E '^GITHUB_TOKEN=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d ' \r\n"' || true)"
+proxy_env=()
+if [[ -n "$PROXY" ]]; then
+  step "checking proxy ${PROXY}"
+  curl -sS -o /dev/null -m 10 -x "$PROXY" https://cache.nixos.org/nix-cache-info ||
+    fail "proxy ${PROXY} is unreachable. A job needs it to download Nix and the toolchain"
+  proxy_env=(--env "HTTP_PROXY=$PROXY" --env "HTTPS_PROXY=$PROXY" --env "NO_PROXY=$NO_PROXY")
 fi
 
-step "checking proxy ${PROXY}"
-if ! curl -sS -o /dev/null -m 10 -x "$PROXY" https://api.github.com/rate_limit; then
-  fail "proxy ${PROXY} is unreachable. The bake needs it to download and verify tools"
-fi
-
-needs_build() {
-  [[ "$REBUILD" == 1 ]] && return 0
-  local baked
-  baked="$(docker image inspect --format '{{ index .Config.Labels "act-local.source-hash" }}' "$IMAGE" 2>/dev/null || true)"
-  # A missing image reports an empty hash, so it takes the build path like a stale image.
-  [[ "$baked" != "$SOURCE_HASH" ]]
-}
-
-build_image() {
-  step "building ${IMAGE} with the full mise toolchain"
-  cp .mise.toml "$WORK/"
-  cat >"$WORK/Dockerfile" <<'DOCKERFILE'
-FROM catthehacker/ubuntu:act-latest
-
-ARG MISE_VERSION
-ARG SOURCE_HASH
-ARG HTTP_PROXY
-ARG HTTPS_PROXY
-ARG NO_PROXY
-ARG GITHUB_TOKEN
-
-LABEL act-local.source-hash="${SOURCE_HASH}"
-
-# mise at the version that CI pins in .github/actions/setup/action.yml.
-RUN set -eux; \
-  curl -fsSL "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-x64.tar.zst" | tar --zstd -xf - -C /tmp; \
-  mv /tmp/mise/bin/mise /usr/local/bin/mise; \
-  rm -rf /tmp/mise
-
-# The toolchain from the root .mise.toml. The proxy and token go on the RUN line, not ENV, so neither stays in the image.
-# No `-x` here: the trace prints GITHUB_TOKEN into the build log and the BuildKit cache metadata.
-# PIP_RETRIES and PIP_TIMEOUT, because pipx calls pip, which does not retry. One truncated read from PyPI stops the whole bake.
-COPY .mise.toml /opt/act-local/.mise.toml
-RUN set -eu; \
-  cd /opt/act-local; \
-  mise trust -y .mise.toml; \
-  HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}" \
-  GITHUB_TOKEN="${GITHUB_TOKEN}" \
-  PIP_RETRIES=10 PIP_TIMEOUT=60 \
-  mise install
-
-# The install is done. Delete mise's download cache to keep the layer small.
-RUN rm -rf /root/.cache/mise
-DOCKERFILE
-
-  docker build --network host -t "$IMAGE" \
-    --build-arg "MISE_VERSION=$MISE_VERSION" \
-    --build-arg "SOURCE_HASH=$SOURCE_HASH" \
-    --build-arg "HTTP_PROXY=$PROXY" \
-    --build-arg "HTTPS_PROXY=$PROXY" \
-    --build-arg "NO_PROXY=$NO_PROXY" \
-    --build-arg "GITHUB_TOKEN=$TOKEN" \
-    "$WORK"
-  ok "built ${IMAGE}"
-}
-
-if needs_build; then
-  [[ -n "$TOKEN" ]] || warn "no GITHUB_TOKEN in ${ENV_FILE}. The bake can hit the unauthenticated GitHub rate limit"
-  build_image
-else
-  step "reusing ${IMAGE}: the toolchain is unchanged. Pass --rebuild to force a build"
-fi
-
-if command -v mise >/dev/null 2>&1; then
-  ACT_RUN=(mise x act -- act)
-else
-  ACT_RUN=(act)
-fi
+secrets=()
+[[ -f "$ENV_FILE" ]] && secrets=(--secret-file "$ENV_FILE")
 
 step "running act ${EVENT} on ${IMAGE}"
-"${ACT_RUN[@]}" "$EVENT" \
-  -P "ubuntu-latest=${IMAGE}" \
+act "$EVENT" \
+  -P "ubuntu-latest=${IMAGE}" -P "ubuntu-24.04=${IMAGE}" \
   --network host \
-  --pull=false \
-  --env "HTTP_PROXY=$PROXY" --env "HTTPS_PROXY=$PROXY" --env "NO_PROXY=$NO_PROXY" \
-  --secret-file "$ENV_FILE" \
+  "${proxy_env[@]}" \
+  "${secrets[@]}" \
   -e ".github/act/$EVENT.json" \
-  "${ACT_ARGS[@]}"
+  "$@"

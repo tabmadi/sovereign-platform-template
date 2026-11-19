@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # The build context is this directory, apps/admin. It does not use the repo-root .dockerignore of the Go service images, which excludes apps/.
 
-# Lowdefy 5 needs Node and pnpm to build, so this image is Node-based, unlike the Go and bun runtime images. It is one of the two Node exceptions that ADR-0100 allows, and the only one that ships as an image.
+# Lowdefy 5 needs Node and pnpm to build, so this image is Node-based, unlike the Go and bun runtime images. It is one of the two Node exceptions that ADR-0110 allows, and the only one that ships as an image.
 # No repo runtime code is Node. Lowdefy is a third-party app, so upstream chooses the runtime. bun cannot replace it at build: the CLI stops unless pnpm is on PATH.
 # The last stage runs the standalone server of Lowdefy's Next build, which upstream targets at Node.
 ARG NODE_VERSION=22
@@ -49,7 +49,7 @@ ENV LOWDEFY_BUILD_OUTPUT_STANDALONE=1
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store lowdefy build
 
 FROM node:${NODE_VERSION}-alpine
-# Build identity, per ADR-0103: the commit SHA as the standard OCI revision label, so the image reports what was built.
+# Build identity, per ADR-0112: the commit SHA as the standard OCI revision label, so the image reports what was built.
 # The frontend takes the same SERVICE_VERSION build arg, so one apps job builds both.
 ARG SERVICE_VERSION=dev
 LABEL org.opencontainers.image.revision="${SERVICE_VERSION}"

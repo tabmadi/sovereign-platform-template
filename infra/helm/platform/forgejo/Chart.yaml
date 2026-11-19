@@ -1,16 +1,16 @@
 apiVersion: v2
 name: forgejo
 description: |
-  The forge, per ADR-0102: repository hosting, the review record, and the Actions
+  The forge, per ADR-0116: repository hosting, the review record, and the Actions
   runner that builds this platform.
 
   It uses first-party templates, not the upstream chart. The reason is the same
-  one for which ADR-0102 chose Forgejo: it is one Go binary with a database. The
+  one for which ADR-0116 chose Forgejo: it is one Go binary with a database. The
   upstream chart carries an optional bundled PostgreSQL, Valkey, and toggles for
-  shapes that this platform rejects. ADR-0102 puts the database on the existing
+  shapes that this platform rejects. ADR-0116 puts the database on the existing
   CNPG cluster, so most of that chart is configuration to turn off.
 
-  What it does NOT do is also decided. It has no bundled registry. ADR-0105
+  What it does NOT do is also decided. It has no bundled registry. ADR-0114
   rejects a forge's package registry, because an artefact store inside the build
   system makes every pod start depend on the forge.
 type: application

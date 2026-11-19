@@ -23,18 +23,18 @@ run_stages() {
 epilogue_base() {
   cat <<EOF
 
-✓ cluster:up base: real edge, real identity, Postgres.
+✓ cluster-up base: real edge, real identity, Postgres.
 
   Nothing else is running. Add what you need:
-    cd services/<svc> && mise run server    native, pulls its own deps in
-    mise run cluster:add -- <svc>           in-cluster, from the working tree
-    mise run mock:start                     /api from the committed OpenAPI
+    cd services/<svc> && just server    native, pulls its own deps in
+    just cluster-add <svc>           in-cluster, from the working tree
+    just mock-start                     /api from the committed OpenAPI
 
   Open:       https://${DOMAIN}:8443/
   Log in:     $(login_hint)
-  Teardown:   mise run cluster:stop to keep the cache, or cluster:down to delete
+  Teardown:   just cluster-stop to keep the cache, or cluster-down to delete
 
-  Data does not persist here, and no workflow runs without dep:temporal. Check
+  Data does not persist here, and no workflow runs without dep-temporal. Check
   persistence, Temporal behaviour, and authorization decisions on the full tier.
 EOF
 }
@@ -42,16 +42,16 @@ EOF
 epilogue_full() {
   cat <<EOF
 
-✓ cluster:up full: ArgoCD deploys from master.
+✓ cluster-up full: ArgoCD deploys from master.
   Product:      https://${DOMAIN}:8443/api/<resource>/
   Log in:       https://${DOMAIN}:8443/auth/login as $(login_hint)
   Ops tier:     https://<name>.ops.${DOMAIN}:8443/ for argocd, grafana, hubble,
                 temporal, seaweedfs, lowdefy, headlamp, and pgweb, per ADR-0306
   Frontend:     run it natively on :3000. The edge glue routes /auth and the
                 landing page to the host.
-  Diagnose:     mise run cluster:status
+  Diagnose:     just cluster-status
   Break-glass:  kubectl port-forward with your kubeconfig, see docs/guide/break-glass.md
-  Teardown:     mise run cluster:stop to keep the cache, or cluster:down to delete
+  Teardown:     just cluster-stop to keep the cache, or cluster-down to delete
 EOF
 }
 
@@ -175,7 +175,7 @@ heal)
   k -n kube-system rollout restart deploy/coredns >/dev/null
   k -n kube-system rollout status deploy/coredns --timeout=180s ||
     fail "CoreDNS is still not Ready. The Cilium datapath has a fault that a
-  restart does not clear. Recreate the cluster: mise run cluster:down -- ${TIER} && $(up_hint)"
+  restart does not clear. Recreate the cluster: just cluster-down ${TIER} && $(up_hint)"
   run_stages glue
   ok "heal complete. Pods can reach the API again"
   ;;
@@ -201,7 +201,7 @@ status)
   ;;
 
 add)
-  NAME="${1:?usage: mise run cluster:add -- <service|app|chart>}"
+  NAME="${1:?usage: just cluster-add <service|app|chart>}"
   # The two paths share only the start. A service resolves to a values file and builds an image.
   # A chart resolves to a directory and needs the auth overlays.
   case "$(classify "$NAME")" in
@@ -211,7 +211,7 @@ add)
   ;;
 
 remove)
-  NAME="${1:?usage: mise run cluster:remove -- <service|app|chart>}"
+  NAME="${1:?usage: just cluster-remove <service|app|chart>}"
   require_cluster
   KIND="$(classify "$NAME")"
 
@@ -223,7 +223,7 @@ remove)
       k -n "$NS" delete service,ingressroute,middleware,endpointslice \
         -l "local.platform/glue=${NAME}" --ignore-not-found >/dev/null
     fi
-    # A svc:* port-forward lives longer than the mise task that started it, so removal stops it too.
+    # A svc-* port-forward lives longer than the recipe that started it, so removal stops it too.
     # Otherwise a later svc:* guard probes an open port with nothing behind it.
     PIDFILE="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/platform-local/portforward-${NAME}.pid"
     if [ -f "$PIDFILE" ]; then

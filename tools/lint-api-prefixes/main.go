@@ -131,7 +131,7 @@ func servedPrefixes(spec string) (map[string]bool, error) {
 
 	out := map[string]bool{}
 	for p, methods := range s.Paths {
-		seg := strings.Split(strings.TrimPrefix(p, "/"), "/")[0]
+		seg, _, _ := strings.Cut(strings.TrimPrefix(p, "/"), "/")
 		if seg == "" {
 			continue
 		}

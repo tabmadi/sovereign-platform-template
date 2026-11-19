@@ -6,7 +6,7 @@ It is an ordinary first-party service, and that is a decision, not a convenience
 
 ```sh
 cd services/analytics
-mise run server     # http://localhost:8086
+just server     # http://localhost:8086
 ```
 
 ## Who calls it

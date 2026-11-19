@@ -10,9 +10,9 @@ const ENCODED_LENGTH = 26;
 
 const MAX_PREFIX_LENGTH = 63;
 
-const PREFIX_PATTERN = /^[a-z_]+$/;
-const HEX_UUID_PATTERN = /^[0-9a-f]{32}$/;
-const HYPHEN_PATTERN = /-/g;
+const PREFIX_PATTERN = /^[a-z_]+$/u;
+const HEX_UUID_PATTERN = /^[0-9a-f]{32}$/u;
+const HYPHEN_PATTERN = /-/gu;
 
 const DECODE = new Map<string, number>([...ALPHABET].map((character, value) => [character, value]));
 

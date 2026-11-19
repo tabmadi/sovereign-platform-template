@@ -128,7 +128,7 @@ existing="$(identity_for_email)"
 if [ -n "$existing" ]; then
   id="$(printf '%s' "$existing" | jq -r .id)"
   if [ "$(printf '%s' "$existing" | jq -r '.metadata_public.operator // false')" != "true" ]; then
-    echo "ERROR $EMAIL is registered and is not an operator. Promote it with ops:grant, or choose another address" >&2
+    echo "ERROR $EMAIL is registered and is not an operator. Promote it with ops-grant, or choose another address" >&2
     exit 1
   fi
   echo "$EMAIL already exists as $id"

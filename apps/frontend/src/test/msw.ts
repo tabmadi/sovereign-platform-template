@@ -22,7 +22,7 @@ type Success<Operation> = Operation extends {
 
 // The browser seam calls every service under `/api`, so `/orders/{id}` becomes `*/api/orders/:id`.
 function pattern(path: string): string {
-  return `*/api${path.replaceAll(/\{(\w+)\}/g, ":$1")}`;
+  return `*/api${path.replaceAll(/\{(?<name>\w+)\}/gu, ":$<name>")}`;
 }
 
 // Handlers typed by the generated SDK of one service, per ADR-0303. A path or a body that the spec does not have fails tsc.

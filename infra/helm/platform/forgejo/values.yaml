@@ -20,9 +20,9 @@ forgejo:
   # handles it worst.
   storage:
     size: 20Gi
-    storageClass: ""   # the cluster's default, per ADR-0207
+    storageClass: "" # the cluster's default, per ADR-0207
 
-  # The database, on the existing CNPG cluster, per ADR-0102 and ADR-0300. The DSN
+  # The database, on the existing CNPG cluster, per ADR-0116 and ADR-0300. The DSN
   # comes from a Secret and not from values. It carries a password, and ADR-0202
   # keeps passwords out of committed files.
   database:
@@ -44,7 +44,7 @@ forgejo:
     disableRegistration: true
     requireSignin: true
 
-  # The forge's commit-signing key, per ADR-0102. Empty `secretName` means the forge signs nothing. The Secret holds
+  # The forge's commit-signing key, per ADR-0116. Empty `secretName` means the forge signs nothing. The Secret holds
   # `private.asc`. `key` is the fingerprint.
   signing:
     secretName: ""
@@ -54,4 +54,4 @@ forgejo:
 
   resources:
     requests: { cpu: "200m", memory: "512Mi" }
-    limits:   { memory: "2Gi" }
+    limits: { memory: "2Gi" }

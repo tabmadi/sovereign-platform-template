@@ -1,0 +1,49 @@
+# The recipes of this service, per ADR-0111. Run them from this folder, inside the dev shell: `just server`.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+set dotenv-load
+
+# The registered local port from scripts/lib/ports.sh. A sibling's <SVC>_URL default depends on it.
+# The chart sets no PORT, so pods still bind :8080.
+export PORT := env("PORT", "8084")
+
+# Create .env from .env.example on a fresh clone
+[private]
+env:
+    bash ../../scripts/env-ensure.sh
+
+# Run the HTTP server with the dependency components it needs in the cluster, per ADR-0205 and ADR-0600
+server: env in-shell
+    just --justfile ../../justfile dep-postgres dep-openfga dep-temporal
+    go run ./cmd/server
+
+# Run the Temporal worker with the dependency components it needs in the cluster
+worker: env in-shell
+    just --justfile ../../justfile dep-postgres dep-openfga dep-temporal
+    go run ./cmd/worker
+
+# Apply the pending migrations to $DATABASE_URL
+migrate: env in-shell
+    just --justfile ../../justfile dep-postgres
+    dbmate --no-dump-schema up
+
+# Run the tests of this service
+test: in-shell
+    go test ./...
+
+# Lint this service with golangci-lint
+lint: in-shell
+    golangci-lint run --config ../../.config/golangci.yml ./...
+
+# Generate the sqlc code and the OpenAPI server and client again
+generate: in-shell
+    sqlc generate
+    bash ../../scripts/gen-openapi.sh
+
+# Compile this service
+build: in-shell
+    go build ./...
+
+[private]
+in-shell:
+    @test -n "${IN_NIX_SHELL:-}" || { echo "Enter the dev shell first: run nix develop, or allow direnv." >&2; exit 1; }

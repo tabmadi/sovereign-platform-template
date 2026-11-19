@@ -1,4 +1,4 @@
-# Dependency updates, per ADR-0106. Renovate opens the pull requests, merges nothing, and the gates decide.
+# Dependency updates, per ADR-0117. Renovate opens the pull requests, merges nothing, and the gates decide.
 name: renovate
 
 on:
@@ -35,4 +35,4 @@ jobs:
       - if: env.RENOVATE_TOKEN != ''
         uses: ./.github/actions/setup
       - if: env.RENOVATE_TOKEN != ''
-        run: mise run ci:renovate
+        run: nix develop --command just ci-renovate

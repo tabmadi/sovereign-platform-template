@@ -1,6 +1,6 @@
 // Every record in every zone that this project owns, per ADR-0206 and ADR-0307.
 //
-// THIS FILE IS THE ZONE. `mise run dns:apply` deletes every record that the provider holds and this file does not declare.
+// THIS FILE IS THE ZONE. `just dns-apply` deletes every record that the provider holds and this file does not declare.
 // A record added in the provider's console lives until the next apply. To add one, open a pull request.
 
 var REG = NewRegistrar("none");

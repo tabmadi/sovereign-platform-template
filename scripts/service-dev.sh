@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a service natively behind the real edge, per ADR-0205 and ADR-0600. This is the other half of `cluster:add`.
+# Run a service natively behind the real edge, per ADR-0205 and ADR-0600. This is the other half of `cluster-add`.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/ports.sh
@@ -11,8 +11,8 @@ source "$LIB/cluster.sh"
 NS="platform"
 DOMAIN="${DOMAIN:-dev.localtest.me}"
 
-SVC="${1:?usage: mise run service:dev -- <svc>}"
-# The registry, not a flag: the glue must point at the port that the service's own .mise.toml binds, or Traefik forwards to nothing.
+SVC="${1:?usage: just service-dev <svc>}"
+# The registry, not a flag: the glue must point at the port that the justfile of the service binds, or Traefik forwards to nothing.
 PORT="$(service_port "$SVC")"
 SVC_DIR="services/${SVC}"
 VALUES="infra/gitops/services/local/values/${SVC}.yaml"
@@ -25,7 +25,7 @@ k() { kubectl --context "$(cluster_ctx)" "$@"; }
 # The deployed service and the native one would both answer for the same routes.
 # This refuses, and does not let them race on route priority. You meant one of them.
 if k -n "$NS" get "deploy/${SVC}-server" >/dev/null 2>&1; then
-  fail "${SVC} is deployed in-cluster. Run 'mise run cluster:remove -- ${SVC}' first"
+  fail "${SVC} is deployed in-cluster. Run 'just cluster-remove ${SVC}' first"
 fi
 
 step "stamping the edge glue for a native ${SVC}"
@@ -102,9 +102,9 @@ cat <<EOF
 ✓ ${SVC} glued to the host on :${PORT}.
 
   Now run it. Its own tasks pull in the dependency components:
-    cd services/${SVC} && mise run server
+    cd services/${SVC} && just server
 
   Reached at:  https://${DOMAIN}:8443/api/$(echo "$resources" | cut -d' ' -f1)
   Through:     the real Oathkeeper chain, so identity headers are real here
-  Remove:      mise run cluster:remove -- ${SVC}
+  Remove:      just cluster-remove ${SVC}
 EOF

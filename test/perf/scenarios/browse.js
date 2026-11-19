@@ -33,7 +33,7 @@ export function setup() {
   }
   const products = res.json();
   if (!Array.isArray(products) || products.length === 0) {
-    throw new Error("catalog is empty. Run `mise run perf:seed` first, or this measures 404s");
+    throw new Error("catalog is empty. Run `just perf-seed` first, or this measures 404s");
   }
   return { ids: products.map((p) => p.id), size: products.length };
 }

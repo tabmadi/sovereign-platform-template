@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// The database and wire surfaces, per ADR-0100 and ADR-0303. Both carry the amount as a string and never a float.
+// The database and wire surfaces, per ADR-0110 and ADR-0303. Both carry the amount as a string and never a float.
 // The scanned value has no currency, because a Postgres numeric holds only the amount. The caller adds the
 // currency to the result of [Amount.Scan] with [Amount.WithCurrency].
 
@@ -31,7 +31,7 @@ func (a *Amount) Scan(src any) error {
 	case []byte:
 		return a.scanString(string(v))
 	case float64:
-		// This runs only if a column is float8 and not numeric, which ADR-0100 forbids.
+		// This runs only if a column is float8 and not numeric, which ADR-0110 forbids.
 		// The scan fails here on purpose. Accepting it hides the schema defect until a
 		// total comes out wrong.
 		return fmt.Errorf("money: refusing to scan float64 %v: the column must be numeric, not float8", v)

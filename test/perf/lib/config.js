@@ -13,7 +13,7 @@ export const API = `${BASE_URL}/api`;
 // Everything that this suite writes has this prefix, so a later cleanup can find and remove seeded and load-generated rows.
 export const PERF_PREFIX = "perf-";
 
-// The buyer for the write scenarios. Checkout needs a signed-in caller with an org, per ADR-0304. This is the committed product-user identity from `mise run auth:seed`.
+// The buyer for the write scenarios. Checkout needs a signed-in caller with an org, per ADR-0304. This is the committed product-user identity from `just auth-seed`.
 // The credentials are a copy of test/e2e/fixtures/identities.ts, because this island runs on k6's engine and cannot read TypeScript, per ADR-0601.
 // If the copy drifts, `setup()` fails with the login error, so the drift is visible.
 export const PERF_USER = {

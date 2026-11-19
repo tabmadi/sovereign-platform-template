@@ -27,7 +27,7 @@ spec:
             k8s:io.kubernetes.pod.namespace: platform
             app.kubernetes.io/name: postgresql
             app.kubernetes.io/component: database
-        # zot keeps every image, and every signature and SBOM attached to one, in this store, per ADR-0105. It reads the
+        # zot keeps every image, and every signature and SBOM attached to one, in this store, per ADR-0114. It reads the
         # bucket before it can serve any pull.
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app: zot }
         # The scratch cluster of restore verification reads the same archive, per ADR-0207.
@@ -46,7 +46,7 @@ spec:
         - ports: [{ port: "23646", protocol: TCP }]
 ---
 {{- /*
-zot, the image registry, per ADR-0105. It is in this file, because its whole
+zot, the image registry, per ADR-0114. It is in this file, because its whole
 storage layer is the object store above. Everything it serves is a read from that
 bucket, and the baseline's intra-namespace allow already covers that.
 
@@ -74,7 +74,7 @@ spec:
       toPorts:
         - ports: [{ port: "5000", protocol: TCP }, { port: "5001", protocol: TCP }]
   {{- if .Values.registryMirror }}
-  # Egress to the upstream registries. This is the MIRROR itself, per ADR-0105. A pull-through cache that cannot reach
+  # Egress to the upstream registries. This is the MIRROR itself, per ADR-0114. A pull-through cache that cannot reach
   # upstream can serve only what was pushed to it directly.
   egress:
     - toEntities: [world]

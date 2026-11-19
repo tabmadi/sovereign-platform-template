@@ -7,7 +7,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 verb="${1:-}"
 case "$verb" in
 build | comment) ;;
-*) fail "usage: mise run ci:design-preview -- build|comment" ;;
+*) fail "usage: just ci-design-preview build|comment" ;;
 esac
 
 pr="${PREVIEW_PR:-}"
@@ -42,8 +42,8 @@ if [ "$verb" = build ]; then
     "$src"
   digest="$(jq -r '."containerimage.digest"' "$meta")"
   rm -f "$meta"
-  # Admission verifies this signature in the design namespace, per ADR-0104.
-  mise run ci:sign -- "${IMAGE_PREFIX}/design/frontend@${digest}"
+  # Admission verifies this signature in the design namespace, per ADR-0113.
+  just ci-sign "${IMAGE_PREFIX}/design/frontend@${digest}"
   printf 'sha=%s\n' "$sha" >>"$GITHUB_OUTPUT"
   ok "pushed and signed ${ref}"
   exit 0

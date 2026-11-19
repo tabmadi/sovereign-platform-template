@@ -1,6 +1,6 @@
 # The CI runner
 
-The machine that runs Forgejo Actions jobs, per [ADR-0102](../../docs/adr/0102-source-control-and-ci.md). It is a dedicated Debian machine. It is never the forge and never a cluster node, because a job controls this machine's Docker, and that is root on it.
+The machine that runs Forgejo Actions jobs, per [ADR-0116](../../docs/adr/0116-forge-and-pipelines.md). It is a dedicated Debian machine. It is never the forge and never a cluster node, because a job controls this machine's Docker, and that is root on it.
 
 This directory exists in a project whose `forge` answer is `forgejo`, per [modes.md](../../docs/reference/modes.md).
 

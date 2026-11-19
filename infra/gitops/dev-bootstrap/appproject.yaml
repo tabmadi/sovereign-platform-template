@@ -14,8 +14,8 @@ spec:
   description: Dev environment, with platform and services.
   sourceRepos:
     - https://github.com/tabmadi/sovereign-platform-template.git
-      # Argo CD resolves a chart's `dependencies:` under the project's own permissions. So a repo that a chart pulls
-      # from is a source of this project, even when no Application names it.
+    # Argo CD resolves a chart's `dependencies:` under the project's own permissions. So a repo that a chart pulls
+    # from is a source of this project, even when no Application names it.
     - docker.io/temporalio
   destinations:
     - { server: https://kubernetes.default.svc, namespace: "*" }

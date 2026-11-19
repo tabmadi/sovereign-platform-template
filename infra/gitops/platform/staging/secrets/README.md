@@ -32,7 +32,7 @@ spec:
         AWS_ACCESS_KEY_ID: ""
         AWS_SECRET_ACCESS_KEY: ""
         ADMIN_PASSWORD: ""
-    # The registry's own logins, per ADR-0105. `htpasswd` has one BCRYPT line per
+    # The registry's own logins, per ADR-0114. `htpasswd` has one BCRYPT line per
     # identity: a push identity and a pull identity. `consoleAuthorization` is the
     # `Basic` header that the console proxy sends for the browser.
     - name: zot-credentials
@@ -41,7 +41,7 @@ spec:
         AWS_SECRET_ACCESS_KEY: ""
         htpasswd: ""
         consoleAuthorization: ""
-    # The registry pull credential as a docker config, per ADR-0105. Every chart
+    # The registry pull credential as a docker config, per ADR-0114. Every chart
     # that runs a first-party image names this Secret in `imagePullSecrets`. A
     # kubelet has no credential of its own, and the node cannot hold one.
     - name: registry-pull
@@ -138,7 +138,7 @@ spec:
 
 ## `kyverno.enc.yaml` skeleton
 
-Kyverno reads an image's signature from the registry that holds the image. It uses a credential from its own namespace, per [ADR-0104](../../../../../docs/adr/0104-supply-chain-security.md). The value is the `registry-pull` docker config above. A SopsSecret creates Secrets only in its own namespace. So this one is a second CR, not a second template in the first CR.
+Kyverno reads an image's signature from the registry that holds the image. It uses a credential from its own namespace, per [ADR-0113](../../../../../docs/adr/0113-supply-chain-security.md). The value is the `registry-pull` docker config above. A SopsSecret creates Secrets only in its own namespace. So this one is a second CR, not a second template in the first CR.
 
 ```yaml
 apiVersion: isindir.github.com/v1alpha3

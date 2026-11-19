@@ -82,7 +82,7 @@ spec:
       toPorts:
         - ports: [{ port: "4180", protocol: TCP }]
   egress:
-    # The forge runs outside the cluster on a public address, per ADR-0102.
+    # The forge runs outside the cluster on a public address, per ADR-0116.
     - toEntities: [world]
       toPorts:
         - ports: [{ port: "443", protocol: TCP }]

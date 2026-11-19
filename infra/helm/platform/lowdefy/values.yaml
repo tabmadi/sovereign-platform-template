@@ -5,10 +5,10 @@ lowdefy:
   # Per ADR-0204.
   resources:
     requests: { cpu: "100m", memory: "320Mi" }
-    limits:   { memory: "768Mi" }
+    limits: { memory: "768Mi" }
   image:
-    repository: ""        # per-environment overlay: the local registry for local, ghcr for prod
-    tag: ""               # `local` for local, a git SHA for prod
+    repository: "" # per-environment overlay: the local registry for local, ghcr for prod
+    tag: "" # `local` for local, a git SHA for prod
     pullPolicy: IfNotPresent
 
   # Empty where the registry needs no credential. The local tier's registry is

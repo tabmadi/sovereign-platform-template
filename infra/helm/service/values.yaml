@@ -4,26 +4,26 @@
 name: ""
 
 # Server image from `cmd/server`. Pin it by a concrete git SHA tag in dev and staging, and by digest in
-# prod, per ADR-0101 and ADR-0103. The linter rejects moving tags.
+# prod, per ADR-0111 and ADR-0112. The linter rejects moving tags.
 image:
-  repository: ""        # for example ghcr.io/tabmadi/sovereign-platform-template/catalog-server
-  tag: ""               # for example 4f9dbcb12, a git SHA. Dev and staging
-  digest: ""            # for example sha256:<hex>. Prod pins by digest, set by promote-on-release
+  repository: "" # for example ghcr.io/tabmadi/sovereign-platform-template/catalog-server
+  tag: "" # for example 4f9dbcb12, a git SHA. Dev and staging
+  digest: "" # for example sha256:<hex>. Prod pins by digest, set by promote-on-release
   pullPolicy: IfNotPresent
 
 # Worker image from `cmd/worker`. Off by default. Turn it on for services that own workflows.
 worker:
   enabled: false
   image:
-    repository: ""      # for example <registry>/catalog-worker
-    tag: ""             # the SAME sha as the server image, in dev and staging
-    digest: ""          # the SAME digest as the server image, in prod
+    repository: "" # for example <registry>/catalog-worker
+    tag: "" # the SAME sha as the server image, in dev and staging
+    digest: "" # the SAME digest as the server image, in prod
   replicas: 1
   # Per ADR-0204, sized from a measurement on 2026-07-26 with the ADR-0601 load suite. There is no cpu limit. The
   # request below and the `product` PriorityClass handle CPU contention.
   resources:
     requests: { cpu: "100m", memory: "128Mi" }
-    limits:   { memory: "384Mi" }
+    limits: { memory: "384Mi" }
 
   # Graceful drain on rollout, per ADR-0302. On SIGTERM, the worker stops polling. It waits up to `stopTimeoutSeconds`
   # for its in-flight Activities to finish. The SDK default is 0s.
@@ -49,15 +49,19 @@ server:
   enabled: true
   replicas: 2
   port: 8080
-  adminPort: 9090       # pprof, livez, readyz, and metrics, per ADR-0500. Set it to null for
-                        # a workload with no second port, such as the frontend. The Go service contract, per ADR-0500: deep readiness on
-                        # the admin port, and shallow liveness.
+  adminPort: 9090 # pprof, livez, readyz, and metrics, per ADR-0500. Set it to null for
+  # a workload with no second port, such as the frontend. The Go service contract, per ADR-0500: deep readiness on
+  # the admin port, and shallow liveness.
   probes:
-    readiness: { httpGet: { path: /readyz, port: admin }, initialDelaySeconds: 2, timeoutSeconds: 4 }
-    liveness:  { httpGet: { path: /livez,  port: admin }, periodSeconds: 30 }
+    readiness: {
+      httpGet: { path: /readyz, port: admin },
+      initialDelaySeconds: 2,
+      timeoutSeconds: 4,
+    }
+    liveness: { httpGet: { path: /livez, port: admin }, periodSeconds: 30 }
   resources:
     requests: { cpu: "100m", memory: "128Mi" }
-    limits:   { memory: "384Mi" }
+    limits: { memory: "384Mi" }
 
 # Database migrations, per ADR-0300, run as a dbmate initContainer on the server pod. They run from the service
 # image itself, which contains the static dbmate binary and `/db/migrations`.
@@ -83,22 +87,22 @@ otel:
 # Ingress through Traefik, per ADR-0305 and ADR-0306.
 ingress:
   enabled: true
-  host: ""              # set per environment, for example dev.example.com
-  resources: []         # for example [products] for catalog, [orders], [orgs], [charges]
-  pathPrefix: ""        # literal-prefix fallback for surfaces that are not the API, such as the frontend's `/`
+  host: "" # set per environment, for example dev.example.com
+  resources: [] # for example [products] for catalog, [orders], [orgs], [charges]
+  pathPrefix: "" # literal-prefix fallback for surfaces that are not the API, such as the frontend's `/`
 
 # The Kubernetes API, per ADR-0304. A service gets no token and no Role unless its values ask. The platform worker's
 # restore verification is the one caller today.
 serviceAccount:
   automountToken: false
 rbac:
-  roles: []             # each entry: namespace, and rules as in a Role
+  roles: [] # each entry: namespace, and rules as in a Role
 
 # References to Kubernetes Secrets decrypted by SOPS, per ADR-0202.
 # The sops-operator creates them from `infra/gitops/<env>/secrets/<svc>.enc.yaml`.
 secrets:
-  envFrom: []           # list of Secret names mounted with envFrom
-  files: []             # list of name, mountPath, and items entries, mounted as volumes
+  envFrom: [] # list of Secret names mounted with envFrom
+  files: [] # list of name, mountPath, and items entries, mounted as volumes
 
 # Eviction order, per ADR-0204. `product` is below `platform-critical`. So under node
 # pressure, a product service is evicted before the Postgres, Temporal, and edge that it needs.
@@ -110,7 +114,7 @@ env: {}
 
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 65532      # the distroless static nonroot user
+  runAsUser: 65532 # the distroless static nonroot user
   fsGroup: 65532
   # The sixth requirement of the `restricted` Pod Security Standard. This chart was missing it. Without it, every pod
   # here fails admission when a namespace gets the label `enforce: restricted`, per ADR-0200.
@@ -147,7 +151,7 @@ networkPolicy:
   # that must name a namespace, and cannot rely on the platform namespace.
   otelAgentNamespace: otel-agent
 
-# Pull credentials for the registry that holds this service's image, per ADR-0105.
+# Pull credentials for the registry that holds this service's image, per ADR-0114.
 # Empty for a registry that allows anonymous pulls, such as the local tier's registry. A deployed
 # environment names the Secret that its SopsSecret carries.
 imagePullSecrets: []

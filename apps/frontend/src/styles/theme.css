@@ -1,6 +1,6 @@
 /* The design tokens, per ADR-0400. This file is the ONLY source of colour, radius, and font values. No JS token mirror exists, no route group redefines a token,
  * and a TypeScript consumer that needs a raw value reads the CSS variable. docs/brand.md documents the roles. A rebrand edits only the two blocks below, and every surface changes at once.
- * So `mise run lint:contrast` gates this file and not each component. Every `--<role>-foreground` is the text colour ON `--<role>`, and `mise run lint:contrast` checks that pair in both palettes. A new role goes in BOTH :root and .dark. */
+ * So `just lint-contrast` gates this file and not each component. Every `--<role>-foreground` is the text colour ON `--<role>`, and `just lint-contrast` checks that pair in both palettes. A new role goes in BOTH :root and .dark. */
 
 @theme inline {
     /* Fonts. The next/font that the locale layout loaded declares `--font-app`: Inter for Latin locales, Vazirmatn for Persian.
@@ -73,7 +73,7 @@
     --destructive-foreground: oklch(0.985 0 0);
     --border: oklch(0.922 0 0);
     /* Darker than the shadcn default, on purpose: a form control's boundary and the focus ring are each the only visual sign of something.
-     * So WCAG 2.2 SC 1.4.11 requires 3:1 for them, and `mise run lint:contrast` enforces it. */
+     * So WCAG 2.2 SC 1.4.11 requires 3:1 for them, and `just lint-contrast` enforces it. */
     --input: oklch(0.65 0 0);
     --ring: oklch(0.65 0 0);
     --chart-1: oklch(0.87 0 0);
@@ -92,7 +92,7 @@
 }
 
 /* The dark palette. next-themes writes this class onto <html>. It overrides only what changes, so a role added above without a line here
- * inherits the light value, and lint:contrast fails on the pair that it cannot satisfy. */
+ * inherits the light value, and lint-contrast fails on the pair that it cannot satisfy. */
 .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);

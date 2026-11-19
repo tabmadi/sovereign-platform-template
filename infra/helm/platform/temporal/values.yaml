@@ -15,7 +15,7 @@ temporal:
     # baseline for every role. The per-role blocks below override it where the roles differ, by an order of magnitude.
     resources:
       requests: { cpu: "100m", memory: "192Mi" }
-      limits:   { memory: "512Mi" }
+      limits: { memory: "512Mi" }
     frontend:
       # The container half of `restricted`. It is the same for all four server roles and for web, admintools, and schema
       # below. So it is written once as a YAML anchor and then aliased.
@@ -27,25 +27,25 @@ temporal:
       # has no limit, on purpose, per ADR-0204.
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
-        limits:   { memory: "512Mi" }
+        limits: { memory: "512Mi" }
     history:
       containerSecurityContext: *restrictedContainer
       # The heaviest CPU consumer in the cluster under load, and nearly idle at rest.
       resources:
         requests: { cpu: "500m", memory: "768Mi" }
-        limits:   { memory: "1536Mi" }
+        limits: { memory: "1536Mi" }
     matching:
       containerSecurityContext: *restrictedContainer
       # Task-queue dispatch. It is bursty, like frontend.
       resources:
         requests: { cpu: "100m", memory: "192Mi" }
-        limits:   { memory: "512Mi" }
+        limits: { memory: "512Mi" }
     worker:
       containerSecurityContext: *restrictedContainer
       # Temporal's own internal worker, for archival and scanners. It is not a worker of our services.
       resources:
         requests: { cpu: "50m", memory: "192Mi" }
-        limits:   { memory: "512Mi" }
+        limits: { memory: "512Mi" }
     # Never overlap an old pod and a new pod of the same role.
     deploymentStrategy:
       type: RollingUpdate

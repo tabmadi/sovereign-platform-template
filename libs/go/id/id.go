@@ -46,8 +46,6 @@ var decodeTable = func() [256]byte {
 
 // ID is a type-prefixed UUIDv7, and the zero value is not a valid identifier. The receivers are mixed, so
 // id.MustNew("order").String() works on a non-addressable result.
-//
-//nolint:recvcheck // encoding.TextUnmarshaler requires the pointer receiver
 type ID struct {
 	prefix string
 	uuid   uuid.UUID

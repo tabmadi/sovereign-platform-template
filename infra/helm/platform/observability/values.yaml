@@ -4,11 +4,11 @@
 
 grafana:
   fullnameOverride: grafana
-  adminPassword: ""                # supplied through a SOPS-decrypted Secret in prod
+  adminPassword: "" # supplied through a SOPS-decrypted Secret in prod
   # Dashboard rendering comes in bursts on each page load, so there is no CPU limit, per ADR-0204.
   resources:
     requests: { cpu: "100m", memory: "192Mi" }
-    limits:   { memory: "512Mi" }
+    limits: { memory: "512Mi" }
   # Served at the ROOT of its own ops origin `grafana.ops.<host>`, per ADR-0306, and not
   # under a `/grafana` path. So `serve_from_sub_path` is off. Each environment overrides
   # `root_url` with its external origin. The local overlay sets the :8443 edge.
@@ -43,13 +43,33 @@ grafana:
       # Fixed uids. A provisioned datasource without an explicit uid gets a random one. Dashboard data-links reference
       # datasources by uid, so pin them all.
       datasources:
-        - { name: Prometheus, uid: prometheus, type: prometheus, url: http://prometheus.platform.svc.cluster.local:9090 }
-        - { name: Loki,       uid: loki,       type: loki,       url: http://loki.platform.svc.cluster.local:3100 }
-        - { name: Tempo,      uid: tempo,      type: tempo,      url: http://tempo.platform.svc.cluster.local:3200 }
+        - {
+            name: Prometheus,
+            uid: prometheus,
+            type: prometheus,
+            url: http://prometheus.platform.svc.cluster.local:9090,
+          }
+        - {
+            name: Loki,
+            uid: loki,
+            type: loki,
+            url: http://loki.platform.svc.cluster.local:3100,
+          }
+        - {
+            name: Tempo,
+            uid: tempo,
+            type: tempo,
+            url: http://tempo.platform.svc.cluster.local:3200,
+          }
         # Pyroscope, the ADR-0501 POC for continuous profiling. It backs the flame-graph
         # panel on the service-detail dashboard. The Alloy agent in `templates/alloy.yaml`
         # pushes profiles here.
-        - { name: Pyroscope, uid: pyroscope, type: grafana-pyroscope-datasource, url: http://pyroscope.platform.svc.cluster.local:4040 }
+        - {
+            name: Pyroscope,
+            uid: pyroscope,
+            type: grafana-pyroscope-datasource,
+            url: http://pyroscope.platform.svc.cluster.local:4040,
+          }
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
@@ -59,11 +79,11 @@ grafana:
           folder: ""
           type: file
           disableDeletion: false
-          editable: false      # dashboards are git artifacts, per ADR-0500: change them with PRs, not in the UI
+          editable: false # dashboards are git artifacts, per ADR-0500: change them with PRs, not in the UI
           options:
             path: /var/lib/grafana/dashboards/default
   dashboardsConfigMaps:
-    default: grafana-dashboards     # filled from infra/observability/dashboards/
+    default: grafana-dashboards # filled from infra/observability/dashboards/
 
 # Loki: single-binary monolithic mode with `-target=all`, backed by the bucket, per ADR-0500.
 loki:
@@ -108,7 +128,7 @@ loki:
     # close to that default that a busier day would OOM it, per ADR-0204.
     resources:
       requests: { cpu: "100m", memory: "512Mi" }
-      limits:   { memory: "1Gi" }
+      limits: { memory: "1Gi" }
   read: { replicas: 0 }
   write: { replicas: 0 }
   backend: { replicas: 0 }
@@ -142,7 +162,7 @@ tempo:
     # THE HEAVIEST POD IN THE CLUSTER. So this chart cannot rely on the namespace LimitRange default.
     resources:
       requests: { cpu: "100m", memory: "1Gi" }
-      limits:   { memory: "3Gi" }
+      limits: { memory: "3Gi" }
     reportingEnabled: false
     # The metrics-generator stays OFF, as in the chart default.
     extraEnvFrom:
@@ -177,7 +197,7 @@ prometheus:
   # work, and CFS throttling ruins it.
   resources:
     requests: { cpu: "100m", memory: "384Mi" }
-    limits:   { memory: "1Gi" }
+    limits: { memory: "1Gi" }
 
 # Pyroscope, the ADR-0501 POC for continuous profiling, the fourth signal. `templates/pyroscope.yaml` renders it as a
 # single-binary monolith with `-target=all` and filesystem storage on an emptyDir. That is the POC minimum.
@@ -187,7 +207,7 @@ pyroscope:
   # limit leaves room for ingest spikes.
   resources:
     requests: { cpu: "100m", memory: "384Mi" }
-    limits:   { memory: "1Gi" }
+    limits: { memory: "1Gi" }
 
 # Grafana Alloy, the ADR-0501 POC. It is the pprof-scraping agent that the withdrawn profiling flag always implied.
 # `templates/alloy.yaml` renders it.
@@ -197,7 +217,7 @@ alloy:
   # overcommits a node and then evicts the agent, per ADR-0204.
   resources:
     requests: { cpu: "100m", memory: "320Mi" }
-    limits:   { memory: "768Mi" }
+    limits: { memory: "768Mi" }
 
 # The cluster-state metrics singleton in `templates/otel-cluster.yaml`. Its k8s_cluster receiver gives desired and
 # available replicas, restart counts, and resource limits as series.
@@ -205,7 +225,7 @@ otelCluster:
   image: otel/opentelemetry-collector-contrib:0.154.0
   resources:
     requests: { cpu: "50m", memory: "192Mi" }
-    limits:   { memory: "512Mi" }
+    limits: { memory: "512Mi" }
 
 # The same gate as in the maddy chart, `infra/helm/platform/maddy`. Both read the same per-environment overlay. So
 # the scrape job appears only where the agent does.

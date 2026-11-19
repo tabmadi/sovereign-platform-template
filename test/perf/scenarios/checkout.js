@@ -57,7 +57,7 @@ export function setup() {
   }
   const products = res.json();
   if (!Array.isArray(products) || products.length === 0) {
-    throw new Error("catalog is empty. Run `mise run perf:seed` first");
+    throw new Error("catalog is empty. Run `just perf-seed` first");
   }
   // Prefer a product that this suite seeded, so a load run does not depend on what the e2e suite left behind.
   const seeded = products.filter((p) => String(p.name).startsWith(PERF_PREFIX));

@@ -13,3 +13,8 @@
 # A fingerprint names a commit. A history rewrite invalidates this line, and the scan fails until the line points to the new commit.
 # The line last changed when the history was squashed in September 2026.
 ed7b4e5a653370c6cd126fc9aa6e7b28229efc66:docker-compose.yml:generic-api-key:21
+
+# The age private key of the local tier, committed under the exemption of ADR-0202. It decrypts only throwaway local values.
+# .sops.yaml limits it to one creation rule. Never encrypt a real credential to this key.
+infra/gitops/platform/local/age.key:age-secret-key:8
+infra/gitops/platform/local/age.key:generic-api-key:7

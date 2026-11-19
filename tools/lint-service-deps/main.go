@@ -29,14 +29,12 @@ var commands = []string{"server", "worker"}
 // urlEnv matches an environment variable that names a base URL, such as `CATALOG_URL`.
 var urlEnv = regexp.MustCompile(`"([A-Z][A-Z0-9_]*)_URL"`)
 
-// dependsBlock captures a `depends = [ ... ]` array, which can span lines.
-var dependsBlock = regexp.MustCompile(`(?s)depends\s*=\s*\[(.*?)\]`)
+// recipeHeader matches the first line of a recipe in a justfile: `server: env in-shell`.
+var recipeHeader = regexp.MustCompile(`(?m)^([a-z][a-z0-9-]*)( [^:\n]*)?:`)
 
-// taskHeader matches a `[tasks.<name>]` section header.
-var taskHeader = regexp.MustCompile(`(?m)^\[tasks\.([a-z0-9:-]+)\]`)
+// rootCall matches the body line of a service recipe that brings up recipes of the root justfile.
+var rootCall = regexp.MustCompile(`(?m)^\s+just --justfile \.\./\.\./justfile (.+)$`)
 
-// listed matches each quoted entry inside a depends array.
-var listed = regexp.MustCompile(`"([^"]+)"`)
 
 func main() {
 	lint.Main("a service entrypoint does not declare what it uses", run)
@@ -54,7 +52,7 @@ func run(r *lint.Report) error {
 	checked := 0
 
 	for _, svc := range services {
-		declared, err := declaredDeps(filepath.Join("services", svc, ".mise.toml"))
+		declared, err := declaredDeps(filepath.Join("services", svc, "justfile"))
 		if err != nil {
 			return err
 		}
@@ -73,7 +71,7 @@ func run(r *lint.Report) error {
 		}
 	}
 
-	r.Hintf("`depends` is what `mise run <task>` brings up. A missing entry is a\n" +
+	r.Hintf("The root recipes in a service recipe are what `just <recipe>` brings up. A missing entry is a\n" +
 		"  service that starts and then fails on its first real request.")
 	r.Okf("%d service entrypoints declare exactly what they use", checked)
 	return nil
@@ -82,7 +80,7 @@ func run(r *lint.Report) error {
 // compare produces one finding for each direction of drift.
 func compare(svc, cmd string, required, declared map[string]bool) []string {
 	var out []string
-	task := fmt.Sprintf("services/%s/.mise.toml [tasks.%s]", svc, cmd)
+	task := fmt.Sprintf("services/%s/justfile recipe %s", svc, cmd)
 
 	for _, dep := range sortedKeys(required) {
 		if !declared[dep] {
@@ -91,7 +89,7 @@ func compare(svc, cmd string, required, declared map[string]bool) []string {
 	}
 	for _, dep := range sortedKeys(declared) {
 		// Only the two namespaces this covers. `env` and any future task name in the list belong to other checks.
-		if !strings.HasPrefix(dep, "dep:") && !strings.HasPrefix(dep, "svc:") {
+		if !strings.HasPrefix(dep, "dep-") && !strings.HasPrefix(dep, "svc-") {
 			continue
 		}
 		if !required[dep] {
@@ -112,9 +110,9 @@ func requiredDeps(module, svc string, services []string, dir string) (map[string
 	for _, pkg := range packages {
 		switch pkg.ImportPath {
 		case "go.temporal.io/sdk/client":
-			out["dep:temporal"] = true
+			out["dep-temporal"] = true
 		case module + "/libs/go/authz":
-			out["dep:openfga"] = true
+			out["dep-openfga"] = true
 		}
 		// Only first-party packages have source worth reading. A string literal in a dependency declares nothing for this
 		// repository.
@@ -127,12 +125,12 @@ func requiredDeps(module, svc string, services []string, dir string) (map[string
 		}
 		for _, name := range names {
 			if name == "DATABASE" {
-				out["dep:postgres"] = true
+				out["dep-postgres"] = true
 				continue
 			}
 			callee := strings.ToLower(name)
 			if callee != svc && slices.Contains(services, callee) {
-				out["svc:"+callee] = true
+				out["svc-"+callee] = true
 			}
 		}
 	}
@@ -148,7 +146,7 @@ type pkg struct {
 
 // closure runs `go list -deps -json` for one entrypoint. It calls the go tool and does not reimplement import
 // resolution:
-// build tags, vendoring, and the module graph are its job, and .mise.toml already pins it.
+// build tags, vendoring, and the module graph are its job, and flake.nix already pins it.
 func closure(dir string) ([]pkg, error) {
 	// A context, so the gate cannot hang: `go list` on a cold module cache can reach the network.
 	ctx, cancel := context.WithTimeout(context.Background(), listTimeout)
@@ -197,8 +195,7 @@ func envNames(dir string) ([]string, error) {
 	return out, nil
 }
 
-// declaredDeps maps a task name to its `depends` entries. A regex, not a TOML library, because the module has no TOML
-// dependency.
+// declaredDeps maps a recipe of a service justfile to the root recipes that its body brings up.
 func declaredDeps(path string) (map[string]map[string]bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -207,7 +204,7 @@ func declaredDeps(path string) (map[string]map[string]bool, error) {
 	text := string(data)
 
 	out := map[string]map[string]bool{}
-	headers := taskHeader.FindAllStringSubmatchIndex(text, -1)
+	headers := recipeHeader.FindAllStringSubmatchIndex(text, -1)
 	for i, header := range headers {
 		name := text[header[2]:header[3]]
 		end := len(text)
@@ -217,10 +214,9 @@ func declaredDeps(path string) (map[string]map[string]bool, error) {
 		section := text[header[1]:end]
 
 		deps := map[string]bool{}
-		block := dependsBlock.FindStringSubmatch(section)
-		if block != nil {
-			for _, m := range listed.FindAllStringSubmatch(block[1], -1) {
-				deps[m[1]] = true
+		for _, call := range rootCall.FindAllStringSubmatch(section, -1) {
+			for _, dep := range strings.Fields(call[1]) {
+				deps[dep] = true
 			}
 		}
 		out[name] = deps
@@ -228,7 +224,7 @@ func declaredDeps(path string) (map[string]map[string]bool, error) {
 	return out, nil
 }
 
-// serviceNames lists the deployable services. `_`-prefixed directories are scaffolding: lint:template-build builds
+// serviceNames lists the deployable services. `_`-prefixed directories are scaffolding: lint-template-build builds
 // `_template` under its own tag,
 // and its tasks are examples, not declarations.
 func serviceNames() ([]string, error) {

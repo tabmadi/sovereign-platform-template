@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mirror the first-party images into the full tier's in-cluster zot, per ADR-0105.
+# Mirror the first-party images into the full tier's in-cluster zot, per ADR-0114.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/cluster.sh
@@ -20,7 +20,7 @@ SRC="127.0.0.1:5000" # the host container `registry.localhost`, insecure on 127.
 FWD_PORT="${ZOT_FWD_PORT:-5100}"
 DST="127.0.0.1:${FWD_PORT}"
 
-command -v oras >/dev/null || fail "oras is not on PATH. Run through mise, so the pinned tool resolves"
+command -v oras >/dev/null || fail "oras is not on PATH. Run it through just, inside the dev shell, so the pinned tool resolves"
 
 k -n "$NS" rollout status deploy/zot --timeout=120s >/dev/null 2>&1 ||
   {

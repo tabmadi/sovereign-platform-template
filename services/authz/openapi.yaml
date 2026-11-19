@@ -1,6 +1,13 @@
 openapi: 3.1.0
-info: { title: authz, version: 0.1.0, description: "Ops-tier edge authorizer and operator admin, per ADR-0304, ADR-0305, and ADR-0401.", x-audience: cluster }
-servers: [{ url: / }]   # east-west control-plane service with no /api edge route, per ADR-0305
+info: {
+  title: authz,
+  version: 0.1.0,
+  description: "Ops-tier edge authorizer and operator admin, per ADR-0304, ADR-0305, and ADR-0401.",
+  x-audience: cluster,
+}
+servers: [
+  { url: / },
+] # east-west control-plane service with no /api edge route, per ADR-0305
 tags: [{ name: authorize }, { name: identities, x-admin: crud }]
 paths:
   /authorize:
@@ -12,12 +19,20 @@ paths:
       requestBody:
         required: true
         description: The decision request forwarded by Oathkeeper.
-        content: { application/json: { schema: { $ref: "#/components/schemas/AuthorizeRequest" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/AuthorizeRequest" },
+          },
+        }
       responses:
         "200": { description: Allowed. }
         "403":
           description: Denied.
-          content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+          content: {
+            application/problem+json: {
+              schema: { $ref: "#/components/schemas/Problem" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
   /identities:
     get:
@@ -31,7 +46,13 @@ paths:
       # per_page limits the Kratos admin page. The changelist paginates on the client inside that page.
       # No page offset: this Kratos uses keyset pagination, so a forwarded numeric page returns an empty set.
       parameters:
-        - { name: per_page, in: query, required: false, description: Page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 250 } }
+        - {
+            name: per_page,
+            in: query,
+            required: false,
+            description: Page size.,
+            schema: { type: integer, minimum: 1, maximum: 1000, default: 250 },
+          }
       responses:
         "200":
           description: The identities.
@@ -43,8 +64,18 @@ paths:
                 # An unconstrained array generates an empty list. Nobody can build a
                 # changelist against an empty list, per ADR-0600.
                 example:
-                  - { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b001, email: operator@e2e.localtest.me, name: Test Operator, operator: true }
-                  - { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b002, email: user@e2e.localtest.me, name: Test User, operator: false }
+                  - {
+                      id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b001,
+                      email: operator@e2e.localtest.me,
+                      name: Test Operator,
+                      operator: true,
+                    }
+                  - {
+                      id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b002,
+                      email: user@e2e.localtest.me,
+                      name: Test User,
+                      operator: false,
+                    }
         default: { $ref: "#/components/responses/Error" }
   /identities/{id}:
     get:
@@ -53,9 +84,22 @@ paths:
       description: Fetch one identity by id.
       tags: [identities]
       parameters:
-        - { name: id, in: path, required: true, description: The id of the identity to fetch., schema: { type: string } }
+        - {
+            name: id,
+            in: path,
+            required: true,
+            description: The id of the identity to fetch.,
+            schema: { type: string },
+          }
       responses:
-        "200": { description: The identity., content: { application/json: { schema: { $ref: "#/components/schemas/Identity" } } } }
+        "200": {
+          description: The identity.,
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Identity" },
+            },
+          },
+        }
         default: { $ref: "#/components/responses/Error" }
     put:
       operationId: updateIdentity
@@ -64,13 +108,30 @@ paths:
       description: Update an identity's editable traits.
       tags: [identities]
       parameters:
-        - { name: id, in: path, required: true, description: The id of the identity to update., schema: { type: string } }
+        - {
+            name: id,
+            in: path,
+            required: true,
+            description: The id of the identity to update.,
+            schema: { type: string },
+          }
       requestBody:
         required: true
         description: The traits to change.
-        content: { application/json: { schema: { $ref: "#/components/schemas/IdentityUpdate" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/IdentityUpdate" },
+          },
+        }
       responses:
-        "200": { description: The updated identity., content: { application/json: { schema: { $ref: "#/components/schemas/Identity" } } } }
+        "200": {
+          description: The updated identity.,
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Identity" },
+            },
+          },
+        }
         default: { $ref: "#/components/responses/Error" }
   /authorize/relation:
     post:
@@ -84,11 +145,19 @@ paths:
       requestBody:
         required: true
         description: The relation to check.
-        content: { application/json: { schema: { $ref: "#/components/schemas/RelationCheck" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/RelationCheck" },
+          },
+        }
       responses:
         "200":
           description: The decision. A deny is an answer, not an error.
-          content: { application/json: { schema: { $ref: "#/components/schemas/RelationDecision" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/RelationDecision" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
@@ -97,7 +166,7 @@ components:
       description: An error, as RFC 9457 problem details.
       content:
         application/problem+json:
-          schema: {$ref: "#/components/schemas/Problem"}
+          schema: { $ref: "#/components/schemas/Problem" }
     # <<< shared-components
   schemas:
     # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
@@ -170,10 +239,22 @@ components:
       description: The remote_json payload Oathkeeper POSTs per ops-dashboard request.
       required: [subject, tool, aal, operator]
       properties:
-        subject:  { type: string, description: Kratos identity id. Empty for an anonymous caller. }
-        tool:     { type: string, description: Ops dashboard slug such as grafana or hubble. }
-        aal:      { type: string, description: authenticator_assurance_level from the session. }
-        operator: { type: string, description: The identity's metadata_public.operator flag. It is `true` when set. }
+        subject: {
+          type: string,
+          description: Kratos identity id. Empty for an anonymous caller.,
+        }
+        tool: {
+          type: string,
+          description: Ops dashboard slug such as grafana or hubble.,
+        }
+        aal: {
+          type: string,
+          description: authenticator_assurance_level from the session.,
+        }
+        operator: {
+          type: string,
+          description: The identity's metadata_public.operator flag. It is `true` when set.,
+        }
     RelationCheck:
       type: object
       description: A single OpenFGA relation question, in the model's own vocabulary.
@@ -183,7 +264,12 @@ components:
           type: string
           minLength: 1
           description: "The subject, with its type as a prefix: `user:<identity-id>`."
-        relation: { type: string, minLength: 1, description: The relation to test, such as `view`. }
+        relation: {
+          type: string,
+          minLength: 1,
+          description: The relation to test,
+          such as `view`.,
+        }
         object:
           type: string
           minLength: 1
@@ -200,14 +286,19 @@ components:
       description: A Kratos identity, flattened from its traits for the admin changelist.
       required: [id, email]
       properties:
-        id:       { type: string }
-        email:    { type: string }
-        name:     { type: string }
+        id: { type: string }
+        email: { type: string }
+        name: { type: string }
         operator: { type: boolean }
-      example: { id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b002, email: user@e2e.localtest.me, name: Test User, operator: false }
+      example: {
+        id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0b002,
+        email: user@e2e.localtest.me,
+        name: Test User,
+        operator: false,
+      }
     IdentityUpdate:
       type: object
       description: The editable fields of an identity. Email is the login identifier and is not editable here. operator promotes or demotes through a dual write, per ADR-0304.
       properties:
-        name:     { type: string }
+        name: { type: string }
         operator: { type: boolean }

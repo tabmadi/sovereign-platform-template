@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Delete first-party image tags that nothing can deploy, per ADR-0105. A tag stays when an environment's values pin it or its digest.
+# Delete first-party image tags that nothing can deploy, per ADR-0114. A tag stays when an environment's values pin it or its digest.
 # A tag also stays when it names one of the last PRUNE_KEEP commits on the branch: the rollback window. cosign's tags go with the image they sign.
 # Any other tag stays. The registry's own garbage collection frees the blobs.
 set -euo pipefail

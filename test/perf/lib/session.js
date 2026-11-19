@@ -33,7 +33,7 @@ export function login(baseURL, email, password) {
   );
   if (res.status !== 200) {
     throw new Error(
-      `login: ${email} got HTTP ${res.status}. Check that \`mise run auth:seed\` ran against this cluster`,
+      `login: ${email} got HTTP ${res.status}. Check that \`just auth-seed\` ran against this cluster`,
     );
   }
 
@@ -61,7 +61,7 @@ export function requireOrg(baseURL, session, email) {
     throw new Error(
       `${email} has no organization, so every checkout would get 403. The orgs ` +
         "RegisterUser workflow has not set metadata_public.org_id for this identity. " +
-        "Provision it again with the `mise run e2e` setup or POST /identity-created on orgs, then retry.",
+        "Provision it again with the `just e2e` setup or POST /identity-created on orgs, then retry.",
     );
   }
   return orgID;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The vulnerability and misconfiguration merge gate, per ADR-0104 and ADR-0106.
+# The vulnerability and misconfiguration merge gate, per ADR-0113 and ADR-0117.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -49,7 +49,7 @@ trivy fs \
   --severity "$SEVERITY" \
   --exit-code 1 \
   --no-progress \
-  --ignorefile .trivyignore.yaml \
+  --ignorefile .config/trivyignore.yaml \
   "${SKIP[@]}" \
   .
 

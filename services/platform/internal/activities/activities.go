@@ -117,7 +117,7 @@ func (a *Activities) ComputeFunnelRollupActivity(
 	return nil
 }
 
-// openIssue posts to the forge's issue API. GitHub and Forgejo share this endpoint and its two fields, per ADR-0102.
+// openIssue posts to the forge's issue API. GitHub and Forgejo share this endpoint and its two fields, per ADR-0116.
 func (a *Activities) openIssue(ctx context.Context, title, body string) error {
 	var created struct {
 		Number  int    `json:"number"`

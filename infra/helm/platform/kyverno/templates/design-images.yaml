@@ -1,6 +1,6 @@
 {{- if .Values.policies.imagePrefix }}
 {{- $design := printf "%sdesign/*" (trimSuffix "*" .Values.policies.imagePrefix) }}
-# A design image runs only in a design namespace, per ADR-0701 and ADR-0104. It is a production build with fixtures
+# A design image runs only in a design namespace, per ADR-0701 and ADR-0113. It is a production build with fixtures
 # on, built from a pull request, and signed with the platform key. So the signature alone does not keep it out of dev or prod.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -41,7 +41,7 @@ spec:
                     value: {{ $design | quote }}
 {{- if .Values.policies.publicKey }}
 ---
-# The signature check of a design namespace, per ADR-0104. The ApplicationSet names the commit tag, because the pull
+# The signature check of a design namespace, per ADR-0113. The ApplicationSet names the commit tag, because the pull
 # request generator knows no digest. So this rule pins the pod to the digest that it verified. It does not rewrite the
 # Deployment, because Argo CD would then see drift on every sync. The `autogen-controllers: none` annotation does that.
 apiVersion: kyverno.io/v1
@@ -56,7 +56,7 @@ metadata:
     policies.kyverno.io/severity: critical
     policies.kyverno.io/description: >-
       A pod in a design-pr-<n> namespace runs only images that carry the platform
-      signature, pinned to the digest that admission verified (ADR-0104, ADR-0701).
+      signature, pinned to the digest that admission verified (ADR-0113, ADR-0701).
 spec:
   validationFailureAction: {{ .Values.policies.validationFailureAction }}
   background: false
@@ -92,7 +92,7 @@ spec:
 {{- end }}
 {{- with .Values.policies.registrySecret }}
 ---
-# The registry pull credential of each design namespace, per ADR-0203 and ADR-0105. A design namespace comes and goes
+# The registry pull credential of each design namespace, per ADR-0203 and ADR-0114. A design namespace comes and goes
 # with a pull request, so no committed Secret can name it. Kyverno copies the credential that it pulls signatures with.
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy

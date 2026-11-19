@@ -1,4 +1,4 @@
-# OpenAPI 3.1 lint ruleset for all services, per ADR-0303. A Spectral-format ruleset that vacuum runs through `mise run lint:openapi`.
+# OpenAPI 3.1 lint ruleset for all services, per ADR-0303. A Spectral-format ruleset that vacuum runs through `just lint-openapi`.
 # `spectral:oas` is the built-in core ruleset.
 extends:
   - "spectral:oas"

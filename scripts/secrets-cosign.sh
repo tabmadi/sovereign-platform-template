@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate the platform's image-signing key pair, per ADR-0104 and ADR-0202.
+# Generate the platform's image-signing key pair, per ADR-0113 and ADR-0202.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -16,7 +16,7 @@ fi
 # The recipients come from .sops.yaml. An early refusal with the real reason is better than a `malformed recipient` failure inside sops.
 # The template ships placeholder age keys, so a new project hits this first.
 if grep -q 'age1example' .sops.yaml; then
-  fail ".sops.yaml still has placeholder recipients. Add your real engineer and CI age keys first, with mise run secrets:age and then .sops.yaml. Nobody can decrypt a signing key encrypted to a placeholder."
+  fail ".sops.yaml still has placeholder recipients. Add your real engineer and CI age keys first, with just secrets-age and then .sops.yaml. Nobody can decrypt a signing key encrypted to a placeholder."
 fi
 
 mkdir -p "$KEY_DIR"
@@ -52,4 +52,4 @@ echo "Next:"
 echo "  1. Commit both halves. The public one is plaintext by design."
 echo "  2. Kyverno's ClusterPolicy in infra/helm/platform/kyverno names ${PUB_KEY} as its attestor."
 echo "  3. Give CI an age recipient in .sops.yaml and its private half as a forge"
-echo "     secret, so ci:sign can decrypt this file. Nothing else ever decrypts it."
+echo "     secret, so ci-sign can decrypt this file. Nothing else ever decrypts it."

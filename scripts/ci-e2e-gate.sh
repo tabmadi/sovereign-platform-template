@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Decide whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0102 and ADR-0601.
+# Decide whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0116 and ADR-0601.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -16,7 +16,7 @@ decide() {
 [[ "${LABELED:-false}" != true ]] || decide true "→ the \`e2e-smoke\` label is set. Running the suite."
 
 # `--runtime`: a change to a linter or a workflow alone never changes what the smoke suite sees.
-manifest="$(mise run ci:affected -- --base "origin/${BASE_REF:-master}" --runtime)"
+manifest="$(just ci-affected --base "origin/${BASE_REF:-master}" --runtime)"
 
 # A global change reaches every service, so it is the widest multi-service case.
 # Examples are a shared library, the toolchain, and the platform charts.

@@ -30,18 +30,35 @@ rbac:
   roles:
     - namespace: restore-verification
       rules:
-        - { apiGroups: [""], resources: [secrets], verbs: [get, create, delete] }
-        - { apiGroups: [""], resources: [persistentvolumeclaims], verbs: [list] }
-        - { apiGroups: [postgresql.cnpg.io], resources: [clusters], verbs: [get, create, delete] }
+        - {
+            apiGroups: [""],
+            resources: [secrets],
+            verbs: [get, create, delete],
+          }
+        - {
+            apiGroups: [""],
+            resources: [persistentvolumeclaims],
+            verbs: [list],
+          }
+        - {
+            apiGroups: [postgresql.cnpg.io],
+            resources: [clusters],
+            verbs: [get, create, delete],
+          }
     - namespace: platform
       rules:
-        - { apiGroups: [postgresql.cnpg.io], resources: [clusters], resourceNames: [postgres], verbs: [get] }
+        - {
+            apiGroups: [postgresql.cnpg.io],
+            resources: [clusters],
+            resourceNames: [postgres],
+            verbs: [get],
+          }
         - apiGroups: [""]
           resources: [secrets]
           resourceNames: [postgres-backup-creds, postgres-readonly]
           verbs: [get]
-ingress:    { enabled: false }
-migrations: { enabled: false }   # owns no schema
-otel:       { deployEnv: staging }
+ingress: { enabled: false }
+migrations: { enabled: false } # owns no schema
+otel: { deployEnv: staging }
 networkPolicy:
   allowFromGateway: false

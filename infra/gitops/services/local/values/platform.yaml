@@ -3,8 +3,8 @@
 name: platform
 image:
   repository: registry.localhost:5000/platform-worker
-  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
-  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
+  tag: local # the local registry stands in for CI. Prod uses a git SHA, per ADR-0111
+  pullPolicy: Always # pull the rebuilt :local again on each cluster-up full run
 server:
   enabled: false
 worker:
@@ -30,18 +30,35 @@ rbac:
   roles:
     - namespace: restore-verification
       rules:
-        - { apiGroups: [""], resources: [secrets], verbs: [get, create, delete] }
-        - { apiGroups: [""], resources: [persistentvolumeclaims], verbs: [list] }
-        - { apiGroups: [postgresql.cnpg.io], resources: [clusters], verbs: [get, create, delete] }
+        - {
+            apiGroups: [""],
+            resources: [secrets],
+            verbs: [get, create, delete],
+          }
+        - {
+            apiGroups: [""],
+            resources: [persistentvolumeclaims],
+            verbs: [list],
+          }
+        - {
+            apiGroups: [postgresql.cnpg.io],
+            resources: [clusters],
+            verbs: [get, create, delete],
+          }
     - namespace: platform
       rules:
-        - { apiGroups: [postgresql.cnpg.io], resources: [clusters], resourceNames: [postgres], verbs: [get] }
+        - {
+            apiGroups: [postgresql.cnpg.io],
+            resources: [clusters],
+            resourceNames: [postgres],
+            verbs: [get],
+          }
         - apiGroups: [""]
           resources: [secrets]
           resourceNames: [postgres-backup-creds, postgres-readonly]
           verbs: [get]
-ingress:    { enabled: false }
-migrations: { enabled: false }   # owns no schema
-otel:       { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
+ingress: { enabled: false }
+migrations: { enabled: false } # owns no schema
+otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 networkPolicy:
   allowFromGateway: false

@@ -27,7 +27,7 @@ export const fixturesEnabled = resolveFixtureMode(
 
 /**
  * A page whose endpoint no spec has yet is design-only, per ADR-0701. Its seam calls this before the real call, so
- * outside fixture mode the page answers 404 and never calls a missing endpoint. `lint:fixtures` requires the call.
+ * outside fixture mode the page answers 404 and never calls a missing endpoint. `lint-fixtures` requires the call.
  */
 export function designOnly(enabled: boolean = fixturesEnabled): void {
   if (!enabled) {

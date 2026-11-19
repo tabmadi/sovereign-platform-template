@@ -1,0 +1,60 @@
+# The checks that need the git history, per ADR-0116. The shared check gate runs in the Nix sandbox, which has no history.
+# Each job is a thin caller of one recipe. The job names are the required checks in infra/forge/branch-protection.yaml.
+name: history
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: init.defaultBranch
+  GIT_CONFIG_VALUE_0: master
+
+jobs:
+  # The commit range, the secret scan of the history, and the breaking changes of the contracts.
+  history:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Check the history
+        # The base of the commit range. It is empty on a push, and then master is the base.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: nix develop --command just ci-lint
+
+  # A service that affected detection misses gets no image build, per ADR-0111.
+  # This job breaks each service in a scratch worktree. A failure here means that the selection is wrong.
+  affected-detection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Test affected detection against each service
+        run: nix develop --command just ci-affected-adversarial
+
+  # Separate from the gate, because it fails for a different reason, per ADR-0113.
+  # A dependency that gets a published fix turns a green pull request red with no code change.
+  scan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Scan dependencies
+        run: nix develop --command just ci-scan

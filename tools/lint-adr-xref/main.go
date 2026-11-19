@@ -85,7 +85,7 @@ func checkComponentAgreement() []string {
 		name := strings.TrimSpace(m[1])
 		// A row can name a component or a posture, such as `Cilium's default-deny and WireGuard posture`.
 		// In both cases the first word is the component.
-		head := strings.SplitN(name, "'", 2)[0]
+		head, _, _ := strings.Cut(name, "'")
 		head = strings.SplitN(head, " + ", 2)[0]
 		if !strings.Contains(inventory, strings.ToLower(head)) {
 			problems = append(problems, fmt.Sprintf("%s: names %q, which %s does not list", pathPath, head, surfacePath))

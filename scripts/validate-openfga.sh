@@ -13,6 +13,6 @@ fresh="$(mktemp --suffix=.json)"
 trap 'rm -f "$fresh"' EXIT
 fga model transform --file "$DIR/model.fga" --output-format json | jq -S . >"$fresh"
 if ! diff -u "$DIR/model.json" "$fresh"; then
-  fail "model.json is stale. Run 'mise run gen:authz-model' and commit the result"
+  fail "model.json is stale. Run 'just gen-authz-model' and commit the result"
 fi
 ok "OpenFGA model valid and model.json in sync"

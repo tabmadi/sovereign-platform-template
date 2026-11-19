@@ -7,7 +7,7 @@ oathkeeper:
     # themselves, because every request makes a forward-auth hop here, per ADR-0305.
     resources:
       requests: { cpu: "100m", memory: "128Mi" }
-      limits:   { memory: "384Mi" }
+      limits: { memory: "384Mi" }
     extraEnv:
       - name: SQA_OPT_OUT
         value: "true"
@@ -26,7 +26,7 @@ kratos:
     # of the namespace LimitRange.
     resources:
       requests: { cpu: "100m", memory: "192Mi" }
-      limits:   { memory: "512Mi" }
+      limits: { memory: "512Mi" }
     extraEnv:
       - name: SQA_OPT_OUT
         value: "true"
@@ -49,9 +49,9 @@ hydra:
       urls:
         self:
           issuer: https://dev.example.com/oauth2/
-        login:   https://dev.example.com/auth/login
+        login: https://dev.example.com/auth/login
         consent: https://dev.example.com/auth/consent
-        logout:  https://dev.example.com/auth/logout
+        logout: https://dev.example.com/auth/logout
   # The system and cookie secrets and the dsn come from a SOPS-managed Secret, never inline values, per ADR-0202.
   # Kratos uses the same wiring.
   secret:

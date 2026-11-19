@@ -2,7 +2,7 @@ name: catalog
 image:
   repository: ghcr.io/tabmadi/sovereign-platform-template/catalog-server
   tag: "0000000000000000000000000000000000000000"
-  digest: ""   # promote-on-release pins prod by digest, per ADR-0103
+  digest: "" # promote-on-release pins prod by digest, per ADR-0112
 worker:
   enabled: false
 server:

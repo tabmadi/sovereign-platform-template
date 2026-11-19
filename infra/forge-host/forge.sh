@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# The forge machine, per ADR-0102. A forge that Argo CD deployed could not recover a lost cluster. So it is a Debian
+# The forge machine, per ADR-0116. A forge that Argo CD deployed could not recover a lost cluster. So it is a Debian
 # machine beside the workload cluster, not a chart inside it. Each step is safe to run again.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # shellcheck source=forge.env
 source "$(dirname "${BASH_SOURCE[0]}")/forge.env"
 
-slug="$(answer project_slug)"
-apex="$(answer apex_host)"
-[ -n "$slug" ] && [ -n "$apex" ] || fail "no project_slug or apex_host in .copier-answers.yml"
+slug="$(answer slug)"
+apex="$(answer apex)"
+[ -n "$slug" ] && [ -n "$apex" ] || fail "no slug or apex in infra/project.yaml"
 guest() { on "$FORGE_SSH" "$FORGE_JUMP"; }
 
 usage() { fail "usage: forge.sh <install|signing|configure|seed>"; }
@@ -50,7 +50,7 @@ EOF
   ;;
 
 signing)
-  [ -f "$SIGNING_KEY_FILE" ] || fail "no key at ${SIGNING_KEY_FILE}. Run mise run secrets:gpg once"
+  [ -f "$SIGNING_KEY_FILE" ] || fail "no key at ${SIGNING_KEY_FILE}. Run just secrets-gpg once"
   step "importing the forge's signing key into the Forgejo user"
   key="$(sops -d "$SIGNING_KEY_FILE" | yq -r '.stringData["private.asc"]')"
   guest <<EOF

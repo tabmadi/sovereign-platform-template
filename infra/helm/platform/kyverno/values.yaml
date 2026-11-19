@@ -1,4 +1,4 @@
-# Admission control for image provenance, per ADR-0104.
+# Admission control for image provenance, per ADR-0113.
 kyverno:
   # Its OWN namespace. This is not for tidiness.
   namespaceOverride: kyverno
@@ -57,8 +57,6 @@ kyverno:
       requests: { cpu: "25m", memory: "128Mi" }
       limits: { memory: "256Mi" }
 
-
-
 policies:
   # `Enforce` rejects. `Audit` records a PolicyReport and admits. Deployed environments enforce.
   validationFailureAction: Enforce
@@ -70,11 +68,11 @@ policies:
   # serves signatures anonymously.
   registrySecret: ""
 
-  # The only places an image can come from: the repositories that the platform's own charts pull from. `mise run
-  # gen:image-allowlist` GENERATES them into `infra/gitops/platform/image-allowlist.yaml`. The ApplicationSet passes
+  # The only places an image can come from: the repositories that the platform's own charts pull from. `just
+  # gen-image-allowlist` GENERATES them into `infra/gitops/platform/image-allowlist.yaml`. The ApplicationSet passes
   # the file to every chart in the tier.
   allowedImageSources: []
 
-  # The committed public half of the platform signing key, per ADR-0104. It is inlined into the ClusterPolicy as a
+  # The committed public half of the platform signing key, per ADR-0113. It is inlined into the ClusterPolicy as a
   # `keys` attestor.
   publicKey: ""

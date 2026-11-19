@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reconcile infra/forge/branch-protection.yaml and infra/forge/teams.yaml into the forge, per ADR-0102.
+# Reconcile infra/forge/branch-protection.yaml and infra/forge/teams.yaml into the forge, per ADR-0116.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

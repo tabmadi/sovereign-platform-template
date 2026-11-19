@@ -1,6 +1,6 @@
 # The forge host
 
-The machine that runs Forgejo, per [ADR-0102](../../docs/adr/0102-source-control-and-ci.md). It is a Debian machine beside the workload cluster, never a chart inside it. Argo CD reconciles the cluster from this forge, so a forge in the cluster could not recover a lost cluster.
+The machine that runs Forgejo, per [ADR-0116](../../docs/adr/0116-forge-and-pipelines.md). It is a Debian machine beside the workload cluster, never a chart inside it. Argo CD reconciles the cluster from this forge, so a forge in the cluster could not recover a lost cluster.
 
 This directory exists in a project whose `forge` answer is `forgejo`, per [modes.md](../../docs/reference/modes.md).
 
@@ -19,10 +19,10 @@ Each step is safe to run again. `configure` keeps the secrets of an existing `ap
 1. Create a Debian machine. On the project's own hypervisor, run `bash infra/hypervisor/vm.sh create forge`.
 2. Point `FORGE_DOMAIN` at the machine's public address in DNS, per [ADR-0206](../../docs/adr/0206-cluster-networking.md).
 3. Run `bash infra/forge-host/forge.sh install`.
-4. Run `mise run secrets:gpg` once. It makes the signing keys of the forge and of `ci`, per [ADR-0102](../../docs/adr/0102-source-control-and-ci.md). Then run `mise run forge:signing` to import the forge key.
+4. Run `just secrets-gpg` once. It makes the signing keys of the forge and of `ci`, per [ADR-0116](../../docs/adr/0116-forge-and-pipelines.md). Then run `just forge-signing` to import the forge key.
 5. Run `bash infra/forge-host/forge.sh configure`. Forgejo then gets its certificate from ACME.
 6. Run `bash infra/forge-host/forge.sh seed`.
-7. Run `mise run forge:ci-user`. It uploads the public key of `ci`. Branch protection then requires signed commits.
+7. Run `just forge-ci-user`. It uploads the public key of `ci`. Branch protection then requires signed commits.
 8. Register the tokens that `seed` leaves in `/root/.forgejo-*-token`, per the [credential register](../../docs/reference/credential-register.md).
 
 `seed` creates the break-glass admin, the `ci` and `argocd` machine users, the repository under `FORGE_ORG`, and the `PROMOTE_TOKEN` secret. With `MIRROR_URL` set, it also creates a push mirror and prints the deploy key that the mirror's host needs.

@@ -21,26 +21,28 @@ spec:
         generators:
           - list:
               elements:
-                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: dev, server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               directories:
-                  # Namespaces and their Pod Security Admission profile, per ADR-0200. First in the base tier, at sync-wave -1 in it.
-                  # PSA is an admission check, so a namespace labelled after its pods are admitted governs nothing.
+                # Namespaces and their Pod Security Admission profile, per ADR-0200. First in the base tier, at sync-wave -1 in it.
+                # PSA is an admission check, so a namespace labelled after its pods are admitted governs nothing.
                 - { path: "infra/helm/platform/namespaces" }
-                  # The default StorageClass, per ADR-0200. It is in the base tier, so it always comes before the data tier. A PVC
-                  # created before a default StorageClass exists stays Pending. Nothing binds it again when the class appears.
+                # The default StorageClass, per ADR-0200. It is in the base tier, so it always comes before the data tier. A PVC
+                # created before a default StorageClass exists stays Pending. Nothing binds it again when the class appears.
                 - { path: "infra/helm/platform/local-path" }
-                  # Admission control, per ADR-0104. It is in the BASE tier, because admission
-                  # runs once, at creation. A policy that arrives after the workloads it gates
-                  # has already missed them.
+                # Admission control, per ADR-0113. It is in the BASE tier, because admission
+                # runs once, at creation. A policy that arrives after the workloads it gates
+                # has already missed them.
                 - { path: "infra/helm/platform/kyverno" }
                 - { path: "infra/helm/platform/sops-operator" }
                 - { path: "infra/helm/platform/cert-manager" }
                 - { path: "infra/helm/platform/network-policies" }
                 - { path: "infra/helm/platform/resource-governance" }
-                - { path: "infra/helm/platform/temporal-worker-controller-crds" }
+                - {
+                    path: "infra/helm/platform/temporal-worker-controller-crds",
+                  }
                 # CILIUM AND ARGO CD ARE NOT HERE, in any tier, on purpose. Neither can be installed by the thing that needs it
                 # first. No pod schedules before the CNI exists, and Argo CD cannot apply its own first install.
   template:
@@ -67,7 +69,7 @@ spec:
             # See the file's header.
             - "../../../gitops/platform/shared-values.yaml"
             # Generated: the repositories that the platform's charts pull from. Kyverno's
-            # allow-list policy reads it, per ADR-0104.
+            # allow-list policy reads it, per ADR-0113.
             - "../../../gitops/platform/image-allowlist.yaml"
             - "../../../auth/kratos/values.yaml"
             - "../../../auth/oathkeeper/values.yaml"
@@ -79,7 +81,7 @@ spec:
               path: "../../../auth/oathkeeper/access-rules.json"
             - name: seed.model
               path: "../../../auth/openfga/model.json"
-            # The platform's signing public key, per ADR-0104. See `infra/auth/cosign`.
+            # The platform's signing public key, per ADR-0113. See `infra/auth/cosign`.
             - name: policies.publicKey
               path: "../../../auth/cosign/cosign.pub"
       destination: { server: "{{ .server }}", namespace: platform }
@@ -113,7 +115,7 @@ spec:
         generators:
           - list:
               elements:
-                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: dev, server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
@@ -182,7 +184,7 @@ spec:
         generators:
           - list:
               elements:
-                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: dev, server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
@@ -251,29 +253,29 @@ spec:
         generators:
           - list:
               elements:
-                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: dev, server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master
               directories:
-                # The registry, per ADR-0105. It is in wave 3, and not next to the store. It
+                # The registry, per ADR-0114. It is in wave 3, and not next to the store. It
                 # reads the bucket, so it starts after the data tier is Healthy.
                 - { path: "infra/helm/platform/zot" }
-                  # The forge, per ADR-0102.
+                # The forge, per ADR-0116.
                 - { path: "infra/helm/platform/forgejo" }
-                  # The public ACME issuer and the edge's wildcard certificates, per ADR-0205.
+                # The public ACME issuer and the edge's wildcard certificates, per ADR-0205.
                 - { path: "infra/helm/platform/public-tls" }
-                  # The node-level collector. It has its own namespace, because it is the one
-                  # platform workload that needs hostPath and hostPorts, per ADR-0200. It is in
-                  # the same tier as the backends it exports to.
+                # The node-level collector. It has its own namespace, because it is the one
+                # platform workload that needs hostPath and hostPorts, per ADR-0200. It is in
+                # the same tier as the backends it exports to.
                 - { path: "infra/helm/platform/otel-agent" }
                 - { path: "infra/helm/platform/ory" }
-                  # The edge's RFC 9457 error bodies, per ADR-0305. It is next to ory, because Oathkeeper raises most of the
-                  # responses that it rewrites. Every denial from the edge makes a subrequest here.
+                # The edge's RFC 9457 error bodies, per ADR-0305. It is next to ory, because Oathkeeper raises most of the
+                # responses that it rewrites. Every denial from the edge makes a subrequest here.
                 - { path: "infra/helm/platform/edge-errors" }
-                  # The non-production mail sink that Kratos's courier submits to, per ADR-0307.
-                  # It is next to ory, because only ory uses it. `mailpit.enabled: false` drops
-                  # it where a real relay exists.
+                # The non-production mail sink that Kratos's courier submits to, per ADR-0307.
+                # It is next to ory, because only ory uses it. `mailpit.enabled: false` drops
+                # it where a real relay exists.
                 - { path: "infra/helm/platform/mailpit" }
                 # Production mail, per ADR-0307. It renders nothing unless the environment
                 # enables it. Only production enables it.
@@ -341,7 +343,7 @@ spec:
         generators:
           - list:
               elements:
-                - { env: dev,     server: "https://kubernetes.default.svc" }
+                - { env: dev, server: "https://kubernetes.default.svc" }
           - git:
               repoURL: https://github.com/tabmadi/sovereign-platform-template.git
               revision: master

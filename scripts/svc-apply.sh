@@ -26,10 +26,10 @@ k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 # It does not depend on a health endpoint, on auth, or on a finished startup.
 port_open() { (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") >/dev/null 2>&1; }
 
-# The same contract as dep-apply.sh: exit at once when already satisfied, so each `mise run worker` stays cheap.
+# The same contract as dep-apply.sh: exit at once when already satisfied, so each `just worker` stays cheap.
 # Without it, each run would deploy again a service that is already up.
 if port_open; then
-  detail "svc:${SVC} already reachable on :${PORT}, skipping"
+  detail "svc-${SVC} already reachable on :${PORT}, skipping"
   exit 0
 fi
 
@@ -39,21 +39,21 @@ if [ -f "$PIDFILE" ]; then
   rm -f "$PIDFILE"
 fi
 
-# Deploy only if it is not there. `cluster:add -- <svc>` is the same code path, so this uses a service you deployed by hand and does not rebuild it.
+# Deploy only if it is not there. `cluster-add -- <svc>` is the same code path, so this uses a service you deployed by hand and does not rebuild it.
 if k rollout status "deploy/${SVC}-server" --timeout=0 >/dev/null 2>&1; then
-  detail "svc:${SVC} already deployed, forwarding only"
+  detail "svc-${SVC} already deployed, forwarding only"
 else
-  step "svc:${SVC}: deploying, because the caller needs it and you are not working on it"
+  step "svc-${SVC}: deploying, because the caller needs it and you are not working on it"
   bash scripts/service-deploy.sh "$SVC"
 fi
 
 # :80 is the Service port, not the container's :8080: infra/helm/service/templates/service.yaml maps 80 → targetPort http.
 # A forward to 8080 fails, because a svc/ port-forward resolves against the Service's declared ports.
-step "svc:${SVC}: forwarding :${PORT} → ${SVC}-server:80"
+step "svc-${SVC}: forwarding :${PORT} → ${SVC}-server:80"
 mkdir -p "$RUNDIR"
 
-# Detached, because a mise task must return for the graph to continue, and the forward must outlive it.
-# This is the only process management in the dev loop. It stays here, uses a pidfile, and cluster:remove stops it.
+# Detached, because a recipe must return for the next one to start, and the forward must outlive it.
+# This is the only process management in the dev loop. It stays here, uses a pidfile, and cluster-remove stops it.
 nohup kubectl --context "$(cluster_ctx)" -n "$NS" \
   port-forward "svc/${SVC}-server" "${PORT}:80" \
   >"${RUNDIR}/portforward-${SVC}.log" 2>&1 &
@@ -64,5 +64,5 @@ for _ in $(seq 1 50); do
   sleep 0.2
 done
 
-port_open || fail "svc:${SVC}: port-forward did not start. See ${RUNDIR}/portforward-${SVC}.log"
-ok "svc:${SVC} reachable on :${PORT}"
+port_open || fail "svc-${SVC}: port-forward did not start. See ${RUNDIR}/portforward-${SVC}.log"
+ok "svc-${SVC} reachable on :${PORT}"

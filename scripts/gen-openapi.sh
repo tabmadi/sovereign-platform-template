@@ -14,14 +14,14 @@ for spec in services/*/openapi.yaml; do
 
   step "$service: Go SDK with ogen"
   # `ogen --clean` overwrites and removes orphans itself. The directory stays full, so a concurrent go or lint pass never sees it empty.
-  # `gen:clean` deletes it.
+  # `gen-clean` deletes it.
   mkdir -p "$go_out"
   ogen --target "$go_out" --package "$pkg" --clean "$spec"
 
   step "$service: TS client"
   mkdir -p "$ts_out"
 
-  bun x openapi-typescript@7.13.0 "$spec" --output "$ts_out/index.d.ts"
+  bun run openapi-typescript "$spec" --output "$ts_out/index.d.ts"
 
   # A package.json makes the generated SDK a real workspace package.
   # With only a tsconfig path alias, every import is an undeclared dependency, which Biome rejects.

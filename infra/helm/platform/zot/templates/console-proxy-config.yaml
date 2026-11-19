@@ -1,6 +1,6 @@
 {{- if and .Values.zot.enabled .Values.zot.console.enabled .Values.zot.consoleAuth.enabled }}
 {{- /*
-The console proxy's nginx config, per ADR-0306 and ADR-0105. It fronts zot's
+The console proxy's nginx config, per ADR-0306 and ADR-0114. It fronts zot's
 console on a second port. It adds the one thing that the browser cannot: the pull
 identity's `Authorization` header. So an operator that the edge already checked
 does not have to give it a second time.

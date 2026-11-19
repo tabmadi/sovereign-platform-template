@@ -13,7 +13,7 @@ logLevel: info
 existingSecret: openfga-creds
 
 migrate:
-  enabled: true              # run `openfga migrate` as an initContainer
+  enabled: true # run `openfga migrate` as an initContainer
 
 # Model and ops-policy seed, per ADR-0300 and ADR-0306.
 seed:
@@ -22,7 +22,19 @@ seed:
   # is distroless and cannot script a find-or-create flow.
   image: alpine/k8s:1.31.1
   # Each ops dashboard, per ADR-0306, granted to the members of `group:operator`.
-  dashboards: [lowdefy, hubble, grafana, argocd, temporal, seaweedfs, headlamp, pgweb, mailpit, zot, design]
+  dashboards: [
+    lowdefy,
+    hubble,
+    grafana,
+    argocd,
+    temporal,
+    seaweedfs,
+    headlamp,
+    pgweb,
+    mailpit,
+    zot,
+    design,
+  ]
   # Service-account identities granted `group:operator#member`. The Lowdefy admin
   # console, per ADR-0401, calls services east-west with `X-User-Id: admin-console`.
   # This grant lets that identity pass the operator write-gate of the services.
@@ -33,4 +45,4 @@ seed:
 
 resources:
   requests: { cpu: 50m, memory: 128Mi }
-  limits:   { memory: 256Mi }
+  limits: { memory: 256Mi }

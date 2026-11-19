@@ -1,4 +1,4 @@
-# Nightly supply-chain inventory, per ADR-0104 and ADR-0501. It verifies each pinned image's SBOM attestation and records its contents.
+# Nightly supply-chain inventory, per ADR-0113 and ADR-0501. It verifies each pinned image's SBOM attestation and records its contents.
 # It runs nightly, not for each build, because it reports what an environment runs. That changes on a promotion and with new CVEs.
 # It can fail and pages nobody. It is a research surface.
 name: supply-chain
@@ -18,8 +18,6 @@ permissions:
   packages: read
 
 env:
-  # renovate runs only in renovate.yml. Its install is the largest in the toolchain and warns on every runner.
-  MISE_DISABLE_TOOLS: npm:renovate
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
   GIT_CONFIG_COUNT: "1"
   GIT_CONFIG_KEY_0: init.defaultBranch
@@ -30,13 +28,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      # cosign, jq, and yq are pinned in .mise.toml, per ADR-0101. So this verifies with the same binaries that signed.
+      # cosign, jq, and yq are pinned in flake.nix, per ADR-0100. So this verifies with the same binaries that signed.
       - uses: ./.github/actions/setup
       # The attestations are in the registry that holds the images. `packages: read` above gives the token that access.
       - uses: docker/login-action@v4
         with:
           # The same three settings as publish.yml. The registry is configuration.
-          # A deployment with its own registry, per ADR-0105, sets them as forge variables and does not edit this file.
+          # A deployment with its own registry, per ADR-0114, sets them as forge variables and does not edit this file.
           registry: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
@@ -47,4 +45,4 @@ jobs:
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
-        run: mise run supply-chain:inventory
+        run: nix develop --command just supply-chain-inventory

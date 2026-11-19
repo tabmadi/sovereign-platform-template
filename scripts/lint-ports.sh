@@ -26,7 +26,7 @@ for dir in services/*/; do
   [ "${svc#_}" = "$svc" ] || continue # skip _template
 
   # A worker-only service binds nothing, and an entry for it would put a meaningless number in the registry.
-  # `cmd/server` is the test that lint:service-contract uses, so the two gates always agree.
+  # `cmd/server` is the test that lint-service-contract uses, so the two gates always agree.
   if [ ! -d "${dir}cmd/server" ]; then
     if service_port "$svc" >/dev/null 2>&1; then
       warn "${svc} has no cmd/server but registers a local port. It never binds one"
@@ -41,12 +41,12 @@ for dir in services/*/; do
     continue
   fi
 
-  declared="$(grep -oP '^PORT\s*=\s*"\K[0-9]+' "${dir}.mise.toml" || true)"
+  declared="$(grep -oP '^export PORT := env\("PORT", "\K[0-9]+' "${dir}justfile" || true)"
   if [ -z "$declared" ]; then
-    warn "${svc}/.mise.toml sets no PORT. It would bind :8080 and ignore the registry"
+    warn "${svc}/justfile exports no PORT. It would bind :8080 and ignore the registry"
     rc=1
   elif [ "$declared" != "$registered" ]; then
-    warn "${svc}: registry says ${registered}, ${svc}/.mise.toml binds ${declared}"
+    warn "${svc}: registry says ${registered}, ${svc}/justfile binds ${declared}"
     rc=1
   fi
 done

@@ -1,9 +1,9 @@
 // Error fingerprinting on the browser side, per ADR-0503.
 
-const ALNUM = /^[0-9a-zA-Z]$/;
-const NAMED_FRAME = /^at\s+([^\s(]+)\s*\(/;
-const AT_PREFIX = /^at\s+/;
-const LOCATION_SUFFIX = /:\d+:\d+\)?$/;
+const ALNUM = /^[0-9a-zA-Z]$/u;
+const NAMED_FRAME = /^at\s+(?<name>[^\s(]+)\s*\(/u;
+const AT_PREFIX = /^at\s+/u;
+const LOCATION_SUFFIX = /:\d+:\d+\)?$/u;
 
 /**
  * Removes the parts of a message that vary per occurrence. It has two rules, the same as the Go side. A run of
@@ -16,9 +16,9 @@ export function normalise(message: string): string {
   while (i < message.length) {
     const char = message[i] as string;
     if (ALNUM.test(char)) {
-      i = consumeRun(message, i, (piece) => {
-        out += piece;
-      });
+      const [next, piece] = consumeRun(message, i);
+      out += piece;
+      i = next;
     } else {
       out += char;
       i += 1;
@@ -28,10 +28,9 @@ export function normalise(message: string): string {
 }
 
 /**
- * Consumes one alphanumeric run starting at `start`, appends its replacement, and
- * returns the index after it.
+ * Consumes one alphanumeric run starting at `start`, and returns the index after it and the replacement of the run.
  */
-function consumeRun(message: string, start: number, emit: (piece: string) => void): number {
+function consumeRun(message: string, start: number): [number, string] {
   let j = start;
   let digits = 0;
   let letters = 0;
@@ -46,13 +45,12 @@ function consumeRun(message: string, start: number, emit: (piece: string) => voi
   }
   const run = message.slice(start, j);
   if (letters === 0) {
-    emit("<n>");
-  } else if (digits > 0 && run.length >= 4) {
-    emit("<x>");
-  } else {
-    emit(run);
+    return [j, "<n>"];
   }
-  return j;
+  if (digits > 0 && run.length >= 4) {
+    return [j, "<x>"];
+  }
+  return [j, run];
 }
 
 /**

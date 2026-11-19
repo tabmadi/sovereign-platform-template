@@ -1,11 +1,11 @@
 # The image-signing key pair
 
-This key pair signs images, per ADR-0104.
+This key pair signs images, per ADR-0113.
 
 `cosign.pub` is committed and **empty in the template**. `signing-key.enc.yaml` does not exist yet. One command creates both, once, at bootstrap:
 
 ```sh
-mise run secrets:cosign
+just secrets-cosign
 ```
 
 The command refuses while `.sops.yaml` still has placeholder recipients. A signing key encrypted to a placeholder is a key that nobody can decrypt.

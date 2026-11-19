@@ -29,7 +29,7 @@ type row struct {
 }
 
 var (
-	// [0100](adr/0100-language-and-runtime.md): the register links relative to docs/.
+	// [0110](adr/0110-language-and-runtime.md): the register links relative to docs/.
 	adrLinkRe = regexp.MustCompile(`\[(\d{4})\]\(adr/(\d{4}-[a-z0-9-]+)\.md\)`)
 	// Cells hold markdown, and the comparison uses the visible text.
 	markupRe = regexp.MustCompile("[`*_]|\\[([^\\]]*)\\]\\([^)]*\\)")

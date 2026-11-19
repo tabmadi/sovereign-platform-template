@@ -33,7 +33,7 @@ spec:
       containers:
         - name: prism
           # A vendored container: no package.json, no lockfile, and no node_modules
-          # anywhere in the repo, per ADR-0600. lint:node-scope enforces this.
+          # anywhere in the repo, per ADR-0600. lint-node-scope enforces this.
           image: stoplight/prism:5.15.10
           # `-h 0.0.0.0`, because the container binds to loopback by default, and a Service cannot reach loopback.
           args:
@@ -64,7 +64,7 @@ spec:
             capabilities: { drop: ["ALL"] }
           volumeMounts:
             - { name: spec, mountPath: /spec, readOnly: true }
-            - { name: tmp,  mountPath: /tmp }
+            - { name: tmp, mountPath: /tmp }
       volumes:
         - name: spec
           configMap: { name: mock-spec }

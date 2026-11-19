@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Renovate over this repository, per ADR-0106. The scheduled renovate workflow calls it.
+# Renovate over this repository, per ADR-0117. The scheduled renovate workflow calls it.
 # The schedule in .github/renovate.json decides when a branch opens. A run outside it only refreshes the dashboard issue.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
@@ -9,8 +9,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 platform=forgejo
 [[ "$GITHUB_API_URL" == "https://api.github.com" ]] && platform=github
 export RENOVATE_PLATFORM="$platform" RENOVATE_ENDPOINT="$GITHUB_API_URL" RENOVATE_REPOSITORIES="$GITHUB_REPOSITORY"
-# Lockfile updates run the tools that mise pinned, not a copy that Renovate downloads.
-export RENOVATE_BINARY_SOURCE=global
+# Lockfile updates run the tools of the dev shell, not a copy that Renovate downloads.
+export RENOVATE_CONFIG_FILE=.config/renovate.json
 if [[ -n "${DOCKERHUB_USERNAME:-}" && -n "${DOCKERHUB_TOKEN:-}" ]]; then
   RENOVATE_HOST_RULES="$(jq -nc --arg u "$DOCKERHUB_USERNAME" --arg p "$DOCKERHUB_TOKEN" \
     '[{hostType: "docker", matchHost: "docker.io", username: $u, password: $p}]')"

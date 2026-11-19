@@ -8,7 +8,7 @@ availability:
   # Good event: a response that is not 5xx. A 4xx is the caller's fault and does
   # not use the budget.
   objective: null # for example 0.995. Without a value, this service has no budget
-  # A published objective turns the burn-rate rules on. They read a series, not this file, per docs/reference/slo-recording-rules.md.
+# A published objective turns the burn-rate rules on. They read a series, not this file, per docs/reference/slo-recording-rules.md.
 
 latency:
   # Good event: a request that completes under the threshold. The template CAN ship
@@ -16,7 +16,7 @@ latency:
   # promise to anyone.
   threshold: 0.5 # seconds
   objective: null # for example 0.99 of requests under the threshold
-  # Latency needs two recording rules per service, and availability needs one. PromQL cannot take an `le` label selector from a series, per docs/reference/slo-recording-rules.md.
+# Latency needs two recording rules per service, and availability needs one. PromQL cannot take an `le` label selector from a series, per docs/reference/slo-recording-rules.md.
 
 # Both SLIs leave out anything with no live caller.
 exclude:

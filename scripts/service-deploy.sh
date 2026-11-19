@@ -9,7 +9,7 @@ source "$LIB/cluster.sh"
 CLUSTER="${CLUSTER:-platform}"
 NS="platform"
 
-SVC="${1:?usage: mise run cluster:add -- <svc>}"
+SVC="${1:?usage: just cluster-add <svc>}"
 VALUES="infra/gitops/services/local/values/${SVC}.yaml"
 [ -f "$VALUES" ] || fail "missing local values: ${VALUES}"
 
@@ -30,30 +30,29 @@ k() { kubectl --context "$(cluster_ctx)" -n "$NS" "$@"; }
 h() { helm --kube-context "$(cluster_ctx)" "$@"; }
 
 # Start what this service declares it needs, per ADR-0205 and ADR-0600. Without it, a deploy onto a bare base CrashLoops with no clear error.
-# Read from the service's config, because `mise tasks deps` resolves only inside the service directory.
-# Comment lines are excluded and the name must start with a letter. Otherwise a `dep:*` in prose matches with an empty name.
-deps="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'dep:[a-z][a-z-]*' | sort -u || true)"
+# Read from the root recipes that the service justfile calls. Comment lines are excluded, so a `dep-*` in prose matches nothing.
+deps="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/justfile" | grep -oE '\bdep-[a-z][a-z-]*' | sort -u || true)"
 # db-secrets is needed only in the cluster: a service that runs natively reads .env instead. So only this path adds it.
 # An app has no database, and the chart mounts no <name>-db secret for it.
 if [ "$KIND" = service ]; then
-  deps="${deps} dep:db-secrets"
+  deps="${deps} dep-db-secrets"
 fi
-# Only on the inner loop: a `dep:*` is a stand-in, per ADR-0600, and the full tier already runs the real component.
+# Only on the inner loop: a `dep-*` is a stand-in, per ADR-0600, and the full tier already runs the real component.
 # A stand-in there adds a second database next to CNPG's, for a service whose values point at the real one.
 if [ "$(cluster_tier)" = "full" ]; then
   step "full tier: dependencies come from the platform charts, not stand-ins"
   deps=""
 fi
 for dep in $deps; do
-  bash scripts/dep-apply.sh "${dep#dep:}"
+  bash scripts/dep-apply.sh "${dep#dep-}"
 done
 
 # In the cluster, siblings resolve by DNS, so they must be present but not port-forwarded. So this calls deploy again, not svc-apply.sh.
 # DEPLOYING_SERVICES holds the visited set: nothing enforces an acyclic call graph, and a cycle would start processes without end.
-svcs="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/.mise.toml" | grep -o 'svc:[a-z][a-z-]*' | sort -u || true)"
+svcs="$(grep -v '^[[:space:]]*#' "${SVC_DIR}/justfile" | grep -oE '\bsvc-[a-z][a-z-]*' | sort -u || true)"
 export DEPLOYING_SERVICES="${DEPLOYING_SERVICES:-} ${SVC}"
 for s in $svcs; do
-  name="${s#svc:}"
+  name="${s#svc-}"
   case " ${DEPLOYING_SERVICES} " in
   *" ${name} "*)
     step "${name} already in this deploy chain. Skipping, to stop a cycle"
@@ -75,12 +74,12 @@ publish_image() {
 
 TAG="local-$(date +%s)" # unique tag forces a re-pull of the imported image
 # The name is never resolved over the network, and it must still be allow-listed.
-# Kyverno matches the reference against `<repo>:*` patterns from image-allowlist.yaml, per ADR-0104.
+# Kyverno matches the reference against `<repo>:*` patterns from image-allowlist.yaml, per ADR-0113.
 REPO="${REGISTRY}:5000/${IMAGE}"
 WORKER_REPO="${REGISTRY}:5000/${SVC}-worker"
 SET=(--set "image.repository=${REPO}" --set "image.tag=${TAG}")
 
-# The build identity in the image, per ADR-0103: the working-tree SHA, with -dirty for uncommitted edits, which is normal on this path.
+# The build identity in the image, per ADR-0112: the working-tree SHA, with -dirty for uncommitted edits, which is normal on this path.
 # So /version and the X-App-Version header report exactly what you deployed.
 REV="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 git diff --quiet 2>/dev/null || REV="${REV}-dirty"

@@ -3,17 +3,17 @@
 name: orgs
 image:
   repository: registry.localhost:5000/orgs-server
-  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
-  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
+  tag: local # the local registry stands in for CI. Prod uses a git SHA, per ADR-0111
+  pullPolicy: Always # pull the rebuilt :local again on each cluster-up full run
 worker:
-  enabled: true            # RegisterUser dual-write, per ADR-0302
+  enabled: true # RegisterUser dual-write, per ADR-0302
   image:
     repository: registry.localhost:5000/orgs-worker
     tag: local
-server:  { replicas: 1 }
+server: { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [orgs] }
 # Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
-otel:    { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
+otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
 # Kratos calls `/identity-created` east-west on the server port, per ADR-0304. The first-operator Job makes the same call.
 # The edge rule `allowFromGateway` covers only Traefik to `/api/orgs`, so allow both.
 # The Lowdefy admin console in `apps/admin` also calls orgs from its server, per ADR-0401.

@@ -22,12 +22,12 @@ RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile
 # The install and the build share one stage. A second stage would copy every file of node_modules, and that copy cost more than the install.
 # The build context excludes node_modules, per Dockerfile.dockerignore, so a developer's host install cannot hide a missing manifest above.
 COPY . .
-# Build identity in the bundle, per ADR-0103: next.config inlines NEXT_PUBLIC_SERVICE_VERSION from SERVICE_VERSION at build.
+# Build identity in the bundle, per ADR-0112: next.config inlines NEXT_PUBLIC_SERVICE_VERSION from SERVICE_VERSION at build.
 # So the shipped JS and the X-App-Version response header both report the git SHA or release.
 ARG SERVICE_VERSION=dev
 ENV SERVICE_VERSION=$SERVICE_VERSION
 # Optional, and EMPTY by default on purpose. `output: "standalone"` freezes next.config into server.js, so this arg bakes the server-action CSRF allowlist and one env's host into the image.
-# That breaks the build-once, promote-by-digest flow, per ADR-0103. If it is unset, the allowlist is empty, and the check uses Origin == Host or X-Forwarded-Host.
+# That breaks the build-once, promote-by-digest flow, per ADR-0112. If it is unset, the allowlist is empty, and the check uses Origin == Host or X-Forwarded-Host.
 # ADR-0306's same-origin layout already meets that check. Pass it only for a build that you pin to one env on purpose.
 
 # The name must be EDGE_PUBLIC_ORIGIN, which next.config.mjs reads. If a build arg does not match that variable, nothing reports it, and the allowlist stays empty.
@@ -48,7 +48,7 @@ COPY --from=build /app/apps/frontend/.next/standalone ./
 COPY --from=build /app/apps/frontend/.next/static    ./apps/frontend/.next/static
 COPY --from=build /app/apps/frontend/public          ./apps/frontend/public
 # The image declares its own non-root user, and does not leave it to the chart. The service chart sets runAsUser 65532, so runtime does not change.
-# But an image that depends only on its manifest is one `docker run` away from root, and the scanner reports it, per ci:scan misconfig DS-0002.
+# But an image that depends only on its manifest is one `docker run` away from root, and the scanner reports it, per ci-scan misconfig DS-0002.
 # `bun` is the user of the oven/bun image, uid 1000. The server serves prebuilt output and writes nothing under /app.
 USER bun
 EXPOSE 3000

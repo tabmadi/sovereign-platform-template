@@ -1,6 +1,13 @@
 openapi: 3.1.0
-info: { title: orders, version: 0.1.0, description: Order checkout and saga orchestration service., x-audience: public }
-servers: [{ url: /api }]   # flat resource namespace, per ADR-0306. Paths are globally unique
+info: {
+  title: orders,
+  version: 0.1.0,
+  description: Order checkout and saga orchestration service.,
+  x-audience: public,
+}
+servers: [
+  { url: /api },
+] # flat resource namespace, per ADR-0306. Paths are globally unique
 # `x-admin: crud` marks the resource group for the admin generator in tools/admin-gen, per
 # ADR-0401. The saga creates orders, and they are immutable. So the generator makes only
 # the list and detail read pages and the `cancel` action below, with no edit or delete.
@@ -97,7 +104,13 @@ paths:
         Idempotency-Key header: a retry of the same request returns the order that the
         first one created and does not place a second order.
       parameters:
-        - { name: Idempotency-Key, in: header, required: true, description: Client-generated key that makes the checkout idempotent., schema: { type: string, minLength: 1 } }
+        - {
+            name: Idempotency-Key,
+            in: header,
+            required: true,
+            description: Client-generated key that makes the checkout idempotent.,
+            schema: { type: string, minLength: 1 },
+          }
       requestBody:
         required: true
         description: The checkout to start.
@@ -116,9 +129,24 @@ paths:
       operationId: getOrder
       description: Fetch an order by id.
       tags: [orders]
-      parameters: [{ name: id, in: path, required: true, description: Order id., schema: { $ref: "#/components/schemas/OrderId" } }]
+      parameters: [
+        {
+          name: id,
+          in: path,
+          required: true,
+          description: Order id.,
+          schema: { $ref: "#/components/schemas/OrderId" },
+        },
+      ]
       responses:
-        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Order" } } } }
+        "200": {
+          description: OK,
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Order" },
+            },
+          },
+        }
         default: { $ref: "#/components/responses/Error" }
   /orders/{id}/cancel:
     post:
@@ -129,7 +157,15 @@ paths:
       x-audience: internal
       description: Cancel an order. Starts the CancelOrder workflow, per ADR-0302.
       tags: [orders]
-      parameters: [{ name: id, in: path, required: true, description: Id of the order to cancel., schema: { $ref: "#/components/schemas/OrderId" } }]
+      parameters: [
+        {
+          name: id,
+          in: path,
+          required: true,
+          description: Id of the order to cancel.,
+          schema: { $ref: "#/components/schemas/OrderId" },
+        },
+      ]
       responses:
         "202":
           description: Cancellation accepted
@@ -147,12 +183,28 @@ paths:
       tags: [cluster]
       description: One page of the identities that own orders, in identity order.
       parameters:
-        - { name: after, in: query, required: false, description: The last identity of the previous page., schema: { type: string } }
-        - { name: limit, in: query, required: false, description: The page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+        - {
+            name: after,
+            in: query,
+            required: false,
+            description: The last identity of the previous page.,
+            schema: { type: string },
+          }
+        - {
+            name: limit,
+            in: query,
+            required: false,
+            description: The page size.,
+            schema: { type: integer, minimum: 1, maximum: 1000, default: 500 },
+          }
       responses:
         "200":
           description: The page.
-          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectPage" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/SubjectPage" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
   /subject-data/orders/{identity_id}:
     get:
@@ -163,11 +215,21 @@ paths:
       tags: [cluster]
       description: Every order that the subject placed.
       parameters:
-        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+        - {
+            name: identity_id,
+            in: path,
+            required: true,
+            description: The Kratos identity.,
+            schema: { type: string, minLength: 1 },
+          }
       responses:
         "200":
           description: The subject's orders.
-          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectOrders" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/SubjectOrders" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
   /subject-data/orders/{identity_id}/erase:
     post:
@@ -179,15 +241,29 @@ paths:
         Anonymise the owner of the subject's orders. The orders stay, because they
         carry a bookkeeping obligation. Safe to run again.
       parameters:
-        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+        - {
+            name: identity_id,
+            in: path,
+            required: true,
+            description: The Kratos identity.,
+            schema: { type: string, minLength: 1 },
+          }
       requestBody:
         required: true
         description: The replacement for the identity.
-        content: { application/json: { schema: { $ref: "#/components/schemas/ErasureRequest" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/ErasureRequest" },
+          },
+        }
       responses:
         "200":
           description: The rows that changed.
-          content: { application/json: { schema: { $ref: "#/components/schemas/ErasureResult" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/ErasureResult" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
@@ -196,7 +272,7 @@ components:
       description: An error, as RFC 9457 problem details.
       content:
         application/problem+json:
-          schema: {$ref: "#/components/schemas/Problem"}
+          schema: { $ref: "#/components/schemas/Problem" }
     # <<< shared-components
   schemas:
     # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
@@ -296,7 +372,7 @@ components:
         An order identifier: `order_` and the UUIDv7 in 26 characters of Crockford
         base32. The first character is at most 7, because 26 characters hold 130 bits and
         a UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.
-      pattern: '^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      pattern: "^order_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"
       example: order_01kztnj6c8e0jt7vzw0cn1wxvd
     # catalog mints it and this service carries it. So the prefix names the owning
     # service's resource, not a resource of this service.
@@ -305,29 +381,38 @@ components:
       description: |
         A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
         base32. It is opaque to a consumer: nothing parses, orders, or builds one.
-      pattern: '^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      pattern: "^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"
       example: product_01kztmx9e0fq1r13w5d1aerqw6
     WorkflowHandle:
       type: object
       description: Handle to an async Temporal workflow run.
       required: [id, run_id, status]
       properties:
-        id:     { type: string }
+        id: { type: string }
         run_id: { type: string }
         status: { type: string, enum: [running, completed, failed, cancelled] }
         # uri-reference, not uri. The value is a path on this origin, and `format: uri` means an absolute URI. Then the committed example would fail its own schema.
-        result_url: { type: string, format: uri-reference, description: "GET it to fetch the terminal status and result" }
+        result_url: {
+          type: string,
+          format: uri-reference,
+          description: "GET it to fetch the terminal status and result",
+        }
       # `running` is the accurate example, because the real 202 returns it. Against the
       # API mock, the poll never moves on, per ADR-0600. Tests of workflow progress use
       # real services, so build the pending state and stop there.
-      example: { id: checkout-order_01kztnj6c8e0jt7vzw0cn1wxvd, run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e001, status: running, result_url: /api/orders/order_01kztnj6c8e0jt7vzw0cn1wxvd }
+      example: {
+        id: checkout-order_01kztnj6c8e0jt7vzw0cn1wxvd,
+        run_id: 019a3f8c-6d21-7c4b-8e55-0f27f7f0e001,
+        status: running,
+        result_url: /api/orders/order_01kztnj6c8e0jt7vzw0cn1wxvd,
+      }
     CheckoutInput:
       type: object
       description: Request body to start a checkout.
       required: [product_id, quantity]
       properties:
         product_id: { $ref: "#/components/schemas/ProductId" }
-        quantity:   { type: integer, minimum: 1 }
+        quantity: { type: integer, minimum: 1 }
     SubjectPage:
       type: object
       description: One page of subjects. `next` is absent on the last page.
@@ -335,7 +420,10 @@ components:
       properties:
         subjects: { type: array, items: { type: string } }
         next: { type: string, description: The cursor for the next page. }
-      example: { subjects: [0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40], next: 0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40 }
+      example: {
+        subjects: [0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40],
+        next: 0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40,
+      }
     ErasureRequest:
       type: object
       description: The value that replaces the identity in every row. The workflow chooses one per erasure.
@@ -357,16 +445,28 @@ components:
         orders: { type: array, items: { $ref: "#/components/schemas/Order" } }
       example:
         orders:
-          - { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total: {amount: "2598.00", currency: EUR}, status: confirmed }
+          - {
+              id: order_01kztnj6c8e0jt7vzw0cn1wxvd,
+              product_id: product_01kztmx9e0fq1r13w5d1aerqw6,
+              quantity: 2,
+              total: { amount: "2598.00", currency: EUR },
+              status: confirmed,
+            }
     Order:
       type: object
       description: A customer order.
       required: [id, product_id, quantity, total, status]
       properties:
-        id:          { $ref: "#/components/schemas/OrderId" }
-        product_id:  { $ref: "#/components/schemas/ProductId" }
-        quantity:    { type: integer }
+        id: { $ref: "#/components/schemas/OrderId" }
+        product_id: { $ref: "#/components/schemas/ProductId" }
+        quantity: { type: integer }
         # The shared money type, per ADR-0300. It is zero until the saga prices the order.
-        total:       { $ref: "#/components/schemas/Money" }
-        status:      { type: string, enum: [pending, confirmed, failed, cancelled] }
-      example: { id: order_01kztnj6c8e0jt7vzw0cn1wxvd, product_id: product_01kztmx9e0fq1r13w5d1aerqw6, quantity: 2, total: {amount: "2598.00", currency: EUR}, status: confirmed }
+        total: { $ref: "#/components/schemas/Money" }
+        status: { type: string, enum: [pending, confirmed, failed, cancelled] }
+      example: {
+        id: order_01kztnj6c8e0jt7vzw0cn1wxvd,
+        product_id: product_01kztmx9e0fq1r13w5d1aerqw6,
+        quantity: 2,
+        total: { amount: "2598.00", currency: EUR },
+        status: confirmed,
+      }

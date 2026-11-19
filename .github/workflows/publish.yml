@@ -1,4 +1,4 @@
-# Build and push container images on every merge to master, then pin dev and staging to them, per ADR-0101 and ADR-0201.
+# Build and push container images on every merge to master, then pin dev and staging to them, per ADR-0111 and ADR-0201.
 # Images are tagged <service>:<git-sha>. promote-on-release.yml pins prod.
 name: publish
 
@@ -10,13 +10,11 @@ permissions:
   contents: read
   packages: write
 
-# ghcr.io and the forge's own path are the defaults, because a generated project has a GitHub origin and no cluster yet, per ADR-0102.
+# ghcr.io and the forge's own path are the defaults, because a generated project has a GitHub origin and no cluster yet, per ADR-0116.
 # A deployment with its own registry sets these as forge variables.
 env:
   IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
   IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || github.repository }}
-  # renovate runs only in renovate.yml. Its install is the largest in the toolchain and warns on every runner.
-  MISE_DISABLE_TOOLS: npm:renovate
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
   GIT_CONFIG_COUNT: "1"
   GIT_CONFIG_KEY_0: init.defaultBranch
@@ -37,7 +35,7 @@ jobs:
       - id: affected
         env:
           BEFORE: ${{ github.event.before }}
-        run: mise run ci:affected-matrix >> "$GITHUB_OUTPUT"
+        run: nix develop --command just ci-affected-matrix >> "$GITHUB_OUTPUT"
 
   images:
     needs: affected
@@ -46,7 +44,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
-      # The toolchain for the signing step. cosign, syft, sops, and yq are pinned in .mise.toml, per ADR-0101.
+      # The toolchain for the signing step. cosign, syft, sops, and yq are pinned in flake.nix, per ADR-0100.
       # So CI signs with the same binaries that a developer verifies with.
       - uses: ./.github/actions/setup
       # buildx in a run step finds the hosted cache service through these variables, and only an action can read them.
@@ -56,7 +54,7 @@ jobs:
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           # The forge's own token works for the forge's own registry, which is the default.
-          # A separate registry component such as zot has its own push identity, per ADR-0105. These two secrets hold it.
+          # A separate registry component such as zot has its own push identity, per ADR-0114. These two secrets hold it.
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           password: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - name: Build, push, and sign the service images
@@ -65,18 +63,18 @@ jobs:
           ITEMS: ${{ needs.affected.outputs.images }}
           IMAGE_PREFIX: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
           RUNNER_ENVIRONMENT: ${{ runner.environment }}
-          # The commit SHA that the pod reports through /version and the X-App-Version header, per ADR-0103.
+          # The commit SHA that the pod reports through /version and the X-App-Version header, per ADR-0112.
           GIT_SHA: ${{ github.sha }}
           BUILD_TIME: ${{ github.event.head_commit.timestamp }}
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
-          # ci:sign records the supply chain, where the signature and both attestations exist.
+          # ci-sign records the supply chain, where the signature and both attestations exist.
           # Unset until a project has a Loki to push to. The build is signed in both cases.
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
-        run: mise run ci:build-images -- services
+        run: nix develop --command just ci-build-images services
 
-  # Apps come from the same ci:affected manifest. Each app has its own Dockerfile and build context, per ADR-0103.
+  # Apps come from the same ci-affected manifest. Each app has its own Dockerfile and build context, per ADR-0112.
   apps:
     needs: affected
     if: ${{ needs.affected.outputs.apps != '[]' }}
@@ -101,9 +99,9 @@ jobs:
           LOKI_PUSH_URL: ${{ vars.LOKI_PUSH_URL }}
           LOKI_PUSH_AUTH: ${{ secrets.LOKI_PUSH_AUTH }}
           LOKI_PUSH_TENANT: ${{ vars.LOKI_PUSH_TENANT }}
-        run: mise run ci:build-images -- apps
+        run: nix develop --command just ci-build-images apps
 
-  # One job after every image, not a workflow that this one triggers. The forge of ADR-0102 does not raise a completed-run event.
+  # One job after every image, not a workflow that this one triggers. The forge of ADR-0116 does not raise a completed-run event.
   promote:
     needs: [affected, images, apps]
     # A skipped matrix is empty. A failed cell means a values file would name an image that the registry does not hold.
@@ -115,7 +113,11 @@ jobs:
     steps:
       # The machine user that branch protection lets push, in infra/forge/branch-protection.yaml.
       - uses: actions/checkout@v7
-        with: { ref: "${{ github.ref_name }}", fetch-depth: 0, token: "${{ secrets.PROMOTE_TOKEN || secrets.GITHUB_TOKEN }}" }
+        with: {
+          ref: "${{ github.ref_name }}",
+          fetch-depth: 0,
+          token: "${{ secrets.PROMOTE_TOKEN || secrets.GITHUB_TOKEN }}",
+        }
       - uses: ./.github/actions/setup
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
@@ -128,20 +130,20 @@ jobs:
           SHA: ${{ github.sha }}
           SERVICES: ${{ needs.affected.outputs.services }}
           APPS: ${{ needs.affected.outputs.apps }}
-        run: mise run promote:dev-staging
+        run: nix develop --command just promote-dev-staging
       - name: Push the promotion
         env:
           SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY_CI }}
-        run: mise run ci:push-promotion
+        run: nix develop --command just ci-push-promotion
       # After the push, because the values just committed decide what is kept.
       - name: Prune the registry
         env:
           IMAGE_PREFIX: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
           REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME || github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
-        run: mise run ci:prune-registry
+        run: nix develop --command just ci-prune-registry
 
   # The master run of lighthouse.yml, after the promotion. It gates nothing on master, so a change reaches dev first.
   # The image build finds the apps job's build in the cache, because both use the same builder and arguments.
@@ -163,15 +165,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Start the Lighthouse stack
-        run: mise run lighthouse:up
+        run: nix develop --command just lighthouse-up
         env:
           GIT_SHA: ${{ github.sha }}
       - name: Install the Node island
-        run: mise run e2e:install
+        run: nix develop --command just e2e-install
       # Advisory, as in lighthouse.yml.
       - name: Web vitals and bundle budgets
         continue-on-error: true
-        run: mise run lighthouse
+        run: nix develop --command just lighthouse
       - name: Tear down
         if: always()
-        run: mise run lighthouse:down
+        run: nix develop --command just lighthouse-down

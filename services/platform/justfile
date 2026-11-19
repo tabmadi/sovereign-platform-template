@@ -1,0 +1,30 @@
+# The recipes of this service, per ADR-0111. Run them from this folder, inside the dev shell: `just server`.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+set dotenv-load
+
+# Create .env from .env.example on a fresh clone
+[private]
+env:
+    bash ../../scripts/env-ensure.sh
+
+# Run the Temporal worker with the dependency components it needs in the cluster
+worker: env in-shell
+    just --justfile ../../justfile dep-temporal
+    go run ./cmd/worker
+
+# Run the tests of this service
+test: in-shell
+    go test ./...
+
+# Lint this service with golangci-lint
+lint: in-shell
+    golangci-lint run --config ../../.config/golangci.yml ./...
+
+# Compile this service
+build: in-shell
+    go build ./...
+
+[private]
+in-shell:
+    @test -n "${IN_NIX_SHELL:-}" || { echo "Enter the dev shell first: run nix develop, or allow direnv." >&2; exit 1; }

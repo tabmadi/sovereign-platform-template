@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Helm dependency resolution must not depend on the caller's machine, per ADR-0101.
+# Helm dependency resolution must not depend on the caller's machine, per ADR-0111.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

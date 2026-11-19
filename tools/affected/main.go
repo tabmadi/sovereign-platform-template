@@ -1,4 +1,4 @@
-// Command affected emits the JSON manifest of what the current diff touches, for CI, per ADR-0101.
+// Command affected emits the JSON manifest of what the current diff touches, for CI, per ADR-0111.
 package main
 
 import (
@@ -131,7 +131,7 @@ func runtimeFiles(files []string) []string {
 
 // isGlobalTrigger reports whether a changed path forces a full-repo build.
 func isGlobalTrigger(f string) bool {
-	exact := []string{"go.mod", "go.sum", "go.work", "go.work.sum", "package.json", "bun.lock", ".mise.toml"}
+	exact := []string{"go.mod", "go.sum", "go.work", "go.work.sum", "package.json", "bun.lock", "bun.nix", "flake.nix", "flake.lock"}
 	if slices.Contains(exact, f) {
 		return true
 	}

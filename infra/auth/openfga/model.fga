@@ -1,6 +1,6 @@
 # OpenFGA authorization model for the platform, per ADR-0304.
-# This DSL is the ONE source of truth. `mise run gen:authz-model` generates
-# `model.json` from it, and CI `lint:authz` checks that they match.
+# This DSL is the ONE source of truth. `just gen-authz-model` generates
+# `model.json` from it, and CI `lint-authz` checks that they match.
 # `fga model test` runs the assertions in `fga.yaml` against this model.
 
 model

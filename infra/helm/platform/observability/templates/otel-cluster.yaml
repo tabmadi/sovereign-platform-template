@@ -125,7 +125,7 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: metrics
-            # Kyverno, per ADR-0104, in its OWN namespace. It excludes its own namespace from every policy, so it cannot
+            # Kyverno, per ADR-0113, in its OWN namespace. It excludes its own namespace from every policy, so it cannot
             # share `platform`.
             - job_name: kyverno
               scrape_interval: 30s

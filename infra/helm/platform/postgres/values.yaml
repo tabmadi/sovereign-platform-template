@@ -17,11 +17,11 @@ cluster:
   imageName: ghcr.io/cloudnative-pg/postgresql:17.2
   resources:
     requests: { cpu: "200m", memory: "512Mi" }
-    limits:   { memory: "1Gi" }
+    limits: { memory: "1Gi" }
   priorityClassName: platform-critical
   storage:
     size: 20Gi
-    storageClass: ""    # the cluster's default StorageClass, per ADR-0207
+    storageClass: "" # the cluster's default StorageClass, per ADR-0207
   # CNPG provisions one app database, `database` and `owner`, per Cluster. The platform needs one per service, plus
   # kratos, temporal, and openfga. postInitApplicationSQL creates the rest at bootstrap, and templates/databases.yaml
   # keeps each one present on a running cluster, all owned by the same app role.
@@ -61,20 +61,20 @@ cluster:
       passwordSecretName: postgres-readonly
   pooler:
     instances: 2
-    poolMode: transaction      # per ADR-0300, transaction mode is the default
+    poolMode: transaction # per ADR-0300, transaction mode is the default
     maxClientConn: 1000
     defaultPoolSize: 25
     # pgbouncer is single-threaded and cheap. Its cost is connections, not compute.
     resources:
       requests: { cpu: "50m", memory: "96Mi" }
-      limits:   { memory: "256Mi" }
+      limits: { memory: "256Mi" }
   backup:
     enabled: true
     schedule: "0 0 3 * * *"
-    serverName: ""             # the archive's name in the bucket. Empty means the cluster's name
+    serverName: "" # the archive's name in the bucket. Empty means the cluster's name
     s3:
       destinationPath: "s3://platform-backups/postgres"
-      endpointURL: ""          # set per environment
-      retentionPolicy: "30d"   # 7d in non-prod. See the per-environment values
+      endpointURL: "" # set per environment
+      retentionPolicy: "30d" # 7d in non-prod. See the per-environment values
   recovery:
-    fromServer: ""             # the serverName of an archive to bootstrap from. Empty creates an empty cluster
+    fromServer: "" # the serverName of an archive to bootstrap from. Empty creates an empty cluster

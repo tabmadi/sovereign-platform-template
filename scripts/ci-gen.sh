@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Drift check: regenerate and reformat everything, then fail if anything changed, per ADR-0101 and ADR-0303.
+# Drift check: regenerate and reformat everything, then fail if anything changed, per ADR-0111 and ADR-0303.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 # shellcheck source=lib/repo-files.sh
@@ -15,8 +15,8 @@ if [[ -z "$before" ]]; then
   fail "no files found through $(repo_source). The enumeration is broken, and the tree is not empty"
 fi
 
-mise run gen
-mise run format
+just gen
+just format
 
 after="$(snapshot)"
 if [[ "$after" == "$before" ]]; then
@@ -24,7 +24,7 @@ if [[ "$after" == "$before" ]]; then
   exit 0
 fi
 
-echo "::error::Generated or formatted artifacts are out of date. Run 'mise run ci:gen' and commit the result."
+echo "::error::Generated or formatted artifacts are out of date. Run 'just ci-gen' and commit the result."
 # Only the changed paths. A full diff hides the drift among every other uncommitted change.
 # `comm` compares with its own collation and needs inputs sorted that way, so LC_ALL=C applies to both.
 LC_ALL=C comm -3 <(printf '%s\n' "$before") <(printf '%s\n' "$after") |

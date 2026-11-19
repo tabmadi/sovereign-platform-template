@@ -1,6 +1,13 @@
 openapi: 3.1.0
-info: { title: analytics, version: 0.1.0, description: Marketing event store and consent record., x-audience: cluster }
-servers: [{ url: /api }]   # flat resource namespace, per ADR-0306. Paths are globally unique
+info: {
+  title: analytics,
+  version: 0.1.0,
+  description: Marketing event store and consent record.,
+  x-audience: cluster,
+}
+servers: [
+  { url: /api },
+] # flat resource namespace, per ADR-0306. Paths are globally unique
 # `x-audience: cluster` means east-west only, with no /api edge route, per ADR-0303. A public write path to the
 # event store would let anyone fill the table without authentication.
 # No `x-admin` marker, because ADR-0700 puts the panel on the product origin, not in the operator console.
@@ -15,7 +22,11 @@ paths:
       requestBody:
         required: true
         description: The events to record.
-        content: { application/json: { schema: { $ref: "#/components/schemas/EventBatch" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/EventBatch" },
+          },
+        }
       responses:
         "202":
           description: |
@@ -23,7 +34,11 @@ paths:
             was sent. An event whose session has no recorded consent is dropped here.
             This is the second enforcement point of ADR-0700, because the first runs on
             a client that this platform does not control.
-          content: { application/json: { schema: { $ref: "#/components/schemas/RecordResult" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/RecordResult" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
   /analytics/summary:
     get:
@@ -70,11 +85,19 @@ paths:
       requestBody:
         required: true
         description: The window to recompute.
-        content: { application/json: { schema: { $ref: "#/components/schemas/RollupWindow" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/RollupWindow" },
+          },
+        }
       responses:
         "200":
           description: The buckets that were written.
-          content: { application/json: { schema: { $ref: "#/components/schemas/RollupResult" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/RollupResult" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
     get:
       operationId: getFunnelRollup
@@ -82,9 +105,27 @@ paths:
       description: Read a funnel's computed rollup, in bucket and then step order.
       tags: [analytics]
       parameters:
-        - { name: funnel, in: path, required: true, description: The funnel's id., schema: { type: string, minLength: 1 } }
-        - { name: from, in: query, required: true, description: The first bucket to return., schema: { type: string, format: date-time } }
-        - { name: to, in: query, required: true, description: Exclusive end of the range., schema: { type: string, format: date-time } }
+        - {
+            name: funnel,
+            in: path,
+            required: true,
+            description: The funnel's id.,
+            schema: { type: string, minLength: 1 },
+          }
+        - {
+            name: from,
+            in: query,
+            required: true,
+            description: The first bucket to return.,
+            schema: { type: string, format: date-time },
+          }
+        - {
+            name: to,
+            in: query,
+            required: true,
+            description: Exclusive end of the range.,
+            schema: { type: string, format: date-time },
+          }
       responses:
         "200":
           description: One row per bucket and step.
@@ -94,8 +135,22 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/FunnelRollupRow" }
                 example:
-                  - { funnel: checkout, step_index: 0, step_name: product_viewed, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 412 }
-                  - { funnel: checkout, step_index: 1, step_name: cart_item_added, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 178 }
+                  - {
+                      funnel: checkout,
+                      step_index: 0,
+                      step_name: product_viewed,
+                      bucket_start: "2026-08-19T00:00:00Z",
+                      bucket_end: "2026-08-20T00:00:00Z",
+                      sessions: 412,
+                    }
+                  - {
+                      funnel: checkout,
+                      step_index: 1,
+                      step_name: cart_item_added,
+                      bucket_start: "2026-08-19T00:00:00Z",
+                      bucket_end: "2026-08-20T00:00:00Z",
+                      sessions: 178,
+                    }
         default: { $ref: "#/components/responses/Error" }
   /analytics/consent:
     put:
@@ -105,22 +160,40 @@ paths:
       requestBody:
         required: true
         description: The consent decision.
-        content: { application/json: { schema: { $ref: "#/components/schemas/ConsentInput" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/ConsentInput" },
+          },
+        }
       responses:
         "200":
           description: The decision as recorded.
-          content: { application/json: { schema: { $ref: "#/components/schemas/Consent" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Consent" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
     get:
       operationId: getConsent
       description: Read the recorded decision for a session.
       tags: [consent]
       parameters:
-        - { name: session_id, in: query, required: true, description: The session to read., schema: { type: string, minLength: 1 } }
+        - {
+            name: session_id,
+            in: query,
+            required: true,
+            description: The session to read.,
+            schema: { type: string, minLength: 1 },
+          }
       responses:
         "200":
           description: The decision on file for that session.
-          content: { application/json: { schema: { $ref: "#/components/schemas/Consent" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Consent" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
   /analytics/retention:
     post:
@@ -135,7 +208,11 @@ paths:
       responses:
         "200":
           description: What the pass changed.
-          content: { application/json: { schema: { $ref: "#/components/schemas/RetentionResult" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/RetentionResult" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
   /subject-data/analytics:
     get:
@@ -145,12 +222,28 @@ paths:
       description: One page of the identities that this store holds data for, in identity order.
       tags: [subjects]
       parameters:
-        - { name: after, in: query, required: false, description: The last identity of the previous page., schema: { type: string } }
-        - { name: limit, in: query, required: false, description: The page size., schema: { type: integer, minimum: 1, maximum: 1000, default: 500 } }
+        - {
+            name: after,
+            in: query,
+            required: false,
+            description: The last identity of the previous page.,
+            schema: { type: string },
+          }
+        - {
+            name: limit,
+            in: query,
+            required: false,
+            description: The page size.,
+            schema: { type: integer, minimum: 1, maximum: 1000, default: 500 },
+          }
       responses:
         "200":
           description: The page.
-          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectPage" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/SubjectPage" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
   /subject-data/analytics/{identity_id}:
     get:
@@ -160,11 +253,21 @@ paths:
       description: Every event and consent record of every session that the subject is known in.
       tags: [subjects]
       parameters:
-        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+        - {
+            name: identity_id,
+            in: path,
+            required: true,
+            description: The Kratos identity.,
+            schema: { type: string, minLength: 1 },
+          }
       responses:
         "200":
           description: The subject's data in this store.
-          content: { application/json: { schema: { $ref: "#/components/schemas/SubjectAnalytics" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/SubjectAnalytics" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
   /subject-data/analytics/{identity_id}/erase:
     post:
@@ -175,15 +278,29 @@ paths:
         of their events. Safe to run again: a second call finds nothing to change.
       tags: [subjects]
       parameters:
-        - { name: identity_id, in: path, required: true, description: The Kratos identity., schema: { type: string, minLength: 1 } }
+        - {
+            name: identity_id,
+            in: path,
+            required: true,
+            description: The Kratos identity.,
+            schema: { type: string, minLength: 1 },
+          }
       requestBody:
         required: true
         description: The replacement for the identity.
-        content: { application/json: { schema: { $ref: "#/components/schemas/ErasureRequest" } } }
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/ErasureRequest" },
+          },
+        }
       responses:
         "200":
           description: The rows that changed.
-          content: { application/json: { schema: { $ref: "#/components/schemas/AnalyticsErasure" } } }
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/AnalyticsErasure" },
+            },
+          }
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
@@ -192,7 +309,7 @@ components:
       description: An error, as RFC 9457 problem details.
       content:
         application/problem+json:
-          schema: {$ref: "#/components/schemas/Problem"}
+          schema: { $ref: "#/components/schemas/Problem" }
     # <<< shared-components
   schemas:
     # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
@@ -270,7 +387,11 @@ components:
         default_rows_deleted:
           type: integer
           description: Rows past retention in the default partition, which holds events outside every month.
-      example: { partitions_created: [events_2026_11], partitions_dropped: [events_2026_06], default_rows_deleted: 0 }
+      example: {
+        partitions_created: [events_2026_11],
+        partitions_dropped: [events_2026_06],
+        default_rows_deleted: 0,
+      }
     SubjectPage:
       type: object
       description: One page of subjects. `next` is absent on the last page.
@@ -278,7 +399,10 @@ components:
       properties:
         subjects: { type: array, items: { type: string } }
         next: { type: string, description: The cursor for the next page. }
-      example: { subjects: [0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40], next: 0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40 }
+      example: {
+        subjects: [0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40],
+        next: 0b6f6f2e-5d3b-4f39-9a5e-3c7a1d1e2f40,
+      }
     ErasureRequest:
       type: object
       description: The value that replaces the identity in every row. The workflow chooses one per erasure.
@@ -306,7 +430,14 @@ components:
     SubjectConsent:
       type: object
       description: One consent record, as stored.
-      required: [session_id, state, purpose_version, source, decided_at, updated_at]
+      required: [
+        session_id,
+        state,
+        purpose_version,
+        source,
+        decided_at,
+        updated_at,
+      ]
       properties:
         session_id: { type: string }
         state: { type: string, enum: [granted, withdrawn, refused] }
@@ -319,13 +450,32 @@ components:
       description: A subject's data in the analytics store.
       required: [events, consents]
       properties:
-        events: { type: array, items: { $ref: "#/components/schemas/SubjectEvent" } }
-        consents: { type: array, items: { $ref: "#/components/schemas/SubjectConsent" } }
+        events: {
+          type: array,
+          items: { $ref: "#/components/schemas/SubjectEvent" },
+        }
+        consents: {
+          type: array,
+          items: { $ref: "#/components/schemas/SubjectConsent" },
+        }
       example:
         events:
-          - { session_id: f1e2d3c4, name: signup.started, properties: {}, device_class: desktop, occurred_at: "2026-09-01T10:00:00Z" }
+          - {
+              session_id: f1e2d3c4,
+              name: signup.started,
+              properties: {},
+              device_class: desktop,
+              occurred_at: "2026-09-01T10:00:00Z",
+            }
         consents:
-          - { session_id: f1e2d3c4, state: granted, purpose_version: "2026-08", source: control, decided_at: "2026-09-01T09:59:00Z", updated_at: "2026-09-01T09:59:00Z" }
+          - {
+              session_id: f1e2d3c4,
+              state: granted,
+              purpose_version: "2026-08",
+              source: control,
+              decided_at: "2026-09-01T09:59:00Z",
+              updated_at: "2026-09-01T09:59:00Z",
+            }
     EventBatch:
       type: object
       description: A batch of marketing events from one session.
@@ -383,16 +533,33 @@ components:
       required: [funnel, buckets, rows]
       properties:
         funnel: { type: string }
-        buckets: { type: integer, description: Day buckets covered by the window. }
-        rows: { type: integer, description: Rows written, which is buckets times steps. }
+        buckets: {
+          type: integer,
+          description: Day buckets covered by the window.,
+        }
+        rows: {
+          type: integer,
+          description: Rows written,
+          which is buckets times steps.,
+        }
       example: { funnel: checkout, buckets: 7, rows: 28 }
     FunnelRollupRow:
       type: object
       description: One funnel step's session count in one bucket.
-      required: [funnel, step_index, step_name, bucket_start, bucket_end, sessions]
+      required: [
+        funnel,
+        step_index,
+        step_name,
+        bucket_start,
+        bucket_end,
+        sessions,
+      ]
       properties:
         funnel: { type: string }
-        step_index: { type: integer, description: Zero-based position in the funnel. }
+        step_index: {
+          type: integer,
+          description: Zero-based position in the funnel.,
+        }
         step_name: { type: string }
         bucket_start: { type: string, format: date-time }
         bucket_end: { type: string, format: date-time }
@@ -402,7 +569,14 @@ components:
             Sessions that reached this step IN ORDER, after every earlier step. A
             session that arrives at a later step directly is not counted, because it
             did not traverse the funnel.
-      example: { funnel: checkout, step_index: 0, step_name: product_viewed, bucket_start: "2026-08-19T00:00:00Z", bucket_end: "2026-08-20T00:00:00Z", sessions: 412 }
+      example: {
+        funnel: checkout,
+        step_index: 0,
+        step_name: product_viewed,
+        bucket_start: "2026-08-19T00:00:00Z",
+        bucket_end: "2026-08-20T00:00:00Z",
+        sessions: 412,
+      }
     ConsentInput:
       type: object
       description: A consent decision, recorded so that it can be proved later, per GDPR Art. 7(1).
@@ -433,4 +607,10 @@ components:
       # A `gpc` refusal is the accurate example. The visitor never saw a prompt, and
       # that is the purpose of honouring the signal, per ADR-0700.
       example:
-        { session_id: 4f3b9c22, state: refused, purpose_version: "2026-08-01", source: gpc, decided_at: "2026-08-19T10:00:00Z" }
+        {
+          session_id: 4f3b9c22,
+          state: refused,
+          purpose_version: "2026-08-01",
+          source: gpc,
+          decided_at: "2026-08-19T10:00:00Z",
+        }

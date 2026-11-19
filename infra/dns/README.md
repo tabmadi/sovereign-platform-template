@@ -1,8 +1,8 @@
 # DNS
 
-This directory declares every record in every zone that this project owns. `mise run dns:apply` applies it, per [ADR-0206](../../docs/adr/0206-cluster-networking.md) and [ADR-0307](../../docs/adr/0307-outbound-email.md).
+This directory declares every record in every zone that this project owns. `just dns-apply` applies it, per [ADR-0206](../../docs/adr/0206-cluster-networking.md) and [ADR-0307](../../docs/adr/0307-outbound-email.md).
 
-**This directory is the zone.** `mise run dns:apply` deletes every record that the provider holds and `dnsconfig.js` does not declare. A record added in the provider's console lives until the next apply. To add one, open a pull request. `mise run dns:check` reports the difference and changes nothing. It fails when the two differ, and that keeps the repository and the provider from drifting apart.
+**This directory is the zone.** `just dns-apply` deletes every record that the provider holds and `dnsconfig.js` does not declare. A record added in the provider's console lives until the next apply. To add one, open a pull request. `just dns-check` reports the difference and changes nothing. It fails when the two differ, and that keeps the repository and the provider from drifting apart.
 
 ## Files
 
@@ -20,9 +20,9 @@ The template ships placeholders, because a project chooses its own provider and 
 2. Create `secrets.enc.yaml` with one `stringData` key per variable, and encrypt it with `sops --encrypt --in-place`. `scripts/dns.sh` decrypts it for the length of one command.
 3. Scope the credential to read and edit the project's zones, and nothing wider.
 4. In `dnsconfig.js`, replace each placeholder address with the environment's edge address and mail egress address.
-5. Run `mise run dns:check`, read the difference, then run `mise run dns:apply`.
+5. Run `just dns-check`, read the difference, then run `just dns-apply`.
 
-`mise run lint:dns` checks the declaration with no credential, so it runs in CI. The `dns` workflow runs `mise run dns:check` every night and after each change to this directory.
+`just lint-dns` checks the declaration with no credential, so it runs in CI. The `dns` workflow runs `just dns-check` every night and after each change to this directory.
 
 ## What a wildcard covers
 
@@ -37,7 +37,7 @@ A mail sender's reputation lives in three records: `SPF`, `DKIM`, and `DMARC`. T
 3. Generate the DKIM keypair once. maddy writes both halves when `key_path` is absent.
 4. Put the private half in the environment's SopsSecret as `maddy-dkim`, and the public half in the `dkim` field of `dnsconfig.js`.
 5. **Never let the pod create its own key.** It then signs with a key that no record matches. Every message fails authentication, and nothing shows as unhealthy.
-6. Run `mise run dns:apply`.
+6. Run `just dns-apply`.
 7. Send one message, and read the receiver's authentication results before you trust the path.
 8. Keep `DMARC` at `p=none` until the aggregate reports are clean, then move to `p=reject`. An environment is not production until it has `p=reject`, per [ADR-0307](../../docs/adr/0307-outbound-email.md).
 

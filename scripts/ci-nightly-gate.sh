@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Decide whether tonight's cluster:up full suite runs, as a forge step-output assignment, per ADR-0102 and ADR-0601.
+# Decide whether tonight's cluster-up full suite runs, as a forge step-output assignment, per ADR-0116 and ADR-0601.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 

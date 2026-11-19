@@ -1,6 +1,0 @@
-# shellcheck config, per ADR-0101. Scripts source lib/log.sh through a path computed at runtime, `source "$(dirname "$0")/lib/log.sh"`.
-# SCRIPTDIR and external-sources let shellcheck find a source file relative to each script.
-# SC1091, the `not following` info, is off, so a dynamic source path is not a finding.
-external-sources=true
-source-path=SCRIPTDIR
-disable=SC1091

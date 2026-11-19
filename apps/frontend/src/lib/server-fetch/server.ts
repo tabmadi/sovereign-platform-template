@@ -17,7 +17,7 @@ export async function createServerClient<Paths extends object>(): Promise<Client
       "No edge origin: server components fetch through the edge and need its origin. " +
         "Set EDGE_PUBLIC_ORIGIN (e.g. https://dev.localtest.me:8443), and " +
         "EDGE_INTERNAL_ORIGIN too when running in-cluster (e.g. https://dev.localtest.me). " +
-        "Locally, start the dev server with `mise run dev:frontend`; in a deployed env " +
+        "Locally, start the dev server with `just dev-frontend`; in a deployed env " +
         "set them in infra/gitops/services/<env>/values/frontend.yaml.",
     );
   }

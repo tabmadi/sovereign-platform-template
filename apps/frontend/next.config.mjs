@@ -7,7 +7,7 @@
 
 // Next reads this list only when Origin ≠ Host or X-Forwarded-Host. ADR-0306 puts `/` and `/api` on the same origin, so this is defence in depth.
 // It is fixed at BUILD time: `output: "standalone"` freezes this config into server.js. An image has an entry only if the build passed EDGE_PUBLIC_ORIGIN.
-// That pins the image to one env host and breaks the build-once, promote-by-digest flow in ADR-0103. Leave it unset in CI builds.
+// That pins the image to one env host and breaks the build-once, promote-by-digest flow in ADR-0112. Leave it unset in CI builds.
 import createNextIntlPlugin from "next-intl/plugin";
 
 // The plugin points next-intl at src/i18n/request.ts and adds the message catalogues to the build graph.
@@ -28,7 +28,7 @@ const nextConfig = {
   typedRoutes: true,
   // Emit browser source maps in the production build, per ADR-0503. Without them, a browser stack trace names minified chunks and offsets, and every fault shows as one unreadable frame.
   // They are BUILD artefacts, not served files. Collect them from the build and keep them per release. A public source map gives an attacker the unminified app.
-  // `mise run frontend:sourcemaps` collects them.
+  // `just frontend-sourcemaps` collects them.
   productionBrowserSourceMaps: true,
   // `cluster:full` serves the host-run `next dev` through the edge at dev.localtest.me:8443, which is a different origin from localhost.
   // Without this entry, Next blocks the cross-origin dev and HMR requests. Only the dev server reads it, and the prod build ignores it.
@@ -53,7 +53,7 @@ const nextConfig = {
     NEXT_PUBLIC_SERVICE_VERSION: process.env.SERVICE_VERSION ?? "dev",
     NEXT_PUBLIC_DEPLOY_ENV: process.env.DEPLOY_ENV ?? "dev",
   },
-  // Set the shipped build's identity on every response, per ADR-0103. So response headers and devtools show whether prod updated.
+  // Set the shipped build's identity on every response, per ADR-0112. So response headers and devtools show whether prod updated.
   // A stale browser bundle shows when this value differs from the backend's X-App-Version.
   headers() {
     return Promise.resolve([

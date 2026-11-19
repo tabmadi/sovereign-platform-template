@@ -19,7 +19,7 @@
       "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
       "options": {
         "mode": "markdown",
-        "content": "Two streams, two questions. `ci:sign` files **Builds**, `job=\"supply-chain-build\"`, when an image is signed and both attestations are attached. It shows what was *built*. **Inventory**, `job=\"supply-chain-inventory\"`, is a nightly walk of the digests pinned in committed values. It verifies each SBOM from the registry. It shows what an environment *points at*, and a CVE asks that question.\n\nThis is a research surface, and not the incident path, per ADR-0501. Nothing here alerts, and nothing here links into the Overview funnel. Come here when you have a question, and not when a pager goes off."
+        "content": "Two streams, two questions. `ci-sign` files **Builds**, `job=\"supply-chain-build\"`, when an image is signed and both attestations are attached. It shows what was *built*. **Inventory**, `job=\"supply-chain-inventory\"`, is a nightly walk of the digests pinned in committed values. It verifies each SBOM from the registry. It shows what an environment *points at*, and a CVE asks that question.\n\nThis is a research surface, and not the incident path, per ADR-0501. Nothing here alerts, and nothing here links into the Overview funnel. Come here when you have a question, and not when a pager goes off."
       }
     },
     {

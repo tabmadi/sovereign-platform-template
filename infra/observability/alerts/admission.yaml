@@ -1,4 +1,4 @@
-# Admission-control alerts, per ADR-0104 and ADR-0500. Native Prometheus rule-file format, mounted into Prometheus
+# Admission-control alerts, per ADR-0113 and ADR-0500. Native Prometheus rule-file format, mounted into Prometheus
 # through the `prometheus-alerts` ConfigMap. See `service-availability.yaml` for the delivery path.
 groups:
   - name: admission.availability
@@ -14,7 +14,7 @@ groups:
           summary: "Kyverno is not reporting: image admission control is not running"
           description: >-
             No metrics from Kyverno for 10 minutes. Every image-provenance check
-            of ADR-0104 runs in its webhooks. So the cluster either rejects all
+            of ADR-0113 runs in its webhooks. So the cluster either rejects all
             pod creations, by the fail-closed policy, or admits images with no
             signature check. Check `kubectl -n kyverno get pods` and the
             ValidatingWebhookConfigurations. This alert exists for a webhook

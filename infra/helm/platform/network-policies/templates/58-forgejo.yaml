@@ -1,5 +1,5 @@
 {{- if .Values.forgejo.enabled }}
-## The forge, per ADR-0102. The same flag gates it as the chart. Ingress comes from the edge and the Actions runners.
+## The forge, per ADR-0116. The same flag gates it as the chart. Ingress comes from the edge and the Actions runners.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

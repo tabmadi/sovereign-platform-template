@@ -1,7 +1,7 @@
 # Values are under `zot:`, so this chart shares the single per-environment values overlay of the platform
 # ApplicationSet with no key collisions.
 zot:
-  # zot, the image registry, per ADR-0105. `enabled` is the umbrella gate.
+  # zot, the image registry, per ADR-0114. `enabled` is the umbrella gate.
   enabled: true
 
   image:
@@ -10,7 +10,7 @@ zot:
     pullPolicy: IfNotPresent
 
   # The S3 bucket where zot stores images and their referrers, on the platform's own
-  # object store. Image data is never on a node volume, per ADR-0105.
+  # object store. Image data is never on a node volume, per ADR-0114.
   storage:
     bucket: zot-images
     endpoint: seaweedfs.platform.svc.cluster.local:8333
@@ -20,12 +20,12 @@ zot:
     # constant.
     secure: false
     # Untagged manifests that no signature and no environment's values reference are collected on a schedule, per
-    # ADR-0105.
+    # ADR-0114.
     gc: true
     gcDelay: 1h
     gcInterval: 24h
 
-  # PULL-THROUGH MIRRORING of the upstream registries, per ADR-0105.
+  # PULL-THROUGH MIRRORING of the upstream registries, per ADR-0114.
   sync:
     enabled: true
     # Under `/var/lib/zot`, the emptyDir that the deployment already mounts. It is
@@ -47,12 +47,12 @@ zot:
         onDemand: true
         tlsVerify: true
 
-  # Credentials for both halves come from one SOPS-encrypted Secret, per ADR-0105 and ADR-0202: htpasswd bcrypt lines
+  # Credentials for both halves come from one SOPS-encrypted Secret, per ADR-0114 and ADR-0202: htpasswd bcrypt lines
   # for the two identities below, and the store credential `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` that zot
   # uses for S3. It must be bcrypt: zot loads an apr1 file with no error, and then refuses every password.
   credentialsSecret: zot-credentials
 
-  # The two identities that ADR-0105 names. Anonymous gets nothing: there is no policy. So a request
+  # The two identities that ADR-0114 names. Anonymous gets nothing: there is no policy. So a request
   # without credentials is refused before any repository rule is checked.
   auth:
     pushUser: ci

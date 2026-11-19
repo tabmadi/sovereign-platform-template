@@ -1,4 +1,4 @@
-# Local overrides for `cluster:up full`. They are consumed the same way the Argo CD ApplicationSet consumes the
+# Local overrides for `cluster-up full`. They are consumed the same way the Argo CD ApplicationSet consumes the
 # dev, staging, and prod values, per ADR-0205. Local differs from prod only through this overlay, which sits on
 # top of each platform chart's own values.
 
@@ -55,12 +55,14 @@ kratos:
           # login. The redirect handler in `infra/auth/oathkeeper` carries it.
           - https://*.ops.dev.localtest.me:8443/
         flows:
-          error:        { ui_url: https://dev.localtest.me:8443/auth/error }
-          login:        { ui_url: https://dev.localtest.me:8443/auth/login }
+          error: { ui_url: https://dev.localtest.me:8443/auth/error }
+          login: { ui_url: https://dev.localtest.me:8443/auth/login }
           registration: { ui_url: https://dev.localtest.me:8443/auth/register }
-          recovery:     { ui_url: https://dev.localtest.me:8443/auth/recovery }
-          verification: { ui_url: https://dev.localtest.me:8443/auth/verification }
-          settings:     { ui_url: https://dev.localtest.me:8443/auth/settings }
+          recovery: { ui_url: https://dev.localtest.me:8443/auth/recovery }
+          verification: {
+            ui_url: https://dev.localtest.me:8443/auth/verification,
+          }
+          settings: { ui_url: https://dev.localtest.me:8443/auth/settings }
         # WebAuthn and TOTP are bound to a domain. The relying-party id and origins must
         # match the local edge host. The chart base uses `dev.example.com`.
         methods:
@@ -143,7 +145,7 @@ grafana:
       root_url: "https://grafana.ops.dev.localtest.me:8443/"
 
 # Lowdefy admin console, per ADR-0401. The image is built in this repo and pulled from the local registry, the CI
-# stand-in, at the stable `local` tag. `Always` makes a `cluster:up full` run pick up a
+# stand-in, at the stable `local` tag. `Always` makes a `cluster-up full` run pick up a
 # rebuild.
 lowdefy:
   replicas: 1
@@ -158,7 +160,7 @@ pgweb:
   # The read-only role, not `dev`, per ADR-0401.
   databaseUrl: "postgres://readonly:readonly@postgres-rw.platform.svc.cluster.local:5432/orders?sslmode=disable"
 
-# Admission control, per ADR-0104. The local tier publishes no images and holds no signing key. So both policies
+# Admission control, per ADR-0113. The local tier publishes no images and holds no signing key. So both policies
 # are always absent: `imagePrefix` is empty, and that renders neither.
 policies:
   imagePrefix: ""

@@ -17,7 +17,7 @@ app.kubernetes.io/name: {{ include "service.name" . }}
 {{- end -}}
 
 {{/*
-Image reference, per ADR-0101 and ADR-0103. Pin by digest when it is set. Prod
+Image reference, per ADR-0111 and ADR-0112. Pin by digest when it is set. Prod
 does this, because a digest `repo@sha256:<hex>` is the strongest immutable identity.
 Otherwise pin by SHA tag, in dev and staging. lint-floating-tags rejects moving tags.
 */}}
@@ -26,7 +26,7 @@ Otherwise pin by SHA tag, in dev and staging. lint-floating-tags rejects moving 
 {{- if .Values.image.digest -}}
 {{ $r }}@{{ .Values.image.digest }}
 {{- else -}}
-{{ $r }}:{{ required ".Values.image.tag or .Values.image.digest is required: a concrete git SHA or digest, per ADR-0101 and ADR-0103" .Values.image.tag }}
+{{ $r }}:{{ required ".Values.image.tag or .Values.image.digest is required: a concrete git SHA or digest, per ADR-0111 and ADR-0112" .Values.image.tag }}
 {{- end -}}
 {{- end -}}
 

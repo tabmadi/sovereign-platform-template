@@ -2,7 +2,7 @@
 //
 // A .cjs config and not JSON, because a JSON file cannot carry the two notes below. Each note names a known trap.
 // The origin is a variable because the budgets are a property of the build, not of the machine that serves it.
-// The default is the stack that `mise run lighthouse:up` starts. Not `LHCI_URL`: lhci reads every `LHCI_*` variable as its own flag, and that one replaces the URL list.
+// The default is the stack that `just lighthouse-up` starts. Not `LHCI_URL`: lhci reads every `LHCI_*` variable as its own flag, and that one replaces the URL list.
 const ORIGIN = process.env.LIGHTHOUSE_ORIGIN ?? "https://dev.localtest.me:8444";
 
 // The gate. LCP, CLS, and TBT are ADR-0400's numbers. TBT replaces INP, because INP is a field metric

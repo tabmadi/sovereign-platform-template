@@ -1,5 +1,5 @@
-// Command lint-thin-workflows checks that workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`,
-// per ADR-0102.
+// Command lint-thin-workflows checks that workflow YAML checks out, sets up the toolchain, and calls `just ci:*`,
+// per ADR-0116.
 package main
 
 import (
@@ -22,7 +22,7 @@ type finding struct {
 }
 
 func main() {
-	lint.Main("workflow steps contain pipeline logic, per ADR-0102", run)
+	lint.Main("workflow steps contain pipeline logic, per ADR-0116", run)
 }
 
 func run(r *lint.Report) error {
@@ -34,6 +34,10 @@ func run(r *lint.Report) error {
 		return errors.New("no workflow files found under .github/")
 	}
 	for _, f := range files {
+		// The shared gate of ADR-0101 is a copied file. It checks the pull request title with cog before `just ci`.
+		if filepath.Base(f) == "check.yml" {
+			continue
+		}
 		findings, err := check(f)
 		if err != nil {
 			return fmt.Errorf("%s: %w", f, err)
@@ -42,8 +46,8 @@ func run(r *lint.Report) error {
 			r.Addf("%s:%d: %s", finding.file, finding.line, finding.text)
 		}
 	}
-	r.Hintf("Move the logic into a mise task and call it from the step.")
-	r.Okf("workflow steps call mise tasks, %d files", len(files))
+	r.Hintf("Move the logic into a just recipe and call it from the step.")
+	r.Okf("workflow steps call just recipes, %d files", len(files))
 	return nil
 }
 
@@ -126,7 +130,7 @@ func offending(line string) string {
 			break
 		}
 	}
-	if strings.HasPrefix(s, "mise run ") {
+	if strings.HasPrefix(s, "nix develop --command just ") {
 		return ""
 	}
 	return strings.TrimSpace(line)

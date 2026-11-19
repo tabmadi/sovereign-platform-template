@@ -8,8 +8,8 @@ source "$here/lib.sh"
 usage() { fail "usage: host.sh <render <dir>|install>"; }
 [ "$#" -ge 1 ] || usage
 
-slug="$(awk '$1 == "project_slug:" {print $2; exit}' .copier-answers.yml 2>/dev/null)"
-[ -n "$slug" ] || fail "no project_slug in .copier-answers.yml"
+slug="$(awk '$1 == "slug:" {print $2; exit}' infra/project.yaml 2>/dev/null)"
+[ -n "$slug" ] || fail "no slug in infra/project.yaml"
 
 # The guests beside the nodes. Each kit's own file holds its address, and an absent kit has no guest here.
 guests=()

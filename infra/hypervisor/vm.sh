@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A Debian VM beside the nodes on the hypervisor, per ADR-0200: the forge or the CI runner of ADR-0102.
+# A Debian VM beside the nodes on the hypervisor, per ADR-0200: the forge or the CI runner of ADR-0116.
 # `create` writes Debian over the VM's disk and boots it with cloud-init. `resize` applies the sizes in hypervisor.env.
 set -euo pipefail
 here="$(dirname "${BASH_SOURCE[0]}")"
@@ -9,8 +9,8 @@ usage() { fail "usage: vm.sh <create|resize> <forge|runner>"; }
 [ "$#" -eq 2 ] || usage
 verb="$1" role="$2"
 
-slug="$(awk '$1 == "project_slug:" {print $2; exit}' .copier-answers.yml 2>/dev/null)"
-[ -n "$slug" ] || fail "no project_slug in .copier-answers.yml"
+slug="$(awk '$1 == "slug:" {print $2; exit}' infra/project.yaml 2>/dev/null)"
+[ -n "$slug" ] || fail "no slug in infra/project.yaml"
 # The address comes from the file of the machine's own kit, so the VM and its setup cannot name two addresses.
 case "$role" in
 forge)

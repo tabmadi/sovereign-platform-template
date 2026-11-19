@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test as it } from "bun:test";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ordersApi, server } from "@/test/msw";
@@ -16,14 +16,14 @@ async function buy(product: string) {
 }
 
 describe("the checkout form", () => {
-  test("a value that is not a product id shows the field error and sends nothing", async () => {
+  it("a value that is not a product id shows the field error and sends nothing", async () => {
     await buy("order_01h9xk2m4n8p6q3r5s7t9v0wbh");
 
     expect(await screen.findByText("not a product id")).toBeTruthy();
     expect(screen.getByText("idle")).toBeTruthy();
   });
 
-  test("a valid product id places the order and shows its settled status", async () => {
+  it("a valid product id places the order and shows its settled status", async () => {
     server.use(
       ordersApi.ok(
         "post",
@@ -50,7 +50,7 @@ describe("the checkout form", () => {
     expect(await screen.findByText("confirmed")).toBeTruthy();
   });
 
-  test("a refused order shows the error status", async () => {
+  it("a refused order shows the error status", async () => {
     server.use(
       ordersApi.problem("post", "/orders", {
         type: "urn:problem-type:orders:out-of-stock",

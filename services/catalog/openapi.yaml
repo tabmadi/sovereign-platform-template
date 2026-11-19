@@ -1,9 +1,16 @@
 openapi: 3.1.0
-info: {title: catalog, version: 0.1.0, description: Product catalog service., x-audience: public}
-servers: [{url: /api}] # flat resource namespace, per ADR-0306. Paths are globally unique
+info: {
+  title: catalog,
+  version: 0.1.0,
+  description: Product catalog service.,
+  x-audience: public,
+}
+servers: [
+  { url: /api },
+] # flat resource namespace, per ADR-0306. Paths are globally unique
 # `x-admin: crud` marks the resource group for the admin generator in tools/admin-gen, per ADR-0401. It
 # scaffolds list, detail, create, and edit pages from the operations below.
-tags: [{name: products, x-admin: crud}]
+tags: [{ name: products, x-admin: crud }]
 paths:
   /products:
     get:
@@ -17,7 +24,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: {$ref: "#/components/schemas/Product"}
+                items: { $ref: "#/components/schemas/Product" }
                 # List examples matter, per ADR-0600. The API mock serves them exactly as
                 # written. An unconstrained array schema generates an empty list, and a UI
                 # built against it has no rows, no pagination, and no truncation.
@@ -67,7 +74,7 @@ paths:
                     price:
                       amount: "42.10"
                       currency: EUR
-        default: {$ref: "#/components/responses/Error"}
+        default: { $ref: "#/components/responses/Error" }
     post:
       operationId: createProduct
       # First-party edge op. A catalog write is an internal admin action, so the edge
@@ -79,42 +86,95 @@ paths:
       requestBody:
         required: true
         description: The product to create.
-        content: {application/json: {schema: {$ref: "#/components/schemas/ProductInput"}}}
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/ProductInput" },
+          },
+        }
       responses:
-        "201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}
-        default: {$ref: "#/components/responses/Error"}
+        "201": {
+          description: Created,
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Product" },
+            },
+          },
+        }
+        default: { $ref: "#/components/responses/Error" }
   /products/{id}:
     get:
       operationId: getProduct
       description: Fetch a product by id.
       tags: [products]
-      parameters: [{name: id, in: path, required: true, description: Product id., schema: {$ref: "#/components/schemas/ProductId"}}]
+      parameters: [
+        {
+          name: id,
+          in: path,
+          required: true,
+          description: Product id.,
+          schema: { $ref: "#/components/schemas/ProductId" },
+        },
+      ]
       responses:
-        "200": {description: The requested product, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}
-        default: {$ref: "#/components/responses/Error"}
+        "200": {
+          description: The requested product,
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Product" },
+            },
+          },
+        }
+        default: { $ref: "#/components/responses/Error" }
     put:
       operationId: updateProduct
       # First-party edit action. The public docs leave it out, per the ADR-0303 audience ladder.
       x-audience: internal
       description: Update a product.
       tags: [products]
-      parameters: [{name: id, in: path, required: true, description: Id of the product to update., schema: {$ref: "#/components/schemas/ProductId"}}]
+      parameters: [
+        {
+          name: id,
+          in: path,
+          required: true,
+          description: Id of the product to update.,
+          schema: { $ref: "#/components/schemas/ProductId" },
+        },
+      ]
       requestBody:
         required: true
         description: The new product fields.
-        content: {application/json: {schema: {$ref: "#/components/schemas/ProductInput"}}}
+        content: {
+          application/json: {
+            schema: { $ref: "#/components/schemas/ProductInput" },
+          },
+        }
       responses:
-        "200": {description: The updated product, content: {application/json: {schema: {$ref: "#/components/schemas/Product"}}}}
-        default: {$ref: "#/components/responses/Error"}
+        "200": {
+          description: The updated product,
+          content: {
+            application/json: {
+              schema: { $ref: "#/components/schemas/Product" },
+            },
+          },
+        }
+        default: { $ref: "#/components/responses/Error" }
     delete:
       operationId: deleteProduct
       x-audience: internal
       description: Delete a product.
       tags: [products]
-      parameters: [{name: id, in: path, required: true, description: Id of the product to delete., schema: {$ref: "#/components/schemas/ProductId"}}]
+      parameters: [
+        {
+          name: id,
+          in: path,
+          required: true,
+          description: Id of the product to delete.,
+          schema: { $ref: "#/components/schemas/ProductId" },
+        },
+      ]
       responses:
-        "204": {description: Deleted}
-        default: {$ref: "#/components/responses/Error"}
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Error" }
 components:
   responses:
     # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
@@ -122,7 +182,7 @@ components:
       description: An error, as RFC 9457 problem details.
       content:
         application/problem+json:
-          schema: {$ref: "#/components/schemas/Problem"}
+          schema: { $ref: "#/components/schemas/Problem" }
           # <<< shared-components
   schemas:
     # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
@@ -222,27 +282,31 @@ components:
         A product identifier: `product_` and the UUIDv7 in 26 characters of Crockford
         base32. The first character is at most 7, because 26 characters hold 130 bits and
         a UUID has 128. It is opaque to a consumer: nothing parses, orders, or builds one.
-      pattern: '^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$'
+      pattern: "^product_[0-7][0-9abcdefghjkmnpqrstvwxyz]{25}$"
       example: product_01kztmx9e0fq1r13w5d1aerqw6
     Product:
       type: object
       description: A catalog product.
       required: [id, name, price]
       properties:
-        id: {$ref: "#/components/schemas/ProductId"}
-        name: {type: string}
+        id: { $ref: "#/components/schemas/ProductId" }
+        name: { type: string }
         # The shared money type, per ADR-0300: a decimal STRING with its currency. It is
         # never a JSON number, because a double cannot hold a decimal amount exactly. It is
         # never an integer of minor units, because then every reader must know the scale.
-        price: {$ref: "#/components/schemas/Money"}
+        price: { $ref: "#/components/schemas/Money" }
       # One example on the schema serves every response that references it: the detail
       # page, the create and update response, the developer portal, and the API mock,
       # per ADR-0303 and ADR-0600. It is code-reviewed data, not generated noise.
-      example: {id: product_01kztmx9e0fq1r13w5d1aerqw6, name: Aeron chair, price: {amount: "1299.00", currency: EUR}}
+      example: {
+        id: product_01kztmx9e0fq1r13w5d1aerqw6,
+        name: Aeron chair,
+        price: { amount: "1299.00", currency: EUR },
+      }
     ProductInput:
       type: object
       description: Request body to create a product.
       required: [name, price]
       properties:
-        name: {type: string, minLength: 1}
-        price: {$ref: "#/components/schemas/Money"}
+        name: { type: string, minLength: 1 }
+        price: { $ref: "#/components/schemas/Money" }

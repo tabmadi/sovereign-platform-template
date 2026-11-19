@@ -1,4 +1,4 @@
-// Command lint-money enforces the monetary-value rule, per ADR-0100 and ADR-0300.
+// Command lint-money enforces the monetary-value rule, per ADR-0110 and ADR-0300.
 package main
 
 import (
@@ -100,7 +100,7 @@ func run(r *lint.Report) error {
 	for _, f := range found {
 		r.Addf("%s:%d: %s", f.file, f.line, f.msg)
 	}
-	r.Hintf("A monetary amount is the shared money type, per ADR-0100:\n" +
+	r.Hintf("A monetary amount is the shared money type, per ADR-0110:\n" +
 		"  numeric in the column, " + moneyComponent + " in the spec, a decimal string on the wire.")
 	r.Okf("every monetary value is the shared money type")
 	return nil

@@ -1,4 +1,4 @@
-# Per-service build-context filter, per ADR-0101 and ADR-0200. BuildKit reads this file
+# Per-service build-context filter, per ADR-0111 and ADR-0200. BuildKit reads this file
 # next to the Dockerfile before any root .dockerignore. So each build states its own
 # context rules, and no hidden repo-wide default exists. A Go service image compiles
 # ONLY Go sources: go.mod, go.sum, libs/go, and services/*. The build context leaves out
@@ -20,11 +20,12 @@ tools/
 .github/
 
 # Root tooling and config that a service build does not need.
-biome.jsonc
 package.json
-cog.toml
-.golangci.yml
-.rumdl.toml
+.config/
+flake.nix
+flake.lock
+justfile
+bun.nix
 
 # Markdown in any directory, including per-service READMEs.
 **/*.md

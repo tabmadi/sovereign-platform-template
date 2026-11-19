@@ -35,7 +35,7 @@ func main() {
 	defer tc.Close()
 
 	w := temporalmw.NewWorker(tc, serviceName+"-queue")
-	// Register this service's workflows and activities here, before Run. lint:activity-register finds an activity that a
+	// Register this service's workflows and activities here, before Run. lint-activity-register finds an activity that a
 	// workflow calls and no worker registers, per ADR-0302.
 
 	if err := w.Run(worker_interrupt(ctx)); err != nil {

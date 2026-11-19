@@ -1,3 +1,5 @@
+import { raiseForAuthDenial } from "@/lib/auth/denial";
+
 // Cross-service mutation polling, per ADR-0302 and ADR-0400: a service that starts a workflow answers 202 with a handle.
 export type WorkflowHandle = {
   id: string;
@@ -7,8 +9,6 @@ export type WorkflowHandle = {
   // GET to fetch the terminal status and result. Only a handle that carries the result inline omits it.
   result_url?: string;
 };
-
-import { raiseForAuthDenial } from "@/lib/auth/denial";
 
 // The terminal-state shape of the resources that a workflow settles, orders and charges: a domain status string. `pending` and `running` are not terminal.
 export type TerminalResource = { status: string };

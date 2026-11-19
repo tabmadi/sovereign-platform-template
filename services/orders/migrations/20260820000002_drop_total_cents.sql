@@ -9,7 +9,7 @@
 -- during a rolling deploy. Two migrations in two releases put a deploy boundary
 -- between the two steps.
 --
--- `lint:money` allows this column on purpose up to this migration. After this
+-- `lint-money` allows this column on purpose up to this migration. After this
 -- migration, the column is a finding and not a leftover.
 alter table orders drop column total_cents;
 

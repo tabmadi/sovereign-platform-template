@@ -11,7 +11,7 @@ oauth2Proxy:
   replicas: 1
   # The base host. The sign-in origin is `oauth2-proxy.ops.<host>`, and the cookie covers `.ops.<host>`, per ADR-0306.
   host: ""
-  # `github` for a GitHub forge, or `oidc` for Forgejo, per ADR-0106. `scripts/forge-mode.sh` sets it.
+  # `github` for a GitHub forge, or `oidc` for Forgejo, per ADR-0117. `scripts/forge-mode.sh` sets it.
   provider: oidc
   # Only members of this forge organization pass the gate.
   org: ""

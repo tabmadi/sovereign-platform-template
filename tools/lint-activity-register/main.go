@@ -37,7 +37,7 @@ func run(r *lint.Report) error {
 
 	for _, svc := range services {
 		// `_template` is behind a `//go:build _template` tag, with example registrations in comments.
-		// lint:template-build checks it under that tag.
+		// lint-template-build checks it under that tag.
 		if strings.HasPrefix(filepath.Base(svc), "_") {
 			continue
 		}

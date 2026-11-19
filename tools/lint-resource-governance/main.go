@@ -279,8 +279,8 @@ func render(ctx context.Context, root, dir, name string) ([]entry, error) {
 	stdout, err := exec.CommandContext(ctx, "helm", args...).Output()
 	if err != nil {
 		var stderr string
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		exitErr, ok := errors.AsType[*exec.ExitError](err)
+		if ok {
 			stderr = strings.TrimSpace(string(exitErr.Stderr))
 		}
 		return nil, fmt.Errorf("helm template %s (%s): %w", name, stderr, err)

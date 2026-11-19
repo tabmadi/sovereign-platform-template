@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Fail on floating container image and tool tags, per ADR-0101.
-# It reads Dockerfiles, Helm values, workflows, and .mise.toml.
+# Fail on floating container image and tool tags, per ADR-0111.
+# It reads Dockerfiles, Helm values, and workflows.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -25,7 +25,7 @@ scan() {
 
 # infra/local is in the list because nobody reviews a dev stand-in. A version that changed for one engineer and not another is a bug neither can reproduce.
 # The Temporal stand-in stayed on `latest` for as long as this gate did not check it.
-paths=(Dockerfile infra/helm infra/local .github/workflows .forgejo/workflows .mise.toml services apps)
+paths=(Dockerfile infra/helm infra/local .github/workflows .forgejo/workflows services apps)
 
 # Floating image tags in Helm values, Dockerfiles, and workflows.
 scan "floating image tags" \
@@ -38,7 +38,7 @@ scan "unpinned GitHub Action references" \
   .github/workflows .forgejo/workflows 2>/dev/null || true
 
 if [[ "$FOUND" -ne 0 ]]; then
-  fail "floating tags are forbidden by ADR-0101. Pin to a concrete version or SHA"
+  fail "floating tags are forbidden by ADR-0111. Pin to a concrete version or SHA"
 fi
 
 ok "no floating tags"

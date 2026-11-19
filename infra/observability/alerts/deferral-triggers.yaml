@@ -19,7 +19,7 @@ groups:
 
   - name: deferral.registry
     rules:
-      # ADR-0105's mirroring trigger: an upstream registry rate-limits or removes a pinned digest that the cluster
+      # ADR-0114's mirroring trigger: an upstream registry rate-limits or removes a pinned digest that the cluster
       # depends on.
       - alert: ImagePullsFailing
         expr: |
@@ -27,7 +27,7 @@ groups:
         for: 15m
         labels: { severity: ticket }
         annotations:
-          summary: "The kubelet fails to pull images: ADR-0105's mirroring trigger"
+          summary: "The kubelet fails to pull images: ADR-0114's mirroring trigger"
           description: >-
             Image pulls fail on at least one node. The cause can be an upstream
             registry that rate-limits or that removed a pinned digest. Then this is

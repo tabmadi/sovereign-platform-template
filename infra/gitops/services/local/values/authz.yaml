@@ -3,19 +3,19 @@
 name: authz
 image:
   repository: registry.localhost:5000/authz-server
-  tag: local            # the local registry stands in for CI. Prod uses a git SHA, per ADR-0101
-  pullPolicy: Always    # pull the rebuilt :local again on each cluster:up full run
+  tag: local # the local registry stands in for CI. Prod uses a git SHA, per ADR-0111
+  pullPolicy: Always # pull the rebuilt :local again on each cluster-up full run
 worker:
-  enabled: true          # SetOperator dual write, per ADR-0302 and ADR-0304
+  enabled: true # SetOperator dual write, per ADR-0302 and ADR-0304
   image:
     repository: registry.localhost:5000/authz-worker
     tag: local
-server:     { replicas: 1 }
-ingress:    { enabled: false }   # internal authorizer, so no edge route
-migrations: { enabled: false }   # no database
+server: { replicas: 1 }
+ingress: { enabled: false } # internal authorizer, so no edge route
+migrations: { enabled: false } # no database
 # Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
-otel:       { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
-secrets:    { envFrom: [openfga-creds] }
+otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
+secrets: { envFrom: [openfga-creds] }
 # Not exposed at the edge. The chart default `networkPolicy.allowFromGateway` lets Traefik reach the server port,
 # so it must be off here.
 networkPolicy:

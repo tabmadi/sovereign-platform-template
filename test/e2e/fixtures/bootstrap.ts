@@ -11,7 +11,7 @@ const OPENFGA_PORT = 8080;
 // Local forward port for the OpenFGA HTTP API. It is not 8080: the local cluster maps host 8080 to the edge loadbalancer, Traefik.
 // A bind on 8080 here collides with the edge, and requests get a 404 from Traefik instead of OpenFGA.
 const OPENFGA_LOCAL_PORT = Number(process.env.OPENFGA_LOCAL_PORT ?? 18080);
-// The preshared key of the local and CI `cluster:up full`, from the infra secret openfga-creds. Override it for a deployed target.
+// The preshared key of the local and CI `cluster-up full`, from the infra secret openfga-creds. Override it for a deployed target.
 const OPENFGA_TOKEN = process.env.OPENFGA_TOKEN ?? "localdevkey";
 
 type KratosIdentity = { id: string; traits: { email: string } };

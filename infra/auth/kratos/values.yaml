@@ -18,8 +18,8 @@ kratos:
         flows:
           # There is no local error UI, so Kratos falls back to its hosted error page.
           # Keep the whole self-service flow set pointed at our own routes.
-          error:        { ui_url: https://dev.example.com/auth/error }
-          login:        { ui_url: https://dev.example.com/auth/login }
+          error: { ui_url: https://dev.example.com/auth/error }
+          login: { ui_url: https://dev.example.com/auth/login }
           registration:
             ui_url: https://dev.example.com/auth/register
             after:
@@ -36,7 +36,7 @@ kratos:
                       parse: false
           recovery:
             enabled: true
-            use: code              # resists enumeration: it does not show whether an account exists
+            use: code # resists enumeration: it does not show whether an account exists
             ui_url: https://dev.example.com/auth/recovery
           verification:
             enabled: true
@@ -63,7 +63,7 @@ kratos:
           webauthn:
             enabled: true
             config:
-              passwordless: false       # second factor, not a passwordless login
+              passwordless: false # second factor, not a passwordless login
               rp:
                 id: dev.example.com
                 display_name: Platform

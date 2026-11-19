@@ -171,7 +171,7 @@ test.describe("service observability POC, ADR-0501", () => {
         "PolicyDropsDetected",
         "DeploymentReplicasUnavailable",
         "ContainerRestartsSpiking",
-        // Admission control, per ADR-0104: the rule that fires when the image provenance check stops running.
+        // Admission control, per ADR-0113: the rule that fires when the image provenance check stops running.
         "KyvernoAdmissionControllerAbsent",
       ]),
     );

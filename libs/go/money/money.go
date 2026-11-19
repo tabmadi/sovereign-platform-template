@@ -1,4 +1,4 @@
-// Package money is the platform's monetary type, per ADR-0100 and ADR-0003.
+// Package money is the platform's monetary type, per ADR-0110 and ADR-0003.
 package money
 
 import (

@@ -18,7 +18,7 @@ alertmanager:
   # The state is a de-duplication cache. If it is lost, Alertmanager notifies again, and no alert is lost.
   resources:
     requests: { cpu: "20m", memory: "64Mi" }
-    limits:   { memory: "256Mi" }
+    limits: { memory: "256Mi" }
 
   # The `ticket` path. ADR-0307 makes every sender use SMTP. So this is a host,
   # a port, and a credential, like any other relay target: mailpit below the

@@ -4,7 +4,10 @@ cluster:
   storage: { size: 50Gi }
   backup:
     retentionPolicy: "7d"
-    s3: { endpointURL: "http://seaweedfs.platform.svc.cluster.local:8333", destinationPath: "s3://platform-backups/postgres" }
+    s3: {
+      endpointURL: "http://seaweedfs.platform.svc.cluster.local:8333",
+      destinationPath: "s3://platform-backups/postgres",
+    }
 
 # Non-prod object storage is in-cluster SeaweedFS, not the off-cluster store,
 # per ADR-0205. Override the S3 endpoint of each backend. Prod keeps the chart
@@ -27,7 +30,7 @@ tempo:
 # Lowdefy admin console, per ADR-0401. It is the one platform image built in this repo. `publish.yml` promotes
 # it like the services and the frontend. Local uses the local registry.
 lowdefy:
-  # The registry that this environment pulls from authenticates every pull, per ADR-0105.
+  # The registry that this environment pulls from authenticates every pull, per ADR-0114.
   imagePullSecrets:
     - name: registry-pull
   image:
@@ -65,12 +68,12 @@ kratos:
           - https://dev.example.com/
           - https://*.ops.dev.example.com/
         flows:
-          error:        { ui_url: https://dev.example.com/auth/error }
-          login:        { ui_url: https://dev.example.com/auth/login }
+          error: { ui_url: https://dev.example.com/auth/error }
+          login: { ui_url: https://dev.example.com/auth/login }
           registration: { ui_url: https://dev.example.com/auth/register }
-          recovery:     { ui_url: https://dev.example.com/auth/recovery }
+          recovery: { ui_url: https://dev.example.com/auth/recovery }
           verification: { ui_url: https://dev.example.com/auth/verification }
-          settings:     { ui_url: https://dev.example.com/auth/settings }
+          settings: { ui_url: https://dev.example.com/auth/settings }
         methods:
           totp:
             config:
@@ -97,7 +100,7 @@ oathkeeper:
             config:
               to: https://dev.example.com/auth/login
 
-# Admission control, per ADR-0104. A first-party image comes from this prefix, pinned by digest and signed with the platform key.
+# Admission control, per ADR-0113. A first-party image comes from this prefix, pinned by digest and signed with the platform key.
 policies:
   imagePrefix: "ghcr.io/tabmadi/sovereign-platform-template/*"
   registrySecret: registry-pull

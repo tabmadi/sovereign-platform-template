@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Fail when a project created from this template still has the template's identity, per ADR-0106 and ADR-0003.
+# Fail when a project still has the identity of the copy it started from, per ADR-0117 and ADR-0003.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
-# The gate and its test name the footprints, the answers file names its template, and a `*.local.md` file holds one engineer's untracked notes.
-PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.rumdl_cache --exclude=.copier-answers.yml --exclude='*.local.md'
-  --exclude=lint-project-identity.sh --exclude=test-template.sh --binary-files=without-match)
+# The gate names the footprints, template/ holds the scope that `just init` removes, and a `*.local.md` file holds one engineer's untracked notes.
+PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.rumdl_cache --exclude-dir=template --exclude='*.local.md'
+  --exclude=lint-project-identity.sh --binary-files=without-match)
 
 # The template's footprints. `project-rename.sh` rewrites this set before the first push.
 FOOTPRINTS=(
@@ -17,38 +17,32 @@ FOOTPRINTS=(
   "example-prod-cp"
 )
 
-# A generated project has a recorded identity. The file is present for the whole life of the project, so its presence proves nothing.
-# So the gate checks that the recorded answers were applied and that no footprint is left.
-if [ -f .copier-answers.yml ]; then
-  module_path="$(yq -r '.module_path // ""' .copier-answers.yml)"
-  project_slug="$(yq -r '.project_slug // ""' .copier-answers.yml)"
-  [ -n "$module_path" ] || fail ".copier-answers.yml carries no module_path"
-  [ -n "$project_slug" ] || fail ".copier-answers.yml carries no project_slug"
+# `just init` removes scripts/project-init.sh. A copy that still has it has not adopted an identity yet,
+# and the origin remote decides below whether that is the template itself.
+if [ ! -f scripts/project-init.sh ]; then
+  slug="$(awk '$1 == "slug:" {print $2; exit}' infra/project.yaml 2>/dev/null)"
+  [ -n "$slug" ] || fail "infra/project.yaml carries no slug"
 
   problems=()
-  actual="$(awk '/^module /{print $2; exit}' go.mod)"
-  [ "$actual" = "$module_path" ] ||
-    problems+=("go.mod says '${actual}', the answers say '${module_path}'")
-  grep -rqF -- "${project_slug}-" infra/talos/inventory 2>/dev/null ||
-    problems+=("no Talos node is named '${project_slug}-<role>'. The inventory still has the template's names")
+  grep -rqF -- "${slug}-" infra/talos/inventory 2>/dev/null ||
+    problems+=("no Talos node is named '${slug}-<role>'. The inventory still has the names of the copy")
   for footprint in "${FOOTPRINTS[@]}"; do
-    # The brace group absorbs grep's exit 1 under `pipefail`, which would otherwise end the run.
     hits="$({ grep -rlF "${PRUNE[@]}" -- "$footprint" . 2>/dev/null || true; } | wc -l)"
     [ "$hits" -eq 0 ] || problems+=("${hits} file(s) still carry '${footprint}'")
   done
 
   if [ "${#problems[@]}" -gt 0 ]; then
-    warn "this project still has the template's identity:"
+    warn "this project still has the identity of the copy it started from:"
     printf '  · %s\n' "${problems[@]}" >&2
-    fail "adopt the identity with scripts/project-rename.sh, then run 'mise run gen'"
+    fail "rename the rest by hand, then run 'just gen'"
   fi
-  ok "identity recorded and applied: ${project_slug}"
+  ok "identity applied: ${slug}"
   exit 0
 fi
 
 origin_url="$(git remote get-url origin 2>/dev/null || true)"
 if [ -z "$origin_url" ]; then
-  # No remote: a tree that is not attached to a forge yet, including the output of `copier copy` before its first commit.
+  # No remote: a tree that is not attached to a forge yet, such as a copy from `nix flake new` before its first push.
   # Here a copy looks the same as the template, so this gate reports and does not guess.
   ok "no origin remote, identity not checked"
   exit 0
@@ -79,11 +73,11 @@ detail "apex host example.com: ${apex_hits} files"
 echo
 fail "this project still has the template's identity. The repository is '${repo_name}', and the module path says '${module_name}'
 
-A forge-side 'Use this template' copies the tree and runs nothing. Adopt the
-identity before the first push, then commit the result, per ADR-0106:
+A copy from the template button runs nothing. Adopt an identity before the
+first push, then commit the result, per ADR-0117:
 
-    bash scripts/project-rename.sh <slug> <module-path> <apex-host> <image-registry>
-    mise run gen
+    just init
+    just gen
 
 To contribute to the template and not adopt it, keep the repository name, and
 this gate stays quiet."

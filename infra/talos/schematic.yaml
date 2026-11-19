@@ -1,4 +1,4 @@
-# The Image Factory schematic, per ADR-0200 and ADR-0104.
+# The Image Factory schematic, per ADR-0200 and ADR-0113.
 customization:
   systemExtensions:
     officialExtensions:

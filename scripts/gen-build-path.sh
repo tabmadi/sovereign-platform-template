@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Render the machinery table in docs/reference/build-path.md from the tasks themselves, per ADR-0000 principle 2.
-# It lists every task that a workflow or hook reaches, the failure class its description names, and where it runs.
+# Render the machinery table in docs/reference/build-path.md from the recipes themselves, per ADR-0000 principle 2.
+# It lists every recipe that a workflow, a check, or a hook reaches, the failure class its doc comment names, and where it runs.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -9,34 +9,36 @@ BEGIN="<!-- machinery:begin -->"
 END="<!-- machinery:end -->"
 grep -qF "$BEGIN" "$DOC" || fail "${DOC} has no ${BEGIN} marker"
 
-# The include file holds its tasks at the top level, and a generated project does not have it.
-tasks="$({
-  yq -p toml -o json '.tasks // {}' .mise.toml
-  [ ! -f scripts/template-tasks.toml ] || yq -p toml -o json '.' scripts/template-tasks.toml
-} | jq -s 'add')"
+recipes="$(just --dump --dump-format json | jq '.recipes')"
 
-# Each entry point and the tasks it names, as `<file> <task>` lines.
+# Each entry point and the recipes it names, as `<file> <recipe>` lines.
+# A workflow step calls `just <recipe>`. A check of flake.nix runs `gate "<name>" "<recipes>"`. The pre-push hook runs `just ci`.
+# The workflow of the template scope is left out, so a project and the template render the same table.
 shopt -s nullglob
-roots="$(grep -oE 'mise run [a-z][a-z0-9:.-]*' .github/workflows/*.yml .forgejo/workflows/*.yml .lefthook.yml |
-  sed -E 's|^([^:]+):mise run |\1 |' | sort -u)"
+roots="$({
+  grep -oE 'just [a-z][a-z0-9-]*' .github/workflows/*.yml .forgejo/workflows/*.yml | grep -v '/template\.yml:' |
+    sed -E 's|^([^:]+):just |\1 |'
+  sed -nE 's|.*gate "[a-z0-9-]+" "([a-z0-9 -]+)".*|\1|p' flake.nix | tr ' ' '\n' | sed 's|^|flake.nix |'
+  echo "git hooks ci"
+} | sort -u)"
 
-rows="$(jq -rn --argjson t "$tasks" --arg roots "$roots" '
-  def reach($name): [$name] + ([($t[$name].depends // [])[] | reach(.)] | add // []);
-  [$roots | split("\n")[] | select(length > 0) | split(" ") as [$file, $task]
-    | select($t[$task] != null) | reach($task)[] | {task: ., from: ($file | split("/") | last)}]
-  | group_by(.task)
-  | map({task: .[0].task, from: ([.[].from] | unique | join(", "))})
-  | map(select($t[.task].run != null))
-  | map(. + {owns: ($t[.task].description // "")})
+rows="$(jq -rn --argjson t "$recipes" --arg roots "$roots" '
+  def reach($name): [$name] + ([($t[$name].dependencies // [])[].recipe | reach(.)] | add // []);
+  [$roots | split("\n")[] | select(length > 0) | capture("^(?<file>.+) (?<recipe>[a-z0-9-]+)$")
+    | select($t[.recipe] != null) | .file as $file | reach(.recipe)[] | {recipe: ., from: ($file | split("/") | last)}]
+  | group_by(.recipe)
+  | map({recipe: .[0].recipe, from: ([.[].from] | unique | join(", "))})
+  | map(select(($t[.recipe].body | length) > 0 and ($t[.recipe].private | not)))
+  | map(. + {owns: ($t[.recipe].doc // "")})
   | .[]
-  | "\(.task)\t\(.owns)\t\(.from)"')"
+  | "\(.recipe)\t\(.owns)\t\(.from)"')"
 
 missing="$(awk -F'\t' '$2 == "" {print $1}' <<<"$rows")"
-[ -z "$missing" ] || fail "tasks that a workflow or hook reaches have no description of the failure class they own:
+[ -z "$missing" ] || fail "recipes that a workflow, a check, or a hook reaches have no doc comment that names the failure class they own:
 $(sed 's/^/  /' <<<"$missing")"
 
 table="$(
-  printf '| Task | Owns | Reached from |\n| --- | --- | --- |\n'
+  printf '| Recipe | Owns | Reached from |\n| --- | --- | --- |\n'
   awk -F'\t' '{gsub(/\|/, "\\|", $2); printf "| `%s` | %s | %s |\n", $1, $2, $3}' <<<"$rows"
 )"
 

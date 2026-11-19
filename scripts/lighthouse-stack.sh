@@ -20,10 +20,10 @@ down() {
 
 case "${1:-}" in
 up)
-  [ -f "$SPEC" ] || fail "missing ${SPEC}. Run \`mise run gen\` first"
+  [ -f "$SPEC" ] || fail "missing ${SPEC}. Run \`just gen\` first"
   down
 
-  # The builder and the arguments of ci:build-images, so a push's publish job finds this build in the cache.
+  # The builder and the arguments of ci-build-images, so a push's publish job finds this build in the cache.
   step "building the frontend's production image"
   builder="ci-keep-$(id -un)"
   docker buildx inspect "$builder" >/dev/null 2>&1 ||
@@ -68,6 +68,6 @@ down)
   ok "the Lighthouse stack is removed"
   ;;
 *)
-  fail "usage: mise run lighthouse:up or lighthouse:down"
+  fail "usage: just lighthouse-up or lighthouse-down"
   ;;
 esac

@@ -19,7 +19,7 @@ payment:8084
 service_port() {
   local svc="${1:?service_port: missing service}" line
   line="$(printf '%s\n' "$__LOCAL_PORTS" | grep "^${svc}:" || true)"
-  # Warn and return, never fail. lint:ports and lint:service-contract call this in a condition, and an exit stops the gate.
+  # Warn and return, never fail. lint-ports and lint-service-contract call this in a condition, and an exit stops the gate.
   if [ -z "$line" ]; then
     warn "no local port registered for ${svc}. Add it to scripts/lib/ports.sh"
     return 1
@@ -27,5 +27,5 @@ service_port() {
   printf '%s' "${line#*:}"
 }
 
-# all_port_entries prints every `service:port` line, for lint:ports.
+# all_port_entries prints every `service:port` line, for lint-ports.
 all_port_entries() { printf '%s\n' "$__LOCAL_PORTS" | grep ':'; }

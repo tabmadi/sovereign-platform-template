@@ -21,7 +21,7 @@ detail "archived ${maps} maps to ${OUT}"
 find "$BUILD_DIR" -name '*.js.map' -type f -delete
 ok "collected ${maps} source maps and removed them from the build output"
 
-# Stored in the registry next to the image, per ADR-0503 and ADR-0105: one auth model, one retention policy, one store addressed by digest.
+# Stored in the registry next to the image, per ADR-0503 and ADR-0114: one auth model, one retention policy, one store addressed by digest.
 # The product origin must never serve the archive. A map served to a browser gives away the unminified application.
 # With no registry configured, this is skipped with a warning. The maps are already removed at this point.
 REGISTRY="${SOURCEMAP_REGISTRY:-${IMAGE_REGISTRY:-}}"

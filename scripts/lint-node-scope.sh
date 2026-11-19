@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Node-confinement lint, per ADR-0100 and ADR-0601.
+# Node-confinement lint, per ADR-0110 and ADR-0601.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
@@ -14,7 +14,7 @@ no_npm_lockfile_outside_e2e() {
     -path '*/node_modules' -prune -o \
     -name package-lock.json -print 2>/dev/null || true)
   [ -z "$stray" ] && return 0
-  warn "npm lockfile(s) outside test/e2e/. Node is only for e2e, per ADR-0100 and ADR-0601:"
+  warn "npm lockfile(s) outside test/e2e/. Node is only for e2e, per ADR-0110 and ADR-0601:"
   echo "$stray" >&2
   return 1
 }
