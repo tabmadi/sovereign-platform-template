@@ -24,26 +24,40 @@ The platform team is small compared with the whole fleet, per [ADR-0000](0000-pl
 
 ### Signing
 
-| Option | Where trust is rooted | Key custody | Verdict |
-| --- | --- | --- | --- |
-| **cosign with a key pair in SOPS** | **the own age key of the cluster**, per [ADR-0202](0202-secrets.md) | one key pair, in the secret machinery that already holds every other secret | **Chosen.** The only option whose trust root is inside the boundary that principle 3 draws *(reasoned)* |
-| cosign keyless against the public Fulcio and Rekor | the certificate authority and transparency log of a third party | none | Its value is verification by parties who do not trust us. The only verifier here is our own admission controller. It also outsources the trust root. [ADR-0116](0116-forge-and-pipelines.md) rejects a managed forge for that same dependency. The public instance signs only for issuers named in [its own configuration](https://docs.sigstore.dev/certificate_authority/oidc-in-fulcio/). So the issuer of a self-hosted forge must be reachable from the internet and accepted upstream before it can sign at all |
-| cosign keyless against a self-hosted Fulcio and Rekor | a certificate authority we operate | **a CA root key.** This is more consequential than a signing key. [The backends of Fulcio](https://github.com/sigstore/fulcio/blob/main/docs/setup.md) include an on-disk encrypted key, so it can sit in the same machinery | Custody is solvable. The floor is not. Fulcio, Rekor, TUF root metadata, and a timestamp authority join the always-on floor. They serve a single verifier that already trusts us. Principle 2 refuses the purchase |
-| notation, from the Notary Project | a key or a hosted trust store | the same as the chosen option | Equivalent custody, with a narrower ecosystem and tooling |
-| A detached GPG signature beside the image | a key we hold | the same as the chosen option | Not an OCI artefact. Nothing publishes it as a referrer, and no admission controller on this floor reads one. So the verification step that this table exists to enable has nothing to call |
-| No signing, digest pins only | nothing | none | Digest pins prove immutability, not origin. A pinned digest from a compromised builder is still pinned |
+| Option | 1 Verifiable origin | 2 No hardware, no human key | 5 Survives a forge move | Floor added | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **cosign with a key pair in SOPS** | **Yes** | **Yes. The private half is a SOPS secret that only CI decrypts, per [ADR-0202](0202-secrets.md)** | **Yes. The key does not depend on the forge** | **None** | **Chosen** |
+| cosign keyless against the public Fulcio and Rekor | Yes | Yes | No. Fulcio signs only for OIDC issuers in its own configuration, so a self-hosted forge must be accepted upstream | None, and a third party holds the trust root | Rejected on driver 5 and principle 3 |
+| cosign keyless against a self-hosted Fulcio and Rekor | Yes | A CA root key, which can sit in the same machinery | Yes | Fulcio, Rekor, TUF metadata, and a timestamp authority, for one verifier | Rejected on principle 2 |
+| notation, from the Notary Project | Yes | Yes, with a key in the same machinery | Yes | None | Rejected. Kyverno verifies both, and the tooling around cosign is wider. It is the runner-up |
+| A detached GPG signature beside the image | Not at admission. It is not an OCI referrer | Yes | Yes | None | Rejected on driver 1 |
+| No signing, digest pins only | No. A pin proves immutability, not origin | Yes | Yes | None | Rejected on driver 1 |
+
+Sources:
+
+- Signing with a key pair: [Sigstore docs, signing with self-managed keys](https://docs.sigstore.dev/cosign/key_management/overview/).
+- The OIDC issuers that the public Fulcio accepts: [Sigstore docs, OIDC in Fulcio](https://docs.sigstore.dev/certificate_authority/oidc-in-fulcio/).
+- The services of a self-hosted Sigstore: [Fulcio setup](https://github.com/sigstore/fulcio/blob/main/docs/setup.md).
+- Kyverno verifies cosign and notation signatures: [Kyverno docs, verify images](https://kyverno.io/docs/policy-types/cluster-policy/verify-images/).
 
 **Keyless is a technology for axis B low.** It works by trusting somebody else to attest who the signer is. Its payoff is a public, tamper-evident log that a stranger can check without the help of the signer. This platform has no such audience. That is the *signal with no reader* of [ADR-0000](0000-platform-foundations.md), applied to a signature. [ADR-0112](0112-release-and-versioning.md) applies it to a version number in the same way. The reader is named, and here nobody stands in that position.
 
 ### Admission enforcement
 
-| Option | Added components | Policy as files | Verifies signatures at admission | Verdict |
-| --- | --- | --- | --- | --- |
-| **Kyverno** | one controller | YAML in the repo | yes, natively, including attestations | **Chosen.** The policy language is the same YAML as the rest of the platform *(documented)* |
-| OPA Gatekeeper | one controller | Rego in the repo | through an external data provider | Rego is a second language for one concern |
-| Ratify with Gatekeeper | two | Rego plus verifier CRDs | yes, as an external verifier | Purpose-built for exactly this. It costs the second language of Gatekeeper *and* a second component |
-| Kubernetes `ValidatingAdmissionPolicy` | **none, because it is in-tree** | CEL in the repo | no, because a CEL expression cannot read a registry | The option that expands no floor. Signature verification is the one thing that in-process CEL cannot do |
-| Admission in CI only | none | not applicable | no, because the pipeline is the gate | The deploying party owns the pipeline, so driver 3 rules it out |
+| Option | 1 Verifiable origin at admission | 3 Not bypassable by the deployer | 4 Policy as files | Floor added | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Kyverno** | **Yes, signatures and attestations, natively** | **Yes. It is an admission webhook** | **Yes, YAML** | **One controller** | **Chosen** |
+| OPA Gatekeeper | Only through an external data provider | Yes | Yes, Rego | One controller and a second policy language | Rejected on driver 1 |
+| Ratify with Gatekeeper | Yes, as an external verifier | Yes | Yes, Rego and verifier CRDs | Two components and a second language | Rejected on principle 2 |
+| Kubernetes `ValidatingAdmissionPolicy` | No. A CEL expression cannot read a registry | Yes | Yes, CEL | None | Rejected on driver 1 |
+| Checks in CI only | Yes, in the pipeline | No. The deploying party owns the pipeline | Yes | None | Rejected on driver 3 |
+
+Sources:
+
+- Kyverno image verification: [Kyverno docs, verify images](https://kyverno.io/docs/policy-types/cluster-policy/verify-images/).
+- Gatekeeper reads outside data through providers: [Gatekeeper docs, external data](https://open-policy-agent.github.io/gatekeeper/website/docs/externaldata/).
+- Ratify as a Gatekeeper verifier: [Ratify](https://ratify.dev/).
+- CEL admission policies run in the API server with no outside calls: [Kubernetes docs, ValidatingAdmissionPolicy](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/).
 
 ### Scanning and SBOM generation
 
@@ -53,6 +67,12 @@ Both are Tier 2, per [ADR-0002](0002-tool-adoption.md). Each reads an image and 
 | --- | --- | --- | --- |
 | Vulnerability scanning | **Trivy** | Grype, Clair, a registry-side scanner, Snyk | One binary covers OS packages, language dependencies, infrastructure-as-code, and secrets. So one gate covers surfaces that would otherwise need several. Grype is the closest, and it scans packages only. A registry-side scanner runs after the push, which is after the merge that this gates *(reasoned)* |
 | SBOM generation | **syft** | the own SBOM output of Trivy, cdxgen, the SBOM of the build system | It produces the SPDX document that the attestation carries, and the scanner also reads its output. If the scanner did both, the fidelity of the SBOM would depend on the release cadence of a scanner |
+
+Sources:
+
+- What Trivy scans: [Trivy docs, scanners](https://trivy.dev/latest/docs/scanner/vulnerability/).
+- What Grype scans: [Grype](https://github.com/anchore/grype).
+- syft writes SPDX and CycloneDX: [syft](https://github.com/anchore/syft).
 
 **Trivy works at push time, and that is a property, not a defect.** It sees what is being built. Nothing here notices that a CVE published today affects an image built months ago. That is the pull-time half. It is the Dependency-Track row of [`../operational-surface.md`](../operational-surface.md), deferred on the operational budget, with its triggers stated there.
 

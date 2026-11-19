@@ -23,15 +23,23 @@ Object storage as the backend, per [ADR-0207](0207-cluster-storage.md), is a pla
 
 ## Considered options
 
-| Option | Always-on workloads | OCI 1.1 artifacts | Config as files | Verdict |
-| --- | --- | --- | --- | --- |
-| **zot** | **one Go binary** | [native](https://zotregistry.dev/latest/), with S3-compatible storage | a single committed config file | **Chosen.** The only option that closes the concern without expanding the floor *(reasoned)* |
-| Harbor | registry, registry controller, core, jobservice, portal, **its own Postgres, and a Redis** | yes | partly. Projects, robots, and retention are API and UI objects. Only a separate operator reconciles them | Feature-complete, and the reflex answer. Five workloads and two datastores for one concern is the purchase that principle 2 exists to refuse |
-| [Project Quay](https://github.com/quay/quay) | registry, **its own Postgres, and a Redis**, with Clair beside it for scanning | yes | a config bundle, written through its own config tool | The same shape as Harbor under a different name. The scanning it brings is the gate that [ADR-0113](0113-supply-chain-security.md) already runs in CI |
-| CNCF Distribution | one binary | yes. It is the reference implementation. The [referrers API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers) arrived in its 3.x line. So the widely deployed 2.x images answer only through the fallback tag schema | one config file | The thinnest of all. It has no authentication model beyond htpasswd or a token service, no retention policy, and no UI. Each of those then becomes its own decision |
-| Forgejo package registry | none, because the forge is already a decided component, per [ADR-0116](0116-forge-and-pipelines.md) | partial | forge config | Free in component count, and still rejected. The reason is the coupling argument below, not capability |
-| Managed registry | none | yes | provider API | Fails principle 3. It ranks late on the swap list of [ADR-0000](0000-platform-foundations.md), so it is a concession taken well after the ones above it |
-| Do nothing | none | not applicable | not applicable | The honest baseline: images live wherever CI last pushed them. It is not compatible with digest-pinned admission |
+| Option | 1 OCI 1.1 referrers | 2 Thin floor | 3 A pull depends on little | 4 Config as files | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **zot** | **Yes, native** | **One Go binary, on S3-compatible storage** | **Yes. The bucket only** | **Yes. One committed config file** | **Chosen** |
+| Harbor | Yes | No. Core, jobservice, portal, registry, its own Postgres, and a Redis | No. Postgres and Redis | Partly. Projects and retention are API objects | Rejected on drivers 2 and 4 |
+| Project Quay | Yes | No. Its own Postgres and a Redis | No | Partly, through its config tool | Rejected on drivers 2 and 4 |
+| CNCF Distribution | Yes from 3.0. The 2.x line answers only through the fallback tag schema | Yes. One binary | Yes | Yes | Rejected. No auth beyond htpasswd or a token service, and no retention policy. It is the runner-up |
+| Forgejo package registry | Partly | Yes. The forge is already there | No. Every pod start would depend on the forge | Partly | Rejected on driver 3 |
+| Managed registry | Yes | Yes | No. A provider | No | Rejected on principle 3 |
+| Do nothing | No | Yes | No | No | Rejected. It cannot back digest-pinned admission |
+
+Sources:
+
+- zot, its OCI 1.1 support, and its storage drivers: [zot docs](https://zotregistry.dev/latest/).
+- The components of Harbor: [Harbor docs, architecture](https://github.com/goharbor/harbor/wiki/Architecture-Overview-of-Harbor).
+- Project Quay needs Postgres and Redis: [Project Quay docs](https://docs.projectquay.io/deploy_quay.html).
+- The referrers API: [OCI distribution spec, listing referrers](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers).
+- The Forgejo package registry: [Forgejo docs, packages](https://forgejo.org/docs/latest/user/packages/).
 
 Harbor loses on component weight, not on capability. Its replication, quota, and multi-tenancy features answer a problem that a single platform team with one registry does not have. Its Postgres and Redis are exactly the always-on floor cost that principle 2 is written to stop. Its Trivy scanner is optional and would stay off in any case, for the reason below.
 
