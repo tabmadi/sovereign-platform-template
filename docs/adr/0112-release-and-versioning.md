@@ -1,9 +1,9 @@
-# ADR-0103: Release, Tagging and Versioning
+# ADR-0112: Release, Tagging and Versioning
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0500](0500-observability.md)
+- **Related:** [ADR-0111](0111-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0500](0500-observability.md)
 - **Decides:** One repository-wide CalVer line derived from Conventional Commits, with SemVer reserved for anything published for an external pinner.
 
 ## Context
@@ -16,7 +16,7 @@ The monorepo produces these artifacts:
 - Helm charts
 - two applications
 
-[ADR-0101](0101-monorepo.md) tags images `<service>:<git-sha>`, and the same SHA goes through every environment. That covers deployment identity. It leaves three questions open:
+[ADR-0111](0111-monorepo.md) tags images `<service>:<git-sha>`, and the same SHA goes through every environment. That covers deployment identity. It leaves three questions open:
 
 - How humans name what is in production, in a changelog or a release note.
 - When a version number changes, and who changes it.
@@ -35,7 +35,7 @@ So a per-component SemVer line would encode a compatibility promise that **no ex
 1. **The unit of versioning is the unit of shipping.** GitOps rolls one SHA through every environment, and production moves as a whole. A finer version line describes a boundary that the system does not have.
 2. **A version signals something to someone, or it signals nothing.** Whatever the number promises, some consumer must be able to read it and act on it.
 3. **Commit history is an input, not only a record.** The changelog and the breaking-change signal come from it. So its format must be machine-readable and enforced at write time, not cleaned up later.
-4. **Deploy identity stays SHA-based**, per [ADR-0101](0101-monorepo.md). This is inherited, not decided here. Any release label adds to the image identity and never replaces it.
+4. **Deploy identity stays SHA-based**, per [ADR-0111](0111-monorepo.md). This is inherited, not decided here. Any release label adds to the image identity and never replaces it.
 5. **The promotion boundary is a choice, not a default.** Dev and staging deploy continuously from `master`, per [ADR-0201](0201-gitops.md). This ADR decides whether production follows automatically.
 6. **The identity of the running build is provable.** It is not inferred from a successful pipeline.
 
@@ -74,7 +74,7 @@ Driver 2 decides this table. The number of SemVer is addressed to a pinner, and 
 | Option | Computes the version | Enforces the grammar | Verdict |
 | --- | --- | --- | --- |
 | **cocogitto, changelog-only** | not used, because CalVer comes from the date | **yes, at `commit-msg` and in CI** | **Chosen.** One binary covers enforcement and changelog rendering. The version it could compute is not wanted *(reasoned)* |
-| commitlint | no | yes | The same enforcement as a Node program. [ADR-0100](0100-language-and-runtime.md) bars Node for authored tooling |
+| commitlint | no | yes | The same enforcement as a Node program. [ADR-0110](0110-language-and-runtime.md) bars Node for authored tooling |
 | release-please | yes, by inferring SemVer bumps from commit history | no | Its whole value is bump inference. The version-line decision above makes that irrelevant |
 | changesets | yes, per package, from intent files that authors write | no | Built for independently published packages. The same decision rules those out |
 
@@ -96,7 +96,7 @@ Under CalVer, a breaking marker computes no version bump. It does three things:
 - It flags the change for review.
 - For the API surface, it is the signal that [ADR-0303](0303-api-contracts-and-lifecycle.md) keys off.
 
-`cocogitto` enforces the format through a lefthook `commit-msg` hook. CI runs `cog check` again over the commit range of the pull request, as part of `mise run ci:lint`. [ADR-0102](0102-source-control-and-ci.md) keeps CI logic in tasks, not in workflow steps. A squash-merge produces one commit whose title is a valid Conventional Commit. Merge commits are not used.
+`cocogitto` enforces the format through a lefthook `commit-msg` hook. CI runs `cog check` again over the commit range of the pull request, as part of `just ci-lint`. [ADR-0116](0116-forge-and-pipelines.md) keeps CI logic in tasks, not in workflow steps. A squash-merge produces one commit whose title is a valid Conventional Commit. Merge commits are not used.
 
 ### One repo-wide CalVer line
 
@@ -149,7 +149,7 @@ That one value shows in three places:
 
 A release is repo-wide, and it **is** the production deploy. Dev and staging deploy continuously from `master`, limited by Argo sync windows, per [ADR-0201](0201-gitops.md). Production moves only when someone cuts a release.
 
-`mise run release` does these steps:
+`just release` does these steps:
 
 1. It computes the next CalVer from the date and the last release tag. The same month bumps `MICRO`, and a new month resets it.
 2. It stamps version fields where a build tool needs one.
@@ -167,7 +167,7 @@ The release commit goes through the standard build path on `master`, which produ
 | --- | --- |
 | Changelog | one top-level `CHANGELOG.md`, regenerated on every release and **committed**. So reviewers see the text of the release in the release PR, and it survives a shallow clone or a mirror |
 | Pre-release tags | `-rc.<N>` is valid and does **not** trigger a production deploy. It is reserved for when an external consumer needs a named pre-release artifact |
-| Hotfix | branch from the commit of the release tag, not from `master`, as `hotfix/v<YYYY.0M.MICRO+1>`. Cherry-pick, and run `mise run release` from the branch. The tag drives the same promotion workflow. The branch is deleted after the tag exists |
+| Hotfix | branch from the commit of the release tag, not from `master`, as `hotfix/v<YYYY.0M.MICRO+1>`. Cherry-pick, and run `just release` from the branch. The tag drives the same promotion workflow. The branch is deleted after the tag exists |
 
 ### How consumers resolve
 
@@ -196,10 +196,10 @@ The release commit goes through the standard build path on `master`, which produ
 
 ## Rules
 
-- Every commit on `master` is a valid Conventional Commit. Breaking markers head the changelog and flag review. Under CalVer, they compute no version bump. `(CI: ci:lint; ref: Conventional Commits)`
+- Every commit on `master` is a valid Conventional Commit. Breaking markers head the changelog and flag review. Under CalVer, they compute no version bump. `(CI: ci-lint; ref: Conventional Commits)`
 - The repository has one release version, CalVer `vYYYY.0M.MICRO`. There are no per-component version lines and no prefixed tag namespaces. `(ref: CalVer)`
-- In addition to the build tag of [ADR-0101](0101-monorepo.md), production pins by digest. Each release publishes exactly one immutable CalVer label for human reference. Moving tags are never published. `(CI: lint:floating-tags)`
-- `mise run release` cuts releases. There is no auto-release on merge. A release tag triggers the production deploy. Dev and staging deploy continuously from `master`.
+- In addition to the build tag of [ADR-0111](0111-monorepo.md), production pins by digest. Each release publishes exactly one immutable CalVer label for human reference. Moving tags are never published. `(CI: lint-floating-tags)`
+- `just release` cuts releases. There is no auto-release on merge. A release tag triggers the production deploy. Dev and staging deploy continuously from `master`.
 - The repo owns one committed top-level `CHANGELOG.md`. cocogitto regenerates it in changelog-only mode, grouped by change type, newest first. `(ref: Keep a Changelog)`
 - Hotfixes branch from the release tag, not from `master`.
 - Anything extracted or published for external consumers to pin adopts SemVer with its own tag at that point. `(ref: SemVer)`

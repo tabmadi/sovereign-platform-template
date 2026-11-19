@@ -3,8 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md), [ADR-0206](0206-cluster-networking.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0601](0601-testing-strategy.md)
-- **Decides:** Two local tiers run on kind, `cluster:up` for the inner loop and `cluster:up full` for the platform, with a vendored mock and no second system definition.
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0111](0111-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md), [ADR-0206](0206-cluster-networking.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0601](0601-testing-strategy.md)
+- **Decides:** Two local tiers run on kind, `cluster-up` for the inner loop and `cluster-up full` for the platform, with a vendored mock and no second system definition.
 
 ## Context
 
@@ -24,7 +24,7 @@ The full-platform tier serves them, but the platform dominates its footprint com
 
 Two properties make the missing tier cheap:
 
-- [ADR-0303](0303-api-contracts-and-lifecycle.md) produces exactly the artifact that a mock needs. The `gen:openapi-public` projection at `apps/frontend/public/devportal/openapi/internal.json` is one merged OpenAPI 3.1 document. It holds exactly the operations at audience `>= internal`, with `servers: /api`. It is committed and checked for drift.
+- [ADR-0303](0303-api-contracts-and-lifecycle.md) produces exactly the artifact that a mock needs. The `gen-openapi-public` projection at `apps/frontend/public/devportal/openapi/internal.json` is one merged OpenAPI 3.1 document. It holds exactly the operations at audience `>= internal`, with `servers: /api`. It is committed and checked for drift.
 - The auth stack is small. Kratos plus Oathkeeper plus an ephemeral Postgres costs almost nothing next to the full tier.
 
 So the question is not how to simulate the platform. The question is **which parts are cheap enough to keep real, and which are worth replacing with their contract**.
@@ -111,7 +111,7 @@ Skaffold, Tilt, DevSpace, and Okteto promote live file sync as their main featur
 | Tool | Resolves the dependencies of each service on a subset | Parallel config system | Verdict |
 | --- | --- | --- | --- |
 | Garden | **the only one that does** | `garden.yml` for each action | The right convention, the wrong dependency. See below |
-| Skaffold | partly, at module level | `skaffold.yaml` | Adopting it again reverses [ADR-0101](0101-monorepo.md) and adds no capability |
+| Skaffold | partly, at module level | `skaffold.yaml` | Adopting it again reverses [ADR-0111](0111-monorepo.md) and adds no capability |
 | Tilt | **explicitly not**, as documented | Starlark | The healthiest project in the set. Its subset mechanism ignores dependencies, and that is the exact failure to fix |
 | DevSpace | coarse: across repos, always first | `devspace.yaml` | The wrong level of detail |
 | Okteto | no | `okteto.yml` | Built for remote namespaces |
@@ -120,7 +120,7 @@ Skaffold, Tilt, DevSpace, and Okteto promote live file sync as their main featur
 **The platform adopts Garden's convention, not Garden.** There are two independent reasons:
 
 - *Stewardship.* A company owns Garden's open-source repository. Its commit and release rate is ten times lower than Tilt's and Skaffold's. Driver 6 makes active maintenance an entry gate, not a scoring column, and Garden does not meet it.
-- *Architecture.* To adopt Garden means to adopt its whole config system: its own build, test, and deploy verbs, and its own environment model. That does not sit beside Helm, Argo CD, and mise. It duplicates them and collides with [ADR-0101](0101-monorepo.md) and [ADR-0201](0201-gitops.md). Two orchestrators would then resolve a graph over six services.
+- *Architecture.* To adopt Garden means to adopt its whole config system: its own build, test, and deploy verbs, and its own environment model. That does not sit beside Helm, Argo CD, and mise. It duplicates them and collides with [ADR-0111](0111-monorepo.md) and [ADR-0201](0201-gitops.md). Two orchestrators would then resolve a graph over six services.
 
 A like-for-like sizing gave Garden about 210 fewer lines: about 400 against about 610. Most of the difference was readiness-gated ordering and the image build and import.
 
@@ -149,7 +149,7 @@ Garden does **not** win on graph resolution, the property that first made it att
 | MSW | not applicable | typed handlers | in-process | An in-process double, not a running API. Nothing outside the Next server can reach it. It owns the test layer, and that separate concern is the justification that driver 5 requires |
 | Microcks | full | the spec, native to GitOps | **MongoDB** | The best GitOps fit, and the only one that also does contract testing. But a datastore that joins the floor for a development mock fails the budget rule |
 | `muonsoft/openapi-mock` | **3.0 core, through kin-openapi** | the spec | none, it is a Go binary | The best language fit. It is rejected as the primary mock on a correctness risk: the specs are 3.1. It is the documented fallback if the vendored container becomes unacceptable, on the condition that it proves 3.1 support |
-| WireMock or Imposter | good | their own DSL | **JVM** | Excluded by [ADR-0100](0100-language-and-runtime.md) |
+| WireMock or Imposter | good | their own DSL | **JVM** | Excluded by [ADR-0110](0110-language-and-runtime.md) |
 | Mockoon | import only | **its own JSON file**. The import is a fork | GUI | The spec stops being the source of truth on the second day |
 | Hoverfly | not applicable | recorded traffic | none, it is Go | It needs real traffic to capture first. It adds to a real environment and does not replace one |
 | Fake services from `ogen` | full | the spec | none | The highest fidelity, including state, at a cost **for each service**. Across a fleet, this is a parallel implementation of the platform |
@@ -169,16 +169,16 @@ Garden does **not** win on graph resolution, the property that first made it att
 
 | Tier | Command | Distribution | Parity | What runs | For |
 | --- | --- | --- | --- | --- | --- |
-| **Inner loop** | `cluster:up` plus a service's own tasks | kind | **interface** | the local floor. The service under change runs natively on the host | daily coding, UI work |
-| **Full platform** | `cluster:up full` | kind | **implementation** | the real platform charts at `instances=1`: CNPG, the Temporal chart, OpenFGA, SeaweedFS, observability, edge, and auth | e2e per [ADR-0601](0601-testing-strategy.md), pre-merge validation, CI, label-gated PR previews |
+| **Inner loop** | `cluster-up` plus a service's own tasks | kind | **interface** | the local floor. The service under change runs natively on the host | daily coding, UI work |
+| **Full platform** | `cluster-up full` | kind | **implementation** | the real platform charts at `instances=1`: CNPG, the Temporal chart, OpenFGA, SeaweedFS, observability, edge, and auth | e2e per [ADR-0601](0601-testing-strategy.md), pre-merge validation, CI, label-gated PR previews |
 
-The inner loop runs the service natively against lightweight stand-ins: a plain Postgres, `temporal server start-dev`, and in-memory OpenFGA. `dev:forward` makes them reachable. The stand-ins honour the same wire contract, so a bug that appears against them also appears in production. The hot path has no image build, no new deploy, and no file watch.
+The inner loop runs the service natively against lightweight stand-ins: a plain Postgres, `temporal server start-dev`, and in-memory OpenFGA. `dev-forward` makes them reachable. The stand-ins honour the same wire contract, so a bug that appears against them also appears in production. The hot path has no image build, no new deploy, and no file watch.
 
 The full platform runs the same charts on the same distribution as a deployed environment. The `local` values overlay scales them to one replica. Cilium is installed from the committed chart, and the cluster declines kube-proxy at create time. etcd is the datastore, per [ADR-0200](0200-cluster-topology.md) and [ADR-0206](0206-cluster-networking.md). This tier catches operator behaviour, sync order, and chart wiring. It is the exact configuration that CI and PR previews use.
 
 **The two tiers are two clusters, not two states of one cluster.** The inner loop survives a full-tier teardown, and neither bring-up disturbs the other. Each has its own `kubectl` context. A service's local port is the same in both, per `scripts/lib/ports.sh`.
 
-**Only the entrypoint names a tier.** `scripts/cluster.sh` takes the tier as an argument, because it creates the tier, per [ADR-0101](0101-monorepo.md). Every other script acts on a cluster that it did not create, and reads the tier from the machine. The tiers share the edge's host ports, so at most one tier serves at a time, and the answer is always clear. The argument exists to remove a hardcoded default. A tool that assumes the inner loop while the full tier serves resolves to a context that does not exist. Every call inside it then fails as if the platform were down.
+**Only the entrypoint names a tier.** `scripts/cluster.sh` takes the tier as an argument, because it creates the tier, per [ADR-0111](0111-monorepo.md). Every other script acts on a cluster that it did not create, and reads the tier from the machine. The tiers share the edge's host ports, so at most one tier serves at a time, and the answer is always clear. The argument exists to remove a hardcoded default. A tool that assumes the inner loop while the full tier serves resolves to a context that does not exist. Every call inside it then fails as if the platform were down.
 
 Images reach the full tier through a local registry. A deployed environment uses the same path: Argo CD pulls a tag from a registry, and does not find the image already on the node. The inner loop keeps the direct import, because nothing there reconciles from git.
 
@@ -186,22 +186,22 @@ Images reach the full tier through a local registry. A deployed environment uses
 
 | Mode | What runs | Cost | Limits |
 | --- | --- | --- | --- |
-| **Native**, with `service:dev` and `mise run server` | the service on the host, behind the real edge | the lightest | no pod env or files, and no NetworkPolicy enforcement |
-| **In-cluster**, with `cluster:add` | the service from the working tree, in the cluster | an image build for each change | no debugger attach |
+| **Native**, with `service-dev` and `just server` | the service on the host, behind the real edge | the lightest | no pod env or files, and no NetworkPolicy enforcement |
+| **In-cluster**, with `cluster-add` | the service from the working tree, in the cluster | an image build for each change | no debugger attach |
 
 **Any number of services can run natively at the same time**, each on its own registered port. To debug a flow across three services, run all three natively with breakpoints in all three. Everything they call stays in the cluster.
 
 That needs a **committed port registry** in `scripts/lib/ports.sh`, not a convention. Every server binds `:8080` in the cluster, and that collides as soon as a second server runs on the host.
 
-Ad-hoc ports would live in each engineer's gitignored `.env`. Nobody could share them or give them defaults. One stable port for each service on every machine lets a caller's `CATALOG_URL` ship a working default. `lint:ports` enforces two things: each port is unique, and each service binds the port that the registry assigns. `:8080` stays unassigned, because the host maps it to the edge.
+Ad-hoc ports would live in each engineer's gitignored `.env`. Nobody could share them or give them defaults. One stable port for each service on every machine lets a caller's `CATALOG_URL` ship a working default. `lint-ports` enforces two things: each port is unique, and each service binds the port that the registry assigns. `:8080` stays unassigned, because the host maps it to the edge.
 
 ### Composition: a floor, plus declarations by each service
 
-There are no named profiles. **The floor** is always present. `cluster:up` brings up Cilium, Traefik, cert-manager, Postgres, Kratos, and Oathkeeper. It also brings up the host edge glue and the seeded test identities.
+There are no named profiles. **The floor** is always present. `cluster-up` brings up Cilium, Traefik, cert-manager, Postgres, Kratos, and Oathkeeper. It also brings up the host edge glue and the seeded test identities.
 
 Cilium is in the floor for two reasons. A CNI must exist before any pod. It is also the mechanism that [ADR-0206](0206-cluster-networking.md) makes the trust boundary between services. So a service's NetworkPolicy is enforced from the first tier up. A missing allow rule fails where someone wrote it, not in a deployed environment.
 
-The chart, its WireGuard encryption, and its eBPF dataplane are the same in every tier. Only the delivery differs. The nodes of a deployed environment carry the inline manifest in their machine config. A local node has no machine config. So `cluster:up` installs the same chart imperatively, on a cluster created without kube-proxy.
+The chart, its WireGuard encryption, and its eBPF dataplane are the same in every tier. Only the delivery differs. The nodes of a deployed environment carry the inline manifest in their machine config. A local node has no machine config. So `cluster-up` installs the same chart imperatively, on a cluster created without kube-proxy.
 
 **No values differ.** The inner loop declines kube-proxy when it creates the cluster, and does not compensate for it later. So Cilium runs the committed `kubeProxyReplacement` setting in every tier. A local override of a Cilium value is a defect. It makes the datapath under a local test differ from the datapath under the deployed workload.
 
@@ -220,23 +220,23 @@ What runs is **the base plus the declared dependencies of every running service*
 
 `svc:*` exists because a microservices repo cannot leave out the second family. The orders checkout saga calls catalog and payment, per [ADR-0302](0302-temporal.md). Without them, a worker starts cleanly and fails on the first checkout. That failure comes later than a missing database, so its cause is harder to find.
 
-**The default is to deploy the callee. The override is to run it natively.** The usual case is work on the caller, and the callees then need no attention. `svc:catalog` checks that *the port answers*, not that a deployment exists. So a native catalog also satisfies the graph. The cross-service debugging case is the single-service case with more callees started by hand.
+**The default is to deploy the callee. The override is to run it natively.** The usual case is work on the caller, and the callees then need no attention. `svc-catalog` checks that *the port answers*, not that a deployment exists. So a native catalog also satisfies the graph. The cross-service debugging case is the single-service case with more callees started by hand.
 
-On purpose, `cluster:add` does **not** address dependency components. `postgres` is both a platform chart and a `deps.yaml` slice. As names that users type, components would be ambiguous. They stay internal to the graph. So `cluster:add` resolves names over two disjoint namespaces: services and platform charts. A name in both is a repo bug, not a user error.
+On purpose, `cluster-add` does **not** address dependency components. `postgres` is both a platform chart and a `deps.yaml` slice. As names that users type, components would be ambiguous. They stay internal to the graph. So `cluster-add` resolves names over two disjoint namespaces: services and platform charts. A name in both is a repo bug, not a user error.
 
 ### mise supplies the graph
 
-A service's nested `.mise.toml` can depend on tasks from the root config. mise removes duplicate diamond dependencies, so a shared `cluster:up` runs once. Independent dependencies run in parallel. These are Garden's graph-execution semantics, in a tool that is already pinned.
+A service's nested `.mise.toml` can depend on tasks from the root config. mise removes duplicate diamond dependencies, so a shared `cluster-up` runs once. Independent dependencies run in parallel. These are Garden's graph-execution semantics, in a tool that is already pinned.
 
 ```toml
 # root .mise.toml
-[tasks."dep:temporal"]
-depends = ["cluster:up"]
+[tasks."dep-temporal"]
+depends = ["cluster-up"]
 run = "bash scripts/dep-apply.sh temporal"
 
 # services/orders/.mise.toml
 [tasks.worker]
-depends = ["env", "dep:postgres", "dep:temporal", "svc:catalog", "svc:payment"]
+depends = ["env", "dep-postgres", "dep-temporal", "svc-catalog", "svc-payment"]
 run = "go run ./cmd/worker"
 ```
 
@@ -245,33 +245,33 @@ run = "go run ./cmd/worker"
 | mise | the dependency graph and the task vocabulary. Declarations only, with no logic in `.mise.toml` |
 | bash | one small idempotent installer for each component, `dep-apply.sh`, or each sibling, `svc-apply.sh` |
 | Helm | the component units: the same charts in every tier |
-| Argo CD | `cluster:up full` only |
+| Argo CD | `cluster-up full` only |
 
-**One property is not free.** Garden checks status and skips work that is already done. mise does not. Its `sources` and `outputs` staleness check uses files, and the readiness of Temporal is not a file. Without a guard, every `mise run server` pays again for a full apply and a rollout wait.
+**One property is not free.** Garden checks status and skips work that is already done. mise does not. Its `sources` and `outputs` staleness check uses files, and the readiness of Temporal is not a file. Without a guard, every `just server` pays again for a full apply and a rollout wait.
 
 So the guard is **central**, in `dep-apply.sh` and `svc-apply.sh`, and not written by hand for each component. One shared readiness check of about twenty lines covers everything. A component that forgot its own guard would slow the inner loop with no warning. For this reason, the guard does not live in the components.
 
 ### The service contract
 
-Every service takes part in the same way. `lint:service-contract` checks this.
+Every service takes part in the same way. `lint-service-contract` checks this.
 
 | A service must | Because |
 | --- | --- |
-| Live at `services/<name>/`, with the same name everywhere | `cluster:add` resolves names over two disjoint namespaces |
-| Expose `server`, `test`, `lint`, and `build`, plus `worker`, `migrate`, and `generate` when it has them | CI and `cluster:add` call them by name, per [ADR-0101](0101-monorepo.md) |
+| Live at `services/<name>/`, with the same name everywhere | `cluster-add` resolves names over two disjoint namespaces |
+| Expose `server`, `test`, `lint`, and `build`, plus `worker`, `migrate`, and `generate` when it has them | CI and `cluster-add` call them by name, per [ADR-0111](0111-monorepo.md) |
 | Register a local port in `scripts/lib/ports.sh`, and set the same `PORT` in its `.mise.toml` | It can then run natively beside other services, and the `<SVC>_URL` of each caller has a working default |
 | Declare `dep:*` for the infrastructure it reads | The graph brings up exactly that, and the deploy path reads the same list |
 | Declare `svc:*` for every service it calls over HTTP | Otherwise it starts cleanly and fails on the first cross-service call |
-| Ship a `.env.example` that covers every variable it reads | `mise run server` seeds `.env` from it. A variable not listed takes a default with no warning |
+| Ship a `.env.example` that covers every variable it reads | `just server` seeds `.env` from it. A variable not listed takes a default with no warning |
 | Ship a values file for each environment under `infra/gitops/services/<env>/values/`, or declare `# platform/not-deployed: <env>` | The ApplicationSet generates one Argo Application for each values file. Without a file, the service is absent from that environment, and nothing reports it |
-| Ship a `Dockerfile` and a `README.md` | CI and `cluster:add` build the image by the same path |
+| Ship a `Dockerfile` and a `README.md` | CI and `cluster-add` build the image by the same path |
 | Bind `httpmw.ListenAddr()` | This is `:8080` in the cluster. The chart's containerPort, the IngressRoutes, and the NetworkPolicies all expect it |
 
 **The values-file rule needs an explicit opt-out, because a git-directory generator does not treat a missing file as an error.** A missing file produces no Application and no diagnostic. The failure it guards against is silent and crosses services. In every environment, `infra/auth/oathkeeper/values.yaml` points the `remote_json` authorizer at `authz-server` by service DNS. So if `authz` has no values file for an environment, every gated dashboard request there resolves to a Service that does not exist.
 
 The set of values files is this platform's deployment surface. It is stated, not inferred.
 
-**The check cannot verify that the declarations are true.** A reviewer checks that a service with `dep:temporal` uses Temporal at all. A reviewer also checks that a new HTTP call has its `svc:*` edge. A cross-service call without its edge is the most likely regression of the local loop.
+**The check cannot verify that the declarations are true.** A reviewer checks that a service with `dep-temporal` uses Temporal at all. A reviewer also checks that a new HTTP call has its `svc:*` edge. A cross-service call without its edge is the most likely regression of the local loop.
 
 ### GitOps locally
 
@@ -283,11 +283,11 @@ Three escape hatches cover uncommitted infra:
 
 | Change | Path |
 | --- | --- |
-| Chart or values | `cluster:add -- <chart>` pauses Argo auto-sync on that one app and runs `helm upgrade` from the working tree |
+| Chart or values | `cluster-add -- <chart>` pauses Argo auto-sync on that one app and runs `helm upgrade` from the working tree |
 | GitOps wiring: sync waves, ApplicationSets, app definitions | push a branch and point the local root app's `targetRevision` at it. This exercises the real delivery path |
-| Machine config, CNI, or CRD | `cluster:down -- full` plus a fresh `cluster:up -- full`. A machine-config change reaches a deployed node in the same way. A CNI swap on a live cluster interrupts networking for a short time. This comes from the component, not from a gap in the tooling |
+| Machine config, CNI, or CRD | `cluster-down -- full` plus a fresh `cluster-up -- full`. A machine-config change reaches a deployed node in the same way. A CNI swap on a live cluster interrupts networking for a short time. This comes from the component, not from a gap in the tooling |
 
-`cluster:remove` reverses `cluster:add` **and turns Argo auto-sync back on**, which the add path paused.
+`cluster-remove` reverses `cluster-add` **and turns Argo auto-sync back on**, which the add path paused.
 
 ### The mock serves data. It never serves identity
 
@@ -301,7 +301,7 @@ The same reasoning covers authorization. In the real service, `GET /orders` retu
 
 The mock gets `internal.json` and nothing else. By design, this file is the frontend's edge surface: merged, with `servers: /api`, and checked for drift.
 
-**A glob over `services/*/openapi.yaml` is not an acceptable replacement.** It captures `services/authz/`, a service with only `cluster` audience whose `servers` is `/`. It also captures `services/_template/`, which is scaffolding. A merge of those with `servers: /api` publishes `/api/identities` and `/api/items`. These routes do not exist at the real edge and must not exist there. They would reverse the invariant that `lint:api-audience` enforces. The projection also removes the merge step, its tooling, and its collision handling.
+**A glob over `services/*/openapi.yaml` is not an acceptable replacement.** It captures `services/authz/`, a service with only `cluster` audience whose `servers` is `/`. It also captures `services/_template/`, which is scaffolding. A merge of those with `servers: /api` publishes `/api/identities` and `/api/items`. These routes do not exist at the real edge and must not exist there. They would reverse the invariant that `lint-api-audience` enforces. The projection also removes the merge step, its tooling, and its collision handling.
 
 ### Fidelity comes from the contract, not from the tool
 
@@ -311,7 +311,7 @@ The fix belongs in the contract. Examples in `services/<service>/openapi.yaml` m
 
 ### UI work is the floor plus the mock
 
-| Component | State on `cluster:up` | Why |
+| Component | State on `cluster-up` | Why |
 | --- | --- | --- |
 | Cilium | real | the CNI that every pod needs, and the NetworkPolicy enforcement point, per [ADR-0206](0206-cluster-networking.md) |
 | Traefik | real | routes `/api` to the mock and `/` to the host `next dev`. It owns the same-origin contract |
@@ -326,13 +326,13 @@ The application's authentication path is **byte-identical to production**. It ha
 
 ### Identity comes from a seeded real login
 
-`cluster:up` seeds the committed deterministic test identities that [ADR-0601](0601-testing-strategy.md) defines. It does not invent a second, development-only identity. `scripts/auth-token.sh` logs in through the real native flow. Kratos sessions last **7 days**, so a human logs in about once a week. The bootstrap exists so that a fresh cluster is usable at once, and CI never types a password.
+`cluster-up` seeds the committed deterministic test identities that [ADR-0601](0601-testing-strategy.md) defines. It does not invent a second, development-only identity. `scripts/auth-token.sh` logs in through the real native flow. Kratos sessions last **7 days**, so a human logs in about once a week. The bootstrap exists so that a fresh cluster is usable at once, and CI never types a password.
 
 ### The mock is local tooling only
 
 It joins no tier in [`docs/operational-surface.md`](../operational-surface.md). That inventory covers software that the platform *operates*. The mock runs only on an engineer's machine, as k6 does. Its absence from the inventory is a decision.
 
-The mock is forbidden wherever a test asserts correctness, per driver 4 of [ADR-0601](0601-testing-strategy.md). It never runs in `mise run test`, `ci:affected`, the e2e or visual suites, or any deployed environment. Its only consumer is a human who looks at a browser.
+The mock is forbidden wherever a test asserts correctness, per driver 4 of [ADR-0601](0601-testing-strategy.md). It never runs in `just test`, `ci-affected`, the e2e or visual suites, or any deployed environment. Its only consumer is a human who looks at a browser.
 
 The mock's validating-proxy mode is not used either. The platform already answers that question twice. ogen generates the server from the spec. Every generated Go client validates responses against the spec. So a response that violates the spec fails the integration tests that drive it.
 
@@ -362,7 +362,7 @@ A short, listed set of manifests has no production equivalent:
 - Both tiers run upstream Kubernetes on etcd. So the first tier already shows a behaviour of the Kubernetes version, a watch or compaction semantic, and a difference in Service routing.
 - NetworkPolicy and the eBPF datapath are the same in every tier. So an undeclared caller and a wrong routing assumption both fail in the tier that introduced them.
 - No Cilium value differs between tiers. So the local network posture is the deployed network posture, not a copy that only looks similar.
-- The frontend has a tier that costs a fraction of `cluster:up full`, and the authentication path stays unchanged.
+- The frontend has a tier that costs a fraction of `cluster-up full`, and the authentication path stays unchanged.
 - No development-only code ships in `apps/frontend/`. A screen cannot work locally and return `403` in staging, because the local gates are the real gates.
 - The mock cannot drift from the contract. Its only input is an artifact that is checked for drift.
 - Examples serve the developer portal and the mock at the same time. The test-identity bootstrap has two consumers, so it runs daily, not only nightly.
@@ -371,7 +371,7 @@ A short, listed set of manifests has no production equivalent:
 ### Negative and Risks
 
 - **We own the dependency resolution that Garden gives for free.** The graph is small, and the trade is fair. But it must not grow into a general-purpose engine by accident. The discipline: `.mise.toml` files stay declarations, and each bash script installs exactly one component. Shell logic that grows in task definitions rebuilds Garden badly.
-- **`svc:*` owns the one long-lived process that the dev loop runs.** A mise task must return for the graph to continue, but the callee's port-forward must outlive the task. So `svc-apply.sh` detaches the port-forward and tracks it by pidfile, and `cluster:remove` reaps it. This is the least elegant part of the design and the price of not adopting a process manager. It is limited to one script. If it becomes a source of bugs, mirrord replaces it.
+- **`svc:*` owns the one long-lived process that the dev loop runs.** A mise task must return for the graph to continue, but the callee's port-forward must outlive the task. So `svc-apply.sh` detaches the port-forward and tracks it by pidfile, and `cluster-remove` reaps it. This is the least elegant part of the design and the price of not adopting a process manager. It is limited to one script. If it becomes a source of bugs, mirrord replaces it.
 - **A service's callee list carries weight.** Nothing detects a missing `svc:*` edge. The call fails at runtime.
 - **A third vendored Node tool.** Prism's image is third-party Node software that the repo runs but does not write. The Playwright runner and the Lowdefy console are the other two. Its scope is strict: a local-only container, no Node in any `.mise.toml`, no `package.json`, no lockfile, and never in an image built from our source.
 - **The mock is stateless.** A read after a create does not show the write. A `WorkflowHandle`'s `result_url` polls nothing. This is the true limit of the tier.
@@ -386,7 +386,7 @@ A short, listed set of manifests has no production equivalent:
 
 ## Rules
 
-- Local development runs two tiers: the `cluster:up` inner loop and `cluster:up full`. There are no named profiles.
+- Local development runs two tiers: the `cluster-up` inner loop and `cluster-up full`. There are no named profiles.
 - Both local tiers run on kind, as two clusters with two contexts. The bring-up of one tier never changes the other, and no local tier shares a cluster with another.
 - `scripts/cluster.sh` is the only script that names a tier, and it takes the tier as an argument. Every other script resolves the tier from the running cluster. A tier hardcoded as a consumer's default is a defect.
 - Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built. A difference introduced between them is a defect.
@@ -394,21 +394,21 @@ A short, listed set of manifests has no production equivalent:
 - Every local cluster is created without a CNI and without kube-proxy. A distribution that bundles either is not used.
 - No local tier applies a machine config. The delivery mechanism that [ADR-0206](0206-cluster-networking.md) decides is exercised in a deployed environment, and `infra/talos/` carries no local variant.
 - Cilium is in the floor of both tiers. It comes from the committed chart, with WireGuard on and its eBPF dataplane in place of kube-proxy, and is installed imperatively before Argo CD exists. No Cilium value differs between tiers.
-- Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation as a deployed environment, per [ADR-0105](0105-image-registry.md). So the local image path is not a second product.
-- What runs locally is the floor plus the declared dependencies of the running services. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. `(CI: lint:service-contract, lint:service-deps)`
+- Images reach a local tier through the local registry or through `kind load`. The registry runs the same implementation as a deployed environment, per [ADR-0114](0114-image-registry.md). So the local image path is not a second product.
+- What runs locally is the floor plus the declared dependencies of the running services. A service declares `dep:*` for infrastructure and `svc:*` for every service it calls over HTTP. `(CI: lint-service-contract, lint-service-deps)`
 - `.mise.toml` files carry declarations only. Component logic lives in one idempotent installer script for each component, and each script exits fast when its component is already ready.
-- Every mise task has a command or a dependency. A task with neither passes and does nothing. `(CI: lint:tasks)`
-- Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`. `:8080` stays unassigned. `(CI: lint:ports)`
-- Every service ships a values file for each environment, or declares `# platform/not-deployed: <env>`. Absence is never inferred. `(CI: lint:service-contract)`
-- Argo CD is the engine for `cluster:up full` only. Uncommitted infra changes go through `cluster:add` or a branch `targetRevision`, never through direct edits to cluster state.
+- Every mise task has a command or a dependency. A task with neither passes and does nothing. `(CI: lint-tasks)`
+- Every service registers a local port in `scripts/lib/ports.sh` and binds `httpmw.ListenAddr()`. `:8080` stays unassigned. `(CI: lint-ports)`
+- Every service ships a values file for each environment, or declares `# platform/not-deployed: <env>`. Absence is never inferred. `(CI: lint-service-contract)`
+- Argo CD is the engine for `cluster-up full` only. Uncommitted infra changes go through `cluster-add` or a branch `targetRevision`, never through direct edits to cluster state.
 - API mocking exists only for the UI development loop. The mock appears in no deployed environment, no chart, and no image built from our own source.
 - The mock's only input is the committed `internal.json` projection. A glob over `services/*/openapi.yaml`, route files written by hand, and standalone fixture bodies are not used.
 - The mock serves no authentication or authorization behaviour: no `401`, no session awareness, and no identity headers.
-- The application contains no development-only authentication code. A session bypass, a fake session object, or a branch on the environment in the session path blocks review. A branch on the environment that grants nothing does not. `(CI: lint:auth-inline)`
+- The application contains no development-only authentication code. A session bypass, a fake session object, or a branch on the environment in the session path blocks review. A branch on the environment that grants nothing does not. `(CI: lint-auth-inline)`
 - Authenticated local development uses the real Kratos with the committed test identity. Fake identity providers are not used for Kratos. They stay permitted for Hydra, which is a protocol boundary.
 - The mock runs examples first. Schema generation is a fallback behind a flag, for an endpoint without an example.
-- A list in a `GET` response example has eight rows or more. An operation whose list is short by nature names its reason in `x-short-example`. `(CI: lint:openapi)`
-- The mock is forbidden in `mise run test`, `ci:affected`, and the e2e and visual suites.
-- The mock ships as a vendored container and adds no `package.json`, lockfile, or `node_modules`. `(CI: lint:node-scope)`
+- A list in a `GET` response example has eight rows or more. An operation whose list is short by nature names its reason in `x-short-example`. `(CI: lint-openapi)`
+- The mock is forbidden in `just test`, `ci-affected`, and the e2e and visual suites.
+- The mock ships as a vendored container and adds no `package.json`, lockfile, or `node_modules`. `(CI: lint-node-scope)`
 - The mock is local tooling and joins no tier in [`docs/operational-surface.md`](../operational-surface.md).
 - Statelessness is the limit of the tier. Persistence, workflow progress, and authorization decisions are exercised against real services, never asserted against the mock.

@@ -10,7 +10,7 @@ So no doc repeats a stack choice, and no runbook argues for its own design.
 
 ## How this tree is laid out
 
-The genre decides the directory. So a path tells the reader the kind of document before the file opens, per [ADR-0001](adr/0001-documentation-and-output-conventions.md).
+The genre decides the directory. So a path tells the reader the kind of document before the file opens, per [ADR-0001](adr/0001-documentation-conventions.md).
 
 | Path | Genre | Holds |
 | --- | --- | --- |
@@ -102,4 +102,4 @@ The topic is in the filename, not in a directory. A directory with one file adds
 | What we wait for, and who watches it | [deferral-register](reference/deferral-register.md) |
 | The shape of the system | [system-view](reference/system-view.md) |
 | Whether an upstream fact still holds | [upstream-status](reference/upstream-status.md) |
-| How the prose in this repo is written | [ADR-0001](adr/0001-documentation-and-output-conventions.md) |
+| How the prose in this repo is written | [ADR-0001](adr/0001-documentation-conventions.md) |

@@ -1,18 +1,18 @@
-# ADR-0107: Work Tracking
+# ADR-0115: Work Tracking
 
 - **Status:** Accepted
 - **Date:** 2026-11-03
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0002](0002-tool-adoption.md), [ADR-0102](0102-source-control-and-ci.md), [ADR-0106](0106-dependency-updates.md), [ADR-0300](0300-data.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0503](0503-error-tracking.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-conventions.md), [ADR-0002](0002-tool-adoption.md), [ADR-0116](0116-forge-and-pipelines.md), [ADR-0117](0117-updates-and-setup-modes.md), [ADR-0300](0300-data.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0503](0503-error-tracking.md)
 - **Decides:** The task manager of a project is the issues and projects of its own forge, in each forge mode, for technical and non-technical teams.
 
 ## Context
 
 Every task is a forge issue. Three ADRs rest on that fact:
 
-- [ADR-0001](0001-documentation-and-output-conventions.md) puts planned work there.
+- [ADR-0001](0001-documentation-conventions.md) puts planned work there.
 - [ADR-0503](0503-error-tracking.md) puts error triage there.
-- [ADR-0102](0102-source-control-and-ci.md) counts issues in the review record that a forge move must carry.
+- [ADR-0116](0116-forge-and-pipelines.md) counts issues in the review record that a forge move must carry.
 
 The forge was compared as a forge, not as a task manager. Principle 7 of [ADR-0000](0000-platform-foundations.md) calls a tool with no recorded comparison an assumption. This ADR records the comparison.
 
@@ -23,7 +23,7 @@ Two groups use the tool, and they do different work:
 | Engineers | open, link, and close work from commits and pull requests | yes |
 | Teams that do not write code: product, design, support, sales, and operations | file requests, plan, and follow progress | no |
 
-A project runs one of two forges, per the `forge` mode of [ADR-0106](0106-dependency-updates.md): `github` or `forgejo`. The answer can differ by mode, so this ADR decides for each mode.
+A project runs one of two forges, per the `forge` mode of [ADR-0117](0117-updates-and-setup-modes.md): `github` or `forgejo`. The answer can differ by mode, so this ADR decides for each mode.
 
 **Sovereignty binds weakly here.** The task manager helps build the product and is not part of it. It is not on the product, deploy, or signing path. Development needs the internet in any case. So self-hosting is a differentiator in this ADR, not a gate. A managed tracker in the `forgejo` mode is still a dependency that principle 3 requires [ADR-0000](0000-platform-foundations.md) to record.
 
@@ -74,7 +74,7 @@ The drivers come in two groups. An option that fails a gate is out. The options 
 | Focalboard | **no.** It has no maintainer, per [its repository](https://github.com/mattermost-community/focalboard/issues/5038) *(documented)* | | | | out |
 | Redmine | yes | only through a third-party plugin | **no.** The interface and the board plugins assume a technical user *(reasoned)* | yes | out |
 | Planka and Kanboard | yes | varies | **no.** Boards only, with no list across projects *(reasoned)* | yes | out |
-| GitLab CE issues | yes | yes | yes | yes | out on a decision, not a gate. It is a second forge, which [ADR-0102](0102-source-control-and-ci.md) rejects on principle 2 |
+| GitLab CE issues | yes | yes | yes | yes | out on a decision, not a gate. It is a second forge, which [ADR-0116](0116-forge-and-pipelines.md) rejects on principle 2 |
 | GitHub Enterprise Server | yes | **no.** Built-in accounts, CAS, LDAP, and SAML only, per [its docs](https://docs.github.com/en/enterprise-server@3.18/admin/concepts/identity-and-access-management/identity-and-access-management-fundamentals) *(documented)* | yes | yes | out. It is also a second forge |
 
 ### Differentiators
@@ -134,7 +134,7 @@ Forgejo has no sprint object and no iteration field. A milestone with a fixed na
 | Name | `Sprint <year>-W<week>`, with the ISO week of its first Monday, as in `Sprint 2026-W46`. The name holds the start, because a milestone has only a due date |
 | Due date | the last Sunday of the sprint |
 | Scope | every repository of the organization carries the milestone with the same name. Forgejo keeps milestones for each repository |
-| Start | `mise run forge:sprint` creates the sprint that holds today in every repository, moves the open issues of each ended sprint into it, and closes the ended milestone |
+| Start | `just forge-sprint` creates the sprint that holds today in every repository, moves the open issues of each ended sprint into it, and closes the ended milestone |
 | What is in it | an issue planned for the sprint. Its `status/` label still shows where it is |
 
 ### Where a tracker sits on the adoption path
@@ -172,21 +172,21 @@ The forge holds the data that a planning view needs: labels, milestones, due dat
 
 - **People who do not write code work in a developer tool.** The `work` repository, the forms, and the team boards hide most repository concepts. This cost is accepted for ranks 1 and 2.
 - **The `forgejo` mode has no table, timeline, or custom field.** Milestones and scoped labels cover dates and classes. The `kind/tracker-gap` label measures the remaining gap, and it is the trigger.
-- **The two modes differ in planning features.** A project that moves from `github` to `forgejo` loses tables, roadmaps, and custom fields. Its migration also carries every issue, as [ADR-0102](0102-source-control-and-ci.md) already states.
+- **The two modes differ in planning features.** A project that moves from `github` to `forgejo` loses tables, roadmaps, and custom fields. Its migration also carries every issue, as [ADR-0116](0116-forge-and-pipelines.md) already states.
 - **A forge outage stops planning as well as delivery and review.** Running workloads are not touched, per [`operational-surface.md`](../operational-surface.md).
 - **In the `github` mode, a person who does not write code can read the code.** GitHub has no role with issues and no code. Repository visibility is the only control.
 - **A move to another tracker is a bet.** A late move costs a migration script, and old commit links stay in the forge.
 
 ## Rules
 
-- The task manager of a project is the issues and projects of its forge, per the `forge` mode of [ADR-0106](0106-dependency-updates.md). No second tracker holds the state of a task, per principle 5 of [ADR-0000](0000-platform-foundations.md).
+- The task manager of a project is the issues and projects of its forge, per the `forge` mode of [ADR-0117](0117-updates-and-setup-modes.md). No second tracker holds the state of a task, per principle 5 of [ADR-0000](0000-platform-foundations.md).
 - A tracker gives no person a new credential. Sign-in goes through an identity that the person already has.
 - Work with no code change lives in a repository named `work`, which holds no code.
 - A request enters through an issue form. The forms and the label set are committed files, per principle 1 of [ADR-0000](0000-platform-foundations.md).
 - Each team plans on one organization project.
 - A pull request closes the issue that it resolves with a closing keyword.
 - In the `github` mode, a sprint is the iteration field of the team's project.
-- In the `forgejo` mode, a sprint is a two-week milestone named `Sprint <year>-W<week>`, due on its last Sunday, in every repository. `mise run forge:sprint` starts it.
+- In the `forgejo` mode, a sprint is a two-week milestone named `Sprint <year>-W<week>`, due on its last Sunday, in every repository. `just forge-sprint` starts it.
 - A security report lives in a private repository that only its handlers can read.
 - In the `forgejo` mode, a forge team whose members do not write code has the issues and projects units only, never the code unit.
 - A planning need that the forge cannot hold is filed as an issue with the `kind/tracker-gap` label. Three such issues in one quarter reopen this comparison.

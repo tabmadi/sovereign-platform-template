@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0113](0113-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0301](0301-data-lifecycle-privacy.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md)
 - **Decides:** Ory Kratos authenticates, OpenFGA authorizes every protected call through `Checker`, and organisations are relationships, not roles.
 
 ## Context
@@ -20,7 +20,7 @@ The platform serves four kinds of principal:
 Earlier ADRs set these constraints:
 
 - The platform is self-hosted only.
-- The footprint of each service matters, per [ADR-0100](0100-language-and-runtime.md).
+- The footprint of each service matters, per [ADR-0110](0110-language-and-runtime.md).
 - The edge validates tokens, and services decide permissions, per [ADR-0305](0305-edge-auth-and-traffic-policy.md).
 
 **Hard requirement on the UI.** The login UI is a custom Next.js surface on the platform's own design system, per [ADR-0400](0400-frontend.md). It is not the provider's hosted pages, themed templates, or a forked vendor UI. The provider must expose a headless, API-first identity flow that Next.js drives end to end.
@@ -34,7 +34,7 @@ The decision has three parts: the identity provider, the OAuth2 authorization se
 1. **Configuration lives in the repository**, per principle 1 of [ADR-0000](0000-platform-foundations.md). Identity schemas, OAuth2 clients, and authz models are files, not database state.
 2. **Headless identity provider.** The UI constraint requires it.
 3. **Integration contracts that any language can meet.** Auth is a *protocol* contract: token format, header names, and validation rules. Any language can express it.
-4. **No new runtime and no new datastore** on the always-on floor for this concern, per [ADR-0100](0100-language-and-runtime.md) and [ADR-0300](0300-data.md).
+4. **No new runtime and no new datastore** on the always-on floor for this concern, per [ADR-0110](0110-language-and-runtime.md) and [ADR-0300](0300-data.md).
 
 ## Considered options
 
@@ -44,7 +44,7 @@ The decision has three parts: the identity provider, the OAuth2 authorization se
 | --- | --- | --- | --- |
 | **Ory Kratos** | fully headless self-service flows | **JSON Schema identity files and YAML in git** | **Chosen.** Go, Apache-2.0, and the reference implementation of the headless pattern *(documented)* |
 | Zitadel | a real headless Session API that covers password, MFA, passkeys, and external IdPs | **its own event-sourced database**, despite its Terraform provider | Rejected on driver 1. The same driver rejected Coroot, per [ADR-0501](0501-operator-uis-and-dashboards.md). A second reason: its own guide makes hosted login the default. The guide says it was `designed with security in mind, which limits the customization capabilities`. Its main customization story is to fork a beta Next.js app, and the UI constraint excludes that by name |
-| Keycloak | themes, or the Admin and Account REST APIs. It has no first-class headless self-service flow | realm import and export, with drift back to the database | The most mature OSS provider. Its JVM footprint does not fit [ADR-0100](0100-language-and-runtime.md), and extension work is in Java |
+| Keycloak | themes, or the Admin and Account REST APIs. It has no first-class headless self-service flow | realm import and export, with drift back to the database | The most mature OSS provider. Its JVM footprint does not fit [ADR-0110](0110-language-and-runtime.md), and extension work is in Java |
 | Authentik | flow-based | database | Python, Django, Celery, and Redis add a third runtime and three components. Its B2C self-service flows are less mature |
 | SuperTokens | fully headless. The recipe model is API-first, and the caller owns all of the UI | **its own core service and database**. Configuration is partly in code and partly in that store | The closest competitor to Kratos on driver 2. It splits configuration between the SDK's initialisation code and the core's state. So no single committed file describes the identity setup |
 | Logto | headless Management and Experience APIs | its own database, with a Terraform provider over the management API | Fails driver 1 in the same way as Zitadel: the API is the source of truth, and git holds a script that talks to it |
@@ -57,7 +57,7 @@ The platform needs this server only when a third-party client gets its own crede
 | Option | Added runtime and datastore | Consent flow integrates with the chosen IdP | Config source of truth | Verdict |
 | --- | --- | --- | --- | --- |
 | **Ory Hydra** | none: Go on the existing Postgres | **yes, first-party with Kratos** | YAML plus committed client definitions | **Chosen.** The only option that adds an OAuth2 server and does not also add a second identity system *(reasoned)* |
-| Keycloak | a JVM, and its own store | it *is* the IdP, so the question goes away, and so does Kratos | realm import, with drift to the database | To adopt it here decides the row above again, and [ADR-0100](0100-language-and-runtime.md) bars the runtime |
+| Keycloak | a JVM, and its own store | it *is* the IdP, so the question goes away, and so does Kratos | realm import, with drift to the database | To adopt it here decides the row above again, and [ADR-0110](0110-language-and-runtime.md) bars the runtime |
 | Zitadel | its own event-sourced store | as above, it replaces Kratos | its own database | Same: it is an IdP that also does OAuth2. It is not an OAuth2 server for an IdP it does not own |
 | Authentik | Python, Django, Celery, Redis | as above | database | Same shape, heavier |
 | Dex | none: Go, and it can run with no storage | **no**. Dex federates *upstream* identity providers. It issues tokens for users it does not own | committed YAML, the best of the field on driver 1 | By far the thinnest. It is a federating proxy, not an authorization server with its own consent and client management |
@@ -227,7 +227,7 @@ That is flat RBAC on the engine that also does L2 and L3, so nobody ever migrate
 
 | Concern | Decision |
 | --- | --- |
-| Model authoring | the OpenFGA **DSL** at `infra/auth/openfga/model.fga` is the single source of truth. `mise run gen:authz-model` transforms it to JSON for the API |
+| Model authoring | the OpenFGA **DSL** at `infra/auth/openfga/model.fga` is the single source of truth. `just gen-authz-model` transforms it to JSON for the API |
 | Scope | **one global model**, not one per service, because authz relationships often cross service boundaries |
 | Tests | check assertions at `infra/auth/openfga/fga.yaml`. CI runs `fga model test` and asserts that the JSON matches the DSL |
 | Deployment | Helm, on the shared platform Postgres, as a plain Deployment and Service with an `openfga migrate` initContainer. Our own services use the same pattern. OpenFGA ships no first-party operator |
@@ -286,7 +286,7 @@ The admin console promotes operators, and only an operator can reach the console
 | Option | What a new environment needs | Verdict |
 | --- | --- | --- |
 | **A seeded identity from the SOPS bundle** | an age key, to read the password | **Chosen.** The first login needs no cluster credential and no manual step *(reasoned)* |
-| Register, then promote with `mise run ops:grant` | a kubeconfig and a step on a workstation | Kept as the break-glass path. As the only path, it starts every new environment with a manual procedure |
+| Register, then promote with `just ops-grant` | a kubeconfig and a step on a workstation | Kept as the break-glass path. As the only path, it starts every new environment with a manual procedure |
 | A default password in the chart | nothing | Every environment that forgets to change it has the same known password |
 
 Three properties bound the credential:
@@ -319,7 +319,7 @@ The version is pinned, so an upstream revision is a reviewed bump and not a goal
 | Data protection and privacy | [ADR-0301](0301-data-lifecycle-privacy.md) |
 | Communications security | WireGuard east-west, per [ADR-0206](0206-cluster-networking.md), and verified TLS everywhere, per [ADR-0205](0205-environment-parity.md) |
 | Configuration and secrets | [ADR-0202](0202-secrets.md) |
-| Malicious-code and supply chain | [ADR-0104](0104-supply-chain-security.md) |
+| Malicious-code and supply chain | [ADR-0113](0113-supply-chain-security.md) |
 
 **The bar covers first-party surfaces.** Vendored operator tooling is outside it: Lowdefy, Grafana, and pgweb, per [ADR-0401](0401-internal-admin.md) and [ADR-0501](0501-operator-uis-and-dashboards.md). [ADR-0400](0400-frontend.md) draws the same boundary for accessibility, for the same reason. A claim over software we do not write is a claim we cannot keep.
 
@@ -373,21 +373,21 @@ Hydra is deployed only when a project exposes a public API. There is no service-
 - The login UI is the Next.js app that drives Kratos self-service flows. Hosted pages are not used.
 - The password policy is `min_password_length: 12` plus `identifier_similarity_check_enabled: true` in every environment. The breach check is off by default and enabled per environment where the egress exists. It is never enabled where the egress does not exist, because it then fails open silently. `(ref: NIST SP 800-63B)`
 - The session cookie is `SameSite=Lax`, `Secure`, `HttpOnly`. `(ref: RFC 6265bis)`
-- `services/orgs/` owns B2B organisations. Other services consult its HTTP API. `(CI: ci:lint)`
+- `services/orgs/` owns B2B organisations. Other services consult its HTTP API. `(CI: ci-lint)`
 - Every protected resource belongs to an `org`, and a user acts only through a role in an org. Every identity gets a personal org at registration through the `RegisterUser` dual write. A single shared default org is not used.
 - A change to the tenancy model is confined to the registration webhook path. It is a deliberate decision per project.
 - Directory provisioning ships only after the documented contract trigger fires. Until then, membership changes go through invitations.
-- Authorization is OpenFGA, accessed only through the `Checker` interface. Direct SDK use elsewhere is not permitted. `(CI: ci:lint)`
-- The OpenFGA schema is one global file. Per-service schemas are not used. `(CI: lint:authz)`
-- Authz-relevant mutations run inside a Temporal workflow, with the database write and the OpenFGA write as separate activities. `(CI: lint:authz-dual-write)`
-- Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint:authz)`
+- Authorization is OpenFGA, accessed only through the `Checker` interface. Direct SDK use elsewhere is not permitted. `(CI: ci-lint)`
+- The OpenFGA schema is one global file. Per-service schemas are not used. `(CI: lint-authz)`
+- Authz-relevant mutations run inside a Temporal workflow, with the database write and the OpenFGA write as separate activities. `(CI: lint-authz-dual-write)`
+- Inline role checks in handlers are not used. Every permission decision goes through `Checker`. `(CI: lint-authz)`
 - The edge gates operator dashboards by the coarse claim plus AAL2, with no OpenFGA call. Optional refinement per tool adds the `remote_json` authorizer.
 - The coarse operator claim is `metadata_public.operator`, written only through the Kratos admin API. It is never an identity trait. Self-service registration and settings write traits, so any visitor can grant a trait claim to themselves.
-- An operator is a registered user promoted in the admin console. The console toggle runs one workflow that writes the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. Two paths exist outside the console: the first-operator Job and `mise run ops:grant`. `ops:grant` needs cluster credentials, and it exists for a console outage.
+- An operator is a registered user promoted in the admin console. The console toggle runs one workflow that writes the claim and the `group:operator` grant together. The platform has no operator-creation endpoint. Two paths exist outside the console: the first-operator Job and `just ops-grant`. `ops-grant` needs cluster credentials, and it exists for a console outage.
 - Each environment seeds one first operator from the `first-operator` entry of its SOPS bundle. The Job seeds only while the environment has no operator. No chart carries a default password.
 - A simple instance uses an L1 schema, which is the first-class default. L2 and L3 grow the same schema on the same engine.
-- The edge validates tokens once, with the algorithm pinned and `iss`, `aud`, and `exp` checked. Services do not validate tokens. `(CI: lint:auth-inline; ref: RFC 8725)`
-- Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`. The edge injects these headers, and internal calls forward them unchanged. Services read identity only from these headers. `(CI: lint:authz)`
+- The edge validates tokens once, with the algorithm pinned and `iss`, `aud`, and `exp` checked. Services do not validate tokens. `(CI: lint-auth-inline; ref: RFC 8725)`
+- Identity is carried as `X-User-Id`, `X-Org-Id`, and `X-Roles`. The edge injects these headers, and internal calls forward them unchanged. Services read identity only from these headers. `(CI: lint-authz)`
 - Service-to-service calls carry no token. Shared secrets, HMAC schemes, and per-call machine tokens are not used.
 - A non-Go service reads the identity headers through the same contract, and it passes `libs/go/authmw/conformance/` before it merges.
-- Auth configuration is canonical only at `infra/auth/*`. File injection delivers it to charts. It is never hand-copied inline into the values of a chart. `(CI: ci:gen)`
+- Auth configuration is canonical only at `infra/auth/*`. File injection delivers it to charts. It is never hand-copied inline into the values of a chart. `(CI: ci-gen)`

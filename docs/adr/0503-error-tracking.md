@@ -27,7 +27,7 @@ No component covers what a dedicated error tracker sells:
 | Readable frames from minified frontend code | no |
 | Assign, resolve, and reopen an issue | no, **and not wanted** |
 
-The last row sets the shape of this decision. Issue lifecycle is a workflow product, and this platform does not want one. Triage lives in the forge's issues, per [ADR-0102](0102-source-control-and-ci.md). A second place to mark work done is a second backlog. What remains worth having is **grouping** and **novelty detection**. Both are properties of the telemetry, not of a workflow.
+The last row sets the shape of this decision. Issue lifecycle is a workflow product, and this platform does not want one. Triage lives in the forge's issues, per [ADR-0116](0116-forge-and-pipelines.md). A second place to mark work done is a second backlog. What remains worth having is **grouping** and **novelty detection**. Both are properties of the telemetry, not of a workflow.
 
 ## Decision drivers
 
@@ -63,12 +63,12 @@ An error tracker owns a *second copy* of telemetry that the collector already ca
 | Grouping | services compute a stable **`error.fingerprint`**. It is a hash over the exception type and the top application frames. Line numbers, addresses, and vendor frames are excluded, so a cosmetic edit does not create a new fault |
 | Cardinality | `error.fingerprint` is **log structured metadata and a span attribute only**. It is never a Loki stream label and never a metric label, per [ADR-0500](0500-observability.md) |
 | Counting | one bounded metric, `errors_total{service, kind}`. `kind` is a small closed enumeration that the `obs` helpers own. The fingerprint is not on this metric |
-| Release attribution | every record carries the image tag and commit that [ADR-0103](0103-release-and-versioning.md) already stamps. So the deploy that introduced an error is a filter |
+| Release attribution | every record carries the image tag and commit that [ADR-0112](0112-release-and-versioning.md) already stamps. So the deploy that introduced an error is a filter |
 | Frontend frames | source maps are kept as build artefacts per release and are **not** shipped to the browser. Symbolication is a deliberate step against the stored map, not an always-on service |
 | Alerting | rate and burst alerts on `errors_total` route through [ADR-0502](0502-alerting-and-on-call.md). A dashboard groups by fingerprint over the log store |
-| Triage | the forge's issues, per [ADR-0102](0102-source-control-and-ci.md). Nothing else tracks state on an error |
+| Triage | the forge's issues, per [ADR-0116](0116-forge-and-pipelines.md). Nothing else tracks state on an error |
 
-**Error messages carry no interpolated user data.** This is the same rule as for structured logging, per [ADR-0001](0001-documentation-and-output-conventions.md): context is attributes. A stack trace is exported telemetry. An interpolated identifier in a message is PII that no downstream redaction layer can find.
+**Error messages carry no interpolated user data.** This is the same rule as for structured logging, per [ADR-0001](0001-documentation-conventions.md): context is attributes. A stack trace is exported telemetry. An interpolated identifier in a message is PII that no downstream redaction layer can find.
 
 ### Novelty detection is the weak edge
 
@@ -122,7 +122,7 @@ A map is useless if nobody can find it for the release that produced the trace. 
 | **The registry, as an OCI artefact through `oras`** | **Chosen.** The registry already holds this release's artefacts. So it is one auth model, one retention policy, and one digest-addressed store. The archive is tagged with the release, and `oras pull` fetches it when a trace needs symbolication *(reasoned)* |
 | `crane` against the same registry | The same store, through a different tool. `crane` is built for images and for copies between registries. `oras` exists to push an arbitrary blob as a typed artefact. The artefact type stops an image client from trying to run it |
 | A plain object-store upload | A second store to secure, expire, and remember, with the same release data as the registry. It also has no digest addressing, so finding the map for an image depends on a naming convention |
-| A CI artefact store | Tied to the forge's retention window, not the release's. [ADR-0102](0102-source-control-and-ci.md) keeps the forge cheap to leave. An artefact that only that forge can serve is the coupling that rule exists to avoid |
+| A CI artefact store | Tied to the forge's retention window, not the release's. [ADR-0116](0116-forge-and-pipelines.md) keeps the forge cheap to leave. An artefact that only that forge can serve is the coupling that rule exists to avoid |
 
 The archive is never reachable from the product origin. A map served to a browser gives away the unminified application. That is the whole reason the build strips it.
 
@@ -130,6 +130,6 @@ The archive is never reachable from the product origin. A map served to a browse
 
 - A failure is recorded as an OTel exception with `exception.type`, `exception.message`, and `exception.stacktrace`. No service carries a second error-reporting SDK. `(ref: OTel semconv)`
 - `error.fingerprint` is a span attribute and log structured metadata. It is never a Loki stream label and never a metric label.
-- Error messages carry no interpolated user data. Context is attributes, per [ADR-0001](0001-documentation-and-output-conventions.md).
+- Error messages carry no interpolated user data. Context is attributes, per [ADR-0001](0001-documentation-conventions.md).
 - Errors are not tracked as issues anywhere except the forge. No component holds resolution state on an error.
 - Source maps are build artefacts, kept per release, and never served to the browser.

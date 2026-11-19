@@ -96,7 +96,7 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | pgweb | `pgweb.ops.<host>` | read-only break-glass |
 | Mailpit | `mailpit.ops.<host>` | **non-prod only**. The viewer of the mail sink, per [ADR-0307](0307-outbound-email.md) |
 | SeaweedFS admin | `seaweedfs.ops.<host>` | **non-prod only**, and the only exposed surface of that component |
-| zot console | `zot.ops.<host>` | the catalogue of the registry. It carries its own credential after the edge gate, per [ADR-0105](0105-image-registry.md) |
+| zot console | `zot.ops.<host>` | the catalogue of the registry. It carries its own credential after the edge gate, per [ADR-0114](0114-image-registry.md) |
 | Design preview | `design-pr-<n>.ops.<host>` | **dev only**. One pull request's design, per [ADR-0701](0701-product-design-and-discovery.md). Behind the forge sign-in gate, not the operator gate |
 
 The design preview is the one ops origin that serves the product frontend and is not named after an upstream project. A design under review is an operator tool, not a product surface. No customer reaches it, and it shows fixtures, not data. So it sits under the existing `*.ops` wildcard certificate, but behind its own gate.
@@ -118,7 +118,7 @@ Its code comes from a pull request, which can come from a fork. A maintainer rea
 
 | Origin | Gate |
 | --- | --- |
-| `registry.<host>` | the registry's own credentials, per [ADR-0105](0105-image-registry.md), never the operator session |
+| `registry.<host>` | the registry's own credentials, per [ADR-0114](0114-image-registry.md), never the operator session |
 
 A registry client is not a browser. `docker login`, containerd, and BuildKit speak the authentication challenge of the OCI distribution spec. They follow no redirect to a login page. So forward-auth in front of this origin fails every push and every pull with a document that the client cannot read. The origin sits outside the `ops.` label for the reason that the label exists. It never sees the operator cookie, so it must not be inside the scope of that cookie.
 
@@ -140,7 +140,7 @@ The field splits into two families, and each buys the same property at a differe
 
 **The trigger to move is that class of loss, and the destination is `.test`**, which keeps the grammar. `.localhost` is not a destination. It has the same migration cost and keeps a resolution problem.
 
-**The registry is the exception, and it is not on this surface at all.** `registry.localhost:5000` is a docker container name that the embedded DNS of the container runtime resolves. It is not a host name that a browser resolves. The client makes the difference. Inside a node, `127.0.0.1` is the node. So any name that resolves to loopback sends an image pull to the wrong place. The registry also cannot sit behind the edge, because the edge's own image has to be pulled before the edge exists, per [ADR-0105](0105-image-registry.md). A `.localhost` name is right here for the same reason that it is wrong above. Nothing browses it, and only the resolver of the container runtime has to agree.
+**The registry is the exception, and it is not on this surface at all.** `registry.localhost:5000` is a docker container name that the embedded DNS of the container runtime resolves. It is not a host name that a browser resolves. The client makes the difference. Inside a node, `127.0.0.1` is the node. So any name that resolves to loopback sends an image pull to the wrong place. The registry also cannot sit behind the edge, because the edge's own image has to be pulled before the edge exists, per [ADR-0114](0114-image-registry.md). A `.localhost` name is right here for the same reason that it is wrong above. Nothing browses it, and only the resolver of the container runtime has to agree.
 
 **The console is the same backend on the other side of that line.** `zot.ops.<host>` serves the catalogue to a browser and takes the full ops chain. `registry.<host>` serves the distribution API to a client that cannot pass that chain. It is one process with two origins. The kind of client that arrives chooses the gate, not the port that answers.
 
@@ -154,7 +154,7 @@ The SeaweedFS admin UI is served in the same way. `weed` starts without `-admin.
 
 This places one real requirement on such a tool: it must be unreachable except through the edge. The network policy does this. A tool whose port admits traffic from anywhere else still needs its own login.
 
-**Where the login of a tool cannot be switched off, a proxy presents its credential for the browser.** The zot console is the case. The login is not that surface's to waive, because the console and the distribution API are one process under one access policy. The only switch that silences the prompt is an anonymous read policy, and it opens every pull on `registry.<host>`, per [ADR-0105](0105-image-registry.md).
+**Where the login of a tool cannot be switched off, a proxy presents its credential for the browser.** The zot console is the case. The login is not that surface's to waive, because the console and the distribution API are one process under one access policy. The only switch that silences the prompt is an anonymous read policy, and it opens every pull on `registry.<host>`, per [ADR-0114](0114-image-registry.md).
 
 So a small reverse proxy runs in the zot pod. It adds the `Authorization` header of the pull identity and serves the `zot.ops.<host>` origin. The operator meets the ops gate and nothing more. The credential stays in the Secret that the proxy reads, not in the memory of a person. The proxy admits traffic from the gateway on its own port. So the requirement `unreachable except through the edge` holds for it as for any other origin.
 
@@ -264,7 +264,7 @@ Self-hosting multiplies consoles: Forgejo, zot, Grafana, Argo CD, Headlamp, Hubb
 | **Seam** | ✓ Hydra is a chart flag. Forgejo adds an OIDC auth source with no data change, and an existing account links to its Kratos identity at its next login |
 | **Cost if adopted late** | each person keeps a separate forge password, and offboarding is two actions: the Kratos identity and the forge account |
 
-**OIDC moves the forge's web login into the cluster's failure domain.** Hydra and Kratos run in the cluster, and the forge runs outside it, per [ADR-0102](0102-source-control-and-ci.md). After a cluster loss, only the forge's break-glass admin signs in to its web UI. Git over SSH does not change.
+**OIDC moves the forge's web login into the cluster's failure domain.** Hydra and Kratos run in the cluster, and the forge runs outside it, per [ADR-0116](0116-forge-and-pipelines.md). After a cluster loss, only the forge's break-glass admin signs in to its web UI. Git over SSH does not change.
 
 **Consoles that do not speak OIDC stay edge-gated**, as they are now. Oathkeeper's forward-auth in front of `{tool}.ops.<host>` already requires a Kratos session. So access is single sign-on even where the console does not know it. pgweb, the Hubble UI, and the Temporal UI are in this group.
 
@@ -293,7 +293,7 @@ Self-hosting multiplies consoles: Forgejo, zot, Grafana, Argo CD, Headlamp, Hubb
 - A project that ships a public API adds a deferred external tier: public docs on an apex subdirectory, and the partner credential dashboard on its own subdomain.
 - Anonymous, indexable, first-party content is served from an apex subdirectory. A subdomain is used only for a distinct trust boundary, never only because a surface is public.
 - The public API docs portal is anonymous. Only credential management is authenticated.
-- The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. `(CI: lint:service-contract)`
+- The service API is a flat resource namespace at `<host>/api/<resource>`, never per-service. `(CI: lint-service-contract)`
 - `/.well-known/` on the apex is reserved for web conventions, and no product route claims it. The apex serves `security.txt` with a contact address and a disclosure policy. `(ref: RFC 9116, RFC 8615)`
 - The path holds for the public API too. A distinct origin is used only for hard credential isolation, or for separate edge infrastructure at scale. Hard credential isolation needs a separate registrable domain, because a parent-scoped cookie reaches a subdomain.
 - Ops-tier hostnames are `{tool}.ops.<host>`, named after the **upstream project**, lowercase, and in the naming charset of [ADR-0003](0003-naming-and-identifiers.md). The name is not the concept the tool serves, not its binary, and not an abbreviation of either. The one exception is the design preview, `design-pr-<n>.ops.<host>`.

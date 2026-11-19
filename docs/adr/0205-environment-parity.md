@@ -96,8 +96,8 @@ The full-platform preview is destroyed with its run, so nobody can click through
 | Concern | Decision |
 | --- | --- |
 | Where | the namespace `design-pr-<n>` in the dev cluster. The dev environment is the only one that runs a design preview |
-| What runs | the frontend chart alone, at the design image `design/frontend:pr-<n>-<sha>`. No service or data store of the dev environment is in the namespace. The only secret there is the registry pull credential, per [ADR-0105](0105-image-registry.md) |
-| Image reference | the commit tag `pr-<n>-<sha>`, because the pull request generator knows the commit and not the digest. Admission verifies the signature and pins the pod to the digest it verified, per [ADR-0104](0104-supply-chain-security.md) |
+| What runs | the frontend chart alone, at the design image `design/frontend:pr-<n>-<sha>`. No service or data store of the dev environment is in the namespace. The only secret there is the registry pull credential, per [ADR-0114](0114-image-registry.md) |
+| Image reference | the commit tag `pr-<n>-<sha>`, because the pull request generator knows the commit and not the digest. Admission verifies the signature and pins the pod to the digest it verified, per [ADR-0113](0113-supply-chain-security.md) |
 | Lifetime | Argo CD's pull request generator creates the namespace when the label is on an open pull request. It deletes the namespace when the pull request closes or the label goes |
 | Credentials | the generator reads the forge with the read-only credential that Argo CD already clones with, per [ADR-0201](0201-gitops.md). The design preview adds no secret |
 
@@ -138,7 +138,7 @@ The implementation differs because of production's defining property: it reaches
 
 ## Rules
 
-- Every environment deploys the same charts. The only sanctioned divergence is a values overlay per environment, listed in `infra/gitops/parity-allowlist.txt`. A values key that a deployed overlay carries and the local overlay does not carry is a defect, unless the allowlist names the reason. `(CI: lint:parity)`
+- Every environment deploys the same charts. The only sanctioned divergence is a values overlay per environment, listed in `infra/gitops/parity-allowlist.txt`. A values key that a deployed overlay carries and the local overlay does not carry is a defect, unless the allowlist names the reason. `(CI: lint-parity)`
 - Every tier runs the distribution and datastore that [ADR-0200](0200-cluster-topology.md) decides. From the full local platform upward, the machine config is also the same. Such a tier differs from a deployed environment only in lifecycle and in how its nodes are provisioned. The inner loop differs in node count alone, per [ADR-0600](0600-local-development-loop.md).
 - Chart templates do not branch on the environment name. Outside the inner-loop tier, a difference that a value cannot express is a defect.
 - The Kubernetes API, service chart, service images, and env contract are identical in every tier.

@@ -1,9 +1,9 @@
-# ADR-0100: Language and Runtime
+# ADR-0110: Language and Runtime
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0101](0101-monorepo.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0204](0204-resource-management.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0111](0111-monorepo.md), [ADR-0113](0113-supply-chain-security.md), [ADR-0204](0204-resource-management.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0400](0400-frontend.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
 - **Decides:** Go is the backend language and TypeScript the frontend one, with no third general-purpose runtime and no ambient dependency.
 
 ## Context
@@ -125,7 +125,7 @@ At axis B maximal, no orchestrator outside Go is a real option. The custom contr
 | Option | Node API compatibility | Toolchain components | Verdict |
 | --- | --- | --- | --- |
 | **Bun** | **the highest of the three** | **one binary:** runtime, package manager, workspaces, test runner, and bundler | **Chosen.** Driver 2 applied to the toolchain itself *(reasoned)* |
-| Node.js | the definition of it | a package manager, a test runner, and a bundler, each selected, pinned, cached, and upgraded separately | Loses on driver 2. Each addition is a version to pin and a supply-chain edge, per [ADR-0104](0104-supply-chain-security.md) |
+| Node.js | the definition of it | a package manager, a test runner, and a bundler, each selected, pinned, cached, and upgraded separately | Loses on driver 2. Each addition is a version to pin and a supply-chain edge, per [ADR-0113](0113-supply-chain-security.md) |
 | Deno | lowest, reached through an `npm:` specifier | comparable to Bun | A second permissions model and a second registry, for no capability this platform needs |
 
 The vendor of the frontend framework ships first-party Bun support. The self-hosting documentation of the framework does not cover the runtime, as [vercel/next.js#55272](https://github.com/vercel/next.js/discussions/55272) shows. End-to-end tests against the built image cover that gap, per [ADR-0601](0601-testing-strategy.md). Upstream documentation does not.
@@ -171,12 +171,12 @@ Every escape-hatch service has its own ADR that records the measured need. A Rus
 ## Rules
 
 - Every backend service is written in Go. Another language requires its own ADR that admits the service under a documented escape hatch.
-- The root `.mise.toml` pins the Go version, and no service overrides it. Only a release that still receives upstream security fixes is pinned. Per the [Go release policy](https://go.dev/doc/devel/release), that is one of the two most recent major releases. `(CI: ci:lint)`
-- A monetary amount is the shared money type, never a floating-point number. It is `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. `(CI: lint:money)`
-- A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. `(CI: lint:money)`
+- The root `.mise.toml` pins the Go version, and no service overrides it. Only a release that still receives upstream security fixes is pinned. Per the [Go release policy](https://go.dev/doc/devel/release), that is one of the two most recent major releases. `(CI: ci-lint)`
+- A monetary amount is the shared money type, never a floating-point number. It is `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. `(CI: lint-money)`
+- A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. `(CI: lint-money)`
 - The frontend is TypeScript.
-- Bun is the only JS runtime for code we author. No Go service image, no frontend image, and no artifact built from our own source installs Node. `(CI: lint:node-scope)`
-- Node is never pinned in the root `.mise.toml`. An island that installs Node pins it in its own island config, against the root `[env] NODE_VERSION`. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. `(CI: lint:node-scope)`
+- Bun is the only JS runtime for code we author. No Go service image, no frontend image, and no artifact built from our own source installs Node. `(CI: lint-node-scope)`
+- Node is never pinned in the root `.mise.toml`. An island that installs Node pins it in its own island config, against the root `[env] NODE_VERSION`. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. `(CI: lint-node-scope)`
 - A Rust service requires its own ADR. It records the measured inadequacy of Go or a Rust-native canonical ecosystem, and how the service meets [ADR-0500](0500-observability.md).
 - A Python service requires its own ADR, and is admitted only where the library ecosystem is the reason the service exists.
 - JVM, .NET, and JavaScript backends are not permitted, with or without an ADR.

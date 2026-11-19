@@ -39,7 +39,7 @@ The second way is worth its price only where an outside party must believe the r
 | Data protection and privacy | [ADR-0301](../adr/0301-data-lifecycle-privacy.md) | unverified | never |
 | Communications security | [ADR-0206](../adr/0206-cluster-networking.md) east-west encryption, [ADR-0205](../adr/0205-environment-parity.md) verified TLS in every environment | unverified | never |
 | Configuration and secrets | [ADR-0202](../adr/0202-secrets.md) | unverified | never |
-| Malicious code and supply chain | [ADR-0104](../adr/0104-supply-chain-security.md) | unverified | never |
+| Malicious code and supply chain | [ADR-0113](../adr/0113-supply-chain-security.md) | unverified | never |
 
 ## Two things this table is not
 

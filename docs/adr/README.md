@@ -1,10 +1,10 @@
 # Architecture Decision Records
 
-This directory records every decision that binds more than one service or is hard to reverse. ADR-0000 holds the thesis, the principles, and the process. [ADR-0001](0001-documentation-and-output-conventions.md) holds the rules for writing these documents.
+This directory records every decision that binds more than one service or is hard to reverse. ADR-0000 holds the thesis, the principles, and the process. [ADR-0001](0001-documentation-conventions.md) holds the rules for writing these documents.
 
 A new ADR starts from [`_template.md`](_template.md).
 
-Every ADR has a **Decides** line in its header. It is one declarative sentence that names what is true of the platform because of the ADR. The *Decides* column below is that line, shortened for the index. Reading the column is the fastest complete pass over the set. `(CI: lint:tablint)`
+Every ADR has a **Decides** line in its header. It is one declarative sentence that names what is true of the platform because of the ADR. The *Decides* column below is that line, shortened for the index. Reading the column is the fastest complete pass over the set. `(CI: lint-prose)`
 
 ## Numbering
 
@@ -30,22 +30,30 @@ Each layer has a hundred slots, not ten, so a layer can grow without renumbering
 | ADR | Title | Decides |
 | --- | --- | --- |
 | [0000](0000-platform-foundations.md) | Platform Foundations | The three axes and this platform's position on them, the principles, and the ADR process |
-| [0001](0001-documentation-and-output-conventions.md) | Documentation and Output Conventions | How docs, ADRs, logs, CLI output, and code comments are written |
+| [0001](0001-documentation-conventions.md) | Documentation Conventions | How docs, ADRs, logs, CLI output, and code comments are written |
 | [0002](0002-tool-adoption.md) | Tool Adoption and Comparison Requirement | The three exit-cost tiers, the depth of comparison each owes, and the tool register |
 | [0003](0003-naming-and-identifiers.md) | Naming and Identifiers | The resource slug grammar, entity identifiers, and casing per surface |
 
 ### 01xx: Repository and delivery
 
+The shared toolchain is 0100 to 0109, with the same number for the same topic in every repo that uses the convention. This repo adds its own toolchain from 0110.
+
 | ADR | Title | Decides |
 | --- | --- | --- |
-| [0100](0100-language-and-runtime.md) | Language and Runtime | Go and TypeScript, and what may not be added |
-| [0101](0101-monorepo.md) | Monorepo Structure and Build | Layout, task runner, affected detection, caching |
-| [0102](0102-source-control-and-ci.md) | Source Control and CI Platform | The forge, where pipelines run, and the build identity |
-| [0103](0103-release-and-versioning.md) | Release, Tagging and Versioning | Conventional Commits, CalVer, image tags |
-| [0104](0104-supply-chain-security.md) | Supply-Chain Security | Signing, scanning, admission verification |
-| [0105](0105-image-registry.md) | Image Registry | Where images and their attestations live |
-| [0106](0106-dependency-updates.md) | Dependency Updates and Template Propagation | What moves the pins, and how a template fix reaches a generated project |
-| [0107](0107-work-tracking.md) | Work Tracking | The forge's own issues as the task manager in each forge mode, for every team |
+| [0100](0100-toolchain.md) | Toolchain | Nix with flakes pins every tool and runs every check, through tabnix |
+| [0101](0101-source-control-and-ci.md) | Source Control and CI | The git hooks, the commit convention, the secret scan, and the CI gate |
+| [0102](0102-dependency-updates.md) | Dependency Updates | Renovate proposes every update, and the CI gate decides |
+| [0103](0103-tasks.md) | Tasks | `just` runs every task, and the six recipe names are a contract |
+| [0104](0104-formatters-and-linters.md) | Formatters and Linters | One formatter for each file type, each with a check, and every tool config in `.config/` |
+| [0105](0105-editor.md) | Editor | Zed with committed project settings, and no check depends on an editor |
+| [0110](0110-language-and-runtime.md) | Language and Runtime | Go and TypeScript, and what may not be added |
+| [0111](0111-monorepo.md) | Monorepo Structure and Build | Layout, recipe names, affected detection, caching |
+| [0112](0112-release-and-versioning.md) | Release, Tagging and Versioning | Conventional Commits, CalVer, image tags |
+| [0113](0113-supply-chain-security.md) | Supply-Chain Security | Signing, scanning, admission verification |
+| [0114](0114-image-registry.md) | Image Registry | Where images and their attestations live |
+| [0115](0115-work-tracking.md) | Work Tracking | The forge's own issues as the task manager in each forge mode, for every team |
+| [0116](0116-forge-and-pipelines.md) | Forge and Pipelines | The forge, where pipelines run, the workflows beyond the gate, and the build identity |
+| [0117](0117-updates-and-setup-modes.md) | Update Classes and Setup Modes | How Renovate groups the pins of this platform, and the setup modes of a project |
 
 ### 02xx: Infrastructure
 

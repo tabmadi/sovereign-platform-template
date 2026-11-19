@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md), [ADR-0302](0302-temporal.md), [ADR-0500](0500-observability.md), [ADR-0601](0601-testing-strategy.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0113](0113-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md), [ADR-0302](0302-temporal.md), [ADR-0500](0500-observability.md), [ADR-0601](0601-testing-strategy.md)
 - **Decides:** Every container declares requests and a memory limit, no container declares a CPU limit, and namespaces carry in-tree guardrails.
 
 ## Context
@@ -27,7 +27,7 @@ The platform-engineering budget in [ADR-0000](0000-platform-foundations.md) leav
 | --- | --- | --- | --- | --- |
 | **`LimitRange`, `ResourceQuota`, `PriorityClass`, and `PodDisruptionBudget`** | yes. They are namespace-scoped | no. They are API-server objects | **none. They are in-tree** | **Chosen.** The API server already enforces these four primitives *(reasoned)* |
 | Per-service requests only, reviewed by hand | no | yes, by omission | none | The omission is the failure mode, and review does not catch what is absent |
-| A mutating admission policy that stamps defaults | yes | no | an admission controller | It reaches one case that the chosen option cannot: a chart with no field to set. A controller only for defaults turns driver 4 upside down. Where [ADR-0104](0104-supply-chain-security.md) brings Kyverno for signature verification, Kyverno covers that case as a side effect |
+| A mutating admission policy that stamps defaults | yes | no | an admission controller | It reaches one case that the chosen option cannot: a chart with no field to set. A controller only for defaults turns driver 4 upside down. Where [ADR-0113](0113-supply-chain-security.md) brings Kyverno for signature verification, Kyverno covers that case as a side effect |
 | Vertical Pod Autoscaler | yes | no | one controller | It rewrites requests from observed usage. This conflicts with values that come from a recorded measurement and are reviewed in git |
 
 ### CPU limits
@@ -77,7 +77,7 @@ A `LimitRange` sets defaults only for pods created after it. The API server reje
 
 ### Sizings are measured, not estimated
 
-Every number comes from `cluster:up full` under the [ADR-0601](0601-testing-strategy.md) load suite. The `load-test` dashboard can derive each one again. These measurements changed decisions:
+Every number comes from `cluster-up full` under the [ADR-0601](0601-testing-strategy.md) load suite. The `load-test` dashboard can derive each one again. These measurements changed decisions:
 
 | Workload | Measured peak | Consequence |
 | --- | --- | --- |
@@ -117,16 +117,16 @@ This table keeps the documentation and the cluster in agreement.
 ### Negative and Risks
 
 - **Requests that are too low still overcommit. Requests that are too high waste capacity.** Observability feeds right-sizing, per [ADR-0500](0500-observability.md), and the load suite produces the number. Both reduce the risk.
-- **`ResourceQuota` can block a deploy when a namespace is full.** This back-pressure is intended. It must be a clear failure, not a pod that stays pending with no message. `lint:resource-governance` prints how much of its quota each namespace uses on every CI run, so the team sees the cap coming.
-- **A values file cannot govern a chart that has no field for a value.** `platform-critical` is the `globalDefault` so that those charts inherit the priority they need. This is a workaround, not a control. It moves every workload without an annotation upward, including workloads that should sit below the platform. Mutation at admission time replaces it, per [ADR-0104](0104-supply-chain-security.md).
+- **`ResourceQuota` can block a deploy when a namespace is full.** This back-pressure is intended. It must be a clear failure, not a pod that stays pending with no message. `lint-resource-governance` prints how much of its quota each namespace uses on every CI run, so the team sees the cap coming.
+- **A values file cannot govern a chart that has no field for a value.** `platform-critical` is the `globalDefault` so that those charts inherit the priority they need. This is a workaround, not a control. It moves every workload without an annotation upward, including workloads that should sit below the platform. Mutation at admission time replaces it, per [ADR-0113](0113-supply-chain-security.md).
 
 ## Rules
 
-- Every container declares CPU and memory requests and a memory limit, or it lands in a namespace whose `LimitRange` supplies them. A container with neither is a defect. `(CI: lint:resource-governance)`
-- No container sets a CPU limit unless throttling is the intent. An inherited limit that cannot be removed is allow-listed with a reason. `(CI: lint:resource-governance)`
-- A `LimitRange` may only add defaults and never reject: no `min` and no `max`. A rejection of a third-party pod on a floor that the platform invented is a self-inflicted outage. `(CI: lint:resource-governance)`
-- Every namespace that the platform owns has a `LimitRange` and a `ResourceQuota`. `kube-system` is the documented exception. `(CI: lint:resource-governance)`
-- The summed requests and memory limits of a namespace fit inside its `ResourceQuota`, and every run reports how much of the quota is used. `(CI: lint:resource-governance)`
+- Every container declares CPU and memory requests and a memory limit, or it lands in a namespace whose `LimitRange` supplies them. A container with neither is a defect. `(CI: lint-resource-governance)`
+- No container sets a CPU limit unless throttling is the intent. An inherited limit that cannot be removed is allow-listed with a reason. `(CI: lint-resource-governance)`
+- A `LimitRange` may only add defaults and never reject: no `min` and no `max`. A rejection of a third-party pod on a floor that the platform invented is a self-inflicted outage. `(CI: lint-resource-governance)`
+- Every namespace that the platform owns has a `LimitRange` and a `ResourceQuota`. `kube-system` is the documented exception. `(CI: lint-resource-governance)`
+- The summed requests and memory limits of a namespace fit inside its `ResourceQuota`, and every run reports how much of the quota is used. `(CI: lint-resource-governance)`
 - Workloads carry a `PriorityClass`. `platform-critical` is the `globalDefault`, so charts that cannot express a priority inherit the right one. Product workloads explicitly choose a lower class.
 - Every multi-replica or stateful component has a `PodDisruptionBudget` that preserves quorum. A single-replica workload gets none.
 - Requests and limits come from measurement, per [ADR-0601](0601-testing-strategy.md), and the measurement is recorded next to the value.

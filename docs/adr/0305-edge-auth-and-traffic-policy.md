@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0101](0101-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0111](0111-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md)
 - **Decides:** Traefik fronting Ory Oathkeeper validates identity once at the edge and injects the headers that every service downstream trusts.
 
 ## Context
@@ -168,7 +168,7 @@ The Origin check backs up the `SameSite=Lax` cookie of [ADR-0304](0304-identity-
 | Concern | Location |
 | --- | --- |
 | Oathkeeper access rules | `infra/auth/oathkeeper/` as declarative YAML, deployed beside Kratos and Hydra |
-| Traefik routing, rate limits, middleware | `infra/gateway/` as committed Traefik CRDs, per [ADR-0101](0101-monorepo.md) |
+| Traefik routing, rate limits, middleware | `infra/gateway/` as committed Traefik CRDs, per [ADR-0111](0111-monorepo.md) |
 
 **Flat resource routing.** The API is a flat namespace, per [ADR-0306](0306-trust-tiers-and-urls.md). So the edge routes each resource prefix to its backing service through a `PathPrefix` rule per resource. Service topology stays hidden, and a resource can move between services with no URL change.
 
@@ -214,8 +214,8 @@ Scalar's request console is the reason that the dev portal is same-origin with `
 
 - Ingress is Traefik with TLS from cert-manager over ACME DNS-01. Oathkeeper sits behind it as the edge identity filter. There is no API-management gateway. `(ref: RFC 8555)`
 - The edge is Traefik fronting Ory Oathkeeper. No full API-management gateway is deployed by default.
-- Oathkeeper validates the Kratos session or Hydra JWT, strips client-supplied identity headers, and injects the authoritative ones. It does not call the authz engine. `(CI: lint:authz)`
-- Every request carries identity in the same header shape. Services read identity from headers and never parse a token. `(CI: lint:auth-inline)`
+- Oathkeeper validates the Kratos session or Hydra JWT, strips client-supplied identity headers, and injects the authoritative ones. It does not call the authz engine. `(CI: lint-authz)`
+- Every request carries identity in the same header shape. Services read identity from headers and never parse a token. `(CI: lint-auth-inline)`
 - Service-to-service calls bypass the edge and forward the identity headers. NetworkPolicy gates them. No token is on the internal path.
 - Request-schema validation is service-side. There is no edge schema validation.
 - Edge denials return `application/problem+json` in the shape that [ADR-0303](0303-api-contracts-and-lifecycle.md) fixes, and carry `trace_id`. The default error body of Oathkeeper is not shipped. `(ref: RFC 9457)`
@@ -226,9 +226,9 @@ Scalar's request console is the reason that the dev portal is same-origin with `
 - Services do not parse `X-Forwarded-For`. A control that keys on the client address runs at the edge.
 - Static browser-security headers are a Traefik middleware on all responses. The per-request CSP nonce belongs to the frontend.
 - An Oathkeeper rule checks the Origin of every cookie-authenticated state-changing request. Bearer-token traffic is exempt.
-- The edge routes each resource prefix to its backing service, and the route table is the single registry of resource ownership. `(CI: lint:service-contract)`
+- The edge routes each resource prefix to its backing service, and the route table is the single registry of resource ownership. `(CI: lint-service-contract)`
 - Hydra is deployed only for projects that expose a public API or external machine clients.
 - A project that needs tiered per-API-key quotas adds a full gateway for its own routes by its own decision. It is not the platform default.
-- A caller that a service limits to some of its routes is listed in `networkPolicy.allowFromRoutes`, and only with operations that the spec marks `x-audience: cluster`. The caller is not also in `allowFrom`. `(CI: lint:l7-routes)`
+- A caller that a service limits to some of its routes is listed in `networkPolicy.allowFromRoutes`, and only with operations that the spec marks `x-audience: cluster`. The caller is not also in `allowFrom`. `(CI: lint-l7-routes)`
 - A service that performs a monetary mutation limits its east-west callers to routes.
 - A product rule in `infra/auth/oathkeeper/access-rules.json` names a host of at most three labels, so an ops host matches only its own rule. A host pattern of `<**>` makes Oathkeeper answer `500` for any ops path that starts with an API prefix.

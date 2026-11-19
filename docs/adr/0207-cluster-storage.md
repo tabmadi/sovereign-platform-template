@@ -72,7 +72,7 @@ This store holds backups that an operator credential can reach. So driver 2 make
 
 **Outside the cluster is a failure-domain requirement, not an implementation requirement.** In production, no store on the cluster it serves is acceptable, whatever the store is. This objection is separate from the component-weight objection that rejects Rook-Ceph for block storage above, and it is stronger.
 
-**Placement depends on whether the data must outlive the cluster.** This store holds the backups that a rebuild reads, so its contents cannot be replaced. Nothing can regenerate the point-in-time history of a database. So the store goes off-cluster where recovery is real. The image registry is the opposite case, per [ADR-0105](0105-image-registry.md). CI can push its contents again, or they can be read again from a surviving bucket. So the registry needs no independent survival, and it stays in the cluster. The store and the registry differ because of this rule, not by accident: **off-cluster where the data cannot be regenerated, in the cluster otherwise.**
+**Placement depends on whether the data must outlive the cluster.** This store holds the backups that a rebuild reads, so its contents cannot be replaced. Nothing can regenerate the point-in-time history of a database. So the store goes off-cluster where recovery is real. The image registry is the opposite case, per [ADR-0114](0114-image-registry.md). CI can push its contents again, or they can be read again from a surviving bucket. So the registry needs no independent survival, and it stays in the cluster. The store and the registry differ because of this rule, not by accident: **off-cluster where the data cannot be regenerated, in the cluster otherwise.**
 
 **Production buckets enable Object Lock.** The store sits inside the same administrative boundary as the cluster whose backups it holds. WORM retention stops a compromised or mistaken credential from destroying the recovery path as well.
 
@@ -84,7 +84,7 @@ This store holds backups that an operator credential can reach. So driver 2 make
 | --- | --- | --- |
 | CNPG backups | **COMPLIANCE** | The lock exists for this bucket. Nobody can shorten or bypass COMPLIANCE, including the root credential. That is the threat: an attacker with valid credentials, or an operator with a bad one |
 | Loki, Tempo, Pyroscope | **GOVERNANCE** | Operational telemetry with short retention and no role in recovery. Here, deletion on request is worth more than immutability. GOVERNANCE keeps deletion available to an authorised identity |
-| The registry's bucket | **GOVERNANCE** | Images can be rebuilt from source, and the bucket holds no unique state, per [ADR-0105](0105-image-registry.md) |
+| The registry's bucket | **GOVERNANCE** | Images can be rebuilt from source, and the bucket holds no unique state, per [ADR-0114](0114-image-registry.md) |
 
 **COMPLIANCE conflicts with erasure, and this ADR discloses the conflict.** Nobody can delete a subject's data inside a locked backup before the window ends. That is the meaning of COMPLIANCE. So this ADR bounds the erasure obligation of [ADR-0301](0301-data-lifecycle-privacy.md):
 

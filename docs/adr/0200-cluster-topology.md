@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md), [ADR-0205](0205-environment-parity.md), [ADR-0206](0206-cluster-networking.md), [ADR-0207](0207-cluster-storage.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0113](0113-supply-chain-security.md), [ADR-0201](0201-gitops.md), [ADR-0203](0203-policy-enforcement.md), [ADR-0205](0205-environment-parity.md), [ADR-0206](0206-cluster-networking.md), [ADR-0207](0207-cluster-storage.md)
 - **Decides:** Production runs upstream Kubernetes on Talos, with three nodes per environment on plain compute instances that the project provisions or receives.
 
 ## Context
@@ -56,7 +56,7 @@ Kubernetes is Tier 1, per [ADR-0002](0002-tool-adoption.md). Every chart, policy
 | Bottlerocket | disabled by default, reachable through an admin container | API-driven, the closest in approach to Talos | installed separately | The nearest match in approach. Its platform support centres on AWS, and its bare-metal documentation is poor. Driver 1 makes this decisive |
 | Debian stable, converged by Ansible | full | playbooks that converge a mutable host | k3s, installed by playbook | The honest baseline. A node matches its description only as far as the playbooks are complete. Re-running them is the only evidence |
 
-**The node is the only mutable part left in the system.** Git reconciles cluster state, per [ADR-0201](0201-gitops.md). Pods run on a base with no shell and no package manager, per [ADR-0101](0101-monorepo.md). The pod network is default-deny. Against that posture, the host shell is the one remaining escalation path and the one remaining source of drift. An immutable node makes the description and the described thing one object. This is the failure class that driver 3 requires the ADR to name.
+**The node is the only mutable part left in the system.** Git reconciles cluster state, per [ADR-0201](0201-gitops.md). Pods run on a base with no shell and no package manager, per [ADR-0111](0111-monorepo.md). The pod network is default-deny. Against that posture, the host shell is the one remaining escalation path and the one remaining source of drift. An immutable node makes the description and the described thing one object. This is the failure class that driver 3 requires the ADR to name.
 
 Driver 3 also admits the cost: this OS is less widely operated than Debian. The ADR records that cost in *Consequences*.
 
@@ -118,7 +118,7 @@ Self-hosting has an operational cost. The machine configuration under `infra/tal
 | Configuration | one committed machine config document per node role, applied by the [`siderolabs/talos`](https://registry.terraform.io/providers/siderolabs/talos/latest) Terraform provider |
 | OS upgrade | `talosctl upgrade`. It swaps between two image slots with rollback, one node at a time |
 | Kubernetes upgrade | `talosctl upgrade-k8s`, versioned separately from the OS |
-| Anything outside the base image, such as drivers, iSCSI, or GPU support | a system extension built into a custom installer image through [Image Factory](https://docs.siderolabs.com/talos/latest/learn-more/image-factory). It is referenced by schematic and pinned like any other artefact, per [ADR-0104](0104-supply-chain-security.md) |
+| Anything outside the base image, such as drivers, iSCSI, or GPU support | a system extension built into a custom installer image through [Image Factory](https://docs.siderolabs.com/talos/latest/learn-more/image-factory). It is referenced by schematic and pinned like any other artefact, per [ADR-0113](0113-supply-chain-security.md) |
 | Machine secrets | the cluster CA and `talosconfig`, SOPS-encrypted in git like every other secret, per [ADR-0202](0202-secrets.md) |
 
 Nothing runs on these nodes outside Kubernetes. The design makes a host agent, a debugging shell, and a one-off manual fix unavailable. This is the property the platform pays for, not a limitation it accepts.
@@ -158,7 +158,7 @@ The version is pinned, not left at `latest`. A Kubernetes upgrade can add a crit
 
 | Concern | Decision |
 | --- | --- |
-| Enforcement mechanism | **Pod Security Admission**, in the API server. Kyverno already runs, per [ADR-0104](0104-supply-chain-security.md), and it could express the same rules. But Kyverno gates *image provenance*. Workload privilege is a separate concern, and PSA enforces it with no extra component, per principles 2 and 5 |
+| Enforcement mechanism | **Pod Security Admission**, in the API server. Kyverno already runs, per [ADR-0113](0113-supply-chain-security.md), and it could express the same rules. But Kyverno gates *image provenance*. Workload privilege is a separate concern, and PSA enforces it with no extra component, per principles 2 and 5 |
 | Service containers | The shared chart sets `runAsNonRoot`, a non-zero `runAsUser`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, `seccompProfile: RuntimeDefault`, and `readOnlyRootFilesystem: true`. A service that needs a writable path declares an `emptyDir`, never a writable root |
 | Components that need more | They run in **their own namespace**, labelled `privileged` or `baseline`. The namespace manifest records the reason. Cilium is the day-one case |
 | Exception granularity | The namespace, because that is PSA's unit. A component that needs privilege never shares a namespace with one that does not |
@@ -171,7 +171,7 @@ The version is pinned, not left at `latest`. A Kubernetes upgrade can add a crit
 1. terraform apply   # applies the machine configs and bootstraps the cluster
                      # through the siderolabs/talos provider. Cilium comes
                      # with it as an inline manifest
-2. mise run argocd:bootstrap <env>
+2. just argocd-bootstrap <env>
                      # Argo CD, Traefik, and the cluster's age Secret. An
                      # Argo CD Application cannot install these three: one IS
                      # Argo CD, one owns the CRDs that the edge's routes name,
@@ -236,7 +236,7 @@ The recovery is rehearsed quarterly with the backup restore drill in [ADR-0207](
 - **Three nodes cost more than one.** Accepted: the alternative is a maintenance window that nobody wants to plan.
 - **Self-hosted Kubernetes on plain compute is more operational work than managed Kubernetes.** The machine configuration holds the knowledge as code, and this reduces the risk.
 - **There is no shell.** Debugging uses `talosctl`: logs, the dashboard, and the API. An engineer who reaches for `ssh` and `journalctl` has to learn a new loop. This is the cost of the property, not a defect.
-- **Anything outside the base image is a build artefact.** A driver or kernel module becomes an Image Factory schematic and a custom installer image. It is pinned and tracked under [ADR-0104](0104-supply-chain-security.md), not installed with a package manager.
+- **Anything outside the base image is a build artefact.** A driver or kernel module becomes an Image Factory schematic and a custom installer image. It is pinned and tracked under [ADR-0113](0113-supply-chain-security.md), not installed with a package manager.
 - **Nothing can run on these nodes outside Kubernetes.** A workload that must run beside the cluster cannot run here, and it needs its own host.
 - **Nothing is bundled.** `local-path` is an installed component, not a shipped one. A deployment without a provider load balancer must choose one.
 - **Talos is less widely operated than Debian.** Fewer community answers exist when something is strange, and the failure modes are less familiar. Accepted against the drift and escalation classes it removes.

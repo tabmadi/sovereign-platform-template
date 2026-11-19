@@ -4,27 +4,27 @@ This guide shows how to run a load test, read it, and record a baseline. [ADR-06
 
 ## Model
 
-- **k6** is the only load generator. It is a single static Go binary. `test/perf/.mise.toml` pins it, not the root toolchain. `mise run perf*` installs it on first use.
-- Scenarios are JavaScript that **k6's own embedded engine** runs. No Node runs here. `test/perf/` has no `package.json`, no lockfile, and no `node_modules`. If you add one, `mise run lint:node-scope` fails.
+- **k6** is the only load generator. It is a single static Go binary. `test/perf/.mise.toml` pins it, not the root toolchain. `just perf*` installs it on first use.
+- Scenarios are JavaScript that **k6's own embedded engine** runs. No Node runs here. `test/perf/` has no `package.json`, no lockfile, and no `node_modules`. If you add one, `just lint-node-scope` fails.
 - Runs drive the **edge** at `https://dev.localtest.me:8443/api/<path>`. So Traefik and the Oathkeeper forward-auth hop are inside every measurement.
 - Metrics leave k6 over **OTLP into the cluster's OTel collector**. They land in Prometheus as `k6_*` series, on the same time axis as `k8s_pod_*`. No new component ingests them.
 
 ## Prerequisites
 
-You need a running full tier: `mise run cluster:up -- full`. In a fresh checkout, the first `mise run perf*` also needs `mise trust test/perf/.mise.toml`.
+You need a running full tier: `just cluster-up full`. In a fresh checkout, the first `just perf*` also needs `mise trust test/perf/.mise.toml`.
 
 ## Run one
 
 ```bash
-mise run perf:seed          # bulk products, so the read path has a realistic table
-mise run perf:smoke         # ~30s: checks that the scenarios and the target are wired
-mise run perf               # the baseline: `load` profile, both scenarios, ~7min
-mise run perf:stress        # ramp to saturation; thresholds are EXPECTED to fail
-mise run perf:soak          # ~30min sustained, for leak detection
-mise run perf:seed -- --clean   # remove the seeded rows
+just perf-seed          # bulk products, so the read path has a realistic table
+just perf-smoke         # ~30s: checks that the scenarios and the target are wired
+just perf               # the baseline: `load` profile, both scenarios, ~7min
+just perf-stress        # ramp to saturation; thresholds are EXPECTED to fail
+just perf-soak          # ~30min sustained, for leak detection
+just perf-seed --clean   # remove the seeded rows
 ```
 
-`--clean` removes seeded **products** only. A `checkout` run also creates real orders and real Temporal workflow executions. No marker separates those from a human's orders. A `stress` run creates about 1,700 orders. They stay in place on purpose, because a guess by timestamp is unsafe. If the volume starts to matter, recreate the environment: `mise run cluster:down -- full && mise run cluster:up -- full`.
+`--clean` removes seeded **products** only. A `checkout` run also creates real orders and real Temporal workflow executions. No marker separates those from a human's orders. A `stress` run creates about 1,700 orders. They stay in place on purpose, because a guess by timestamp is unsafe. If the volume starts to matter, recreate the environment: `just cluster-down full && just cluster-up full`.
 
 All of these settings are optional:
 
@@ -91,17 +91,17 @@ The generator runs on the same host as the cluster node and competes with it for
 
 ## Record a baseline
 
-Run `mise run perf` on a quiet machine. Then record these values in the PR that changes performance:
+Run `just perf` on a quiet machine. Then record these values in the PR that changes performance:
 
 - the `load` profile's p95 for each endpoint, and the checkout settle p95
 - peak pod memory and CPU for the services under test
-- the catalog row count, which is the `mise run perf:seed` size. A latency number without it has no meaning
+- the catalog row count, which is the `just perf-seed` size. A latency number without it has no meaning
 
 Compare like with like: the same profile, the same seed size, and the same tier.
 
 ### The Prometheus side of a baseline is not durable
 
-On the local tier, Prometheus's TSDB is an `emptyDir`, per the POC floor of ADR-0500. So **any rollout of the observability chart destroys all metric history.** `mise run cluster:add -- observability` and `cluster:down` both delete it at once, with no warning. A resource or capacity comparison that queries earlier numbers from Prometheus fails. It fails exactly when you redeploy to apply the change under measurement.
+On the local tier, Prometheus's TSDB is an `emptyDir`, per the POC floor of ADR-0500. So **any rollout of the observability chart destroys all metric history.** `just cluster-add observability` and `cluster-down` both delete it at once, with no warning. A resource or capacity comparison that queries earlier numbers from Prometheus fails. It fails exactly when you redeploy to apply the change under measurement.
 
 The `test/perf/results/*.json` summaries are files, and they survive. For this reason, they are the authoritative record. Copy them to a safe place before a redeploy. Write the peaks of each pod into the PR or the values comment. Do not expect to query them again.
 
@@ -116,8 +116,8 @@ At the load profile, this platform serves latencies of a few milliseconds. So a 
 
 | Suite | When |
 | --- | --- |
-| `perf:smoke` | for each PR, behind a label, together with `e2e:smoke` |
+| `perf-smoke` | for each PR, behind a label, together with `e2e-smoke` |
 | `perf` with `load` | nightly, and before a release |
-| `perf:stress` | on demand, before a sizing or HPA decision, per [ADR-0204](../adr/0204-resource-management.md) |
+| `perf-stress` | on demand, before a sizing or HPA decision, per [ADR-0204](../adr/0204-resource-management.md) |
 
-Performance suites are **not** part of `mise run test`, `check`, or `ci:affected`. They never gate a merge implicitly.
+Performance suites are **not** part of `just test`, `check`, or `ci-affected`. They never gate a merge implicitly.

@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
+- **Related:** [ADR-0110](0110-language-and-runtime.md), [ADR-0111](0111-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0401](0401-internal-admin.md), [ADR-0500](0500-observability.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0600](0600-local-development-loop.md), [ADR-0601](0601-testing-strategy.md)
 - **Decides:** One Next.js app with route groups, server components by default, and `shadcn/ui` on Tailwind wired CSS-first, with every screen reading its data through one seam.
 
 ## Context
@@ -16,13 +16,13 @@ This ADR is the single entry point for a newcomer who works on the frontend.
 
 | Concern | Decision | ADR |
 | --- | --- | --- |
-| App count and route groups | one app, with the route groups `(landing\|panel\|devportal)` | [ADR-0101](0101-monorepo.md) |
-| Language and runtime | TypeScript, with Bun as the only JS runtime | [ADR-0100](0100-language-and-runtime.md) |
-| Workspaces | Bun workspaces, no Turborepo | [ADR-0101](0101-monorepo.md) |
+| App count and route groups | one app, with the route groups `(landing\|panel\|devportal)` | [ADR-0111](0111-monorepo.md) |
+| Language and runtime | TypeScript, with Bun as the only JS runtime | [ADR-0110](0110-language-and-runtime.md) |
+| Workspaces | Bun workspaces, no Turborepo | [ADR-0111](0111-monorepo.md) |
 | API clients | generated from each service's spec | [ADR-0303](0303-api-contracts-and-lifecycle.md) |
 | Login UI | custom Next.js that drives Kratos self-service flows | [ADR-0304](0304-identity-and-authorization.md) |
-| Container | standalone output, deployed through the shared service chart | [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md) |
-| Cross-route-group imports | forbidden by lint | [ADR-0101](0101-monorepo.md) |
+| Container | standalone output, deployed through the shared service chart | [ADR-0111](0111-monorepo.md), [ADR-0201](0201-gitops.md) |
+| Cross-route-group imports | forbidden by lint | [ADR-0111](0111-monorepo.md) |
 
 ## Decision drivers
 
@@ -82,7 +82,7 @@ By exit cost, this is Tier 2, per [ADR-0002](0002-tool-adoption.md). The message
 | Next's own `i18n` config | none, because it is a Pages Router feature | yes, and only there | none | Not available. It is listed because a reader expects to find it. The App Router replaced it with nothing |
 | A hand-written dictionary and a hook | whatever we write | written by hand | whatever we write | The honest baseline. It is about 200 lines and no dependency. It stops being cheap at the first plural, the first date, and the first reader who needs `fa` |
 
-**The catalogues are the exit.** They are plain JSON keyed by path, and every option above can read them. So a change of library costs only the call sites. That work is mechanical, and `lint:i18n` shows it while it is half-done.
+**The catalogues are the exit.** They are plain JSON keyed by path, and every option above can read them. So a change of library costs only the call sites. That work is mechanical, and `lint-i18n` shows it while it is half-done.
 
 ### Everything else
 
@@ -133,7 +133,7 @@ The app follows shadcn/ui's integration exactly, so a component that the CLI fet
 | Class composition | the `cn` package, which the generated components import. No second house helper is added next to it |
 | Dark mode | `next-themes`, which writes `.dark` on the root element |
 
-Token edits are PRs. `lint:contrast` scores the pairs on both palettes before a PR merges. The CLI's own configuration lives in `apps/frontend/components.json`. It names the style, the base colour, and the icon set, so `shadcn add` produces the same component for everyone.
+Token edits are PRs. `lint-contrast` scores the pairs on both palettes before a PR merges. The CLI's own configuration lives in `apps/frontend/components.json`. It names the style, the base colour, and the icon set, so `shadcn add` produces the same component for everyone.
 
 ### Code layout: one app, no first-party packages
 
@@ -212,7 +212,7 @@ The devportal route group renders the OpenAPI specs through **Scalar**. Scalar i
 | Property | Detail |
 | --- | --- |
 | Why Scalar | a free, built-in request console. It is same-origin with `/api`, per [ADR-0306](0306-trust-tiers-and-urls.md). So the try-it console calls the real edge with the caller's session and needs no CORS |
-| What it renders | a **pre-filtered projection**, not the raw specs. `gen:openapi-public` merges the service specs and filters on the `x-audience` ladder. So the renderer sees only what its audience may see. The strip is real, not a UI hide, per [ADR-0303](0303-api-contracts-and-lifecycle.md) |
+| What it renders | a **pre-filtered projection**, not the raw specs. `gen-openapi-public` merges the service specs and filters on the `x-audience` ladder. So the renderer sees only what its audience may see. The strip is real, not a UI hide, per [ADR-0303](0303-api-contracts-and-lifecycle.md) |
 | Self-hosted | the build bundles the package, and no CDN serves it. Default web fonts are off, so nothing is fetched at runtime |
 | CSP fit | its inline styles are covered by `style-src`. It self-hosts its fonts, covered by `font-src 'self'`. Its console fetches same-origin, covered by `connect-src 'self'` |
 | Visual island | Scalar ships its own theme, and the portal does not reuse the design system's primitives. This is accepted for one route group. Matching a spec renderer to the design system is not worth the maintenance, and the console is worth more than exact visual match |
@@ -287,7 +287,7 @@ This section wires the browser side of [ADR-0500](0500-observability.md).
 - **Grafana Faro** is the browser RUM agent. It forwards web vitals, JS errors, and session traces to the collector's Faro receiver. They go through an ingest route behind Traefik, on a vendor-neutral path, and land in the same backends as the services. Locally, the dev server runs on the host with no edge, so a dev-only route handler stands in for that path.
 - **Faro's session tracking is configured in memory**, not against `sessionStorage` or `localStorage`. The session id lives for the page's lifetime and is never persisted. So the ops path stays clear of ePrivacy `Art. 5(3)` and outside the consent gate, per [ADR-0700](0700-analytics.md). A persistent identifier on this path is a defect, not a feature.
 - Server logs are structured JSON to stdout, enriched with the active trace id. Lint forbids `console.log`.
-- The build embeds the version, so traces and errors can be attributed to a version, per [ADR-0103](0103-release-and-versioning.md).
+- The build embeds the version, so traces and errors can be attributed to a version, per [ADR-0112](0112-release-and-versioning.md).
 
 ### Deferred capabilities
 
@@ -298,9 +298,9 @@ This section wires the browser side of [ADR-0500](0500-observability.md).
 
 ### Build and local development
 
-The build produces standalone output, and the container runs it under Bun. It uses a multi-stage Dockerfile whose runtime stage installs no Node, per [ADR-0100](0100-language-and-runtime.md). The image deploys through the shared service chart, with route-group ingress paths in the environment's values.
+The build produces standalone output, and the container runs it under Bun. It uses a multi-stage Dockerfile whose runtime stage installs no Node, per [ADR-0110](0110-language-and-runtime.md). The image deploys through the shared service chart, with route-group ingress paths in the environment's values.
 
-Locally, the dev server runs against `cluster:up`, and the edge is how a developer reaches it. Work on authenticated surfaces uses the real Traefik, Kratos, and Oathkeeper. The API mock serves the application data, per [ADR-0600](0600-local-development-loop.md). **The app's auth path is the same as in production.** The session path has no development-only session, no bypass, and no branch that depends on the environment.
+Locally, the dev server runs against `cluster-up`, and the edge is how a developer reaches it. Work on authenticated surfaces uses the real Traefik, Kratos, and Oathkeeper. The API mock serves the application data, per [ADR-0600](0600-local-development-loop.md). **The app's auth path is the same as in production.** The session path has no development-only session, no bypass, and no branch that depends on the environment.
 
 ## Consequences
 
@@ -319,8 +319,8 @@ Locally, the dev server runs against `cluster:up`, and the edge is how a develop
 - **shadcn/ui source is vendored and committed**, so a bump is a real PR. The mitigation is to keep `src/components/ui/` verbatim and put every deviation in the token file, which no generator rewrites.
 - **The OpenTelemetry web SDK is heavier than Faro alone.** This is accepted. Trace continuity from browser to service is worth the bytes, and the performance gates keep the cost in check.
 - **Every route renders per locale.** So the count of prerendered pages is the route count times the locale count. This is accepted. The pages are prerendered at build, not per request. A locale that nobody visits costs build time, not serving cost.
-- **A third locale is a third translation of every string.** That is the cost of the decision, not a defect in it. `lint:i18n` shows it at the gate, not on a reader's screen.
-- **RTL support means every new class is logical.** `lint:i18n -- -fix` catches and fixes the mechanical cases. Some layouts are wrong only when mirrored, such as an icon that must not flip or a chart axis. No linter judges those.
+- **A third locale is a third translation of every string.** That is the cost of the decision, not a defect in it. `lint-i18n` shows it at the gate, not on a reader's screen.
+- **RTL support means every new class is logical.** `lint-i18n -- -fix` catches and fixes the mechanical cases. Some layouts are wrong only when mirrored, such as an icon that must not flip or a chart axis. No linter judges those.
 - **A green axe run is not WCAG conformance.** Automated scanning catches only the part of the success criteria that a machine can check. A tool cannot detect the rest: useful alt text, a sensible reading order, and whether a keyboard can complete a flow. The AA claim depends on correct primitives and on the keyboard pass. The gate only prevents regressions in the part a machine can see.
 - **AA is claimed for first-party surfaces and refused for vendored ones.** A user who needs it meets an accessible product panel and an inaccessible Grafana. This is honest, not good. It is the direct cost of not building operator tooling.
 - **The Lighthouse thresholds move with the speed of the machine that runs them.** A comparison of two runs is valid only when one session measured both. `environment.benchmarkIndex` in each report shows whether that is true.
@@ -332,48 +332,48 @@ Locally, the dev server runs against `cluster:up`, and the edge is how a develop
 - The frontend is one Next.js App-Router application. Pages Router is not used.
 - Server Components are the default, and `"use client"` is added at the smallest interactivity boundary.
 - Server Actions are permitted only for mutations against the service that owns the route group. Cross-service mutations use the REST API and the workflow-handle pattern.
-- Every route segment ships `loading.tsx` and `error.tsx`. Every route-group root also ships `not-found.tsx`. `(CI: ci:lint)`
+- Every route segment ships `loading.tsx` and `error.tsx`. Every route-group root also ships `not-found.tsx`. `(CI: ci-lint)`
 - First-party frontend code lives in the app. A `libs/ts/*` package is created only for a second consumer or a generated artifact.
-- A screen reads and writes through `src/lib/data/`, never through `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. `(CI: lint:ts)`
-- Inside that seam, server components fetch through the server-only fetcher, and client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. `(CI: ci:lint)`
-- Hand-written request and response types are not declared. Only generated types are used, and form schemas are generated from the spec. `(CI: ci:gen)`
-- Tailwind is the styling system, wired CSS-first with no config file. CSS Modules, CSS-in-JS, and inline `<style>` are not used in app code. `(CI: ci:lint)`
+- A screen reads and writes through `src/lib/data/`, never through `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. `(CI: lint-ts)`
+- Inside that seam, server components fetch through the server-only fetcher, and client components use TanStack Query over the generated SDKs. Direct `fetch` to service URLs is not used. `(CI: ci-lint)`
+- Hand-written request and response types are not declared. Only generated types are used, and form schemas are generated from the spec. `(CI: ci-gen)`
+- Tailwind is the styling system, wired CSS-first with no config file. CSS Modules, CSS-in-JS, and inline `<style>` are not used in app code. `(CI: ci-lint)`
 - Design tokens come from `apps/frontend/src/styles/theme.css`. There is no JS token mirror. Whether a route group redefines tokens is the designer's choice, recorded in [docs/brand.md](../brand.md).
-- Class composition uses the `cn` package, because the generated components import it. A second helper is not added. `(CI: ci:lint)`
+- Class composition uses the `cn` package, because the generated components import it. A second helper is not added. `(CI: ci-lint)`
 - Primitives are the vendored `shadcn/ui` source under `src/components/ui/`. `shadcn add` writes them, and they are composed by explicit path and never duplicated. A designer may edit a primitive by hand. The edit then belongs to the design, and a later `shadcn add` of that primitive is reviewed as a diff.
 - A primitive added under `src/components/ui/` is added to the kitchen-sink page in the same PR. That PR includes a keyboard-only pass of the new section.
 - Every route group targets WCAG 2.2 AA. The Scalar console and vendored operator UIs are excluded, and the exclusion is stated, not assumed. `(ref: WCAG 2.2 AA)`
 - Every kitchen-sink section and every product journey is scanned with `@axe-core/playwright`. A `serious` or `critical` violation fails the merge. `(CI: e2e)`
-- Colour contrast is verified against the design-token file in every palette that it defines, not per component. One palette or two is the designer's choice. `(CI: lint:contrast)`
+- Colour contrast is verified against the design-token file in every palette that it defines, not per component. One palette or two is the designer's choice. `(CI: lint-contrast)`
 - The design is free beyond these gates: WCAG 2.2 AA contrast, the axe suite, right-to-left mirroring for every shipped right-to-left locale, copy as message keys, and every colour value in `theme.css`. The brand, the layout, the themes, and the components are the designer's choice.
 - Icons come from `lucide-react`, the icon set that `components.json` names. Another set requires an ADR amendment.
 - Forms use react-hook-form and zod, and every field is composed with `Field` from `src/components/ui/field.tsx`.
-- URL state uses `nuqs`, and client-only state uses Zustand. Redux and MobX are not used. `(CI: ci:lint)`
-- The proxy enforces the Kratos session on the authenticated route groups. The frontend never mints, decodes, or validates JWTs. `(CI: lint:auth-inline)`
+- URL state uses `nuqs`, and client-only state uses Zustand. Redux and MobX are not used. `(CI: ci-lint)`
+- The proxy enforces the Kratos session on the authenticated route groups. The frontend never mints, decodes, or validates JWTs. `(CI: lint-auth-inline)`
 - An access denial is answered by its kind. No session redirects to the login flow with the current path and query. A session without permission renders in place, at the denied URL. `(ref: RFC 9110 §15.5)`
 - Denials are raised once, in the fetch clients, and rendered by the framework's `unauthorized.tsx` and `forbidden.tsx`. A route has no auth branch of its own. The frontend computes no permission, and the service decides, per [ADR-0304](0304-identity-and-authorization.md). `(ref: OWASP ASVS V4.1.1)`
 - Browser calls to the API go through TanStack Query. A React boundary does not catch what an event handler throws, so a denial raised outside a render reaches no one.
 - CSP is set in the proxy with a per-request nonce. Inline scripts are not used, and `connect-src` allowlists the telemetry ingest origin. `(ref: CSP Level 3)`
 - CSRF protection rests on the SameSite cookie, Kratos's built-in protection, and the Origin check of Server Actions. Hand-written CSRF tokens are not added.
-- Biome is the only lint and format tool. ESLint is not installed. `(CI: ci:lint)`
+- Biome is the only lint and format tool. ESLint is not installed. `(CI: ci-lint)`
 - `bun test` covers unit and component tests. Vitest and Jest are not used.
-- The frontend contains no development-only authentication code. `(CI: lint:auth-inline)`
+- The frontend contains no development-only authentication code. `(CI: lint-auth-inline)`
 - Browser observability is OpenTelemetry web and Faro, exporting through the edge to the collector. Faro's session id is in memory and per page. The ops path writes nothing to client-side storage, per [ADR-0700](0700-analytics.md).
-- Server logs are structured JSON to stdout. `(CI: ci:lint)`
+- Server logs are structured JSON to stdout. `(CI: ci-lint)`
 - A client provider mounts at the route group that uses it. Only providers that must wrap every route belong in the root layout.
 - A browser SDK that first paint does not need is loaded with a dynamic `import()`. A static import decides when a bundle is downloaded and parsed, and a deferred call does not change that. So nothing in the initial graph statically imports one.
 - A redirect that can be decided before rendering comes from the proxy, not from a page. Behind a `loading.tsx` boundary, a page-level redirect ships as a rendered 200.
 - A redirect into or out of the auth subtree replaces the history entry and never pushes one. When the login UI finds an existing session, it replaces its own entry with the destination.
 - A redirect that depends on the session carries `Cache-Control: no-store`.
 - Server components do not call the identity provider. Browser flows reach it through the edge, per [ADR-0304](0304-identity-and-authorization.md). That is the only path the network policy allows.
-- Bundle budgets and the Lighthouse thresholds are advisory. The `lighthouse` job reports on every PR that changes `apps/frontend`, a TypeScript lib, or a global path, and it blocks no merge. `(CI: ci:lighthouse-gate)`
+- Bundle budgets and the Lighthouse thresholds are advisory. The `lighthouse` job reports on every PR that changes `apps/frontend`, a TypeScript lib, or a global path, and it blocks no merge. `(CI: ci-lighthouse-gate)`
 - The trigger for a merge gate is a `master` run where every measured page meets the LCP budget. Then the step drops `continue-on-error`, and `lighthouse` joins the required checks.
-- Images go through `next/image`, and fonts go through `next/font`. `(CI: ci:lint)`
-- Every string that a reader sees comes from `src/messages/<locale>.json` through next-intl. A literal in JSX or in an attribute that carries copy blocks the merge. `(CI: lint:ts)`
-- Every catalogue has identical keys, and the locale set includes at least one right-to-left locale. `(CI: lint:i18n)`
-- Layout classes are logical, such as `ms-`, `pe-`, `text-start`, and `start-`, and never physical. Centring fractions are the stated exception. `(CI: lint:i18n)`
+- Images go through `next/image`, and fonts go through `next/font`. `(CI: ci-lint)`
+- Every string that a reader sees comes from `src/messages/<locale>.json` through next-intl. A literal in JSX or in an attribute that carries copy blocks the merge. `(CI: lint-ts)`
+- Every catalogue has identical keys, and the locale set includes at least one right-to-left locale. `(CI: lint-i18n)`
+- Layout classes are logical, such as `ms-`, `pe-`, `text-start`, and `start-`, and never physical. Centring fractions are the stated exception. `(CI: lint-i18n)`
 - A sentence broken by a link or a `<code>` stays one key, interpolated with `t.rich`. It is never split into two keys.
 - The locale is resolved from the `[locale]` root param, and the default locale is served with no prefix.
 - Internal navigation uses the helpers in `src/i18n/navigation.ts`, so no href carries a locale prefix written by hand.
 - Feature flags go through the OpenFeature API with a noop provider.
-- The container runs the standalone build under Bun and installs no Node. `(CI: lint:node-scope)`
+- The container runs the standalone build under Bun and installs no Node. `(CI: lint-node-scope)`

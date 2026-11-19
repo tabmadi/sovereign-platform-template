@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0101](0101-monorepo.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0600](0600-local-development-loop.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0111](0111-monorepo.md), [ADR-0112](0112-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md), [ADR-0600](0600-local-development-loop.md)
 - **Decides:** Argo CD is the only deploy mechanism, and it reconciles one shared Helm chart from this repository with values per environment.
 
 ## Context
@@ -28,7 +28,7 @@ This ADR answers five questions:
 
 Two constraints come from other ADRs, and they select nothing below, because every option meets them:
 
-- An image is built once and promoted by SHA, per [ADR-0101](0101-monorepo.md).
+- An image is built once and promoted by SHA, per [ADR-0111](0111-monorepo.md).
 - No secret value reaches git in plaintext, per [ADR-0202](0202-secrets.md).
 
 ## Considered options
@@ -106,7 +106,7 @@ The shared chart has parameters for these:
 
 Kustomize is not used. A difference that a value cannot express is a chart change, not an overlay.
 
-A new service is the service folder, per [ADR-0101](0101-monorepo.md), plus one values file per environment. The ApplicationSet does the rest.
+A new service is the service folder, per [ADR-0111](0111-monorepo.md), plus one values file per environment. The ApplicationSet does the rest.
 
 ### Fan-out and ordering
 
@@ -166,13 +166,13 @@ The name only helps the display. **Grouping uses Argo's real primitives:**
 
 ### Image promotion
 
-CI builds one image per service per commit, tagged by SHA, per [ADR-0101](0101-monorepo.md). A promotion is a commit that pins an environment's values file to the image's digest, per [ADR-0105](0105-image-registry.md).
+CI builds one image per service per commit, tagged by SHA, per [ADR-0111](0111-monorepo.md). A promotion is a commit that pins an environment's values file to the image's digest, per [ADR-0114](0114-image-registry.md).
 
 | Environment | Trigger | Cadence |
 | --- | --- | --- |
 | dev | A merge to `master` builds images. When every one of them is in the registry, the same workflow commits the digests to `master`. Argo syncs continuously | every merge |
 | staging | The same commit pins staging. A sync window of `05:00 UTC, 1h` batches everything that landed since the last window | daily |
-| prod | The release tag `v<YYYY.0M.MICRO>`, per [ADR-0103](0103-release-and-versioning.md), opens the digest pin as a pull request. The pull request merges when its checks pass, and the workflow publishes the release | per release |
+| prod | The release tag `v<YYYY.0M.MICRO>`, per [ADR-0112](0112-release-and-versioning.md), opens the digest pin as a pull request. The pull request merges when its checks pass, and the workflow publishes the release | per release |
 
 **Every deployed environment pins by digest**, not by tag, because nobody can re-push a digest. The prod promotion workflow gates on rollout completion, not on Argo reporting Healthy.
 
@@ -203,7 +203,7 @@ The sync-window model batches deploys with no ceremony. Engineers merge freely, 
 This step comes after node provisioning, per [ADR-0200](0200-cluster-topology.md):
 
 ```sh
-mise run argocd:bootstrap <env>
+just argocd-bootstrap <env>
 ```
 
 It installs Argo CD and the rest of the bootstrap floor from ADR-0200. Then it applies the root Application. Everything else follows from the root Application, and from then on Argo CD reconciles Argo CD. **The bootstrap is the only non-GitOps action in a cluster's lifetime.**
@@ -239,11 +239,11 @@ Argo CD is the engine for the full local tier only, and it deploys from committe
 ## Rules
 
 - Argo CD is the only mechanism that applies manifests to a cluster. `kubectl apply` is permitted only for the one-time bootstrap step.
-- Every backend service deploys through the shared chart with a values file per environment. Each platform component has one chart. `(CI: lint:service-contract)`
+- Every backend service deploys through the shared chart with a values file per environment. Each platform component has one chart. `(CI: lint-service-contract)`
 - Environment differences live in values files, never in chart logic that depends on the environment name.
 - An image is built once and promoted by an update to values files. It is never rebuilt for another environment.
 - Promotion to dev and staging is a commit that the publishing workflow makes when every image it built is in the registry. Sync windows enforce the cadence. Promotion to production is automatic on a release tag, through a pull request that merges when its checks pass. Every deployed environment pins by digest.
-- An environment's bootstrap directory names that environment alone. `(CI: lint:gitops-env-scope)`
+- An environment's bootstrap directory names that environment alone. `(CI: lint-gitops-env-scope)`
 - No environment is deployed through a values-bump PR that a person opens by hand.
 - Argo CD Image Updater and similar auto-promoters are not used.
 - Production platform syncs are manual with `selfHeal=false`. Production services sync automatically with `selfHeal=true`.

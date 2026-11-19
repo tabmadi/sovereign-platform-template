@@ -19,7 +19,7 @@ Each row is a values change or a policy change that a project makes when the con
 
 ## Which scanner an instance runs
 
-[ADR-0104](../adr/0104-supply-chain-security.md) makes vulnerability scanning a merge gate and leaves the choice of scanner to the instance. This document records the choice, with its ignore policy and its failure threshold. A reviewer needs these parts, and neither is a property of the template.
+[ADR-0113](../adr/0113-supply-chain-security.md) makes vulnerability scanning a merge gate and leaves the choice of scanner to the instance. This document records the choice, with its ignore policy and its failure threshold. A reviewer needs these parts, and neither is a property of the template.
 
 ## Reaching a named compliance framework
 

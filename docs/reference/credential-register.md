@@ -27,9 +27,9 @@ The second row is empty for a project that provisions its infrastructure through
 | Per-environment platform secrets | `infra/gitops/platform/<env>/secrets/` | engineers, that cluster, ops-recovery |
 | The first operator's login of [ADR-0304](../adr/0304-identity-and-authorization.md) | the `first-operator` entry of `infra/gitops/platform/<env>/secrets/` | engineers, that cluster, ops-recovery |
 | Local-tier values | `infra/gitops/platform/local/secrets/` | the committed throwaway key |
-| The image-signing key of [ADR-0104](../adr/0104-supply-chain-security.md) | `infra/auth/cosign/` | engineers, CI, ops-recovery |
-| The forge's commit-signing private key, per [ADR-0102](../adr/0102-source-control-and-ci.md) | `infra/forge-host/signing-key.enc.yaml` | engineers, ops-recovery |
-| The `ci` user's commit-signing private key, per [ADR-0102](../adr/0102-source-control-and-ci.md) | `infra/ci/commit-signing-key.enc.yaml` | engineers, CI, ops-recovery |
+| The image-signing key of [ADR-0113](../adr/0113-supply-chain-security.md) | `infra/auth/cosign/` | engineers, CI, ops-recovery |
+| The forge's commit-signing private key, per [ADR-0116](../adr/0116-forge-and-pipelines.md) | `infra/forge-host/signing-key.enc.yaml` | engineers, ops-recovery |
+| The `ci` user's commit-signing private key, per [ADR-0116](../adr/0116-forge-and-pipelines.md) | `infra/ci/commit-signing-key.enc.yaml` | engineers, CI, ops-recovery |
 | The DNS provider credential of [ADR-0206](../adr/0206-cluster-networking.md) | `infra/dns/secrets.enc.yaml` | engineers, CI, ops-recovery |
 
 The local tier is the one exemption in [ADR-0202](../adr/0202-secrets.md). Its private key is committed, because it opens only throwaway values.
@@ -50,7 +50,7 @@ The local tier is the one exemption in [ADR-0202](../adr/0202-secrets.md). Its p
 | --- | --- | --- |
 | An engineer's age private key | that engineer's laptop, plus an offline backup | committed, shared, or held in any shared service |
 | The ops-recovery age key | offline, split across two or three seniors | online, or whole on one machine |
-| A cluster's age key | inside that cluster. On Talos, also in the SOPS-encrypted machine config. To replace a lost key, create a new key and run `mise run secrets:updatekeys` | backed up on its own, committed in the clear, or on a laptop |
+| A cluster's age key | inside that cluster. On Talos, also in the SOPS-encrypted machine config. To replace a lost key, create a new key and run `just secrets-updatekeys` | backed up on its own, committed in the clear, or on a laptop |
 
 **An age key is one line of text, and its loss costs every secret that it opens.** Back it up in the same way as the break-glass credentials. Treat the two as one habit, not two.
 
@@ -58,5 +58,5 @@ The local tier is the one exemption in [ADR-0202](../adr/0202-secrets.md). Its p
 
 1. Decide its class with the test above.
 2. Put a machine-consumed credential in the matching `*.enc.yaml`. Or create a new file with its own rule in `.sops.yaml`.
-3. Run `mise run secrets:updatekeys` and commit the diff.
+3. Run `just secrets-updatekeys` and commit the diff.
 4. Add a row here in the same pull request. The row is the deliverable. The value never appears in a row.

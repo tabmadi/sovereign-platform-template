@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0500](0500-observability.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-conventions.md), [ADR-0200](0200-cluster-topology.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0500](0500-observability.md)
 - **Decides:** Every named resource derives from one dash-joined `{project}-{env}-{role}` slug, and every entity identifier is a UUIDv7 carried on the wire with a type prefix.
 
 ## Context
@@ -28,9 +28,9 @@ This ADR owns the **grammar and charset** of every name that the platform assign
 
 - URL paths, per [ADR-0303](0303-api-contracts-and-lifecycle.md)
 - hostnames, per [ADR-0306](0306-trust-tiers-and-urls.md)
-- task names, per [ADR-0101](0101-monorepo.md)
+- task names, per [ADR-0111](0111-monorepo.md)
 - metric names, per [ADR-0500](0500-observability.md)
-- release tags, per [ADR-0103](0103-release-and-versioning.md)
+- release tags, per [ADR-0112](0112-release-and-versioning.md)
 
 ## Decision drivers
 
@@ -38,7 +38,7 @@ This ADR owns the **grammar and charset** of every name that the platform assign
 2. **Provider agnostic.** The scheme rests on published standards, not on a survey of one set of providers. A project that adopts this template may run anywhere.
 3. **The project name is globally unique.** Each project picks a slug that is distinctive enough to stand alone in the global namespace of any provider. So no org prefix is ever needed.
 4. **Mechanical, not conditional.** The scheme applies with no judgement call per resource, per principle 5 of [ADR-0000](0000-platform-foundations.md). A vocabulary that this ADR does not close is a vocabulary that the next engineer invents.
-5. **Adopt, do not invent**, per [ADR-0001](0001-documentation-and-output-conventions.md). Every charset, cap, and identifier format below is a published standard, or is derived from one in the open.
+5. **Adopt, do not invent**, per [ADR-0001](0001-documentation-conventions.md). Every charset, cap, and identifier format below is a published standard, or is derived from one in the open.
 
 ## Considered options
 
@@ -218,7 +218,7 @@ order_01j8xk7m3q0000000000000000
 | Prefix | the singular `snake_case` form of the resource's collection noun in [ADR-0303](0303-api-contracts-and-lifecycle.md). `/orders` yields `order_` |
 | Where the prefixed form appears | request and response bodies, URL path parameters, logs, telemetry attributes, and error messages |
 | Where the bare UUID appears | the `uuid` column, and nowhere else |
-| Conversion | at the transport boundary, by one library per language, per [ADR-0100](0100-language-and-runtime.md) |
+| Conversion | at the transport boundary, by one library per language, per [ADR-0110](0110-language-and-runtime.md) |
 | Client treatment | opaque. A consumer never parses, orders, or constructs an identifier, per [AIP-122](https://google.aip.dev/122) |
 
 The prefix gives three benefits:
@@ -256,10 +256,10 @@ One table covers every surface, so no surface depends on precedent. Where anothe
 | URL paths | plural resource nouns, no version segment | [ADR-0303](0303-api-contracts-and-lifecycle.md) |
 | Hostnames | `{tool}.ops.<host>` and the trust-tier scheme | [ADR-0306](0306-trust-tiers-and-urls.md) |
 | Environment variables | `SCREAMING_SNAKE_CASE` | here |
-| Go and TypeScript identifiers | the language's own convention | [ADR-0001](0001-documentation-and-output-conventions.md) |
-| `mise` tasks | `group:member` | [ADR-0101](0101-monorepo.md) |
+| Go and TypeScript identifiers | the language's own convention | [ADR-0001](0001-documentation-conventions.md) |
+| `mise` tasks | `group:member` | [ADR-0111](0111-monorepo.md) |
 | Metrics | OTel semantic conventions, else `<service>_<noun>_<unit>_<type>` | [ADR-0500](0500-observability.md) |
-| Git tags, image tags, commit scopes | CalVer and the component path slug | [ADR-0103](0103-release-and-versioning.md) |
+| Git tags, image tags, commit scopes | CalVer and the component path slug | [ADR-0112](0112-release-and-versioning.md) |
 
 ## Consequences
 
@@ -287,13 +287,13 @@ One table covers every surface, so no surface depends on precedent. Where anothe
 ### Resource names
 
 - Every named resource derives from `{project}-{env}-{role}[-{n}]`. Shared infrastructure that is not tied to a product is its own project with its own slug, and follows the same grammar. Examples are a team proxy, an internal forge, and a registry mirror.
-- A slug matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters. `(CI: lint:naming)`
-- The project slug is 5 to 11 characters, including any collision token. It is globally unique and stands alone. No org prefix or cross-project prefix is added before it. `(CI: lint:naming)`
-- `env` is `dev`, `staging`, or `prod`, spelled the same way in every surface. Abbreviated forms are not used. `(CI: lint:naming)`
-- `role` is a token from the table in this ADR. A new resource class adds a row in the same PR. `(CI: lint:naming)`
+- A slug matches `^[a-z][a-z0-9]*(-[a-z0-9]+)*$` and is at most 63 characters. `(CI: lint-naming)`
+- The project slug is 5 to 11 characters, including any collision token. It is globally unique and stands alone. No org prefix or cross-project prefix is added before it. `(CI: lint-naming)`
+- `env` is `dev`, `staging`, or `prod`, spelled the same way in every surface. Abbreviated forms are not used. `(CI: lint-naming)`
+- `role` is a token from the table in this ADR. A new resource class adds a row in the same PR. `(CI: lint-naming)`
 - The same string is used in files and in the console of every provider. Where a namespace rejects hyphens, the compact form is used: the slug with its hyphens removed. No other transformation is applied.
 - A name records only facts that are constant for the life of the resource. Owner, cost centre, and application metadata are Kubernetes labels, OTel resource attributes, or provider tags.
-- A true provider-global collision is resolved with a random `[a-z0-9]{4}` token appended to the project slug, never with a descriptive or per-resource suffix. `(CI: lint:naming)`
+- A true provider-global collision is resolved with a random `[a-z0-9]{4}` token appended to the project slug, never with a descriptive or per-resource suffix. `(CI: lint-naming)`
 - The full slug is required where names cross the cluster boundary: provider resources, Kubernetes contexts, SSH aliases, and `age` recipients. In-cluster hostnames and namespaces drop the implied `{project}-{env}`.
 - SSH key pairs are named `{project}-{env}` on an engineer's laptop. Where the public keys of several engineers share a namespace, each key carries a `{handle}` owner segment.
 
@@ -310,5 +310,5 @@ One table covers every surface, so no surface depends on precedent. Where anothe
 
 - Every surface uses the casing in the *Casing by surface* table. A surface that is absent from that table is added to it before it is used.
 - JSON request and response fields are `snake_case` nouns, plural where repeated.
-- SQL tables are plural `snake_case`, columns are singular `snake_case`, and every identifier stays under 63 bytes. `(CI: lint:sql)`
+- SQL tables are plural `snake_case`, columns are singular `snake_case`, and every identifier stays under 63 bytes. `(CI: lint-sql)`
 - Environment variables are `SCREAMING_SNAKE_CASE`.

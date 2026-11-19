@@ -1,10 +1,10 @@
-# ADR-0101: Monorepo Structure and Build
+# ADR-0111: Monorepo Structure and Build
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0401](0401-internal-admin.md), [ADR-0601](0601-testing-strategy.md)
-- **Decides:** One repository, one Go module, `mise` as the task runner, and affected-detection deciding what CI runs.
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-toolchain.md), [ADR-0103](0103-tasks.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0112](0112-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0401](0401-internal-admin.md), [ADR-0601](0601-testing-strategy.md)
+- **Decides:** One repository, one Go module, the recipe names of the platform, and affected-detection deciding what the image jobs build.
 
 ## Context
 
@@ -19,7 +19,7 @@ These parts need a home:
 
 This ADR decides whether that home is one repository or many. Everything after it follows from that answer.
 
-This ADR answers seven questions in one place: repository topology, layout, task invocation, workspace tooling, CI, codegen, and frontend topology.
+This ADR answers seven questions in one place: repository topology, layout, recipe names, workspace tooling, CI, codegen, and frontend topology. [ADR-0100](0100-toolchain.md) pins every tool through Nix, and [ADR-0103](0103-tasks.md) makes `just` the task runner. This ADR builds on both.
 
 ## Decision drivers
 
@@ -44,41 +44,6 @@ This ADR answers seven questions in one place: repository topology, layout, task
 
 The choice is reversible in one direction only. Adding a repository is easy. Extracting a service from this one is a migration. *Consequences* prices that asymmetry.
 
-### Task runner
-
-Two questions are bundled here: **running tasks**, and **pinning the toolchain those tasks need**. Most candidates answer only one of them, and that separates the options.
-
-| Option | Runs tasks | Pins tool versions | Verdict |
-| --- | --- | --- | --- |
-| **mise** | **yes** | **yes, in the same file** | **Chosen.** One tool does both, so a task and its toolchain cannot drift apart *(reasoned)* |
-| Make | yes | no | Present everywhere. The toolchain becomes a separate unpinned problem |
-| `just` | yes | no | Better ergonomics than Make, with the same gap |
-| asdf | no | yes | The version manager whose plugin ecosystem mise is compatible with. It needs a task runner beside it |
-| direnv | no | environment variables only | Solves neither question. It composes with whatever does |
-| Nix: flakes, `devenv`, `devbox` | through flake apps, or a runner beside it | **yes, hermetically, down to system libraries** | The strongest reproducibility on offer. This repository has already answered most of its question. See below |
-| Nx | yes | no | A build graph with caching. Its value needs more applications than this repo has. A documented upgrade path |
-| moon, with `proto` | yes | through `proto`, a second binary that resolves from a curated registry | The closest direct competitor. It is the only candidate that ships affected detection, so nobody has to write it. See below. A documented upgrade path |
-| Pants | yes | yes, hermetically | In the Bazel family. It has [dependency inference](https://www.pantsbuild.org/blog/2022/10/27/why-dependency-inference) in place of hand-written build files, and a real Go backend. Held against the same compliance trigger, where it is a more likely answer than Bazel |
-| Bazel | yes | yes, hermetically | Reserved for the compliance trigger below, together with Pants and Nix |
-
-**On moon.** It answers both questions. It also ships the one capability that this ADR otherwise builds by hand: a project graph with affected detection and task caching. *Consequences* records that custom affected detection is the most load-bearing tooling in this repository. A bug in it gives a green run against a broken service. moon would retire that code.
-
-Three things decide against it now:
-
-- **Two binaries where mise is one file.** Tool pinning lives in `proto`, beside it.
-- **Its depth is in the JavaScript ecosystem.** [Other languages arrive as WASM toolchain plugins](https://moonrepo.dev/docs/how-it-works/languages). Bun came later than the Node package managers. This repository is the reverse: Go-primary, with one JavaScript application.
-- **The two tools pin by different architectures.** `proto` resolves from a curated registry. Its own [documentation](https://moonrepo.dev/docs/proto/plugins) states that proto cannot support every tool in core directly. So a tool outside the core toolchain and the community registry is a plugin written here. mise resolves a tool from its GitHub releases, with no plugin and no per-tool entry. The difference is invisible for Go and Bun. It is decisive for the rest of the pinned set, which is mostly single-binary Go releases.
-
-Driver 5 applies here as it does to Nx. The graph is bought when the need is measured. The seam is that tasks are already declarative and named `group:member`.
-
-**On Nix.** It pins system libraries, not only tool versions. Nothing else here has that capability. Three things weigh against it:
-
-- **It is not a task runner.** So a runner sits beside it, and driver 1 forbids splitting task invocation across two tools.
-- **It puts a second language and a daemon** on every workstation and every CI runner. That cost comes from the platform-engineering budget, which is the binding constraint, per [ADR-0000](0000-platform-foundations.md).
-- **The gap it closes is the system-library layer.** A statically linked Go binary on a distroless base has almost none of that surface. So the payoff here is a fraction of the payoff for a dynamically linked polyglot fleet.
-
-It returns as a candidate when hermeticity becomes a requirement. Bazel is held against the same trigger.
-
 ### Go module strategy
 
 | Option | Dependency consistency | Cross-cutting refactor | Verdict |
@@ -89,7 +54,7 @@ It returns as a candidate when hermeticity becomes a requirement. Bazel is held 
 
 ### JavaScript workspace orchestration
 
-[ADR-0100](0100-language-and-runtime.md) settles the runtime and package manager: Bun alone, for install and workspaces. This section decides whether a separate orchestrator sits above it.
+[ADR-0110](0110-language-and-runtime.md) settles the runtime and package manager: Bun alone, for install and workspaces. This section decides whether a separate orchestrator sits above it.
 
 | Option | Verdict |
 | --- | --- |
@@ -99,17 +64,16 @@ It returns as a candidate when hermeticity becomes a requirement. Bazel is held 
 
 ### The lint and format toolchain
 
-There is one tool per language. Each is a single pinned binary with no ambient runtime, per principle 6 of [ADR-0000](0000-platform-foundations.md). Each is Tier 2, per [ADR-0002](0002-tool-adoption.md). A swap is a configuration file and a task, and the code it judges does not change.
+There is one tool per language. Each is a single binary from the dev shell of [ADR-0100](0100-toolchain.md), with no ambient runtime, per principle 6 of [ADR-0000](0000-platform-foundations.md). [ADR-0104](0104-formatters-and-linters.md) decides the formatters of Markdown, Nix, and the data formats. This table adds the languages of the platform. Each is Tier 2, per [ADR-0002](0002-tool-adoption.md). A swap is a configuration file and a task, and the code it judges does not change.
 
 | Surface | Chosen | Picked over | Why |
 | --- | --- | --- | --- |
 | Go | **golangci-lint** | `go vet` alone, revive, staticcheck standalone | It is the aggregator that runs the others. The alternative is running several of them and reconciling their output *(reasoned)* |
 | TypeScript | **Biome** | ESLint with Prettier, oxlint, dprint | One binary for lint and format. The incumbent pair is two tool ecosystems, two configuration languages, and a plugin resolution model. The cost is the small set of framework-specific rules that only the incumbent has |
-| Markdown | **rumdl** | markdownlint, Vale, Prettier | One binary for lint and format. It holds the compact-table rule that the diffs of this repository depend on, per [ADR-0001](0001-documentation-and-output-conventions.md). markdownlint needs Node. Vale judges prose style, not structure, so it would add to rumdl and not replace it |
+| Markdown | **rumdl** | markdownlint, Vale, Prettier | One binary for lint and format. It holds the compact-table rule that the diffs of this repository depend on, per [ADR-0001](0001-documentation-conventions.md). markdownlint needs Node. Vale judges prose style, not structure, so it would add to rumdl and not replace it |
 | Shell | **shellcheck and shfmt** | no shell lint, shellharden | The two-tool exception. It is the only pairing in the field: no single binary formats and lints shell |
 | SQL | **sqruff** | sqlfluff, no SQL lint | The rule set that the incumbent established, reimplemented without the Python runtime that principle 6 bars *(reasoned)* |
-| Prose, comments, and the ADR set | **tablint** | Go linters in `tools/`, Vale with Conftest | One binary checks the Simple English profile of [ADR-0001](0001-documentation-and-output-conventions.md) in every repository of its owner. Vale with Conftest matched the Go linters, but added two rule languages *(measured)* |
-| Git hooks | **lefthook** | husky, pre-commit, a committed `.githooks` directory | One binary that reads one committed YAML file. husky needs Node in every clone. `pre-commit` needs Python. A hooks directory has no parallelism and no staged-file filtering |
+| Prose, comments, and the ADR set | **tablint** | Go linters in `tools/`, Vale with Conftest | One binary checks the Simple English profile of [ADR-0001](0001-documentation-conventions.md) in every repository of its owner. Vale with Conftest matched the Go linters, but added two rule languages *(measured)* |
 
 **The pattern is one property, repeated.** Every row picks a single static binary over a runtime plus a dependency tree, and accepts a narrower rule set for it. That trade lost for shell. There the ADR pays for two binaries and does not pretend that one covers it.
 
@@ -128,7 +92,7 @@ services/<name>/              # one backend service (package, not a module)
 ├── internal/{handlers,workflows,activities,domain,store}/
 ├── migrations/
 ├── Dockerfile
-└── .mise.toml
+└── justfile                  # the recipes of the service
 
 apps/
 ├── frontend/                 # one frontend app, route groups inside (ADR-0400)
@@ -156,7 +120,7 @@ infra/
 └── observability/            # dashboards and alerts as code
 
 tools/                        # repo-local Go programs
-scripts/                      # shell entered through mise tasks
+scripts/                      # shell entered through just recipes
 
 test/                         # external harnesses driving an assembled system
 ├── e2e/                      # Playwright suites and fixtures (ADR-0601)
@@ -176,58 +140,61 @@ docs/                         # genre decides the directory (ADR-0001)
 | `services/` and `apps/` are siblings | Services are headless, horizontally-scaled, internally-addressed backends. `apps/` holds first-party deployable applications. The slot stays open for partner portals, CLIs, or mobile apps with no layout migration. A new entry under `apps/` requires its own ADR |
 | `services/` stays spelled out | `svc` already means a Kubernetes Service here. It is also the per-service metavariable in docs. A directory name is short only when the short form is not ambiguous |
 | `infra/` holds both IaC and the configuration of what it deploys | One top-level directory removes the recurring question of `infra` or `ops` |
-| `tools/` holds repo-local Go programs only | It is not a place for shell scripts. mise installs external tools. The own module of `tools/` keeps linter dependencies out of the graph that every generated project ships. `tools/internal/` holds the packages that those programs share |
-| `scripts/` holds shell, and shell only | This is the other side of the row above, so the split is a language boundary, not a habit. When the work of a script is a Go program, it is not a script: the task calls the program directly. A wrapper that only changes directory and shells out puts one name in two trees |
-| `test/` holds external harnesses, and is singular for that reason | Each suite drives an assembled, running system from outside it, so no suite belongs to one service, per [ADR-0601](0601-testing-strategy.md). It is not where the tests live. A Go test of an `internal/` package **cannot** move here. Only the subtree under the parent of `internal/` can import it, so the compiler rejects the import. Unit tests sit beside their code. This also lets `ci:affected` map a changed package to the tests that cover it |
-| Each suite under `test/` pins its own tools | `test/e2e/` is the Node island, and `test/perf/` is the k6 island. They share a parent, not a toolchain. `test/` has no `package.json`, no lockfile, and no tool pin of its own. The containment is per directory, in the same way that `apps/admin/` pins the pnpm of Lowdefy under `apps/`. `(CI: lint:node-scope)` |
+| `tools/` holds repo-local Go programs only | It is not a place for shell scripts. The dev shell of `flake.nix` holds the external tools. The own module of `tools/` keeps linter dependencies out of the graph that every service image builds from. `tools/internal/` holds the packages that those programs share |
+| `scripts/` holds shell, and shell only | This is the other side of the row above, so the split is a language boundary, not a habit. When the work of a script is a Go program, it is not a script: the recipe calls the program directly. A wrapper that only changes directory and shells out puts one name in two trees |
+| `test/` holds external harnesses, and is singular for that reason | Each suite drives an assembled, running system from outside it, so no suite belongs to one service, per [ADR-0601](0601-testing-strategy.md). It is not where the tests live. A Go test of an `internal/` package **cannot** move here. Only the subtree under the parent of `internal/` can import it, so the compiler rejects the import. Unit tests sit beside their code. This also lets `ci-affected` map a changed package to the tests that cover it |
+| Each Node island has its own dev shell | `test/e2e/` runs in `nix develop .#e2e`, and `apps/admin/` runs in `nix develop .#admin`. `test/` has no `package.json`, no lockfile, and no tool pin of its own. `(CI: lint-node-scope)` |
 
-### mise is the single entry point
+### Recipe names
 
-Tasks live in `.mise.toml` files. A root file holds repo-wide tasks, and one file per service holds the tasks local to that service. `mise tasks --list` is the interface for finding them.
+[ADR-0103](0103-tasks.md) makes `just` the task runner and fixes the six recipes of the contract. This section fixes the rest of the names. The root `justfile` holds the recipes of the repo, and `services/<name>/justfile` holds the recipes of one service. `just --list` lists them in each folder.
 
-The convention of normalized entrypoints comes from GitHub's [Scripts to Rule Them All](https://github.blog/engineering/engineering-principles/scripts-to-rule-them-all/). The difference is the layer. There, the normalized names *are* the scripts. Here, they are mise tasks, because the entrypoint must also pin the toolchain it runs under. `scripts/` is the shell that those tasks enter. The per-service set is closed and enforced by `lint:service-contract`, not only a convention.
+The convention of normalized entrypoints comes from GitHub's [Scripts to Rule Them All](https://github.blog/engineering/engineering-principles/scripts-to-rule-them-all/). There, the normalized names *are* the scripts. Here, they are `just` recipes, and `scripts/` is the shell that those recipes enter. `lint-service-contract` checks the recipe set of each service.
 
-| Scope | Standard task names |
+| Scope | Standard recipe names |
 | --- | --- |
 | Every service | `build`, `test`, `lint`, `generate`, `migrate`, `server`, `worker`. This is the closed set that every service exposes |
-| Repo root | fleet-wide work, grouped by its axis: `ci:*` for what CI invokes, `cluster:*` for the local environment, `gen:*` for codegen, `lint:*` and `format:*` for the checks. `mise tasks --list` gives the full list |
+| Repo root | the six recipes of [ADR-0103](0103-tasks.md), and fleet-wide work grouped by its axis: `ci-*` for what CI calls, `cluster-*` for the local environment, `gen-*` for codegen, `lint-*` and `format-*` for the checks |
 
-The two long-running service tasks are named for the process type they start. The names match `cmd/{server,worker}/`, the `<service>-{server,worker}` images, and the in-cluster DNS names. This gives one vocabulary from end to end. A frontend is not a service and keeps `run`. It has no worker to match, and the task starts a dev server, not a production binary.
+The two long-running service recipes are named for the process type they start. The names match `cmd/{server,worker}/`, the `<service>-{server,worker}` images, and the in-cluster DNS names. This gives one vocabulary from end to end.
 
-**Task naming.** A task name is `group:member`. The group is the axis that you list and run together. Two shapes are correct. The axis worth aggregating by decides which one applies:
+A service recipe brings up the root recipes it needs with `just --justfile ../../justfile dep-postgres`. A root recipe that another root recipe needs is a dependency, so `just` runs it once.
+
+**Recipe naming.** A recipe name is `group-member`. The group is the axis that you list and run together. Two shapes are correct. The axis worth aggregating by decides which one applies:
 
 | Shape | Use when | Examples |
 | --- | --- | --- |
-| `activity:target` | one activity fans out across many targets, with an umbrella task | `lint:go`, `lint:ts`, `lint:md` under `lint`. `format:*`. `gen:openapi`, `gen:sqlc` under `gen` |
-| `resource:operation` | a stateful thing has a lifecycle worth grouping | `cluster:up`, `cluster:stop`, `cluster:down`, `cluster:add`, `cluster:remove`, `db:migrate`, `ops:grant` |
+| `activity-target` | one activity fans out across many targets, with an umbrella recipe | `lint-go`, `lint-ts`, `lint-md` under `lint`. `format-*`. `gen-openapi`, `gen-sqlc` under `gen` |
+| `resource-operation` | a stateful thing has a lifecycle worth grouping | `cluster-up`, `cluster-stop`, `cluster-down`, `cluster-add`, `cluster-remove`, `db-migrate`, `ops-grant` |
 
-**A task name spells its script.** The two shapes map onto `scripts/`. So a developer finds the implementation of a task without reading `.mise.toml`:
+**A recipe name spells its script.** The two shapes map onto `scripts/`. So a developer finds the implementation of a recipe without reading `justfile`:
 
-- `activity:target` is `scripts/activity-target.sh`. Examples are `gen:openapi`, `lint:ports`, and `promote:prod`.
-- `resource:operation` is `scripts/resource.sh operation`: one entrypoint that takes the verb as an argument. Examples are `cluster:up`, `argo:pause`, and `mock:start`.
+- `activity-target` is `scripts/activity-target.sh`. Examples are `gen-openapi`, `lint-ports`, and `promote-prod`.
+- `resource-operation` is `scripts/resource.sh operation`: one entrypoint that takes the verb as an argument. Examples are `cluster-up`, `argo-pause`, and `mock-start`.
 
-When all members of a family share one implementation, the script is named for the family, not for a member. `dep:*` and `svc:*` enter `dep-apply.sh` and `svc-apply.sh`.
+When all members of a family share one implementation, the script is named for the family, not for a member. `dep-*` and `svc-*` enter `dep-apply.sh` and `svc-apply.sh`.
 
-One shape for both cases scatters a family. `stop:cluster` and `delete:cluster` split the cluster lifecycle, and `ts:format` breaks the `format` umbrella. Use `activity:` only where a real umbrella exists. Graph-only plumbing that exists only as a `depends` node is marked `hide = true`.
+One shape for both cases scatters a family. `stop-cluster` and `delete-cluster` split the cluster lifecycle, and `ts-format` breaks the `format` umbrella. Use `activity-` only where a real umbrella exists. A recipe that exists only as a dependency is `[private]`.
 
-**What a task acts on is an argument.** An environment variable carries the environment of the machine, such as a proxy address or a kubeconfig path. That is the same for every invocation from that shell. The thing that one invocation acts on is an operand, and it belongs in the argument list. `mise run cluster:down -- full` names its target on the line that ran it. `TIER=full mise run cluster:down` puts the target in shell state that outlives the command. The next destructive verb then aims at the wrong cluster. A script can export a variable to pass context to a subprocess it starts. That is internal plumbing, not the interface.
+**What a task acts on is an argument.** An environment variable carries the environment of the machine, such as a proxy address or a kubeconfig path. That is the same for every invocation from that shell. The thing that one invocation acts on is an operand, and it belongs in the argument list. `just cluster-down full` names its target on the line that ran it. `TIER=full just cluster-down` puts the target in shell state that outlives the command. The next destructive verb then aims at the wrong cluster. A script can export a variable to pass context to a subprocess it starts. That is internal plumbing, not the interface.
 
-A task validates each operand against a closed set, and an unknown operand is fatal. A silent fallback to the default lets a typo delete a tier that the operator did not name.
+A recipe validates each operand against a closed set, and an unknown operand is fatal. A silent fallback to the default lets a typo delete a tier that the operator did not name.
 
 ### Every executable is pinned, in one of two places
 
 | Kind | Pinned in |
 | --- | --- |
-| Developer and CI tools: Go, Bun, `sqlc`, `sqruff`, `ogen`, `vacuum`, `helm`, `kubectl`, `age`, `sops`, and mise itself | the root `.mise.toml`, or a service-local one where a service truly needs a different version |
+| Developer and CI tools: Go, Bun, `sqlc`, `sqruff`, `vacuum`, `helm`, `kubectl`, `age`, and `sops` | the dev shell of `flake.nix` and `flake.lock`, per [ADR-0100](0100-toolchain.md) |
+| Go tools that generate or check code: `ogen` and `workflowcheck` | a `tool` line in `tools/go.mod`, so the generator and its runtime library share one version |
 | Runtime services: Postgres, Temporal, Kratos, Oathkeeper, OpenFGA, SeaweedFS, the observability stack, Argo CD, and the CNPG operator | the Helm chart `appVersion`, plus an explicit `image.tag` in `infra/helm/.../values.yaml` |
 
-Floating tags are forbidden in `.mise.toml`, Dockerfiles, Helm values, and workflows. A floating tag is `latest`, `stable`, `main`, or an unpinned major. A tool-version change is a normal PR. So anyone who clones at any SHA reproduces the exact toolchain that built it.
+Floating tags are forbidden in Dockerfiles, Helm values, and workflows. A floating tag is `latest`, `stable`, `main`, or an unpinned major. A tool-version change is a normal PR. So anyone who clones at any SHA reproduces the exact toolchain that built it.
 
 ### One Go module for the product, one for the gates
 
 One `go.mod` at the repo root covers every service, library, and generated client. There is no per-service module and no `replace` directive. Services and libraries are plain packages, imported by the module path of the repo.
 
-`tools/` is the single exception: a second module, joined by a committed `go.work`. The dependencies of a gate, such as a ruleguard DSL or an AST walker, are not a dependency of anything that ships. A generated project inherits this tree as a whole. So in the product graph, they would put linter code in the module that every service resolves against. The tool tree needs exactly the isolation that the product does not need. A service image never sees the workspace. Its Dockerfile copies `go.mod`, `go.sum`, `libs/go`, and one service directory, so `go.work` is not in the build context.
+`tools/` is the single exception: a second module, joined by a committed `go.work`. The dependencies of a gate, such as a ruleguard DSL or an AST walker, are not a dependency of anything that ships. In the product graph, they would put linter code in the module that every service resolves against. The tool tree needs exactly the isolation that the product does not need. A service image never sees the workspace. Its Dockerfile copies `go.mod`, `go.sum`, `libs/go`, and one service directory, so `go.work` is not in the build context.
 
 Here, dependency **consistency** is worth more than dependency **isolation**:
 
@@ -261,13 +228,14 @@ Bun workspaces join the app and the TS libraries:
 
 | Workflow | Runs |
 | --- | --- |
-| `ci.yml` | the merge gates, one job each: `mise run ci:build`, `ci:test`, `ci:gen`, which fails on drift, `ci:lint`, `ci:affected-adversarial`, `ci:scan` |
+| `check.yml` | the merge gate of [ADR-0101](0101-source-control-and-ci.md): `just ci`, which builds every check of `flake.nix` in the Nix sandbox. The checks build, test, lint, and regenerate the whole repo |
+| `history.yml` | the checks that need the git history or the network: `just ci-lint`, `ci-affected-adversarial`, and `ci-scan` |
 | `publish.yml` | builds and pushes images on merges to `master` |
 | `e2e.yml` | the full suite nightly and before a release, plus a label-gated smoke job, per [ADR-0601](0601-testing-strategy.md) |
 
-Lint, test, and build run over **the whole repo and both modules**. They are not affected-scoped. The linters have no per-service subset to take, and the Go build cache keeps the repeat cost small. `ci:affected` scopes what is built and promoted, not what is analysed.
+Lint, test, and build run over **the whole repo and both modules**. They are not affected-scoped. The linters have no per-service subset to take, and the Go build cache keeps the repeat cost small. `ci-affected` scopes what is built and promoted, not what is analysed.
 
-Every workflow takes its toolchain from the `./.github/actions/setup` composite action. So the mise setup and the Go cache key are defined once. [ADR-0102](0102-source-control-and-ci.md) decides which forge runs these workflows, and on whose runners. Its thin-YAML rule keeps that choice reversible.
+Every workflow but the shared gate takes its toolchain from the `./.github/actions/setup` composite action, which installs Nix. Each step then runs `nix develop --command just <recipe>`. [ADR-0116](0116-forge-and-pipelines.md) decides which forge runs these workflows, and on whose runners. Its thin-YAML rule keeps that choice reversible.
 
 ### Affected detection
 
@@ -281,7 +249,7 @@ Every workflow takes its toolchain from the `./.github/actions/setup` composite 
 | `apps/frontend/` | the frontend |
 | `infra/`, `tools/`, `go.mod`, `go.sum`, `package.json` | **global**: everything runs |
 
-`mise run ci:affected` produces a JSON manifest that the workflows consume. As the fleet grows, this is the most load-bearing repo tooling, and it has unit tests.
+`just ci-affected` produces a JSON manifest that the workflows consume. As the fleet grows, this is the most load-bearing repo tooling, and it has unit tests.
 
 ### Codegen is committed and drift-checked
 
@@ -290,15 +258,16 @@ Principle 9 of [ADR-0000](0000-platform-foundations.md) states that generated co
 - OpenAPI clients land in `libs/{go,ts}/sdks/<service>/`.
 - sqlc output lands in `services/<service>/internal/store/`.
 
-`mise run ci:gen` regenerates everything, and CI fails on a diff. A lefthook pre-commit hook runs the relevant part when source files change.
+`just ci-gen` regenerates and formats everything, and fails on a diff. The `gen` check of `flake.nix` runs it in the sandbox, so `just ci` fails on drift.
 
 ### Caching
 
 | Cache | Keyed on |
 | --- | --- |
-| Go build and test | the root `go.sum` |
+| Go modules in the Nix sandbox | the `outputHash` of `goProxy` in `flake.nix`, from `go.sum` |
+| Go build and test, on a workstation | the root `go.sum` |
 | Docker BuildKit layers | the registry |
-| Bun install | [`bun.lock`](https://bun.com/blog/bun-lock-text-lockfile) |
+| Bun install | [`bun.lock`](https://bun.com/blog/bun-lock-text-lockfile), and `bun.nix` in the sandbox |
 
 **Deferred:** a remote Go build cache, such as `GOCACHEPROG` or `sccache`. **Trigger:** CI time stays above 15 minutes on the median affected pull request. **Seam:** it is a `GOCACHEPROG` environment variable, so adoption is configuration. **Cost if adopted late:** the CI minutes already spent, and nothing structural. The cache is cold on adoption at any time.
 
@@ -326,14 +295,14 @@ Each step is its own ADR when its trigger fires.
 | Step | Trigger | Seam | Cost if adopted late |
 | --- | --- | --- | --- |
 | Split the Go module | a service or library needs its own dependency line: external publication, a different upgrade cadence, or isolated security review | present. Packages already sit at import paths that become module paths with no change | grows with the number of cross-package imports that must become versioned dependencies. The later it happens, the more of the repository it touches |
-| Adopt Nx or moon as a task orchestrator with caching and a project graph | the task graph outgrows mise, or hand-written affected detection is no longer trustworthy | present. Tasks are declarative and already named `group:member`. Both tools wrap them and do not replace them | low. It is proportional to package count and does not compound. Each wrap is mechanical, and nothing builds up that makes the next one harder |
+| Adopt Nx or moon as a task orchestrator with caching and a project graph | the recipe graph outgrows `just`, or hand-written affected detection is no longer trustworthy | present. Recipes are declarative and already named `group-member`. Both tools wrap them and do not replace them | low. It is proportional to package count and does not compound. Each wrap is mechanical, and nothing builds up that makes the next one harder |
 | Adopt Pants, Bazel, or Nix | hermetic reproducible builds become a compliance requirement. The ADR written at that time picks one of the three | **none. This is a bet**, per [ADR-0000](0000-platform-foundations.md). Each tool replaces the build and does not wrap it. So every Dockerfile, task, and codegen step is rewritten | **grows with the fleet.** Every build target, Dockerfile, and codegen step must be described to the new system. So the migration is proportional to a repository that is expected to grow. The trigger is a compliance requirement, and those come with dates. The risk of waiting is a fleet-sized migration to the deadline of someone else. The delay buys this: the platform never pays for a build system that the trigger may never demand |
 
 ## Consequences
 
 ### Positive
 
-- `mise run <task>` is the universal interface across languages and services.
+- `just <recipe>` is the universal interface across languages and services.
 - Cross-package Go changes land in one PR, with no `replace` directive and no workspace ceremony.
 - The structure forces every service onto the same dependency versions. There is no drift and no per-service upgrade backlog. Renovate opens one PR per dependency, not N.
 - One frontend app removes the whole class of cross-subdomain auth bugs.
@@ -353,22 +322,22 @@ Each step is its own ADR when its trigger fires.
 ## Rules
 
 - The fleet lives in one repository. Moving any part of it to a second repository requires its own ADR.
-- The product is a single Go module rooted at `go.mod`, with no per-service or per-library `go.mod`. `tools/` is the one exception: a second module joined by `go.work`. The dependencies of a gate are not a dependency of anything that ships. `(CI: ci:lint)`
+- The product is a single Go module rooted at `go.mod`, with no per-service or per-library `go.mod`. `tools/` is the one exception: a second module joined by `go.work`. The dependencies of a gate are not a dependency of anything that ships. `(CI: ci-lint)`
 - A service image build copies only `go.mod`, `go.sum`, `libs/go`, and its own service directory, so `go.work` never enters the build context.
-- Every backend service lives at `services/<name>/`. Every shared Go package lives under `libs/go/<name>/`. Every shared TypeScript library lives under `libs/ts/<name>/`. `(CI: lint:service-contract)`
-- Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. `(CI: ci:gen)`
+- Every backend service lives at `services/<name>/`. Every shared Go package lives under `libs/go/<name>/`. Every shared TypeScript library lives under `libs/ts/<name>/`. `(CI: lint-service-contract)`
+- Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. `(CI: ci-gen)`
 - The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR.
-- Tasks are invoked through `mise run <task>`. Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, and `worker`. `(CI: lint:service-contract)`
-- A task name is `group:member`, grouped by the axis worth listing together, and it spells its script. `activity:target` is `scripts/activity-target.sh`, and `resource:operation` is `scripts/resource.sh operation`.
-- What a task acts on is an argument, never an environment variable: `mise run cluster:down -- full`. Environment variables carry the environment of the machine. A variable that a script exports for its own subprocesses is not an interface. `(ref: clig.dev, POSIX Utility Conventions)`
-- A task validates its operand against a closed set and fails on an unknown operand. It never falls back to a default.
-- Every external tool is pinned. Developer and CI tools are pinned in `.mise.toml`, and runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. `(CI: lint:floating-tags)`
-- A PR that changes a spec, a SQL query, or any codegen input includes the regenerated artifacts. `(CI: ci:gen)`
-- A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. `(CI: ci:affected)`
-- Container images are tagged `<service>:<git-sha>`, and the same SHA goes through every environment. `(CI: lint:floating-tags)`
-- `services/<X>/` does not import `services/<Y>/`. Sharing goes through `libs/` or generated clients. `(CI: lint:go, lint:service-contract)`
-- Route groups inside `apps/frontend/` do not import from each other. `(CI: lint:ts)`
-- `tools/` holds repo-local Go programs and the packages under `tools/internal/` that they share. `scripts/` holds shell. A mise task invokes a Go program directly. A shell script that only shells out to one is not written.
+- A task is a `just` recipe, per [ADR-0103](0103-tasks.md). Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, and `worker`. `(CI: lint-service-contract)`
+- A recipe name is `group-member`, grouped by the axis worth listing together, and it spells its script. `activity-target` is `scripts/activity-target.sh`, and `resource-operation` is `scripts/resource.sh operation`.
+- What a recipe acts on is an argument, never an environment variable: `just cluster-down full`. Environment variables carry the environment of the machine. A variable that a script exports for its own subprocesses is not an interface. `(ref: clig.dev, POSIX Utility Conventions)`
+- A recipe validates its operand against a closed set and fails on an unknown operand. It never falls back to a default.
+- Every external tool is pinned. Developer and CI tools are pinned in `flake.lock`, Go code tools in `tools/go.mod`, and runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. `(CI: lint-floating-tags)`
+- A PR that changes a spec, a SQL query, or any codegen input includes the regenerated artifacts. `(CI: ci-gen)`
+- A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. `(CI: ci-affected)`
+- Container images are tagged `<service>:<git-sha>`, and the same SHA goes through every environment. `(CI: lint-floating-tags)`
+- `services/<X>/` does not import `services/<Y>/`. Sharing goes through `libs/` or generated clients. `(CI: lint-go, lint-service-contract)`
+- Route groups inside `apps/frontend/` do not import from each other. `(CI: lint-ts)`
+- `tools/` holds repo-local Go programs and the packages under `tools/internal/` that they share. `scripts/` holds shell. A recipe calls a Go program directly. A shell script that only shells out to one is not written.
 - `test/` holds the external harnesses that drive an assembled system: `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package.
-- Each suite under `test/` pins its own tools. `test/` itself has no toolchain, package manifest, or lockfile. `(CI: lint:node-scope)`
-- Build-graph and hermetic-build tools are not used on day one. These are Nx, moon, Pants, Bazel, and Nix. Adoption requires its own ADR.
+- Each Node island runs in its own dev shell of `flake.nix`. `test/` itself has no package manifest or lockfile. `(CI: lint-node-scope)`
+- Build-graph tools are not used on day one. These are Nx, moon, Pants, and Bazel. Adoption requires its own ADR.

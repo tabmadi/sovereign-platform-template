@@ -6,13 +6,13 @@ This guide shows how to write and apply schema migrations. [ADR-0300](../adr/030
 
 1. Create the file under `services/<service>/migrations/`. Give it a timestamp and use the dbmate format with `-- migrate:up` and `-- migrate:down` sections.
 2. **Write the `down` section for yourself, not for production.** It lets you run the migration again locally. Never plan to run it in production. A production rollback is a forward fix: a new migration that reverses the change, per [ADR-0300](../adr/0300-data.md).
-3. Regenerate the typed data layer after any schema or query change: `mise run gen:sqlc`. Commit its output. CI checks it for drift against your SQL.
-4. Run `mise run lint:sql` before you push. It rejects a `timestamp` where `timestamptz` belongs. It also rejects a column that holds personal data without a tag, per [ADR-0301](../adr/0301-data-lifecycle-privacy.md).
+3. Regenerate the typed data layer after any schema or query change: `just gen-sqlc`. Commit its output. CI checks it for drift against your SQL.
+4. Run `just lint-sql` before you push. It rejects a `timestamp` where `timestamptz` belongs. It also rejects a column that holds personal data without a tag, per [ADR-0301](../adr/0301-data-lifecycle-privacy.md).
 
 ## Apply migrations locally
 
 ```sh
-mise run db:migrate            # applies each service's migrations to the local Postgres
+just db-migrate            # applies each service's migrations to the local Postgres
 ```
 
 The inner loop runs against the disposable local Postgres. The full tier and deployed environments run CNPG, per [ADR-0205](../adr/0205-environment-parity.md).

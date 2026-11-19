@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-09-19
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0205](0205-environment-parity.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0601](0601-testing-strategy.md), [ADR-0700](0700-analytics.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-conventions.md), [ADR-0113](0113-supply-chain-security.md), [ADR-0205](0205-environment-parity.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0601](0601-testing-strategy.md), [ADR-0700](0700-analytics.md)
 - **Decides:** Design is authored in this repository against one data seam, and product research is dated evidence that binds nothing until an ADR cites it.
 
 ## Context
@@ -86,7 +86,7 @@ An accepted design merges. The design PR does not wait for its backend, because 
 
 The backend PR that adds the endpoint also types the fixture from the generated SDK and removes the marker, per [ADR-0303](0303-api-contracts-and-lifecycle.md). A fixture is one more caller. When the shapes differ, that PR fixes the fixture data, as it fixes any other caller.
 
-The frontend then promotes the page and removes the `designOnly()` call. The code holds the state, not the tracker. `lint:fixtures` lists every design-only page, and `mise run release` prints that list before it tags. A design-only page answers 404 in production, so the list never blocks a release.
+The frontend then promotes the page and removes the `designOnly()` call. The code holds the state, not the tracker. `lint-fixtures` lists every design-only page, and `just release` prints that list before it tags. A design-only page answers 404 in production, so the list never blocks a release.
 
 **Two designs are compared as two design previews** of the real application. There is no menu of mock screens, and no prototype route to delete before launch.
 
@@ -108,13 +108,13 @@ A reviewer opens a pull request's design at its own URL and clicks through it be
 | URL | `design-pr-<n>.ops.<host>`, behind a forge sign-in that passes only members of the forge organization, per [ADR-0306](0306-trust-tiers-and-urls.md). It is never public |
 | Notice | CI posts the URL as a comment on the pull request, and edits that one comment on each new build |
 
-A fork's code runs here, so the namespace is a sandbox. Its pods reach nothing but DNS. The edge strips the session cookie before the request reaches the pod. It also replaces the page's Content Security Policy with one that allows no other origin. Admission keeps a `design/` image out of every other namespace, per [ADR-0104](0104-supply-chain-security.md). A push after the label rebuilds the preview with no second review. The sandbox bounds that code, and the maintainer removes the label to stop it.
+A fork's code runs here, so the namespace is a sandbox. Its pods reach nothing but DNS. The edge strips the session cookie before the request reaches the pod. It also replaces the page's Content Security Policy with one that allows no other origin. Admission keeps a `design/` image out of every other namespace, per [ADR-0113](0113-supply-chain-security.md). A push after the label rebuilds the preview with no second review. The sandbox bounds that code, and the maintainer removes the label to stop it.
 
 Screenshots attached to the pull request were rejected. A picture cannot be clicked, and the artifact upload of the forge refuses them, per `infra/helm/platform/forgejo/values.yaml`. The full-platform preview of [ADR-0205](0205-environment-parity.md) stays for smoke tests. It is too large to keep for the life of a pull request.
 
 ### Product research is evidence
 
-Research lives in `docs/product/`, and it is a genre of its own: dated observations of the outside world, with sources. It is not a decision, and it has no authority. A research document is never the reason for a change. A finding becomes binding when an ADR cites it in its Context. From then on, the decision is the law, not the evidence, per [ADR-0001](0001-documentation-and-output-conventions.md).
+Research lives in `docs/product/`, and it is a genre of its own: dated observations of the outside world, with sources. It is not a decision, and it has no authority. A research document is never the reason for a change. A finding becomes binding when an ADR cites it in its Context. From then on, the decision is the law, not the evidence, per [ADR-0001](0001-documentation-conventions.md).
 
 The template ships only that directory's README and a template. A product adds the files it needs, and no file is required. Examples are:
 
@@ -142,7 +142,7 @@ Research that nobody needed is not a gap.
 ### Negative and Risks
 
 - **Sketching is slower than in a throwaway.** Strict types, Biome, and the axe scan all apply. This is accepted, and the options table states the trade: the port step disappears completely.
-- **The seam decays as soon as a screen bypasses it.** A screen wired straight to the SDK can never be designed against a fixture again. The import restriction mitigates this: it fails `lint:ts`, so review does not have to catch it.
+- **The seam decays as soon as a screen bypasses it.** A screen wired straight to the SDK can never be designed against a fixture again. The import restriction mitigates this: it fails `lint-ts`, so review does not have to catch it.
 - **A fixture looks exactly like real data.** That makes it useful, and it also makes a shipped fixture invisible. The build-time guard mitigates this, not discipline.
 - **A design preview runs a fork's code under the parent host.** The sandbox removes its network, the session cookie, and its calls to other origins. Its script can still set a cookie for the parent host. The maintainer's reading of the code before the label is the control for that, and for every push after it.
 - **Research goes stale without a signal.** A competitor's UI changes without notice. The only mitigation is the `as-of` line on every research document. This is a convention, and nothing enforces it.
@@ -151,16 +151,16 @@ Research that nobody needed is not a gap.
 ## Rules
 
 - Design is authored in this repository. No external design tool is a source of truth, and no file outside the repository specifies a screen.
-- The design system's values live only in `apps/frontend/src/styles/theme.css`. What the roles are for lives only in [docs/brand.md](../brand.md). `(CI: lint:contrast)`
-- A screen reads and writes through `src/lib/data/`. It does not import `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. `(CI: lint:ts)`
+- The design system's values live only in `apps/frontend/src/styles/theme.css`. What the roles are for lives only in [docs/brand.md](../brand.md). `(CI: lint-contrast)`
+- A screen reads and writes through `src/lib/data/`. It does not import `src/lib/server-fetch/`, a generated SDK, or `src/fixtures/` directly. `(CI: lint-ts)`
 - Fixtures are deterministic: no `Math.random()`, and no `new Date()` evaluated at render.
-- Every value exported from `src/fixtures/*.ts` ends with `satisfies <T>`, and `T` is imported from `@sdks/*`. `(CI: lint:fixtures)`
-- A fixture for an endpoint that no spec has keeps a local type under a `// no-spec: <METHOD> <path>` marker. The marker fails once an SDK has that endpoint. `(CI: lint:fixtures)`
+- Every value exported from `src/fixtures/*.ts` ends with `satisfies <T>`, and `T` is imported from `@sdks/*`. `(CI: lint-fixtures)`
+- A fixture for an endpoint that no spec has keeps a local type under a `// no-spec: <METHOD> <path>` marker. The marker fails once an SDK has that endpoint. `(CI: lint-fixtures)`
 - The backend PR that adds an endpoint also types its fixture from the SDK and removes the no-spec marker.
-- A fixture for data outside every OpenAPI spec carries `// external: <source> <METHOD> <path>` and keeps a local type. `(CI: lint:fixtures)`
-- Every seam that reads a fixture with a no-spec marker calls `designOnly()`, so its page answers 404 outside fixture mode. `(CI: lint:fixtures)`
+- A fixture for data outside every OpenAPI spec carries `// external: <source> <METHOD> <path>` and keeps a local type. `(CI: lint-fixtures)`
+- Every seam that reads a fixture with a no-spec marker calls `designOnly()`, so its page answers 404 outside fixture mode. `(CI: lint-fixtures)`
 - An accepted design merges. A page that waits for an endpoint merges as design-only, and its promotion PR removes the `designOnly()` call.
-- `mise run release` prints the design-only pages before it tags. The list does not block a release.
+- `just release` prints the design-only pages before it tags. The list does not block a release.
 - Fixture mode is `NEXT_PUBLIC_FIXTURES`, resolved in `src/lib/data/mode.ts`. A production build with it set fails, unless `NEXT_PUBLIC_DESIGN_BUILD=1` is also set. `(CI: test)`
 - Only the design-preview workflow sets `NEXT_PUBLIC_DESIGN_BUILD`, and it pushes the result only as `design/frontend:pr-<n>-<sha>`.
 - A screen is promoted in one PR. The PR points its seam at the service and keys its copy in every message catalogue. It also adds its journey to the axe suite and takes a visual baseline.

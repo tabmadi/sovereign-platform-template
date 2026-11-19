@@ -54,7 +54,7 @@ Argo CD reconciles everything inside the cluster boundary from this repository, 
   └───────────────────┘                        └──────────────────┘
 ```
 
-**Two things sit outside on purpose.** Production object storage holds the backups that a cluster rebuild reads. So it cannot live in the failure domain that it protects, per [ADR-0200](../adr/0200-cluster-topology.md). Pods pull from the registry. So a cluster that cannot start pods cannot serve its own images, per [ADR-0105](../adr/0105-image-registry.md).
+**Two things sit outside on purpose.** Production object storage holds the backups that a cluster rebuild reads. So it cannot live in the failure domain that it protects, per [ADR-0200](../adr/0200-cluster-topology.md). Pods pull from the registry. So a cluster that cannot start pods cannot serve its own images, per [ADR-0114](../adr/0114-image-registry.md).
 
 **What is not here.** Kyverno and Pod Security Admission sit in the API server's admission path, not in any request path. CiliumNetworkPolicy is in the datapath between every pair of boxes above. Neither appears as a box, because neither is a hop, per [ADR-0203](../adr/0203-policy-enforcement.md).
 

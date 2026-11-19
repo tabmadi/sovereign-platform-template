@@ -54,10 +54,10 @@ Each would defeat controls here, and each is excluded on purpose, not by oversig
 
 | Threat | Control | Owner |
 | --- | --- | --- |
-| **Tampering** with an image between build and run | admission verifies the cosign signature and the required attestations. Every reference is digest-pinned | [ADR-0104](../adr/0104-supply-chain-security.md), [ADR-0203](../adr/0203-policy-enforcement.md) |
-| **Spoofing** the origin of an image | SOPS holds the signing key, and no person holds it. The public key is committed, and the admission policy names it | [ADR-0104](../adr/0104-supply-chain-security.md) |
+| **Tampering** with an image between build and run | admission verifies the cosign signature and the required attestations. Every reference is digest-pinned | [ADR-0113](../adr/0113-supply-chain-security.md), [ADR-0203](../adr/0203-policy-enforcement.md) |
+| **Spoofing** the origin of an image | SOPS holds the signing key, and no person holds it. The public key is committed, and the admission policy names it | [ADR-0113](../adr/0113-supply-chain-security.md) |
 | **Tampering** with cluster state outside the repository | Argo CD is the only deploy mechanism, and production does not self-heal. So drift is shown and not silently corrected | [ADR-0201](../adr/0201-gitops.md) |
-| **Elevation** through a dependency with a known vulnerability | scanning as a merge gate. The finding blocks before anything ships | [ADR-0104](../adr/0104-supply-chain-security.md) |
+| **Elevation** through a dependency with a known vulnerability | scanning as a merge gate. The finding blocks before anything ships | [ADR-0113](../adr/0113-supply-chain-security.md) |
 | **Information disclosure** of secrets in the repository | SOPS with age recipients. Plaintext is never committed, and the local key decrypts only throwaway values | [ADR-0202](../adr/0202-secrets.md) |
 | **Denial of service** by the gate itself | Kyverno's webhook fails closed for the whole cluster. **Accepted risk 5**, with a documented break-glass | [risk 5](risk-register.md) |
 

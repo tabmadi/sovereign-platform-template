@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md), [ADR-0300](0300-data.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0500](0500-observability.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0112](0112-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md), [ADR-0300](0300-data.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0500](0500-observability.md)
 - **Decides:** Temporal is the durable-execution layer and the default async primitive, with five criteria deciding what earns a workflow.
 
 ## Context
@@ -188,7 +188,7 @@ When the trigger fires, the controller drives versioning, not a chart. Four prop
 
 | Consequence | Detail |
 | --- | --- |
-| **The Build ID tracks the code, not the release channel** | The controller derives it from the image tag plus a hash of the pod template. So a configuration-only change is also a new version. This is stricter than a Build ID from the image alone, per [ADR-0103](0103-release-and-versioning.md), and it is why the chart does not compute it |
+| **The Build ID tracks the code, not the release channel** | The controller derives it from the image tag plus a hash of the pod template. So a configuration-only change is also a new version. This is stricter than a Build ID from the image alone, per [ADR-0112](0112-release-and-versioning.md), and it is why the chart does not compute it |
 | **A pin is only as good as the pods behind it** | A pin to a version that no pod serves is worse than no pin: the execution does not fail over, it waits. A rolling `Deployment` deletes the old version's pods when rollout completes. Protection then lasts seconds, not the workflow's lifetime. So workers are `WorkerDeployment` CRs, reconciled by the **Temporal Worker Controller**. It keeps one Deployment per Build ID alive until Temporal reports it Drained. Only Temporal knows the drainage state, and it changes long after a sync ends. So keeping a version until its work finishes is reconciler work, and a chart cannot template it |
 | **Promotion belongs to the controller** | It registers each version and promotes per `rollout.strategy`. It injects the deployment and build-ID environment variables itself, and upstream states that nobody sets them by hand. Rollback sets the current version to the previous Build ID. Its pods still exist because sunset is delayed |
 | **Sessions and versioning exclude each other** | The SDK refuses `EnableSessionWorker` together with versioning. So a service that needs sessions opts out explicitly and owes a patching plan instead |
@@ -275,8 +275,8 @@ Other ADRs own these concerns, and nothing here overrides them:
 
 - Temporal is the platform's durable-execution mechanism and the default async primitive. No DLQs, ad-hoc retry loops, or cron jobs are used for business-meaningful periodic work.
 - A workflow exists if the operation matches at least one of the five scope criteria. A trivial best-effort job that matches none can use the outbox seam.
-- A service's workflows, activities, and worker live under `services/<service>/`. No top-level workflow directory exists. `(CI: ci:lint)`
-- Cross-service workflow invocation is HTTP through the generated client. Direct Temporal-client calls across service boundaries are not used. `(CI: ci:lint)`
+- A service's workflows, activities, and worker live under `services/<service>/`. No top-level workflow directory exists. `(CI: ci-lint)`
+- Cross-service workflow invocation is HTTP through the generated client. Direct Temporal-client calls across service boundaries are not used. `(CI: ci-lint)`
 - Waiting on a cross-service result is polling, a webhook callback, or fire-and-forget. Direct cross-service signals are not used.
 - Activities are placed by ownership. They are never shared across services as a domain wrapper.
 - A workflow's wall-clock fits one production deploy cycle. A longer one requires an entry in `docs/reference/long-running-workflows.md` with replay tests.
@@ -285,9 +285,9 @@ Other ADRs own these concerns, and nothing here overrides them:
 - Worker Deployment Versioning is adopted only on its recorded trigger, and adoption brings the controller with it. A versioned worker is then a `WorkerDeployment` reconciled by the controller, never a plain `Deployment`. Only the controller sets Build IDs and the deployment and build-ID environment variables.
 - Where versioning is adopted, sunset delays are only made longer, never shorter toward zero.
 - Worker graceful stop is configured. `terminationGracePeriodSeconds` is derived from the worker stop timeout, never set on its own.
-- Workflow code is deterministic, and side effects go through activities. `(CI: ci:lint)`
+- Workflow code is deterministic, and side effects go through activities. `(CI: ci-lint)`
 - Activities are idempotent and accept retries.
-- Every activity that a workflow executes by name is registered on that service's worker. `(CI: lint:activity-register)`
+- Every activity that a workflow executes by name is registered on that service's worker. `(CI: lint-activity-register)`
 - Workflow IDs encode business intent, not opaque UUIDs.
 - Activity inputs and outputs stay in kilobytes. Larger payloads go through the bucket by reference.
 - Periodic business-meaningful work uses a Temporal `Schedule`. `CronJob` is only for pure infrastructure.

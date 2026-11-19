@@ -11,7 +11,7 @@ An ADR decides each gate below, and each ADR is complete about its own gate. No 
 | Position | Effect on the merge path | Owning decision |
 | --- | --- | --- |
 | CI lints fail open by construction | a check that does not run counts as a passed check. So every gate on a repository property is advisory against a path that skips CI | [ADR-0203](../adr/0203-policy-enforcement.md) |
-| Affected-detection selects what CI runs | a selection bug gives a green run that does not select the broken change | [ADR-0101](../adr/0101-monorepo.md), register row 8 |
+| Affected-detection selects what CI runs | a selection bug gives a green run that does not select the broken change | [ADR-0111](../adr/0111-monorepo.md), register row 8 |
 | Per-PR e2e runs only with a label, and the full suite runs nightly | a cross-service defect passes the merge gate, and a scheduled run catches it | [ADR-0601](../adr/0601-testing-strategy.md), register row 6 |
 | Admission is the only layer that a manual apply cannot go around | anything that only CI checks is unenforced against the incident path | [ADR-0203](../adr/0203-policy-enforcement.md) |
 
@@ -36,133 +36,115 @@ A change passes through six positions. The first four are advisory in the strict
 
 | Defect class | Caught by | Reaches production if | Residual |
 | --- | --- | --- | --- |
-| Layout, naming, prose, generated-code drift | 2: CI lints, per [ADR-0101](../adr/0101-monorepo.md) and [ADR-0001](../adr/0001-documentation-and-output-conventions.md) | CI does not run, or affected-detection does not select the change | **bounded.** The subject is a file. A repository property that reaches production is a cosmetic defect. So this class goes to a layer that fails open |
+| Layout, naming, prose, generated-code drift | 2: CI lints, per [ADR-0111](../adr/0111-monorepo.md) and [ADR-0001](../adr/0001-documentation-conventions.md) | CI does not run, or affected-detection does not select the change | **bounded.** The subject is a file. A repository property that reaches production is a cosmetic defect. So this class goes to a layer that fails open |
 | Contract shape: spec validity, audience, breaking change | 2: vacuum and oasdiff, per [ADR-0303](../adr/0303-api-contracts-and-lifecycle.md) | as above | **bounded.** The generated client is committed and drift-checked. So a spec change that skipped the gate must still pass the drift check to merge |
 | A single service's logic | 3: unit and integration tests | affected-detection did not select the service | **register row 8.** That row is about this class. Its reach is one merge plus everything downstream |
-| Behaviour with no test, or a test that cites a retired requirement | 2: `lint:requirements`, per [ADR-0602](../adr/0602-behaviour-requirements.md) | CI does not run | **bounded for the trace, unbounded for meaning.** The lint sees that a test names an ID, not that its assertion proves the requirement. Position 4 is the only check on that |
+| Behaviour with no test, or a test that cites a retired requirement | 2: `lint-requirements`, per [ADR-0602](../adr/0602-behaviour-requirements.md) | CI does not run | **bounded for the trace, unbounded for meaning.** The lint sees that a test names an ID, not that its assertion proves the requirement. Position 4 is the only check on that |
 | A cross-service regression | 3: e2e, **per PR only with a label**, nightly in full | the pull request had no e2e label | **register row 6, up to a day.** This is the largest routine hole in this table. A policy change closes it, not a component |
 | An operator dashboard broken | 3: the nightly suite only | always, until the nightly run | **up to a day.** It is a day of exposure on the surface that operators use *during* an incident |
-| A known-vulnerable dependency or base image | 2: Trivy at the merge gate, per [ADR-0104](../adr/0104-supply-chain-security.md) | the CVE is published after the merge | **the pull side is unbounded.** Trivy is push-shaped: it sees what is being built, not what already runs. Nothing on the floor notices that a CVE published today affects an image built in March. The Dependency-Track row in [`../operational-surface.md`](../operational-surface.md) would answer this |
-| An unsigned or floating-tag image | **6: Kyverno at admission**, per [ADR-0104](../adr/0104-supply-chain-security.md) | it does not. A deploying party cannot bypass admission | **none, by construction.** Position 6 exists because of this class |
+| A known-vulnerable dependency or base image | 2: Trivy at the merge gate, per [ADR-0113](../adr/0113-supply-chain-security.md) | the CVE is published after the merge | **the pull side is unbounded.** Trivy is push-shaped: it sees what is being built, not what already runs. Nothing on the floor notices that a CVE published today affects an image built in March. The Dependency-Track row in [`../operational-surface.md`](../operational-surface.md) would answer this |
+| An unsigned or floating-tag image | **6: Kyverno at admission**, per [ADR-0113](../adr/0113-supply-chain-security.md) | it does not. A deploying party cannot bypass admission | **none, by construction.** Position 6 exists because of this class |
 | A privileged or non-conforming workload | **6: Pod Security Admission**, per [ADR-0200](../adr/0200-cluster-topology.md) | it does not | **none.** It is in-tree, so it fails with the API server and not separately |
 | An unreachable or over-reachable workload | **6: CiliumNetworkPolicy** in the datapath, per [ADR-0206](../adr/0206-cluster-networking.md) | it does not, for traffic. A missing policy is a different defect | **none for enforcement. The gap is a policy that nobody wrote.** Position 4 is the only check on it |
 | A resource-governance defect: no request, wrong priority | **6: in-tree API objects**, per [ADR-0204](../adr/0204-resource-management.md) | it does not | **none.** `LimitRange` defaults it, or `ResourceQuota` rejects it |
-| A plaintext secret in a committed file | 1 and 2: gitleaks over the tree at commit and in CI, and over the whole history in CI. The tasks are `lint:secrets` and `lint:secrets-history`, per [ADR-0202](../adr/0202-secrets.md) | the rules do not recognise its shape | **bounded by the rule set, and the sharpest row here.** Unlike the classes above, the defect is permanent after a merge: git history holds it after the file is fixed |
-| An authorization defect: an omitted check, or a dual write outside a workflow | 2: `lint:authz-dual-write` and `lint:authz` for the static shapes. 3: the authorization and privilege-escalation specs. 4: review for an omitted `Checker` call. Per [ADR-0304](../adr/0304-identity-and-authorization.md) and [ADR-0302](../adr/0302-temporal.md) | a handler omits a check that no spec exercises | **bounded for the static shapes, unbounded for an omitted check.** A missing call leaves nothing for a linter to read |
+| A plaintext secret in a committed file | 1 and 2: gitleaks over the tree at commit and in CI, and over the whole history in CI. The tasks are `lint-secrets` and `lint-secrets-history`, per [ADR-0202](../adr/0202-secrets.md) | the rules do not recognise its shape | **bounded by the rule set, and the sharpest row here.** Unlike the classes above, the defect is permanent after a merge: git history holds it after the file is fixed |
+| An authorization defect: an omitted check, or a dual write outside a workflow | 2: `lint-authz-dual-write` and `lint-authz` for the static shapes. 3: the authorization and privilege-escalation specs. 4: review for an omitted `Checker` call. Per [ADR-0304](../adr/0304-identity-and-authorization.md) and [ADR-0302](../adr/0302-temporal.md) | a handler omits a check that no spec exercises | **bounded for the static shapes, unbounded for an omitted check.** A missing call leaves nothing for a linter to read |
 | Cluster state diverging from the repository | 5: Argo CD, with `selfHeal=false` in production, per [ADR-0201](../adr/0201-gitops.md) | a human applies it, and nobody reads the drift notification | **hours to the next working day.** This is detection, not enforcement. On purpose, production reverts nothing on its own |
 
 ## The machinery
 
-This table lists every task that a workflow or a git hook reaches, and the failure class that the task owns, per ADR-0000 principle 2. `mise run gen` generates it from the task descriptions. Delete a task that owns no class, or a task whose class another row already owns.
+This table lists every task that a workflow or a git hook reaches, and the failure class that the task owns, per ADR-0000 principle 2. `just gen` generates it from the task descriptions. Delete a task that owns no class, or a task whose class another row already owns.
 
 <!-- machinery:begin -->
 
-| Task | Owns | Reached from |
+| Recipe | Owns | Reached from |
 | --- | --- | --- |
-| `acceptance` | Generate a project from the working tree and prove that it reaches a serving cluster, per ADR-0106. It needs Docker. It runs nightly and on the acceptance label, never in check. | template.yml |
-| `build` | Every Go module compiles, including the tools, per ADR-0101. | ci.yml |
-| `ci:affected-adversarial` | Test affected-detection from the other side, per ADR-0101 and ADR-0601. Break each service in a scratch worktree and check that the manifest names it. | ci.yml |
-| `ci:affected-matrix` | The affected manifest, split into the arrays that publish.yml's image jobs need, as forge step-output assignments, per ADR-0102. | publish.yml |
-| `ci:build-images` | Build, push, and sign every affected service or app image in one job, per ADR-0101 and ADR-0104. The argument is `services` or `apps`. | publish.yml |
-| `ci:design-preview` | The design preview of one pull request, per ADR-0701: `build` pushes and signs the design image from refs/pull/<n>/head, and `comment` posts its URL. | design-preview.yml |
-| `ci:e2e-gate` | Whether a pull request runs the smoke suite, as a forge step-output assignment, per ADR-0102 and ADR-0601. | e2e.yml |
-| `ci:gen` | The one definition behind ci.yml's drift job and the lefthook gen-drift hook. Run it locally to repeat that CI job exactly. | .lefthook.yml, ci.yml |
-| `ci:lighthouse-gate` | Whether a pull request runs Lighthouse, as a forge step-output assignment, per ADR-0400. | lighthouse.yml |
-| `ci:nightly-gate` | Whether tonight's cluster:up full suite runs, as a forge step-output assignment, per ADR-0102 and ADR-0601. | _nightly-gate.yml |
-| `ci:preview` | The pull-request preview environment, per ADR-0205: the full tier at the images and manifests of refs/pull/<n>/head. The run that creates it also destroys it. | preview.yml |
-| `ci:prune-registry` | Delete the first-party image tags that no environment pins and the last PRUNE_KEEP commits do not name, per ADR-0105. | publish.yml |
-| `ci:push-promotion` | Commit a promotion's values changes and push them to the default branch, per ADR-0201. | publish.yml |
-| `ci:release-info` | A CalVer release tag resolved to a version and a commit, as forge step-output assignments, per ADR-0102 and ADR-0103. | promote-on-release.yml |
-| `ci:release-pr` | Open the prod pin as a pull request. The forge merges it when its checks pass, per ADR-0201. | promote-on-release.yml |
-| `ci:release-publish` | Publish the forge release for $VER, per ADR-0103. | promote-on-release.yml |
-| `ci:renovate` | Renovate over this repository, per ADR-0106. The scheduled renovate workflow runs it with the token of the bot. | renovate.yml |
-| `ci:scan` | The vulnerability merge gate, per ADR-0104. | ci.yml |
-| `cluster:down` | Delete the tier's cluster and its image cache. | e2e.yml, perf.yml |
-| `cluster:up` | Create, resume, or repair a tier. | e2e.yml, perf.yml |
-| `dns:apply` | Make the provider's zones match infra/dns/dnsconfig.js, per ADR-0206. It deletes the records that the file does not declare. | dns.yml |
-| `dns:check` | Report how the provider's zones differ from infra/dns/dnsconfig.js, per ADR-0206. It changes nothing. | dns.yml |
-| `e2e` | The full browser suite against a running full tier: acceptance, visual, and accessibility, per ADR-0601. | e2e.yml |
-| `e2e:diagnose` | Print the errors in the logs of the workloads on the path of an ops route, after a failed e2e run on the full tier. | e2e.yml |
-| `e2e:install` | The e2e island's Node dependencies and its browser, per ADR-0601. | e2e.yml, lighthouse.yml, preview.yml, publish.yml |
-| `e2e:smoke` | The @smoke subset of the browser suite, for a labelled pull request, per ADR-0601. | e2e.yml, preview.yml |
-| `gen:admin` | Scaffold the Lowdefy admin pages from the OpenAPI specs, per ADR-0401. | .lefthook.yml |
-| `gen:adr-rules` | Two documents are views over the Rules sections of the ADR set: the rules index and the security baseline, per ADR-0203. | .lefthook.yml |
-| `gen:build-path` | The machinery table in docs/reference/build-path.md, from the tasks that a workflow or hook reaches, per ADR-0000. | .lefthook.yml |
-| `gen:data-classes` | The data-class and retention registry, per ADR-0301. A new service is reviewed against this checklist. | .lefthook.yml |
-| `gen:image-allowlist` | The third-party image allow-list, per ADR-0104. It comes from the charts: every repository that the platform's own charts pull from. | .lefthook.yml |
-| `gen:openapi` | The Go and TypeScript clients and servers, generated from each service's OpenAPI spec, per ADR-0303. | .lefthook.yml |
-| `gen:openapi-public` | Filtered OpenAPI projections for the Scalar developer portals, per ADR-0303. | .lefthook.yml |
-| `gen:shared-components` | Writes the canonical error envelope, money, and timestamp components from tools/codegen/shared-components.yaml into every spec, per ADR-0303. | .lefthook.yml |
-| `gen:sqlc` | The typed Go database access, generated from each service's queries, per ADR-0300. | .lefthook.yml |
-| `gen:zod` | The runtime validation schemas for the TypeScript apps, generated from the OpenAPI specs, per ADR-0303. | .lefthook.yml |
-| `lighthouse` | Web vitals and the bundle budget for each route, per ADR-0400: LCP < 2.5s, CLS < 0.1, and Total Blocking Time < 200ms on the mobile profile. | lighthouse.yml, publish.yml |
-| `lighthouse:down` | Remove the containers and the network of `lighthouse:up`. | lighthouse.yml, publish.yml |
-| `lighthouse:up` | The Lighthouse origin without a cluster, per ADR-0400: the production frontend image, the API mock, a Kratos stub, and Traefik, on port 8444. | lighthouse.yml, publish.yml |
-| `lint:activity-register` | The Temporal registration gate, per ADR-0302: every activity that a workflow names as a string is registered on its service's worker. | .lefthook.yml, ci.yml |
-| `lint:adr-xref` | The two cross-references tablint has no rule for: the adoption documents name the same components, and every deferral has a register row. | .lefthook.yml, ci.yml |
-| `lint:alert-severity` | The alert-severity gate, per ADR-0502. | .lefthook.yml, ci.yml |
-| `lint:api-audience` | The audience and exposure gate, per ADR-0303. A spec's info.x-audience is public only when the service has an /api route at the edge. | .lefthook.yml, ci.yml |
-| `lint:api-breaking` | oasdiff labels breaking contract changes for review. It is not a version gate, per ADR-0303. | ci.yml |
-| `lint:auth-inline` | The single-source guard for auth config, per ADR-0305. It fails if kratos or oathkeeper config is put inline in the Ory chart values instead of infra/auth/*, or if the frontend adds development auth. | .lefthook.yml, ci.yml |
-| `lint:authz` | The edge-auth policy gates, per ADR-0304, ADR-0305, and ADR-0306. They check the OpenFGA model, its assertions, and model.json sync. Ops dashboards authorize through remote_json to the Checker, never `allow`. | .lefthook.yml, ci.yml |
-| `lint:authz-dual-write` | The ADR-0304 dual-write rule, checked statically: a tuple is written from an activity, never from a handler. | .lefthook.yml, ci.yml |
-| `lint:commits` | Conventional Commits over the commit range of the pull request, per ADR-0103. | ci.yml |
-| `lint:contrast` | Colour contrast, checked against the design-token file and not for each component, per ADR-0400. A token change moves every surface, so the token file is where a regression starts. | .lefthook.yml, ci.yml |
-| `lint:data-classes` | The drift check for the data-class registry. | .lefthook.yml, ci.yml |
-| `lint:determinism` | Temporal workflow determinism, per ADR-0302. | .lefthook.yml, ci.yml |
-| `lint:dns` | ADR-0206: infra/dns/dnsconfig.js is a valid zone declaration. It needs no credential. | .lefthook.yml, ci.yml |
-| `lint:fixtures` | Every fixture is typed against a generated SDK, per ADR-0701. A spec change then breaks the fixture and not the design. | .lefthook.yml, ci.yml |
-| `lint:floating-tags` | Image references pin a digest or an explicit version, never a moving tag, per ADR-0101 and ADR-0104. | .lefthook.yml, ci.yml |
-| `lint:gitops-env-scope` | ADR-0201 gate: an environment's bootstrap directory names only that environment. | .lefthook.yml, ci.yml |
-| `lint:go` | Go correctness and style: golangci-lint's configured analysers over every module, per ADR-0100. | .lefthook.yml, ci.yml |
-| `lint:gostyle` | Custom Go style analyzers based on layout. | .lefthook.yml, ci.yml |
-| `lint:helm-deps` | `helm dependency build` needs the repo registered in the caller's helm config. `update` resolves it from Chart.yaml. | .lefthook.yml, ci.yml |
-| `lint:i18n` | Localisation, enforced, per ADR-0400. | .lefthook.yml, ci.yml |
-| `lint:image-allowlist` | The drift check for the image allow-list. | .lefthook.yml, ci.yml |
-| `lint:l7-routes` | ADR-0305 gate: a caller limited to some routes of a service uses only the operations that the spec marks x-audience: cluster, and is not also in allowFrom. | .lefthook.yml, ci.yml |
-| `lint:log-vocab` | The vocabulary gate for human output, per ADR-0001. Scripts use → ✓ ✗ ⚠ through scripts/lib/log.sh, not bare WARN, ERROR, or FAIL text. | .lefthook.yml, ci.yml |
-| `lint:md` | Markdown structure and formatting: rumdl over every document, per ADR-0001. | .lefthook.yml, ci.yml |
-| `lint:money` | The monetary-value gate, per ADR-0100 and ADR-0300. A money-like OpenAPI property is the shared `Money` component. No Go or TypeScript field or variable with a money-like name is a float. | .lefthook.yml, ci.yml |
-| `lint:naming` | The resource-name grammar of ADR-0003, `{project}-{env}-{role}[-{n}]`, across the Talos inventory, the sops recipients, and the GitOps overlays. The role vocabulary comes from the ADR. | .lefthook.yml, ci.yml |
-| `lint:node-scope` | The Node confinement guard, per ADR-0100 and ADR-0601. Node and npm appear only in the repo-root test/e2e/ workspace. | .lefthook.yml, ci.yml |
-| `lint:openapi` | OpenAPI contracts: every spec against the platform ruleset, and resource-prefix ownership across the set, per ADR-0303. | .lefthook.yml, ci.yml |
-| `lint:parity` | ADR-0205 gate: every key in a deployed environment's values exists in the local overlay, or is on the allowlist with its approved reason. | .lefthook.yml, ci.yml |
-| `lint:ports` | The local port registry gate, per ADR-0205: ports are unique, every service is registered, and each service's .mise.toml uses the port the registry assigns. | .lefthook.yml, ci.yml |
-| `lint:project-identity` | ADR-0106 gate: a project created from this template must have its own name before it pushes. | .lefthook.yml, ci.yml |
-| `lint:readme-drift` | Principle 9, applied to the one document that is not generated. | .lefthook.yml, ci.yml |
-| `lint:requirements` | The trace of ADR-0602. Every requirement has one EARS sentence and an ID under its file's prefix. A test cites each requirement, and every cited ID exists. | .lefthook.yml, ci.yml |
-| `lint:resource-governance` | ADR-0204 gate: render every chart, each service separately, and check the declared resources against the guardrails in infra/helm/platform/resource-governance before they reach a cluster. | .lefthook.yml, ci.yml |
-| `lint:rules-index` | The drift check for the generated rule documents. | .lefthook.yml, ci.yml |
-| `lint:secrets` | ADR-0202: no committed file holds a plaintext secret value. | .lefthook.yml, ci.yml |
-| `lint:secrets-history` | The history scope of lint:secrets. | ci.yml |
-| `lint:service-contract` | ADR-0205 gate: every service provides the same artifacts, because the platform finds services through those artifacts. | .lefthook.yml, ci.yml |
-| `lint:service-databases` | ADR-0300: a service that ships migrations has a database to run them against. | .lefthook.yml, ci.yml |
-| `lint:service-deps` | The inner loop's dependency graph, checked against the code, per ADR-0600 and ADR-0205. | .lefthook.yml, ci.yml |
-| `lint:shell` | shellcheck over every tracked *.sh, per ADR-0101. | .lefthook.yml, ci.yml |
-| `lint:sql` | SQL: sqruff over every migration and sqlc query. A column with personal data has its pii class, per ADR-0300 and ADR-0301. | .lefthook.yml, ci.yml |
-| `lint:tablint` | The Simple English profile, the banned constructs, the comment rules, and the ADR set of ADR-0001, checked by tablint. | .lefthook.yml, ci.yml |
-| `lint:tasks` | ADR-0600: every mise task has a command or a dependency. | .lefthook.yml, ci.yml |
-| `lint:template-build` | `go build ./...` cannot see services/_template. Every hand-written file there has a //go:build _template constraint, and scripts/new-service.sh removes it when it copies the tree. | .lefthook.yml, ci.yml |
-| `lint:thin-workflows` | ADR-0102: workflow YAML checks out, sets up the toolchain, and calls a mise task. | .lefthook.yml, ci.yml |
-| `lint:tool-register` | The four register Rules of ADR-0002: every Tier 1 or Tier 2 row names an owning ADR that exists, and that ADR has the comparison its tier needs. A Tier 1 row names a runner-up. | .lefthook.yml, ci.yml |
-| `lint:ts` | TypeScript, JSON, and CSS: biome lint and format, with warnings as errors, per ADR-0100. | .lefthook.yml, ci.yml |
-| `lint:workarounds` | ADR-0001: every workaround matches the version its file pins, or was checked in the last twelve months. | .lefthook.yml, ci.yml |
-| `lint:workspace-copies` | A TS workspace member that the frontend image build does not copy fails `bun install` with `Workspace not found`. This happens only at image build, which on the full tier is minutes into a cluster start. | .lefthook.yml, ci.yml |
-| `perf` | The steady baseline: nightly and before a release. | perf.yml |
-| `perf:seed` | Bulk catalog data, so the read path is measured against a realistic table. | perf.yml |
-| `perf:smoke` | About 30 seconds. | perf.yml |
-| `promote:dev-staging` | Pin the dev and staging values for the components in $SERVICES and $APPS to $SHA by digest. | publish.yml |
-| `promote:prod` | Pin every prod values file to $SHA by digest, and label the images $VER. | promote-on-release.yml |
-| `promote:verify` | Gate a release on prod converging on $SHA. | promote-on-release.yml |
-| `release` | Cut a repo-wide CalVer release, per ADR-0103: compute the version, stamp the fields a build tool needs, regenerate CHANGELOG.md, commit, tag, and push. | promote-on-release.yml |
-| `secrets:age` | Idempotent. It also writes .sops.yaml, per ADR-0202. | e2e.yml, perf.yml, preview.yml |
-| `setup` | The git hooks, installed from .lefthook.yml. | .lefthook.yml |
-| `setup:node` | The workspace's node_modules. | .lefthook.yml, ci.yml |
-| `supply-chain:inventory` | Verify the SBOM attestation of every image pinned in committed values, and record its contents, per ADR-0104. | supply-chain.yml |
-| `test:frontend` | The frontend unit and component tests, against MSW, with a line coverage floor for each route group, per ADR-0400. The e2e suite covers its browser behaviour, per ADR-0601. | ci.yml |
-| `test:go` | Every Go package's tests, including the tools, per ADR-0601. | ci.yml |
-| `test:template` | The repository's own generation, per ADR-0106: a fixture matrix through `copier copy`, the refusals its validators must give, and the equality of the two adoption paths. The merge of `copier update` depends on that equality. | template.yml |
-| `test:ts` | The shared TypeScript libraries under libs/ts/. `test:frontend` runs the frontend's own tests, because they need its preload. | ci.yml |
+| `build` | Compile every Go module, the tools included, per ADR-0111 | flake.nix |
+| `ci` | Run exactly what CI runs: every check of flake.nix in the Nix sandbox | check.yml, git hooks |
+| `ci-affected-adversarial` | Break each service in a scratch worktree and check that affected detection names it | history.yml |
+| `ci-affected-matrix` | The affected manifest, split into the arrays of the image jobs, per ADR-0116 | publish.yml |
+| `ci-build-images` | Build, push, and sign every affected image: services or apps | publish.yml |
+| `ci-design-preview` | The design preview of a pull request, per ADR-0701: build or comment | design-preview.yml |
+| `ci-e2e-gate` | Whether a pull request runs the smoke suite, per ADR-0601 | e2e.yml |
+| `ci-gen` | Generate and format everything, and fail on a change, per ADR-0111 and ADR-0303 | flake.nix |
+| `ci-lighthouse-gate` | Whether a pull request runs Lighthouse, per ADR-0400 | lighthouse.yml |
+| `ci-nightly-gate` | Whether the nightly suite runs tonight, per ADR-0601 | _nightly-gate.yml |
+| `ci-preview` | The preview environment of a pull request, per ADR-0205 | preview.yml |
+| `ci-prune-registry` | Delete the first-party image tags that nothing pins, per ADR-0114 | publish.yml |
+| `ci-push-promotion` | Commit the values of a promotion and push them, per ADR-0201 | publish.yml |
+| `ci-release-info` | A release tag as a version and a commit, per ADR-0112 | promote-on-release.yml |
+| `ci-release-pr` | Open the prod pin as a pull request, per ADR-0201 | promote-on-release.yml |
+| `ci-release-publish` | Publish the forge release for $VER, per ADR-0112 | promote-on-release.yml |
+| `ci-renovate` | Run Renovate over this repository, per ADR-0117 | renovate.yml |
+| `ci-scan` | The vulnerability gate, per ADR-0113 | history.yml |
+| `cluster-down` | Delete the cluster of the tier and its image cache | e2e.yml, perf.yml |
+| `cluster-up` | Create, resume, or repair a local tier: just cluster-up, or just cluster-up full | e2e.yml, perf.yml |
+| `dns-apply` | Make the zones of the provider match infra/dns/dnsconfig.js, per ADR-0206 | dns.yml |
+| `dns-check` | Report how the zones of the provider differ from infra/dns/dnsconfig.js, per ADR-0206 | dns.yml |
+| `e2e` | The full browser suite against a running full tier, per ADR-0601 | e2e.yml |
+| `e2e-diagnose` | Print the errors of the workloads on the path of an ops route, after a failed e2e run | e2e.yml |
+| `e2e-install` | The Node.js dependencies of the e2e island, per ADR-0601. The browsers come from nixpkgs | e2e.yml, lighthouse.yml, preview.yml, publish.yml |
+| `e2e-smoke` | The @smoke subset of the browser suite, per ADR-0601 | e2e.yml, preview.yml |
+| `lighthouse` | Web vitals and the bundle budget of each route, per ADR-0400 | lighthouse.yml, publish.yml |
+| `lighthouse-down` | Remove the containers and the network of lighthouse-up | lighthouse.yml, publish.yml |
+| `lighthouse-up` | The Lighthouse origin with no cluster, per ADR-0400 | lighthouse.yml, publish.yml |
+| `lint-activity-register` | Every activity that a workflow names is registered on its worker, per ADR-0302 | flake.nix |
+| `lint-adr-xref` | The cross references that tablint has no rule for | flake.nix |
+| `lint-alert-severity` | The severity of every alert, per ADR-0502 | flake.nix |
+| `lint-api-audience` | The audience of a spec matches its route at the edge, per ADR-0303 | flake.nix |
+| `lint-api-breaking` | Label the breaking contract changes for review, per ADR-0303 | history.yml |
+| `lint-auth-inline` | The auth config has one source, per ADR-0305 | flake.nix |
+| `lint-authz` | The OpenFGA model, its assertions, and the access rules of the edge, per ADR-0304, ADR-0305, and ADR-0306 | flake.nix |
+| `lint-authz-dual-write` | An authorization tuple is written from an activity, never from a handler, per ADR-0304 | flake.nix |
+| `lint-commits` | Conventional Commits over the commit range of a pull request, per ADR-0101 | history.yml |
+| `lint-contrast` | The contrast of the design tokens, per ADR-0400 | flake.nix |
+| `lint-data-classes` | The drift check of the data-class registry | flake.nix |
+| `lint-determinism` | Temporal workflow determinism, per ADR-0302 | flake.nix |
+| `lint-dns` | infra/dns/dnsconfig.js is a valid zone, per ADR-0206 | flake.nix |
+| `lint-fixtures` | Every fixture is typed against a generated SDK, per ADR-0701 | flake.nix |
+| `lint-floating-tags` | An image reference pins a digest or an exact version, per ADR-0111 and ADR-0113 | flake.nix |
+| `lint-gitops-env-scope` | An environment's bootstrap folder names only that environment, per ADR-0201 | flake.nix |
+| `lint-go` | Go correctness and style with golangci-lint, per ADR-0110 | flake.nix |
+| `lint-gostyle` | The custom Go style analyzers | flake.nix |
+| `lint-helm-deps` | Helm dependency calls resolve from Chart.yaml alone, per ADR-0111 | flake.nix |
+| `lint-i18n` | Every string is in the message catalogues, per ADR-0400 | flake.nix |
+| `lint-image-allowlist` | The drift check of the image allow-list | flake.nix |
+| `lint-l7-routes` | A caller limited to some routes uses only the cluster operations of the spec, per ADR-0305 | flake.nix |
+| `lint-log-vocab` | Scripts use the log vocabulary of ADR-0001 | flake.nix |
+| `lint-money` | A money value is the shared Money component and never a float, per ADR-0110 and ADR-0300 | flake.nix |
+| `lint-naming` | The resource name grammar of ADR-0003 | flake.nix |
+| `lint-node-scope` | Node.js and npm stay in their islands, per ADR-0110 and ADR-0601 | flake.nix |
+| `lint-openapi` | Every spec against the platform ruleset, and the owner of each resource prefix, per ADR-0303 | flake.nix |
+| `lint-parity` | Every key of a deployed environment exists in the local overlay, per ADR-0205 | flake.nix |
+| `lint-ports` | The local ports are unique and registered, per ADR-0205 | flake.nix |
+| `lint-readme-drift` | The README matches the decisions it summarizes | flake.nix |
+| `lint-requirements` | The requirement trace of ADR-0602 | flake.nix |
+| `lint-resource-governance` | Render every chart and check its resources against the guardrails, per ADR-0204 | flake.nix |
+| `lint-rules-index` | The drift check of the generated rule documents | flake.nix |
+| `lint-secrets-history` | The secret scan over the whole git history, per ADR-0202 | history.yml |
+| `lint-service-contract` | Every service provides the same artifacts, per ADR-0205 | flake.nix |
+| `lint-service-databases` | A service with migrations has a database, per ADR-0300 | flake.nix |
+| `lint-service-deps` | The dependency graph of the inner loop matches the code, per ADR-0600 and ADR-0205 | flake.nix |
+| `lint-shell` | shellcheck over every shell file, per ADR-0111 | flake.nix |
+| `lint-sql` | SQL with sqruff, and the pii class of each column with personal data, per ADR-0300 and ADR-0301 | flake.nix |
+| `lint-template-build` | Vet services/_template, which `go build ./...` cannot see behind its build tag | flake.nix |
+| `lint-thin-workflows` | Workflow YAML checks out, sets up the toolchain, and calls a recipe, per ADR-0116 | flake.nix |
+| `lint-tool-register` | The register rules of ADR-0002 | flake.nix |
+| `lint-ts` | TypeScript, JavaScript, and CSS with Biome, with warnings as errors, per ADR-0110 | flake.nix |
+| `lint-workarounds` | Every workaround matches the version its file pins, per ADR-0001 | flake.nix |
+| `lint-workspace-copies` | The frontend image build copies every TypeScript workspace member | flake.nix |
+| `perf` | The steady load baseline, per ADR-0601. It needs the full tier | perf.yml |
+| `perf-seed` | Seed bulk catalog products, 5000 by default. --clean removes them | perf.yml |
+| `perf-smoke` | Both scenarios with one virtual user for a few seconds | perf.yml |
+| `promote-dev-staging` | Pin the dev and staging values of $SERVICES and $APPS to $SHA | publish.yml |
+| `promote-prod` | Pin every prod values file to $SHA, and label the images $VER | promote-on-release.yml |
+| `promote-verify` | Wait until prod runs $SHA | promote-on-release.yml |
+| `release` | Cut a CalVer release of the repo, per ADR-0112 | promote-on-release.yml |
+| `secrets-age` | Create your age key and write .sops.yaml, per ADR-0202. It runs again safely | e2e.yml, perf.yml, preview.yml |
+| `supply-chain-inventory` | Verify the SBOM of every pinned image and record its contents, per ADR-0113 | supply-chain.yml |
+| `test-frontend` | The frontend tests, with a coverage floor for each route group, per ADR-0400 | flake.nix |
+| `test-go` | Every Go test, the tools included, per ADR-0601 | flake.nix |
+| `test-ts` | The tests of the shared TypeScript libraries | flake.nix |
 
 <!-- machinery:end -->
 

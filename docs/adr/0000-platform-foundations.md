@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0002](0002-tool-adoption.md)
+- **Related:** [ADR-0001](0001-documentation-conventions.md), [ADR-0002](0002-tool-adoption.md)
 - **Decides:** This platform sits at decomposition-high, sovereignty-maximal, and stakes-high, and ten anchored principles with a recorded comparison admit every tool.
 
 ## Purpose
@@ -54,7 +54,7 @@ Service count is derived, not chosen. Each force below justifies a boundary on i
 | 2 | Number of teams | Teams block each other. Conway's law applies: teams count, not headcount and not features |
 | 3 | Failure isolation | A *stated requirement* says that the failure of one part must not take another part down |
 | 4 | Resource heterogeneity | The parts have truly different scaling profiles: CPU-bound, IO-bound, or memory-bound |
-| 5 | Technology heterogeneity | A part must run on another runtime, per an [ADR-0100](0100-language-and-runtime.md) escape hatch |
+| 5 | Technology heterogeneity | A part must run on another runtime, per an [ADR-0110](0110-language-and-runtime.md) escape hatch |
 | 6 | Compliance boundary | A structural boundary enforces data residency or audit scope at a lower cost than a policy does |
 
 **A new service names the force that justifies it.** When none of the six forces applies, the part is not split. Nothing here requires a high service count. The same machinery serves three deployables, and several ADRs get cheaper at that size.
@@ -163,8 +163,8 @@ Sometimes sovereignty binds for real: through data residency, regulatory control
 
 - transactional email delivery, per [ADR-0307](0307-outbound-email.md)
 - alert routing, per [ADR-0502](0502-alerting-and-on-call.md)
-- source control and CI, per [ADR-0102](0102-source-control-and-ci.md)
-- image registry, per [ADR-0105](0105-image-registry.md)
+- source control and CI, per [ADR-0116](0116-forge-and-pipelines.md)
+- image registry, per [ADR-0114](0114-image-registry.md)
 - object storage, per [ADR-0200](0200-cluster-topology.md)
 - single sign-on across platform consoles, per [ADR-0304](0304-identity-and-authorization.md)
 
@@ -177,7 +177,7 @@ Each one is a first-class decision here, not a signup. Some carry costs that eng
 | Compute and network provider | [ADR-0200](0200-cluster-topology.md) runs on plain instances, and someone provisions them. Sovereignty covers the *stack*, not the metal | total for that environment. The provider-neutral bootstrap mitigates it, and the bootstrap is what makes the substrate replaceable |
 | Public ACME certificate authority | [ADR-0200](0200-cluster-topology.md) issues wildcards through cert-manager against a public CA | renewals fail, and the certificate lifetime is the buffer. A private CA is the exit, at the cost of distributing a trust anchor |
 | DNS registrar and authoritative DNS | the domain is delegated, and DNS-01 needs a provider API. Outbound mail needs `PTR` delegation, per [ADR-0307](0307-outbound-email.md) | the edge is unreachable, issuance is blocked, and mail is undeliverable. This item is the hardest on the list to substitute. The registrar half cannot be self-hosted at all. The zone data is public, so sovereignty gains little here |
-| Upstream package and image sources | Go modules, npm, Helm charts, and base images come from where their publishers put them | builds fail, and running workloads do not. Digest pins make what already runs immune, per [ADR-0104](0104-supply-chain-security.md) |
+| Upstream package and image sources | Go modules, npm, Helm charts, and base images come from where their publishers put them | builds fail, and running workloads do not. Digest pins make what already runs immune, per [ADR-0113](0113-supply-chain-security.md) |
 | Escalation and paging | no mature self-hosted layer exists, per [ADR-0502](0502-alerting-and-on-call.md) | deferred, not depended on. Nothing pages |
 
 None of these is a soft exit from principle 3. Each one is a dependency at a layer that the platform does not claim to own, or a recorded concession with a named cost. A dependency that is not on this list and not decided in an ADR is a defect.
@@ -199,7 +199,7 @@ None of these is a soft exit from principle 3. Each one is a dependency at a lay
 | OpenFGA | SpiceDB, equal on capability | a governance change at the vendor. The `Checker` seam makes the swap a library, model, and chart change | [ADR-0304](0304-identity-and-authorization.md) |
 | Lowdefy | the `(admin)` route group in the existing frontend | upstream releases stop for two quarters, or a runtime security advisory has no answer for one quarter | [ADR-0401](0401-internal-admin.md) |
 | Prism | `muonsoft/openapi-mock` | the vendored container proves unacceptable. The swap is gated on proof of OpenAPI 3.1 support | [ADR-0600](0600-local-development-loop.md) |
-| zot | CNCF Distribution | the registry conformance of zot regresses, or its object-storage backend stops tracking the OCI referrers API | [ADR-0105](0105-image-registry.md) |
+| zot | CNCF Distribution | the registry conformance of zot regresses, or its object-storage backend stops tracking the OCI referrers API | [ADR-0114](0114-image-registry.md) |
 | Talos | Debian stable converged by provisioning, with Kubernetes installed separately | the immutable-node model blocks a workload that the platform commits to run | [ADR-0200](0200-cluster-topology.md) |
 | Kyverno | the CI lint layer, which already covers the same rule classes at a weaker layer | a cluster-wide admission outage traced to the webhook, twice | [ADR-0203](0203-policy-enforcement.md) |
 | SeaweedFS | any S3-compatible store, reached through the same client | the S3 layer fails a checksum round-trip that the documented escapes do not close | [ADR-0207](0207-cluster-storage.md) |
@@ -279,11 +279,11 @@ Single-service implementation details do **not** get an ADR. They live in the se
 
 There is no `Rejected` or `Draft` status. A rejected proposal is a closed PR, not a committed file.
 
-**Scope:** the last two statuses belong to a project generated from this template. Such a project is a living system with real history. **This template's own set carries no history.** Every ADR here reads `Accepted` and carries the date the set was written. An ADR that must change is rewritten in place, per [ADR-0001](0001-documentation-and-output-conventions.md).
+**Scope:** the last two statuses belong to a project generated from this template. Such a project is a living system with real history. **This template's own set carries no history.** Every ADR here reads `Accepted` and carries the date the set was written. An ADR that must change is rewritten in place, per [ADR-0001](0001-documentation-conventions.md).
 
 ### Structure, numbering, and prose
 
-[ADR-0001](0001-documentation-and-output-conventions.md) owns all three: the section order, the blocks-of-a-hundred numbering, and the density rules.
+[ADR-0001](0001-documentation-conventions.md) owns all three: the section order, the blocks-of-a-hundred numbering, and the density rules.
 
 One rule belongs here instead, because it is a selection criterion and not a style: **the comparison table in *Considered options* is mandatory**, per principle 7. [ADR-0002](0002-tool-adoption.md) sets its depth per tier. A long deep-dive belongs in the PR discussion, not in the ADR.
 
@@ -309,7 +309,7 @@ This ADR borrows its framing and does not invent it. Where a decision here has a
 | Poppendieck, *Lean Software Development* | The **last responsible moment**: deferral with a written trigger |
 | Feathers, *Working Effectively with Legacy Code* | **Seams** |
 | Conway, 1968 | Boundaries track teams, not features, in force 2 of axis A |
-| Nygard, [*Documenting Architecture Decisions*](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions), 2011 | The ADR form itself: one decision per file, immutable once accepted, and superseded, not edited. [MADR](https://adr.github.io/madr/) supplies the section set, per [ADR-0001](0001-documentation-and-output-conventions.md) |
+| Nygard, [*Documenting Architecture Decisions*](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions), 2011 | The ADR form itself: one decision per file, immutable once accepted, and superseded, not edited. [MADR](https://adr.github.io/madr/) supplies the section set, per [ADR-0001](0001-documentation-conventions.md) |
 | [CNCF Platforms White Paper](https://tag-app-delivery.cncf.io/whitepapers/platforms/) | Platform as a product with users. It gives the capability framing behind the tiers in [`docs/operational-surface.md`](../operational-surface.md) |
 
 ### 12-Factor conformance
@@ -318,11 +318,11 @@ This ADR borrows its framing and does not invent it. Where a decision here has a
 
 | Factor | Decided in | Verdict |
 | --- | --- | --- |
-| I: Codebase | [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md) | conforms: one repo, and one SHA through every environment |
-| II: Dependencies | principle 6 above, [ADR-0100](0100-language-and-runtime.md) | conforms, and anchors principle 6 |
+| I: Codebase | [ADR-0111](0111-monorepo.md), [ADR-0201](0201-gitops.md) | conforms: one repo, and one SHA through every environment |
+| II: Dependencies | principle 6 above, [ADR-0110](0110-language-and-runtime.md) | conforms, and anchors principle 6 |
 | III: Config | [ADR-0202](0202-secrets.md), [ADR-0205](0205-environment-parity.md) | conforms: the env contract is identical in every tier, and values come from SOPS-derived Secrets |
 | IV: Backing services | [ADR-0300](0300-data.md), [ADR-0302](0302-temporal.md), [ADR-0205](0205-environment-parity.md) | conforms: the provider may differ per tier, and the wire contract may not |
-| V: Build, release, run | [ADR-0103](0103-release-and-versioning.md), [ADR-0201](0201-gitops.md) | conforms: immutable SHA tags, digest-pinned production, and no moving tags |
+| V: Build, release, run | [ADR-0112](0112-release-and-versioning.md), [ADR-0201](0201-gitops.md) | conforms: immutable SHA tags, digest-pinned production, and no moving tags |
 | VI: Processes | [ADR-0200](0200-cluster-topology.md), [ADR-0401](0401-internal-admin.md) | conforms: the application tier is stateless. State is Postgres, object storage, and Temporal |
 | VII: Port binding | none | not applicable: a Kubernetes `Service` owns it, and there is no decision to make |
 | VIII: Concurrency | [ADR-0204](0204-resource-management.md) | conforms, scoped: scale-out is opt-in on a measured signal, never a template default |
@@ -337,15 +337,15 @@ Principle 7 applies to standards as it applies to tools: a standard with no reco
 
 | Standard | Why not |
 | --- | --- |
-| **ISO 27001**, **SOC 2** | Certification frameworks that describe an audited management system. They are not design guidance. The controls they examine are already decided: supply chain in [ADR-0104](0104-supply-chain-security.md), secrets in [ADR-0202](0202-secrets.md), retention in [ADR-0301](0301-data-lifecycle-privacy.md), and access in [ADR-0304](0304-identity-and-authorization.md). The adoption of one adds an evidence programme and an auditor. That is a commercial decision about who buys the product, not an architectural one |
-| **NIST SSDF**, SP 800-218 | A crosswalk over practices that [ADR-0104](0104-supply-chain-security.md) already decides through SLSA provenance, cosign signing, and admission verification. Its adoption produces a mapping table to maintain and changes no control |
+| **ISO 27001**, **SOC 2** | Certification frameworks that describe an audited management system. They are not design guidance. The controls they examine are already decided: supply chain in [ADR-0113](0113-supply-chain-security.md), secrets in [ADR-0202](0202-secrets.md), retention in [ADR-0301](0301-data-lifecycle-privacy.md), and access in [ADR-0304](0304-identity-and-authorization.md). The adoption of one adds an evidence programme and an auditor. That is a commercial decision about who buys the product, not an architectural one |
+| **NIST SSDF**, SP 800-218 | A crosswalk over practices that [ADR-0113](0113-supply-chain-security.md) already decides through SLSA provenance, cosign signing, and admission verification. Its adoption produces a mapping table to maintain and changes no control |
 | **PCI DSS** | **Scope-triggered, not refused.** The platform stores no cardholder data, and a payment integration hands off to a provider. A project that takes card data directly brings PCI scope with it. That changes [ADR-0300](0300-data.md) and [ADR-0301](0301-data-lifecycle-privacy.md), not this document |
-| **TUF** | It solves repository compromise, rollback, and key distribution for a public update system with untrusted mirrors and many unknown consumers. This registry serves one estate, pinned by digest and verified at admission, per [ADR-0104](0104-supply-chain-security.md) and [ADR-0105](0105-image-registry.md). Its threat model is not ours |
+| **TUF** | It solves repository compromise, rollback, and key distribution for a public update system with untrusted mirrors and many unknown consumers. This registry serves one estate, pinned by digest and verified at admission, per [ADR-0113](0113-supply-chain-security.md) and [ADR-0114](0114-image-registry.md). Its threat model is not ours |
 | **AsyncAPI** | There is no async wire contract to describe. Durable async is Temporal workflows typed in Go, per [ADR-0302](0302-temporal.md), and the outbox is in-process. AsyncAPI would document a message bus that this platform does not run |
 | **OAM**, **Score**, **Backstage** | Abstraction layers over Kubernetes for teams who must not read manifests. Principle 2 bounds the floor, and the shared chart of [ADR-0201](0201-gitops.md) already *is* the abstraction. A second layer over it has no reader |
 | **CIS Kubernetes Benchmark** | Written against a general Kubernetes with a mutable node. Talos removes most of what it audits: no SSH, no kubelet config file, and no host package manager, per [ADR-0200](0200-cluster-topology.md). So a large share of its findings are not applicable, not passing. Pod Security Standards assert workload hardening directly instead |
 
-[ADR-0001](0001-documentation-and-output-conventions.md) records one more refusal on the same basis: the keyword grades of [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119). They are rejected because every Rule here binds, and a `SHOULD` tier invites negotiation.
+[ADR-0001](0001-documentation-conventions.md) records one more refusal on the same basis: the keyword grades of [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119). They are rejected because every Rule here binds, and a `SHOULD` tier invites negotiation.
 
 ## Vocabulary
 
@@ -357,7 +357,7 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 | --- | --- | --- |
 | **floor** | the guaranteed minimum of the platform or of a primitive | *baseline* in a load-test run is the reference measurement that a later run is compared against, per [`docs/guide/performance-runbook.md`](../guide/performance-runbook.md). [`docs/security-baseline.md`](../security-baseline.md) is the index of controls |
 | **ceiling** | the point where an approach stops working, stated as a trigger | the `limits` field of a container, which is a scheduler value, per [ADR-0204](0204-resource-management.md) |
-| **trigger** | the observable condition that makes a deferred capability due | a *threshold* is a number whose doubling would change the decision, per [ADR-0001](0001-documentation-and-output-conventions.md). A trigger often tests a threshold, and the two are not interchangeable. One is a number, and the other is a condition |
+| **trigger** | the observable condition that makes a deferred capability due | a *threshold* is a number whose doubling would change the decision, per [ADR-0001](0001-documentation-conventions.md). A trigger often tests a threshold, and the two are not interchangeable. One is a number, and the other is a condition |
 | **first-class** | served by the default path, not by a special case beside it | *native execution* is a service that runs as a host process and not in a container, per [ADR-0600](0600-local-development-loop.md) |
 | **requirement** | one row with an ID in a requirements file, per [ADR-0602](0602-behaviour-requirements.md) | the general need that a decision meets, as in *a stated requirement* or *a failure-response requirement* |
 
@@ -374,7 +374,7 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 - **First-class**: served by the default path, not by a special case beside it.
 - **Hot path**: the per-request code path. Every request pays the cost added here.
 - **Blast radius**: what a failure or a compromise reaches before something stops it.
-- **A signal with no reader**: an output whose only value is that someone else consults it, produced where nobody does. It is cost without benefit. The test is to name the reader. A SemVer bump names a pinner, per [ADR-0103](0103-release-and-versioning.md). A keyless signature names a stranger who verifies without the cooperation of the signer, per [ADR-0104](0104-supply-chain-security.md). An abstraction layer names whoever must not read the manifests underneath. Where the named reader does not exist here, the signal is refused, and the escape hatch is the arrival of that reader.
+- **A signal with no reader**: an output whose only value is that someone else consults it, produced where nobody does. It is cost without benefit. The test is to name the reader. A SemVer bump names a pinner, per [ADR-0112](0112-release-and-versioning.md). A keyless signature names a stranger who verifies without the cooperation of the signer, per [ADR-0113](0113-supply-chain-security.md). An abstraction layer names whoever must not read the manifests underneath. Where the named reader does not exist here, the signal is refused, and the escape hatch is the arrival of that reader.
 - **Break-glass**: the documented procedure to bypass a normal control during an incident. It is written down before anyone needs it.
 - **Service**: a deployable unit under `services/<name>/` that owns a slice of business state and an OpenAPI surface. It may include an HTTP server, a Temporal worker, and migrations.
 - **Frontend app**: the single Next.js application under `apps/frontend/`. Route groups separate audiences, and the deploy unit is one app.
@@ -384,7 +384,7 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 - **Generated client**: code under `libs/{go,ts}/sdks/<service>/` that is produced from the OpenAPI spec of a service. It is committed to the repo.
 - **Workflow** and **Activity**: Temporal terms, per ADR-0302.
 - **Authz-relevant mutation**: a state change that affects who can see or modify a resource, per ADR-0304.
-- **Affected**: in CI, the set of services and apps that the diff of a PR influences, per ADR-0101.
+- **Affected**: in CI, the set of services and apps that the diff of a PR influences, per ADR-0111.
 - **Environment**: one of `dev`, `staging`, or `prod`. Each one is a single cluster on day one, per ADR-0200.
 
 ## Consequences
@@ -406,8 +406,8 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 ### Process
 
 - An ADR exists for every decision that binds more than one service or is hard to reverse.
-- An ADR follows the structure, numbering, and prose rules of [ADR-0001](0001-documentation-and-output-conventions.md).
-- **No tool is adopted without a recorded comparison against its alternatives**, per principle 7. The comparison is a table with prose cells, not a scoring grid. Its depth is the depth that [ADR-0002](0002-tool-adoption.md) sets for the tier of the tool. `(CI: lint:tool-register)`
+- An ADR follows the structure, numbering, and prose rules of [ADR-0001](0001-documentation-conventions.md).
+- **No tool is adopted without a recorded comparison against its alternatives**, per principle 7. The comparison is a table with prose cells, not a scoring grid. Its depth is the depth that [ADR-0002](0002-tool-adoption.md) sets for the tier of the tool. `(CI: lint-tool-register)`
 - Every young component carries a named fallback and an observable trigger in its owning ADR. A novel adoption without one is a bet, and is labelled as one.
 - An accepted ADR binds every service. A per-service deviation requires a new ADR.
 - A decision is unambiguous: no `or Y in some cases` without a measurable trigger.
@@ -421,12 +421,12 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 - Novelty is spent by exit cost: freely where abandonment costs days, and conservatively where it costs months and customer data.
 - One primitive per concern. Parallel mechanisms for the same problem require an ADR that retires the incumbent.
 - One primitive per concern covers the repository's own machinery. A task, script, test, or workflow names the failure class it owns or the mechanism it replaces. One that names neither, or duplicates the work of another, is deleted. Additions and deletions land in the same change.
-- Go and TypeScript only. No tool may assume a runtime that is not pinned in `.mise.toml`. `(CI: lint:node-scope)`
+- Go and TypeScript only. No tool may assume a runtime that is not pinned in `.mise.toml`. `(CI: lint-node-scope)`
 - Licence, governing body, and project maturity are **recorded** for every component and **do not veto** a choice.
 
 ### Construction
 
 - Local and production differ in topology only. Charts, code, and commands do not diverge.
-- Generated code is committed and drift-checked in CI. `(CI: ci:gen)`
-- Service-to-service communication is HTTP through generated OpenAPI clients. Shared databases, shared code, and cross-service workflow calls are forbidden. `(CI: ci:lint)`
+- Generated code is committed and drift-checked in CI. `(CI: ci-gen)`
+- Service-to-service communication is HTTP through generated OpenAPI clients. Shared databases, shared code, and cross-service workflow calls are forbidden. `(CI: ci-lint)`
 - Local development uses the same Helm charts, container images, and commands as production. Topology may differ, and the interface may not.

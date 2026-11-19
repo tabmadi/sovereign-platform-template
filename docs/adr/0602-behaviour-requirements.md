@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0601](0601-testing-strategy.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-conventions.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0601](0601-testing-strategy.md)
 - **Decides:** A service's behaviour is a list of EARS requirements with IDs in its `requirements.md`, and a test that CI finds cites each one.
 
 ## Context
@@ -20,15 +20,15 @@ This ADR decides where behaviour is written, the form of one requirement, and ho
 
 1. **A requirement and its proof cannot drift apart without a red build.** Prose that no machine checks drifts from the code. This is principle 9 of [ADR-0000](0000-platform-foundations.md): what can be generated or checked is not left to memory.
 2. **Humans and coding agents read the same file.** One fixed sentence form is faster to read for both, and a tool can parse it.
-3. **One fact, one place**, per [ADR-0001](0001-documentation-and-output-conventions.md). Behaviour does not repeat the contract shape or the reason for a decision.
+3. **One fact, one place**, per [ADR-0001](0001-documentation-conventions.md). Behaviour does not repeat the contract shape or the reason for a decision.
 4. **No new tool and no new runtime**, per principle 5 of [ADR-0000](0000-platform-foundations.md). The test runners that [ADR-0601](0601-testing-strategy.md) chose already exist in two languages.
-5. **The committed record holds standing fact, not planned work**, per [ADR-0001](0001-documentation-and-output-conventions.md).
+5. **The committed record holds standing fact, not planned work**, per [ADR-0001](0001-documentation-conventions.md).
 
 ## Considered options
 
 | Option | What checks it | What it adds | Verdict |
 | --- | --- | --- | --- |
-| **EARS requirements with an ID in `requirements.md`, cited by test names** | `lint:requirements` checks the trace in both directions | one Markdown file per service and one in-repo linter | **Chosen.** It meets every driver with no new tool *(reasoned)* |
+| **EARS requirements with an ID in `requirements.md`, cited by test names** | `lint-requirements` checks the trace in both directions | one Markdown file per service and one in-repo linter | **Chosen.** It meets every driver with no new tool *(reasoned)* |
 | Gherkin feature files, run by godog and playwright-bdd | the runner executes each step | a step-definition layer in Go and in TypeScript, and two tools | Runner-up. It checks behaviour more tightly, but it adds two tools and a second test language, against driver 4 *(documented)* |
 | Spec Kit or Kiro style, with a spec, a plan, and a task list committed for each feature | nothing. The files are prose | three files for each feature | The plan and the task list are planned work in the committed record, against driver 5 *(documented)* |
 | OpenSpec style, with a `changes/` folder of proposals folded into the spec on merge | nothing. The files are prose | a proposal folder and a merge step | The proposal folder is planned work. A pull request already carries a proposal, as its diff *(reasoned)* |
@@ -90,13 +90,13 @@ A test cites a requirement by putting its ID in the test's name. Then the runner
 
 A Go test function that has no subtest cites the ID in its doc comment. A test can cite several IDs, and several tests can cite one ID.
 
-`lint:requirements` checks the trace in both directions. Every requirement has at least one citing test. Every ID that a test cites exists. A requirement with no test is a claim with no proof, so the build is red until the test exists.
+`lint-requirements` checks the trace in both directions. Every requirement has at least one citing test. Every ID that a test cites exists. A requirement with no test is a claim with no proof, so the build is red until the test exists.
 
 ### How behaviour changes
 
 A pull request that changes behaviour changes `requirements.md`, the tests, and the code together. The diff to `requirements.md` is the proposal that a reviewer reads first. A rejected proposal is a closed pull request, per [ADR-0000](0000-platform-foundations.md). No proposal, plan, or task file is committed.
 
-A new service starts from `services/_template/requirements.md`. Its placeholder prefix `TPL` fails `lint:requirements` until the service declares its own prefix.
+A new service starts from `services/_template/requirements.md`. Its placeholder prefix `TPL` fails `lint-requirements` until the service declares its own prefix.
 
 ## Consequences
 
@@ -114,14 +114,14 @@ A new service starts from `services/_template/requirements.md`. Its placeholder 
 
 ## Rules
 
-- What a service must do is written in `services/<name>/requirements.md`. What a journey across services must do is written in `docs/requirements/<journey>.md`. `(CI: lint:service-contract)`
-- A requirement uses one EARS pattern, in the present tense, and starts with `The`, `When`, `While`, `If`, or `Where`. `(CI: lint:requirements)`
-- A requirement is one table row: its ID, then one sentence. `(CI: lint:requirements)`
+- What a service must do is written in `services/<name>/requirements.md`. What a journey across services must do is written in `docs/requirements/<journey>.md`. `(CI: lint-service-contract)`
+- A requirement uses one EARS pattern, in the present tense, and starts with `The`, `When`, `While`, `If`, or `Where`. `(CI: lint-requirements)`
+- A requirement is one table row: its ID, then one sentence. `(CI: lint-requirements)`
 - A requirement states observable behaviour. It does not restate a field, a type, or a format of the OpenAPI spec, or the reason for an ADR.
-- Each requirements file declares one prefix of two to four capital letters. No two files share a prefix, and no file outside `services/_template/` uses `TPL`. `(CI: lint:requirements)`
-- An ID is the prefix, a hyphen, and three digits. It is unique across the repository. `(CI: lint:requirements)`
+- Each requirements file declares one prefix of two to four capital letters. No two files share a prefix, and no file outside `services/_template/` uses `TPL`. `(CI: lint-requirements)`
+- An ID is the prefix, a hyphen, and three digits. It is unique across the repository. `(CI: lint-requirements)`
 - An ID names one meaning. A requirement whose meaning changes gets a new ID, and a retired ID is not used again.
-- Every requirement is cited by at least one test, and every ID that a test cites exists in a requirements file. `(CI: lint:requirements)`
+- Every requirement is cited by at least one test, and every ID that a test cites exists in a requirements file. `(CI: lint-requirements)`
 - A test cites a requirement by its ID in the test name: a Go subtest or case name, or a Playwright tag. A Go test function with no subtest cites it in its doc comment.
 - A pull request that changes behaviour changes the requirements file, the tests, and the code together.
 - No proposal, plan, or task file for a change is committed. The pull request's diff is the proposal.

@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md), [ADR-0101](0101-monorepo.md), [ADR-0104](0104-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0204](0204-resource-management.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0701](0701-product-design-and-discovery.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-conventions.md), [ADR-0111](0111-monorepo.md), [ADR-0113](0113-supply-chain-security.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0204](0204-resource-management.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0701](0701-product-design-and-discovery.md)
 - **Decides:** Each invariant is enforced at the earliest layer that the constrained party cannot bypass, with one layer per class of invariant.
 
 ## Context
@@ -27,7 +27,7 @@ This ADR decides the assignment and the rule that produces it. It adds no mechan
 ## Decision drivers
 
 1. **One enforcement point per invariant**, per principle 5 of [ADR-0000](0000-platform-foundations.md). A rule checked in two places is two rules. They agree until they do not.
-2. **Enforcement sits where the constrained party cannot go around it**, per [ADR-0104](0104-supply-chain-security.md). A gate that a `kubectl apply` bypasses does not constrain the path that an incident takes.
+2. **Enforcement sits where the constrained party cannot go around it**, per [ADR-0113](0113-supply-chain-security.md). A gate that a `kubectl apply` bypasses does not constrain the path that an incident takes.
 3. **The failure of the gate itself is survivable and understood.** Each layer here fails differently. A layer whose failure blocks all deploys has a price to match.
 4. **No component is added only for enforcement**, per principle 2 of [ADR-0000](0000-platform-foundations.md). An in-tree mechanism wins over a controller that expresses the same rule.
 
@@ -46,16 +46,16 @@ This ADR decides the assignment and the rule that produces it. It adds no mechan
 
 | Class of invariant | Layer | Why this layer owns it |
 | --- | --- | --- |
-| Repository properties: layout, naming, drift in generated code, contract shape, and prose | **CI lints**, per [ADR-0101](0101-monorepo.md) and [ADR-0303](0303-api-contracts-and-lifecycle.md) | The subject is a file in a pull request. There is no cluster state to check and nothing to bypass. An unmerged branch cannot break a rule about `master` |
+| Repository properties: layout, naming, drift in generated code, contract shape, and prose | **CI lints**, per [ADR-0111](0111-monorepo.md) and [ADR-0303](0303-api-contracts-and-lifecycle.md) | The subject is a file in a pull request. There is no cluster state to check and nothing to bypass. An unmerged branch cannot break a rule about `master` |
 | Workload privilege: capabilities, host namespaces, root, and volume types | **Pod Security Admission**, per [ADR-0200](0200-cluster-topology.md) | It is in-tree, so driver 4 decides it. It uses namespace labels with a pinned `enforce-version`, and there is no component to run |
-| Image provenance: signatures, attestations, and digest pins | **Kyverno**, per [ADR-0104](0104-supply-chain-security.md) | The property is about the artefact that a pod *runs*. Only the cluster can check it at the moment it runs the pod. CI proves that the image was signed. Admission proves that this pod uses a signed image |
+| Image provenance: signatures, attestations, and digest pins | **Kyverno**, per [ADR-0113](0113-supply-chain-security.md) | The property is about the artefact that a pod *runs*. Only the cluster can check it at the moment it runs the pod. CI proves that the image was signed. Admission proves that this pod uses a signed image |
 | Reachability: which workload may open a connection to which | **CiliumNetworkPolicy**, per [ADR-0206](0206-cluster-networking.md) | It is enforced in the datapath, so it constrains a compromised pod, not only a cooperating one. Nothing above the network can express it |
 | Resource governance: requests, limits, quota, and eviction order | **In-tree API objects**, per [ADR-0204](0204-resource-management.md) | The API server itself enforces `LimitRange`, `ResourceQuota`, `PriorityClass`, and `PodDisruptionBudget`. Kyverno could express the same rules. It would add a controller to the path and reach nothing new |
 | Request authorization: who may call what | **The edge and the application**, per [ADR-0305](0305-edge-auth-and-traffic-policy.md) and [ADR-0304](0304-identity-and-authorization.md) | The subject is a request, not an object, so no admission layer sees it |
 
 **A rule appears in one row.** Where two layers could hold a rule, the table above decides. The losing layer does not carry a weaker copy for feedback. That copy is the drift that this ADR prevents.
 
-**One rule is enforced twice on purpose, and this exception shows the test.** CI lints digest pinning, and admission enforces it, per [ADR-0104](0104-supply-chain-security.md). The two checks have different subjects. The lint reads the values file that a human edits. Admission reads the pod spec that a chart rendered. Neither is a copy of the other, because a rendered pod spec can carry a floating tag that no values file contains.
+**One rule is enforced twice on purpose, and this exception shows the test.** CI lints digest pinning, and admission enforces it, per [ADR-0113](0113-supply-chain-security.md). The two checks have different subjects. The lint reads the values file that a human edits. Admission reads the pod spec that a chart rendered. Neither is a copy of the other, because a rendered pod spec can carry a floating tag that no values file contains.
 
 ### Each layer fails differently, and the difference is the price
 
@@ -70,7 +70,7 @@ Kyverno's row is the reason driver 3 is a separate driver. It is the only layer 
 
 ### The annotation is the index
 
-The Rules annotations from [ADR-0001](0001-documentation-and-output-conventions.md) name the layer:
+The Rules annotations from [ADR-0001](0001-documentation-conventions.md) name the layer:
 
 - `(CI: <task>)` is a lint.
 - `(enforced: <policy>)` is admission or the datapath.

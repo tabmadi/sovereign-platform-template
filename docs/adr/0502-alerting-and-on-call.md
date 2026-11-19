@@ -54,7 +54,7 @@ Routing is a solved component that the platform chose not to run. Escalation is 
 
 **No self-hosted option reaches a phone without a third party.** That is the lasting finding. It is narrower than the claim that no self-hosted escalation layer exists: GoAlert is one, and it works. But it cannot put a call through alone. SMS and voice need a carrier account, so a self-hosted scheduler moves the dependency and does not remove it. Grafana OnCall seemed to avoid this, and its archival removed that option. It only seemed to avoid it because Grafana's own cloud did the delivery.
 
-**A pager that shares the failure domain it pages about is not a pager.** This decides more than it seems to. An in-cluster paging service is unreachable in exactly the outage that is worth waking someone for. So any self-hosted choice here runs **outside** the cluster, like the forge in [ADR-0102](0102-source-control-and-ci.md) and the production object store in [ADR-0207](0207-cluster-storage.md). That is a second host to operate before the first page goes out. It is why the managed concession has its rank. The concession is not a preference between comparable options. It exists because there is no comparable option.
+**A pager that shares the failure domain it pages about is not a pager.** This decides more than it seems to. An in-cluster paging service is unreachable in exactly the outage that is worth waking someone for. So any self-hosted choice here runs **outside** the cluster, like the forge in [ADR-0116](0116-forge-and-pipelines.md) and the production object store in [ADR-0207](0207-cluster-storage.md). That is a second host to operate before the first page goes out. It is why the managed concession has its rank. The concession is not a preference between comparable options. It exists because there is no comparable option.
 
 ## Decision
 
@@ -114,7 +114,7 @@ This is a **deferral, not a bet**. The seam exists, and it is the receiver inter
 
 - Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used.
 - Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state, per principle 1 of [ADR-0000](0000-platform-foundations.md).
-- Every alert rule carries `severity: page` or `severity: ticket`. `page` claims that a human must act within minutes. `(CI: lint:alert-severity)`
+- Every alert rule carries `severity: page` or `severity: ticket`. `page` claims that a human must act within minutes. `(CI: lint-alert-severity)`
 - Error-budget burn rules are authored against the SLIs in [ADR-0500](0500-observability.md). They carry `severity: ticket` while no paging receiver is attached.
 - Maintenance silences are committed, time-bounded, and expire on their own.
 - No on-call rotation is claimed until a paging receiver is attached to the webhook.

@@ -2,7 +2,7 @@
 
 Proxy configuration belongs to **your machine**, not to this template. The repo carries no proxy values and no proxy logic. After the one-time steps below, the `cluster:*` tasks work with no change. On a network without a proxy, none of this applies.
 
-**Most of the image-pull steps below are optional.** zot mirrors docker.io, quay.io, ghcr.io, and registry.k8s.io as a pull-through cache, per [ADR-0105](../adr/0105-image-registry.md). When zot is up, the cluster nodes fetch images from it, not from the internet. So one component needs egress, not every node.
+**Most of the image-pull steps below are optional.** zot mirrors docker.io, quay.io, ghcr.io, and registry.k8s.io as a pull-through cache, per [ADR-0114](../adr/0114-image-registry.md). When zot is up, the cluster nodes fetch images from it, not from the internet. So one component needs egress, not every node.
 
 The **build** path still needs a proxy: base images, Go modules, and bun. Traffic that is not an image, such as ACME, also needs it. So steps 1 and 2 concern your host and your builds. Step 3 matters only before the mirror exists.
 
@@ -11,8 +11,8 @@ The steps expect a **loopback** proxy on your host, for example `http://127.0.0.
 ## Start here
 
 ```sh
-mise run proxy:setup              # apply everything that does not need root
-mise run proxy:setup -- --check   # what is configured, what is missing, and the exact fix
+just proxy-setup              # apply everything that does not need root
+just proxy-setup --check   # what is configured, what is missing, and the exact fix
 ```
 
 The task reads the live state, not the intent. It checks these points:
@@ -89,12 +89,12 @@ kubectl --context kind-${CLUSTER:-platform} -n kube-system rollout restart deplo
 
 The restart is the durable fix. The `/etc/hosts` entry lasts only until the node is recreated.
 
-## Step 3: The environment that `cluster:up` runs kind in
+## Step 3: The environment that `cluster-up` runs kind in
 
-`mise run proxy:setup` writes `infra/local/proxy.local.env`, and `scripts/lib/cluster.sh` loads it. So every cluster command runs with this machine's egress, and no cluster script names a proxy. The file is local to the machine and gitignored. You export nothing by hand:
+`just proxy-setup` writes `infra/local/proxy.local.env`, and `scripts/lib/cluster.sh` loads it. So every cluster command runs with this machine's egress, and no cluster script names a proxy. The file is local to the machine and gitignored. You export nothing by hand:
 
 ```sh
-mise run cluster:up -- full
+just cluster-up full
 ```
 
 **The file exists because kind reads the proxy variables from its own environment.** The node's kubeadm calls the API server *by name*: `https://<cluster>-control-plane:6443`. No CIDR in a `NO_PROXY` list exempts a hostname. So that call goes to the proxy and fails. Only kind can prevent this. When kind sees the variables, it takes them over and appends what the node needs, including the node's own name.
@@ -112,11 +112,11 @@ ERROR: failed to create cluster: failed to remove control plane taint: ...
 Get "https://<cluster>-control-plane:6443/api?timeout=32s": EOF
 ```
 
-The address in this file is the **host's** address, because everything that reads the file runs on the host. Images are not affected either way. `cluster:up` fills the local zot before it creates the cluster, and the nodes pull only from there, per [ADR-0105](../adr/0105-image-registry.md). So a proxy that cannot reach an upstream fails during warming and names the image. It does not fail as an `ImagePullBackOff` twenty minutes into a sync.
+The address in this file is the **host's** address, because everything that reads the file runs on the host. Images are not affected either way. `cluster-up` fills the local zot before it creates the cluster, and the nodes pull only from there, per [ADR-0114](../adr/0114-image-registry.md). So a proxy that cannot reach an upstream fails during warming and names the image. It does not fail as an `ImagePullBackOff` twenty minutes into a sync.
 
 ## Step 4: Proxy Argo CD's repo-server, for git and chart repositories
 
-`mise run proxy:setup` writes this setting to `infra/local/proxy.local.yaml`. Every `cluster:up -- full` applies it when it installs Argo CD. The setting is a file, not a `kubectl patch`, for this reason: the repo-server does not exist until the first full tier starts. A fix that only patches a running Deployment fixes the *second* start and hangs the first. The file is local to the machine and gitignored. The address is your host's docker gateway.
+`just proxy-setup` writes this setting to `infra/local/proxy.local.yaml`. Every `cluster-up -- full` applies it when it installs Argo CD. The setting is a file, not a `kubectl patch`, for this reason: the repo-server does not exist until the first full tier starts. A fix that only patches a running Deployment fixes the *second* start and hangs the first. The file is local to the machine and gitignored. The address is your host's docker gateway.
 
 Steps 1 to 3 get **images** into the cluster. They do nothing for a workload that opens its own connection to the internet. Argo CD's repo-server is such a workload. To render a chart with `dependencies:`, it runs `helm repo add` against each upstream repository from inside the pod. Preloaded images do not help, because no image pull is involved.
 
@@ -211,12 +211,12 @@ Three points often cause errors. All three come from a measurement, not a guess:
 
 ## Stalled image pulls
 
-A slow proxy makes a cold registry slow. zot copies a whole image before it answers the request that triggered the copy. If the cluster starts the pulls, this is fatal. Every pod asks at the same time, zot saturates, and each pull goes past containerd's deadline. A warm-up before the cluster starts prevents this. The warm-up always runs: `cluster:up` does it on every network.
+A slow proxy makes a cold registry slow. zot copies a whole image before it answers the request that triggered the copy. If the cluster starts the pulls, this is fatal. Every pod asks at the same time, zot saturates, and each pull goes past containerd's deadline. A warm-up before the cluster starts prevents this. The warm-up always runs: `cluster-up` does it on every network.
 
 If a warm-up fails, it names the images that it could not cache. It stops before it creates a cluster. Run it again. It skips cached images in microseconds, so a retry only fetches what is still missing.
 
 ## Restricted registries
 
-Some networks have a registry that blocks **digest** pulls, so only tags resolve. On such a network, pre-pull the platform images by tag, and load them with `kind load docker-image`. The upstream charts pin images by digest, per [ADR-0104](../adr/0104-supply-chain-security.md), and that is what fails.
+Some networks have a registry that blocks **digest** pulls, so only tags resolve. On such a network, pre-pull the platform images by tag, and load them with `kind load docker-image`. The upstream charts pin images by digest, per [ADR-0113](../adr/0113-supply-chain-security.md), and that is what fails.
 
 `kind load` works on both tiers, so this recovery is the same everywhere. Pass `--name` to reach the cluster of the full tier.

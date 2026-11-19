@@ -1,10 +1,10 @@
-# ADR-0102: Source Control and CI Platform
+# ADR-0116: Source Control and CI Platform
 
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0101](0101-monorepo.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0104](0104-supply-chain-security.md)
-- **Decides:** Forgejo is the forge and Forgejo Actions the pipeline runner, entered through `mise run ci:*` so the forge stays cheap to leave.
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0111](0111-monorepo.md), [ADR-0112](0112-release-and-versioning.md), [ADR-0113](0113-supply-chain-security.md)
+- **Decides:** Forgejo is the forge and Forgejo Actions the pipeline runner, entered through `just` recipes so the forge stays cheap to leave.
 
 ## Context
 
@@ -15,7 +15,7 @@ Principle 3 of [ADR-0000](0000-platform-foundations.md) makes source control and
 - the pipeline
 - the identity that signs artefacts
 
-The pipeline builds and signs artefacts, per [ADR-0104](0104-supply-chain-security.md). So whoever runs it decides what the platform can prove that it built.
+The pipeline builds and signs artefacts, per [ADR-0113](0113-supply-chain-security.md). So whoever runs it decides what the platform can prove that it built.
 
 A managed forge is the one dependency that pinning or a contract cannot reconcile with principle 3. The reason is that the trust root is the thing that is outsourced.
 
@@ -25,7 +25,7 @@ A managed forge is the one dependency that pinning or a contract cannot reconcil
 2. **Thinnest viable platform**, per principle 2. A forge is one component. A suite that arrives with its own datastore fleet is a different purchase.
 3. **Exit cost stays low**, per principle 4. The pipeline definition must not become the place where build logic lives. If it does, leaving means rewriting the pipeline, not re-pointing it.
 4. **One primitive per concern**, per principle 5. Source, review, and pipelines are one purchase or several. Each additional system is operational surface that the platform team carries.
-5. **The build environment is part of the supply chain**, per [ADR-0104](0104-supply-chain-security.md). Whoever runs the pipeline can change what is built, whatever is signed after it.
+5. **The build environment is part of the supply chain**, per [ADR-0113](0113-supply-chain-security.md). Whoever runs the pipeline can change what is built, whatever is signed after it.
 
 ## Considered options
 
@@ -47,7 +47,7 @@ Both are Tier 2, per [ADR-0002](0002-tool-adoption.md). Both follow from the run
 | Concern | Chosen | Picked over | Why |
 | --- | --- | --- | --- |
 | Image builds | **BuildKit**, through buildx on the Docker of the runner | Buildah, Kaniko | A runner is a dedicated machine with Docker, as described below, because the jobs that start kind need one. The builder uses the daemon that is already there *(reasoned)*. The `Dockerfile` syntax is defined against BuildKit, so cache mounts and multi-stage behaviour need no translation. Buildah is the runner-up, and its exit is a task change |
-| Running a workflow locally | **act** | pushing to a branch, or running a self-hosted runner on the workstation | Workflow YAML is a thin caller of `mise run ci:*`, so most local checks run the task directly. `act` covers the remaining case, the workflow wiring itself, without a push |
+| Running a workflow locally | **act** | pushing to a branch, or running a self-hosted runner on the workstation | Workflow YAML is a thin caller of `just` recipes, so most local checks run the recipe directly. `act` covers the remaining case, the workflow wiring itself, without a push |
 
 ## Decision
 
@@ -55,27 +55,27 @@ Both are Tier 2, per [ADR-0002](0002-tool-adoption.md). Both follow from the run
 | --- | --- |
 | Forge | **Forgejo**, self-hosted on its own host, with its Postgres on that same host |
 | Pipelines | **Forgejo Actions**, with runners on infrastructure we control |
-| Workflow content | checkout, toolchain setup, then `mise run ci:*`. Logic does not live in YAML |
+| Workflow content | checkout, toolchain setup, then `nix develop --command just <recipe>`. Logic does not live in YAML |
 | Review record | pull requests on the forge. Branch protection and required checks are configuration in the repository, per principle 1 of [ADR-0000](0000-platform-foundations.md) |
-| Registry | **not** the package registry of the forge. [ADR-0105](0105-image-registry.md) decides it separately |
+| Registry | **not** the package registry of the forge. [ADR-0114](0114-image-registry.md) decides it separately |
 
-**Workflow YAML is a portable subset.** Its steps are `actions/checkout`, the own composite setup action of the repository, and `mise run` calls. That subset runs on Forgejo Actions and on the provider-hosted workflows that the template ships. This makes the forge cheap to leave in either direction.
+**Workflow YAML is a portable subset.** Its steps are `actions/checkout`, the own composite setup action of the repository, which installs Nix, and `just` recipes in the dev shell. That subset runs on Forgejo Actions and on the provider-hosted workflows in `.github/workflows/`. This makes the forge cheap to leave in either direction.
 
-**A runner gives `ubuntu-24.04` a machine, not a container.** The portable subset assumes what a provider-hosted job gets: a host with Docker, whose loopback and filesystem the job owns. A job that starts kind publishes its API and a registry on loopback, and bind-mounts its checkout. Inside a job container, neither the loopback nor the filesystem belongs to the host. So a Forgejo runner executes jobs on a dedicated machine that holds nothing else. It never uses a workload-cluster node, because a job controls the Docker of that machine, which is root on it. A machine that runs two jobs at once has one registry port and one set of edge ports. So in CI, `cluster:up` waits while another job holds them, and `cluster:down` removes only its own.
+**A runner gives `ubuntu-24.04` a machine, not a container.** The portable subset assumes what a provider-hosted job gets: a host with Docker, whose loopback and filesystem the job owns. A job that starts kind publishes its API and a registry on loopback, and bind-mounts its checkout. Inside a job container, neither the loopback nor the filesystem belongs to the host. So a Forgejo runner executes jobs on a dedicated machine that holds nothing else. It never uses a workload-cluster node, because a job controls the Docker of that machine, which is root on it. A machine that runs two jobs at once has one registry port and one set of edge ports. So in CI, `cluster-up` waits while another job holds them, and `cluster-down` removes only its own.
 
-### The template ships provider-hosted workflows
+### Provider-hosted workflows are the start
 
-A generated project needs CI from its first commit. At that point, no cluster exists to run a forge on. So the workflows under `.github/workflows/` are the bootstrap path, not a competing decision. A project that runs its own forge chooses the `forgejo` mode of [ADR-0106](0106-dependency-updates.md). That mode moves the workflows to `.forgejo/workflows/`, the folder that Forgejo reads first, and no workflow changes.
+A new project needs CI from its first commit. At that point, no cluster exists to run a forge on. So the workflows under `.github/workflows/` are the bootstrap path, not a competing decision. A project that runs its own forge chooses the `forgejo` mode of [ADR-0117](0117-updates-and-setup-modes.md). That mode moves the workflows to `.forgejo/workflows/`, the folder that Forgejo reads first, and no workflow changes.
 
 | Field | Value |
 | --- | --- |
 | **Trigger** | the platform cluster serves its first environment |
-| **Seam** | ✓ the thin-YAML rule above. A move re-targets the same `mise run ci:*` calls, and does not rewrite pipeline logic |
+| **Seam** | ✓ the thin-YAML rule above. A move re-targets the same recipes, and does not rewrite pipeline logic |
 | **Cost if adopted late** | the pipeline migration is flat, because the thin-YAML rule makes it a re-target, not a rewrite. **The review record is not flat.** Pull requests, review comments, and issues are native to the forge and do not travel with a `git push`. So that body grows for as long as the decision waits. Until the move lands, sovereignty is also only asserted, not held |
 
 ### Signing identity
 
-[ADR-0104](0104-supply-chain-security.md) signs with a key pair held in SOPS, not against a third-party certificate authority. The purpose is that the signing identity does not depend on which forge runs the pipeline. A forge move re-targets the workflow and leaves the trust root untouched.
+[ADR-0113](0113-supply-chain-security.md) signs with a key pair held in SOPS, not against a third-party certificate authority. The purpose is that the signing identity does not depend on which forge runs the pipeline. A forge move re-targets the workflow and leaves the trust root untouched.
 
 Forgejo does mint [per-job OIDC tokens for Actions](https://forgejo.org/docs/latest/user/actions/security-openid-connect/), together with ephemeral runners. That capability is available for anything that wants a short-lived workload identity. It does not sign images.
 
@@ -104,7 +104,7 @@ Running the forge outside removes the cycle. It does not only order the steps: A
 
 The cost is real, and it is a host. Someone patches it, backs it up, and monitors it outside the own observability of the platform. That is the price of the property. The platform already pays the same price for the object store.
 
-**zot is the same question with a different answer.** The registry is on the critical path for every pod start. So during a cold start, an in-cluster registry cannot serve the cluster it lives in. Unlike the forge, it holds no source of truth. It is backed by object storage, and a redeploy rebuilds its contents, per [ADR-0105](0105-image-registry.md). It needs its **bucket** to be outside the cluster. [ADR-0207](0207-cluster-storage.md) already requires this in production. The registry itself stays in-cluster.
+**zot is the same question with a different answer.** The registry is on the critical path for every pod start. So during a cold start, an in-cluster registry cannot serve the cluster it lives in. Unlike the forge, it holds no source of truth. It is backed by object storage, and a redeploy rebuilds its contents, per [ADR-0114](0114-image-registry.md). It needs its **bucket** to be outside the cluster. [ADR-0207](0207-cluster-storage.md) already requires this in production. The registry itself stays in-cluster.
 
 ## Consequences
 
@@ -127,7 +127,7 @@ The cost is real, and it is a host. Someone patches it, backs it up, and monitor
 - Pipelines run on Forgejo Actions, with runners on controlled infrastructure. No second CI engine is introduced, per principle 5 of [ADR-0000](0000-platform-foundations.md).
 - A runner executes `ubuntu-24.04` jobs on a dedicated machine. It never runs them inside a job container or on a workload-cluster node.
 - The repository lives at `forge.<apex>/platform/<project>`. An organisation owns it, never a person, and Argo CD reconciles from that URL.
-- Workflow YAML checks out, sets up the toolchain, and calls `mise run ci:*`. Pipeline logic is not written in YAML.
+- Workflow YAML checks out, sets up the toolchain, and calls a `just` recipe. Pipeline logic is not written in YAML. `(CI: lint-thin-workflows)`
 - Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](0000-platform-foundations.md).
 - The default branch takes a direct push from one identity only: the `ci` machine user. Its `PROMOTE_TOKEN` pushes the dev and staging promotion commit, per [ADR-0201](0201-gitops.md). Every other change reaches the branch through a reviewed pull request.
 - **Every commit on the default branch is signed**, by the forge or by the `ci` machine user. Branch protection sets `require_signed_commits`, and Forgejo checks it on each push.
@@ -138,4 +138,4 @@ The cost is real, and it is a host. Someone patches it, backs it up, and monitor
 - Contributors work in a fork. The Developers team only reads the repository's code, so only the Owners team and the `ci` machine user push a branch to it.
 - Only the Owners team and the `ci` machine user merge into the default branch. `ci` merges the prod pin pull request, per [ADR-0201](0201-gitops.md).
 - An approval counts toward the required review only when it comes from the Owners team or the Developers team.
-- Container images are published to the registry in [ADR-0105](0105-image-registry.md), not to the package registry of the forge.
+- Container images are published to the registry in [ADR-0114](0114-image-registry.md), not to the package registry of the forge.

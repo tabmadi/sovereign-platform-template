@@ -44,7 +44,7 @@ kubectl -n platform exec -it postgres-<newmajor>-1 -- \
 # 7. Scale the services back up. The read-only window ends here.
 
 # 8. Verify: run the smoke suite, then watch the error rate and latency.
-mise run e2e:smoke
+just e2e-smoke
 ```
 
 ## Rolling back

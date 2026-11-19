@@ -5,7 +5,7 @@ This guide shows how to operate the Argo CD deploy path. [ADR-0201](../adr/0201-
 ## Model
 
 - Argo CD reconciles every environment from `master`. **The cluster cannot see a working-tree change until you push it.**
-- `selfHeal` reverts direct `kubectl` and `helm` edits. So a change must land on `master` to persist. [ADR-0600](../adr/0600-local-development-loop.md) holds the two exceptions: `cluster:add` and a branch `targetRevision`.
+- `selfHeal` reverts direct `kubectl` and `helm` edits. So a change must land on `master` to persist. [ADR-0600](../adr/0600-local-development-loop.md) holds the two exceptions: `cluster-add` and a branch `targetRevision`.
 - Configuration is files in this repo. Nothing is set by a click in the Argo UI, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md).
 
 ## Deploy a change
@@ -53,7 +53,7 @@ Delete an expired silence from the file. Do not extend it. A second extension sh
 ## Bring up the full platform locally
 
 ```sh
-mise run cluster:up -- full     # the real charts at single replica, via Argo CD from master
+just cluster-up full     # the real charts at single replica, via Argo CD from master
 ```
 
 The deployed clusters use this same mechanism, per [ADR-0600](../adr/0600-local-development-loop.md). To exercise **uncommitted** GitOps wiring, see [gitops-local](gitops-local.md).
@@ -63,7 +63,7 @@ The deployed clusters use this same mechanism, per [ADR-0600](../adr/0600-local-
 Set the new cluster as the current kubectl context. Then run:
 
 ```sh
-CLUSTER_AGE_KEY=<path to its age key> mise run argocd:bootstrap <env>
+CLUSTER_AGE_KEY=<path to its age key> just argocd-bootstrap <env>
 ```
 
 The task lays the floor that Argo CD cannot install for itself:
@@ -80,8 +80,8 @@ When the applications are Healthy, log in as the first operator. See [break-glas
 ## Verify an environment
 
 ```sh
-mise run verify                          # the local tier that is up
-VERIFY_HOST=<apex> mise run verify       # a deployed environment, through the current kubectl context
+just verify                          # the local tier that is up
+VERIFY_HOST=<apex> just verify       # a deployed environment, through the current kubectl context
 ```
 
 The deployed mode adds three checks:
@@ -98,7 +98,7 @@ It deletes everything it creates.
 - Run `kubectl describe application <name> -n argocd`. Read its events and conditions.
 - Sync waves handle the order: CRD, then operator, then instance. The first platform sync is slow by design.
 - Every Application has a `retry` policy, so a transient error heals itself. When the retries run out, a manual `argocd app sync` is the break-glass. A cluster rebuild is never the fix.
-- If a node's containerd hangs on a large image pull, run `mise run cluster:heal`, per [dev-loop](../dev-loop.md). Do not restart the node.
+- If a node's containerd hangs on a large image pull, run `just cluster-heal`, per [dev-loop](../dev-loop.md). Do not restart the node.
 
 ## When the symptom names the wrong layer
 
@@ -118,7 +118,7 @@ Cluster faults in this platform often look like something unrelated. The compone
 | Applications look Synced but are hours **stale**, and nothing consumes a refresh annotation | The **application controller is restarting**, usually from OOM. The sign is a `status.reconciledAt` that falls behind. Every Application keeps its last status while nothing reconciles |
 | An admission webhook times out **intermittently**, and works after a restart | The API server reaches a pod from its own node's address. Cilium classifies that address as `host` or `remote-node`, **never** as `kube-apiserver`. A policy that admits only that entity works only when the webhook shares a node with the caller |
 | Every ops panel answers **404**, but the routes exist | Traefik **drops a router when it cannot build the router's middleware**. Only Traefik's log shows the reason: `kubernetes service not found: platform/edge-errors`. The panel looks unrouted, not unbacked |
-| A registry push retries layers forever with `unexpected EOF` | A **timeout on one of the hops**. An image push is the longest request that the edge carries. The first of Traefik or the registry to cut the connection decides. So both timeouts are set together, per [ADR-0105](../adr/0105-image-registry.md) |
+| A registry push retries layers forever with `unexpected EOF` | A **timeout on one of the hops**. An image push is the longest request that the edge carries. The first of Traefik or the registry to cut the connection decides. So both timeouts are set together, per [ADR-0114](../adr/0114-image-registry.md) |
 
 **The habit that saves the most time: verify the dataplane with a pod.**
 
@@ -133,7 +133,7 @@ A 401 from the API means that the connection worked. That is success, not failur
 Both halves of that image reference matter. Admission rejects the short forms that people usually write in this command:
 
 - `busybox` is denied. The allow-list holds repositories in registry-qualified form.
-- `docker.io/library/busybox` without a tag is denied. Every entry needs a tag or a digest. ADR-0104 exists to reject an implicit `latest`.
+- `docker.io/library/busybox` without a tag is denied. Every entry needs a tag or a digest. ADR-0113 exists to reject an implicit `latest`.
 
 Query the **fully qualified** Service name. The pod resolves a short name through its search list. So a working cluster first prints one `NXDOMAIN` for each suffix that does not match. That looks like a DNS failure, but it is not one.
 

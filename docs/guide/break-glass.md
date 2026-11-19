@@ -48,7 +48,7 @@ Every later promotion and demotion happens in the console. To retire the seeded 
 When the seed cannot run, promote a registered user from a workstation that holds the cluster's kubeconfig:
 
 ```sh
-mise run ops:grant -- first.operator@example.com
+just ops-grant first.operator@example.com
 ```
 
 ## Requirements on the break-glass path

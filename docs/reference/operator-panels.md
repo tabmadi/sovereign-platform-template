@@ -32,6 +32,6 @@ These panels do not use the operator session. Each one has its own login, and [c
 
 | Panel | URL | Gate |
 | --- | --- | --- |
-| Registry | `https://registry.<host>/` | the registry's push or pull credential, per [ADR-0105](../adr/0105-image-registry.md) |
-| Forge | the origin of the project's forge | the forge's own login, per [ADR-0102](../adr/0102-source-control-and-ci.md) |
+| Registry | `https://registry.<host>/` | the registry's push or pull credential, per [ADR-0114](../adr/0114-image-registry.md) |
+| Forge | the origin of the project's forge | the forge's own login, per [ADR-0116](../adr/0116-forge-and-pipelines.md) |
 | Infrastructure console | the provider's console, or the hypervisor's panel | its own login. It is a break-glass credential |

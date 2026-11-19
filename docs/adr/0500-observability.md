@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0502](0502-alerting-and-on-call.md), [ADR-0503](0503-error-tracking.md), [ADR-0600](0600-local-development-loop.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0112](0112-release-and-versioning.md), [ADR-0200](0200-cluster-topology.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0400](0400-frontend.md), [ADR-0501](0501-operator-uis-and-dashboards.md), [ADR-0502](0502-alerting-and-on-call.md), [ADR-0503](0503-error-tracking.md), [ADR-0600](0600-local-development-loop.md)
 - **Decides:** Every service is instrumented for all four signals through one `obs.Init` call, exports to a Grafana backend, and declares its SLIs.
 
 ## Context
@@ -51,7 +51,7 @@ The table above chose a stack. Each member was also compared with the strongest 
 | Grafana | Kibana | The UI of the Elastic stack above. It does not read the other three signals |
 | Prometheus | [InfluxDB 3 Core](https://www.influxdata.com/blog/influxdb3-open-source-public-alpha-jan-27/) | Its query range has a cap of 432 Parquet files, which is about 72 hours. Enterprise lifts the cap. An SLO window is 30 days |
 | Tempo | Jaeger | It needs Cassandra, Elasticsearch, or OpenSearch behind it. Tempo uses an object store, which this platform runs anyway, per [ADR-0207](0207-cluster-storage.md) |
-| Tempo | Zipkin | A JVM on the floor, which [ADR-0100](0100-language-and-runtime.md) bars, behind a second datastore |
+| Tempo | Zipkin | A JVM on the floor, which [ADR-0110](0110-language-and-runtime.md) bars, behind a second datastore |
 | Pyroscope | [Parca](https://github.com/parca-dev/parca) | Its own UI next to Grafana's. Continuous profiling pays off here because a profile opens from the trace that led to it. That join is Grafana's |
 
 ### The collection tier
@@ -172,7 +172,7 @@ An eBPF node-agent profiler was an option with zero instrumentation. It was reje
 | Log format | structured JSON to stdout. `fmt.Println` for diagnostics is not used |
 | Log levels | `DEBUG` off in production, `INFO` for lifecycle, `WARN` for recoverable abnormal states, `ERROR` for failed operations. `FATAL` and `PANIC` only at startup |
 | Trace context | W3C `traceparent` across HTTP and Temporal. Traefik and Oathkeeper keep it at the edge |
-| Resource attributes | set once by `obs.Init`. They are the service name, the version and build SHA from the baked-in build info, the namespace, and the environment. [ADR-0103](0103-release-and-versioning.md) sets the build info |
+| Resource attributes | set once by `obs.Init`. They are the service name, the version and build SHA from the baked-in build info, the namespace, and the environment. [ADR-0112](0112-release-and-versioning.md) sets the build info |
 | Metric naming | OTel semantic conventions where they exist, and `<service>_<noun>_<unit>_<type>` where they do not |
 | HTTP RED | the stable semantic-convention histogram. No parallel custom duration metric is recorded, and dashboards query only the stable name |
 | Workload CPU and memory | the collector's `kubeletstats` receiver, so **every pod appears even when idle**. Pushed signals exist only under live traffic, and that difference is expected |
@@ -256,18 +256,18 @@ Service code is the same locally and in production. The same `obs.Init` works ag
 
 ## Rules
 
-- Every service initialises observability with `obs.Init`. Direct OTel SDK use in service code is not permitted. `(CI: ci:lint)`
+- Every service initialises observability with `obs.Init`. Direct OTel SDK use in service code is not permitted. `(CI: ci-lint)`
 - Every service imports the pre-wired middleware by default.
-- Logs are structured JSON to stdout. `fmt.Println` and unstructured loggers are not used. `(CI: lint:log-vocab)`
+- Logs are structured JSON to stdout. `fmt.Println` and unstructured loggers are not used. `(CI: lint-log-vocab)`
 - Log levels follow the conventions table, and `DEBUG` is off in production.
-- Metrics use the `obs` helpers with allow-listed labels. High-cardinality attributes are not used as metric labels. `(CI: ci:lint)`
+- Metrics use the `obs` helpers with allow-listed labels. High-cardinality attributes are not used as metric labels. `(CI: ci-lint)`
 - Trace context propagates through W3C `traceparent`. The edge keeps it, and Temporal middleware propagates it. `(ref: W3C Trace Context)`
 - PII is never written to logs, metrics, traces, or profiles.
 - Sampling is configured centrally. Service authors do not set sampling rates.
 - Dashboards live as JSON and alerts as YAML under `infra/observability/`. UI-only edits are not made. Changes are PRs.
 - The backend is the Grafana stack and a single-tier collector. Other backends require an ADR.
-- Every service declares an availability SLI and a latency SLI in `slo.yaml`. Both come from the stable RED histogram over a 30-day rolling window. `(CI: lint:service-contract)`
+- Every service declares an availability SLI and a latency SLI in `slo.yaml`. Both come from the stable RED histogram over a 30-day rolling window. `(CI: lint-service-contract)`
 - A `5xx` spends the budget and a `4xx` does not. Health and admin endpoints are excluded from both SLIs.
 - An availability objective is stated per project, and it is never tighter than the detection latency that its coverage supports.
 - Long-term log and trace data lives in the off-cluster bucket. Local volumes hold only hot cache.
-- Every service exposes `/livez` and `/readyz` on the admin port, and liveness never checks dependencies. `(CI: lint:service-contract)`
+- Every service exposes `/livez` and `/readyz` on the admin port, and liveness never checks dependencies. `(CI: lint-service-contract)`

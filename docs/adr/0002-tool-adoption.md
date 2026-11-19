@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-and-output-conventions.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0001](0001-documentation-conventions.md)
 - **Decides:** Exit cost sorts every tool into three tiers, each tier owes a fixed depth of recorded comparison, and one register lists every tool.
 
 ## Context
@@ -19,7 +19,7 @@ This ADR sets the tiers, the depth each tier owes, the single register, and the 
 1. **Depth follows exit cost, not interest.** Principle 4 of [ADR-0000](0000-platform-foundations.md) already measures adoption by what abandonment costs. The record applies that measure to itself: the effort to write a comparison is proportional to the effort to act on it later.
 2. **A machine can check the record.** A rule that a reviewer applies from memory decays. A parse can tell whether a tool has a register row, and whether the ADR of that row holds a comparison table.
 3. **A comparison is evidence that an evaluation happened.** It lets a later reader argue the decision again correctly. That needs the losing options and what each one was judged on. A justification of the winner does not give that.
-4. **One home per fact.** [ADR-0001](0001-documentation-and-output-conventions.md) puts a fact in exactly one place. A tool's tier, licence, governing body, and maturity are one fact each. They belong together in one registry, not spread across the ADRs that use the tool.
+4. **One home per fact.** [ADR-0001](0001-documentation-conventions.md) puts a fact in exactly one place. A tool's tier, licence, governing body, and maturity are one fact each. They belong together in one registry, not spread across the ADRs that use the tool.
 
 ## Considered options
 
@@ -31,7 +31,7 @@ This ADR sets the tiers, the depth each tier owes, the single register, and the 
 | Principle 7 alone, no tiers | the author | depth follows novelty and enthusiasm, and the boring expensive choice gets the thinnest record *(reasoned)* | The observed failure of the rule with no qualifier |
 | One depth for every tool | nothing | either every linter gets an ADR, or the database gets a line | Uniformity at the cost of the property that is measured |
 | Tiers by component tier: Core, Scale, Opt-in | operational obligation | independent of exit cost. An Opt-in library can need a rewrite to remove, and a Core component can be a chart swap | It measures the wrong axis. [`docs/operational-surface.md`](../operational-surface.md) keeps that tiering for its own purpose |
-| Weighted scoring matrix | a numeric total | it creates false precision from qualitative trade-offs, and the author chooses the weights after the answer is known | Rejected on the same grounds as scoring grids in [ADR-0001](0001-documentation-and-output-conventions.md) |
+| Weighted scoring matrix | a numeric total | it creates false precision from qualitative trade-offs, and the author chooses the weights after the answer is known | Rejected on the same grounds as scoring grids in [ADR-0001](0001-documentation-conventions.md) |
 
 ### Where the record lives
 
@@ -40,7 +40,7 @@ This ADR sets the tiers, the depth each tier owes, the single register, and the 
 | **Comparison in the owning ADR, one register row per tool** | reading the decision, or the register | **Chosen.** The reasoning sits beside what it decides. The register answers `what is in here and why` in one file *(reasoned)* |
 | Register only, with no ADR table | the register | A row cannot carry what each option was judged on. The comparison becomes a list of names *(reasoned)* |
 | ADR only, no register | reading all of the ADRs | A tool with no ADR is invisible. That is the exact failure that principle 7 exists to catch |
-| A separate document per comparison | a directory listing | It splits the decision from its reasoning, and [ADR-0001](0001-documentation-and-output-conventions.md) gives an ADR both |
+| A separate document per comparison | a directory listing | It splits the decision from its reasoning, and [ADR-0001](0001-documentation-conventions.md) gives an ADR both |
 
 ## Decision
 
@@ -64,7 +64,7 @@ A comparison cell that produces a verdict states where its claim comes from. The
 
 | Grade | Means | Obligation |
 | --- | --- | --- |
-| *(measured)* | a number that this platform produced | states its conditions and how to derive it again, per *Numbers* in [ADR-0001](0001-documentation-and-output-conventions.md) |
+| *(measured)* | a number that this platform produced | states its conditions and how to derive it again, per *Numbers* in [ADR-0001](0001-documentation-conventions.md) |
 | *(documented)* | read from the option's own documentation, licence, or governing body | carries a citation, because it can become false without notice. Load-bearing instances are dated in [`reference/upstream-status.md`](../reference/upstream-status.md) |
 | *(reasoned)* | follows from a property that this set already establishes | carries no citation. There is nothing external to check, and that is the purpose of the mark |
 
@@ -74,7 +74,7 @@ The grade lets a reader argue the decision again correctly. A *(documented)* cla
 
 ### The register
 
-[`docs/tool-register.md`](../tool-register.md) lists every tool that this platform runs, builds with, or generates from, at every tier. It is the canonical inventory in the sense of [ADR-0001](0001-documentation-and-output-conventions.md). It is the one place that records a tool's tier, licence, governing body, maturity signal, and owning ADR.
+[`docs/tool-register.md`](../tool-register.md) lists every tool that this platform runs, builds with, or generates from, at every tier. It is the canonical inventory in the sense of [ADR-0001](0001-documentation-conventions.md). It is the one place that records a tool's tier, licence, governing body, maturity signal, and owning ADR.
 
 It is not a second place for decisions. A row states facts about a tool and points to the ADR that chose it. The reasoning stays in the ADR.
 
@@ -103,12 +103,12 @@ It is not a second place for decisions. A row states facts about a tool and poin
 
 ## Rules
 
-- Every tool that this platform runs, builds with, or generates from has a row in [`docs/tool-register.md`](../tool-register.md). The row states its tier, owning ADR, licence, governing body, maturity signal, and exit cost. `(CI: lint:tool-register)`
+- Every tool that this platform runs, builds with, or generates from has a row in [`docs/tool-register.md`](../tool-register.md). The row states its tier, owning ADR, licence, governing body, maturity signal, and exit cost. `(CI: lint-tool-register)`
 - Exit cost sets a tool's tier: **1** is structural, months and possibly customer data. **2** is substitutable, weeks behind a stable interface. **3** is library, days inside one package.
-- A Tier 1 tool has a full comparison table in its owning ADR and a **named runner-up**. Without a runner-up, it states that no option survived the hard constraints. `(CI: lint:tool-register)`
-- A Tier 2 tool has a short comparison table in its owning ADR, with the decisive question and the options that answered it differently. `(CI: lint:tool-register)`
+- A Tier 1 tool has a full comparison table in its owning ADR and a **named runner-up**. Without a runner-up, it states that no option survived the hard constraints. `(CI: lint-tool-register)`
+- A Tier 2 tool has a short comparison table in its owning ADR, with the decisive question and the options that answered it differently. `(CI: lint-tool-register)`
 - The register row of a Tier 3 tool names what the tool was picked over. No ADR table is owed.
-- Every alternative named in a register row appears in the *Considered options* of the owning ADR. A rejection that nobody can see looks the same as an option that nobody considered. `(CI: lint:tool-register)`
+- Every alternative named in a register row appears in the *Considered options* of the owning ADR. A rejection that nobody can see looks the same as an option that nobody considered. `(CI: lint-tool-register)`
 - A comparison cell that produces a verdict is graded *(measured)*, *(documented)*, or *(reasoned)*. Cells that do not decide the row are not graded.
 - A *(documented)* claim carries a citation. A load-bearing one is dated in [`docs/reference/upstream-status.md`](../reference/upstream-status.md).
 - A *(measured)* claim states the conditions it was measured under and how to derive it again. `(ref: ADR-0001 Numbers)`

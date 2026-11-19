@@ -33,7 +33,7 @@ This is the inventory to price against a provider. Multiply each row by the numb
 | Static IP for mail | one, dedicated, with a matching `PTR` | separate from the cluster's ingress address, per [ADR-0307](../adr/0307-outbound-email.md) |
 | DNS zone | one per environment domain | |
 | Certificates | none, because of ACME | a cost avoided, and the reason cert-manager is on the floor |
-| Forge and CI runners | pipeline minutes become instance hours on infrastructure you own | self-hosted CI turns a per-minute fee into capacity, per [ADR-0102](../adr/0102-source-control-and-ci.md) |
+| Forge and CI runners | pipeline minutes become instance hours on infrastructure you own | self-hosted CI turns a per-minute fee into capacity, per [ADR-0116](../adr/0116-forge-and-pipelines.md) |
 | Backup storage and retention | the recovery objective, and Object Lock retention no shorter than it | |
 | Paging service | the escalation concession, when the trigger fires | the one managed subscription that the template expects, per [ADR-0502](../adr/0502-alerting-and-on-call.md) |
 

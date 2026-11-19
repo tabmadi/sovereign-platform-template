@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0500](0500-observability.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0111](0111-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0500](0500-observability.md)
 - **Decides:** Lowdefy pages over the service APIs are the admin surface, and every admin mutation goes through the Go API, not raw SQL.
 
 ## Context
@@ -49,7 +49,7 @@ Each service owns its own database, per [ADR-0300](0300-data.md). Each spec alre
 | Option | Shape | Read-only enforcement | Verdict |
 | --- | --- | --- | --- |
 | **pgweb** | a single Go binary | the `--readonly` flag, and a read-only database role | **Chosen.** It has the same one-stateless-container shape as Lowdefy, and two independent read-only layers *(reasoned)* |
-| pgAdmin | a stateful Python application | none, because it is a full client | It goes against a toolchain of single binaries, per [ADR-0100](0100-language-and-runtime.md). It offers write access that the role must then remove |
+| pgAdmin | a stateful Python application | none, because it is a full client | It goes against a toolchain of single binaries, per [ADR-0110](0110-language-and-runtime.md). It offers write access that the role must then remove |
 | CloudBeaver | a Java server | at the connection level | A heavier runtime again, for extra features that break-glass does not use |
 | `psql` through `talosctl` and a pod | none | the role only | Always available, and the real fallback. It is not a UI. The inspector exists so that an operator does not need this row during an incident |
 
@@ -98,7 +98,7 @@ apps/admin/
         └── <operationId>.yaml # one action page per x-admin: action operation
 ```
 
-`apps/admin/` is the second application under `apps/`. [ADR-0101](0101-monorepo.md) requires an ADR for it, and this is that ADR. The server itself deploys from its platform chart. `apps/admin/` holds only the configuration mounted into it.
+`apps/admin/` is the second application under `apps/`. [ADR-0111](0111-monorepo.md) requires an ADR for it, and this is that ADR. The server itself deploys from its platform chart. `apps/admin/` holds only the configuration mounted into it.
 
 ### Generation from the spec
 
@@ -111,7 +111,7 @@ apps/admin/
 
 An async `202` create is a workflow trigger, not a form to scaffold. So a resource with an async create stays list-only.
 
-The generator emits **only REST-connector pages**, and each page calls its service in-cluster. It never generates direct-database pages. Pages use raw spec paths, so the output does not depend on the edge prefix. The output is deterministic, committed, and drift-checked. `mise run gen:admin` runs it inside `mise run gen`.
+The generator emits **only REST-connector pages**, and each page calls its service in-cluster. It never generates direct-database pages. Pages use raw spec paths, so the output does not depend on the edge prefix. The output is deterministic, committed, and drift-checked. `just gen-admin` runs it inside `just gen`.
 
 The `x-admin` markers are specification extensions. So they are stripped from the rendered developer portals and never leak into public docs.
 
@@ -170,16 +170,16 @@ So the weakest dependency on the floor is a **deferral, not a bet**. The alterna
 - **No compile-time type safety between a spec change and a page.** The generator and the drift check keep generated pages in step. Only review and runtime errors on first load catch problems in hand-written pages.
 - **Read-only Postgres connections are a discipline risk**, because an engineer could try to add a mutation behind them. Enforcement at the database-role level mitigates this, not convention.
 - **The generated directory makes PR diffs larger** on spec changes. The same committed and drift-checked convention as every other generated artifact mitigates this. Generated pages are plain by design. Anything richer is a custom page.
-- **It is a Node island**, per [ADR-0100](0100-language-and-runtime.md). It is installed and run, not built, so upstream chooses the runtime. It stays inside this app's image and its optional local tasks.
+- **It is a Node island**, per [ADR-0110](0110-language-and-runtime.md). It is installed and run, not built, so upstream chooses the runtime. It stays inside this app's image and its optional local tasks.
 
 ## Rules
 
 - The internal admin tool is Lowdefy, self-hosted and deployed through Helm and Argo CD.
-- Admin pages live as YAML in `apps/admin/`. The generated directory is never edited by hand. `(CI: ci:gen)`
+- Admin pages live as YAML in `apps/admin/`. The generated directory is never edited by hand. `(CI: ci-gen)`
 - **Every admin mutation goes through the service Go API, never raw SQL.**
 - Direct Postgres connections, both Lowdefy's and pgweb's, are read-only. They are used only for inspection that the REST API cannot serve, and the database role enforces read-only.
 - Lowdefy's built-in auth and sessions are not used, and no datastore is deployed for it.
 - The admin console is served on its own ops-tier origin behind the forward-auth. Fine-grained authorization is the `Checker` call inside the service APIs that the pages call.
-- The spec markers determine the generated pages. A service with neither marker gets no generated pages. `(CI: lint:openapi)`
+- The spec markers determine the generated pages. A service with neither marker gets no generated pages. `(CI: lint-openapi)`
 - `apps/admin/` is the only first-party application under `apps/` besides the frontend. A third one requires its own ADR.
-- Lowdefy is pinned to a specific release tag. `(CI: lint:floating-tags)`
+- Lowdefy is pinned to a specific release tag. `(CI: lint-floating-tags)`

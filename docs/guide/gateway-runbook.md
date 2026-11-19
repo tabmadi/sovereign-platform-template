@@ -6,20 +6,20 @@ This guide shows how to operate the edge: Traefik and Oathkeeper. [ADR-0305](../
 
 - **Traefik** is the only ingress. It does TLS with cert-manager, host and path routing, load balancing, and rate limiting.
 - **Oathkeeper** sits behind Traefik as the identity filter, per [ADR-0305](../adr/0305-edge-auth-and-traffic-policy.md) and [ADR-0304](../adr/0304-identity-and-authorization.md). It first strips any identity headers from the client. It then authenticates and injects `X-User-Id`, `X-Org-Id`, and `X-Roles`.
-- Edge config lives in `infra/gateway/` and `infra/auth/oathkeeper/`. It is not inlined into chart values. `mise run lint:auth-inline` checks this.
+- Edge config lives in `infra/gateway/` and `infra/auth/oathkeeper/`. It is not inlined into chart values. `just lint-auth-inline` checks this.
 
 ## Add a route
 
 **For a product API resource:**
 
 1. Declare the resource in the service's `ingress.resources`. The edge routes `/api/<resource>` on the apex host and strips the `/api` prefix.
-2. Check that no other service owns that resource name. `mise run lint:openapi` rejects the collision, but a manual check is faster, per [ADR-0303](../adr/0303-api-contracts-and-lifecycle.md).
-3. Apply `strip-identity-headers` **before** forward-auth in the middleware chain. In the wrong order, a client can inject its own `X-User-Id`. `mise run lint:authz` fails the build on the wrong order.
+2. Check that no other service owns that resource name. `just lint-openapi` rejects the collision, but a manual check is faster, per [ADR-0303](../adr/0303-api-contracts-and-lifecycle.md).
+3. Apply `strip-identity-headers` **before** forward-auth in the middleware chain. In the wrong order, a client can inject its own `X-User-Id`. `just lint-authz` fails the build on the wrong order.
 
 **For an ops tool:**
 
 1. Add a `Host({tool}.ops.<host>)` IngressRoute behind the ops forward-auth. Its coarse gate is the `operator` claim plus AAL2, per [ADR-0306](../adr/0306-trust-tiers-and-urls.md).
-2. Add the Oathkeeper access rule in `infra/auth/oathkeeper/access-rules.json`. Use `remote_json`. `mise run lint:authz` rejects `allow`. An `allow` rule on the ops tier is an unauthenticated origin on the cluster's control surface.
+2. Add the Oathkeeper access rule in `infra/auth/oathkeeper/access-rules.json`. Use `remote_json`. `just lint-authz` rejects `allow`. An `allow` rule on the ops tier is an unauthenticated origin on the cluster's control surface.
 
 ## Certificates and DNS
 

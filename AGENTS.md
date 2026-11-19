@@ -13,7 +13,7 @@ This file holds only operational hints for agents: how to navigate, build, and r
 
 ## Write in Simple English
 
-Every text you write in this repo follows the Simple English profile in [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md#simple-english). This covers docs, ADRs, code comments, commit titles, task descriptions, CLI and linter output, API and dashboard descriptions, and UI copy.
+Every text you write in this repo follows the Simple English profile in [ADR-0001](docs/adr/0001-documentation-conventions.md#simple-english). This covers docs, ADRs, code comments, commit titles, task descriptions, CLI and linter output, API and dashboard descriptions, and UI copy.
 
 - Use common words at CEFR B1. Technical names and technical verbs are always allowed. Keep one term for one concept.
 - Write one idea per sentence. A sentence has at most 25 words, or 20 words in `docs/guide/` and numbered steps.
@@ -22,7 +22,7 @@ Every text you write in this repo follows the Simple English profile in [ADR-000
 - Do not use `e.g.`, `i.e.`, `etc.`, or contractions such as `don't`.
 - Write a citation into the sentence: `..., per [ADR-0204](docs/adr/0204-resource-management.md).` Do not put it in parentheses.
 
-`mise run lint:tablint` checks these rules. Run it before you finish.
+`just lint-prose` checks these rules. Run it before you finish.
 
 ## Read first
 
@@ -39,16 +39,16 @@ The set is large, and each task needs a small part of it. Grep the Rules section
 
 | Changing | Load | Then check |
 | --- | --- | --- |
-| A service's behaviour | the service's `requirements.md` first, then [0602](docs/adr/0602-behaviour-requirements.md) requirements, [0303](docs/adr/0303-api-contracts-and-lifecycle.md) contracts, [0300](docs/adr/0300-data.md) data, [0304](docs/adr/0304-identity-and-authorization.md) authorization, [0500](docs/adr/0500-observability.md) instrumentation | `go test -run '/<ID>'` for each changed requirement, then `mise run lint:requirements`, `lint:service-contract`, `lint:authz` |
-| An API spec | [0303](docs/adr/0303-api-contracts-and-lifecycle.md), [0003](docs/adr/0003-naming-and-identifiers.md) identifiers | `mise run gen`, then `lint:openapi`, `lint:api-audience` |
+| A service's behaviour | the service's `requirements.md` first, then [0602](docs/adr/0602-behaviour-requirements.md) requirements, [0303](docs/adr/0303-api-contracts-and-lifecycle.md) contracts, [0300](docs/adr/0300-data.md) data, [0304](docs/adr/0304-identity-and-authorization.md) authorization, [0500](docs/adr/0500-observability.md) instrumentation | `go test -run '/<ID>'` for each changed requirement, then `just lint-requirements`, `lint-service-contract`, `lint-authz` |
+| An API spec | [0303](docs/adr/0303-api-contracts-and-lifecycle.md), [0003](docs/adr/0003-naming-and-identifiers.md) identifiers | `just gen`, then `lint-openapi`, `lint-api-audience` |
 | A workflow | [0302](docs/adr/0302-temporal.md), and `docs/reference/long-running-workflows.md` if the workflow runs for a long time | replay tests |
-| A chart or values file | [0201](docs/adr/0201-gitops.md), [0204](docs/adr/0204-resource-management.md), [0205](docs/adr/0205-environment-parity.md) | `mise run lint:resource-governance`, `lint:floating-tags` |
-| Anything at the edge or about identity | [0305](docs/adr/0305-edge-auth-and-traffic-policy.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), [0304](docs/adr/0304-identity-and-authorization.md) | `mise run lint:auth-inline`, and [docs/reference/threat-model.md](docs/reference/threat-model.md) |
-| Frontend code | [0400](docs/adr/0400-frontend.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), and [0700](docs/adr/0700-analytics.md) for anything that emits events | `mise run lint:ts`, `lint:i18n` |
-| A screen's design, the brand, or product research | [0701](docs/adr/0701-product-design-and-discovery.md), [docs/brand.md](docs/brand.md) for the token roles, and [docs/guide/designing-a-screen.md](docs/guide/designing-a-screen.md) for the procedure | `mise run lint:contrast`, `lint:i18n`, `lint:ts` |
-| Any user-facing copy | [0400](docs/adr/0400-frontend.md) §Localisation and the Simple English profile in [0001](docs/adr/0001-documentation-and-output-conventions.md#simple-english). Every string is a key in `apps/frontend/src/messages/<locale>.json`, and all three catalogues change together | `mise run lint:i18n`, `lint:tablint`, `lint:ts` |
-| A document, an ADR, or a comment | [0001](docs/adr/0001-documentation-and-output-conventions.md) with its Simple English profile, and `_template.md` for a new ADR | `mise run lint:tablint`, `lint:adr-xref`, `lint:md` |
-| A rule's wording | the owning ADR only. The rules index and the security baseline are generated | `mise run gen`, then `lint:rules-index` |
+| A chart or values file | [0201](docs/adr/0201-gitops.md), [0204](docs/adr/0204-resource-management.md), [0205](docs/adr/0205-environment-parity.md) | `just lint-resource-governance`, `lint-floating-tags` |
+| Anything at the edge or about identity | [0305](docs/adr/0305-edge-auth-and-traffic-policy.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), [0304](docs/adr/0304-identity-and-authorization.md) | `just lint-auth-inline`, and [docs/reference/threat-model.md](docs/reference/threat-model.md) |
+| Frontend code | [0400](docs/adr/0400-frontend.md), [0306](docs/adr/0306-trust-tiers-and-urls.md), and [0700](docs/adr/0700-analytics.md) for anything that emits events | `just lint-ts`, `lint-i18n` |
+| A screen's design, the brand, or product research | [0701](docs/adr/0701-product-design-and-discovery.md), [docs/brand.md](docs/brand.md) for the token roles, and [docs/guide/designing-a-screen.md](docs/guide/designing-a-screen.md) for the procedure | `just lint-contrast`, `lint-i18n`, `lint-ts` |
+| Any user-facing copy | [0400](docs/adr/0400-frontend.md) §Localisation and the Simple English profile in [0001](docs/adr/0001-documentation-conventions.md#simple-english). Every string is a key in `apps/frontend/src/messages/<locale>.json`, and all three catalogues change together | `just lint-i18n`, `lint-prose`, `lint-ts` |
+| A document, an ADR, or a comment | [0001](docs/adr/0001-documentation-conventions.md) with its Simple English profile, and `_template.md` for a new ADR | `just lint-prose`, `lint-adr-xref`, `lint-md` |
+| A rule's wording | the owning ADR only. The rules index and the security baseline are generated | `just gen`, then `lint-rules-index` |
 
 ## How the docs are organised
 
@@ -58,7 +58,7 @@ The set is large, and each task needs a small part of it. Grep the Rules section
   - `(ref: <standard>)` is an adopted external standard.
 
   A rule with no annotation binds in the same way, but no gate checks it. Treat a `(CI: <task>)` rule as a hard invariant. To check a convention, grep the Rules sections first. Read the full ADR only when you need the reason for a rule.
-- **House style** for prose, logs, CLI output, and code comments is [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md). Its Simple English profile follows ASD-STE100. It also adopts ISO 24495-1 plain language, the Google developer-docs voice, OTel semantic conventions for logs, and clig.dev for CLI output. Only the local deltas are normative.
+- **House style** for prose, logs, CLI output, and code comments is [ADR-0001](docs/adr/0001-documentation-conventions.md). Its Simple English profile follows ASD-STE100. It also adopts ISO 24495-1 plain language, the Google developer-docs voice, OTel semantic conventions for logs, and clig.dev for CLI output. Only the local deltas are normative.
   - Its **banned-constructs table** governs every doc and comment you write: no chronology, no intensifiers, no hedges, no meta-commentary.
   - Every word carries meaning. Three or more items that share two or more attributes are a table.
   - Its **three comment tests** decide whether a comment exists at all. The deletion test: keep a comment only if its absence would cause a wrong change, and doubt resolves to deletion. The genre test: a sentence that is still true without the file belongs in an ADR or a doc, and the comment cites it. The length test: one paragraph of at most three lines, and one line is the norm.
@@ -67,28 +67,28 @@ The set is large, and each task needs a small part of it. Grep the Rules section
   - To change what a service does, edit its `requirements.md` first. A new rule gets the next free ID. A rule whose meaning changes gets a new ID, and the old ID is not used again.
   - Then put the ID in the name of each test that proves it, then change the code. All three land in one pull request.
   - Never commit a proposal, plan, or task file. The diff to `requirements.md` is the proposal.
-- **Genre decides the path**, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md). `docs/adr/` holds decisions, `docs/guide/` holds procedures, `docs/reference/` holds lookups and registries, and `docs/requirements/` holds journey requirements. The `docs/` root holds the entry documents and the registries that an ADR names as canonical. [docs/README.md](docs/README.md) indexes everything. A doc holds a procedure or live state. A decision lives only in its ADR.
-- **An ADR is law, not a plan.** It states what is true of this platform, never what someone intends to do. Do not add a `Follow-ups` section, a roadmap, a `TODO`, or a remark such as `not yet wired`. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and the rule binds anyway, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md).
+- **Genre decides the path**, per [ADR-0001](docs/adr/0001-documentation-conventions.md). `docs/adr/` holds decisions, `docs/guide/` holds procedures, `docs/reference/` holds lookups and registries, and `docs/requirements/` holds journey requirements. The `docs/` root holds the entry documents and the registries that an ADR names as canonical. [docs/README.md](docs/README.md) indexes everything. A doc holds a procedure or live state. A decision lives only in its ADR.
+- **An ADR is law, not a plan.** It states what is true of this platform, never what someone intends to do. Do not add a `Follow-ups` section, a roadmap, a `TODO`, or a remark such as `not yet wired`. A gap between an ADR and the repo is unfinished work, not an unfinished decision, and the rule binds anyway, per [ADR-0001](docs/adr/0001-documentation-conventions.md).
 - **Planned work goes in a local `*.local.md` file.** `.gitignore` excludes these files, and nothing committed links to them.
   - `PLAN.local.md` is this repo's plan file. Record there any gap you find between a decision and the code.
   - The file can be absent. That is normal, because each engineer keeps their own and it is not tracked.
   - Never create a committed roadmap, backlog, or status file to replace it. Every generated project inherits a tracked plan and then carries someone else's backlog.
   - A `*.local.md` file and its content are private to the engineer who wrote it. Never cite, quote, or reference one in a commit, a doc, a PR description, or any other output. If some of its content is worth keeping, write it again in the ADR or doc where it belongs.
-- **Audience.** Every project generated from this repo inherits the ADR set. So write an ADR for the engineer who maintains the platform, not for a person who decides whether to adopt it. Never write `this template targets` or `when not to use this` in an ADR. That is selection guidance, and it belongs in the root `README.md`. Nothing under `docs/` links to that file, because a generated project rewrites it, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md).
+- **Audience.** Every project generated from this repo inherits the ADR set. So write an ADR for the engineer who maintains the platform, not for a person who decides whether to adopt it. Never write `this template targets` or `when not to use this` in an ADR. That is selection guidance, and it belongs in the root `README.md`. Nothing under `docs/` links to that file, because a generated project rewrites it, per [ADR-0001](docs/adr/0001-documentation-conventions.md).
 - **Component tiers and the operational budget** are in [docs/operational-surface.md](docs/operational-surface.md): Core, Scale, and Opt-in. It is also the **only** place where platform components are counted.
 - **Before you write a number, ask whether doubling it would change the decision.**
   - If it would, the number is a threshold or a sizing measurement. State it with the conditions it was measured under.
   - If it would not, the number is decoration and goes stale. Write the shape, such as `the platform dominates the footprint`, not the figure.
-  - Never count live state that lives elsewhere, such as `the four observability components`, `ten workflows in .github/workflows/`, or `~25 components`. Link to the registry instead, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md).
+  - Never count live state that lives elsewhere, such as `the four observability components`, `ten workflows in .github/workflows/`, or `~25 components`. Link to the registry instead, per [ADR-0001](docs/adr/0001-documentation-conventions.md).
 
 ## Working in the repo
 
-- The task runner is `mise`, configured in the root `.mise.toml`. Run a task with `mise run <task>`. `mise run cluster:up` and `cluster:up full` start the local cluster, per [ADR-0600](docs/adr/0600-local-development-loop.md).
+- The task runner is `mise`, configured in the root `.mise.toml`. Run a task with `mise run <task>`. `just cluster-up` and `cluster-up full` start the local cluster, per [ADR-0600](docs/adr/0600-local-development-loop.md).
 - `mise` pins and installs the tools. In a shell where mise is not active, a bare tool call such as `kubectl`, `helm`, `go`, or `bun` comes from `PATH`. That is usually a version in the home folder, and it is not pinned.
   - Activate mise with `mise activate` or its shims before you call a pinned tool by name.
   - `mise run <task>` activates the toolchain for that task only. A bare tool call does not.
-- Generated code is committed, and CI checks it for drift, per [ADR-0000](docs/adr/0000-platform-foundations.md) and [ADR-0303](docs/adr/0303-api-contracts-and-lifecycle.md). Regenerate it with `mise run gen`. Do not edit generated files by hand.
+- Generated code is committed, and CI checks it for drift, per [ADR-0000](docs/adr/0000-platform-foundations.md) and [ADR-0303](docs/adr/0303-api-contracts-and-lifecycle.md). Regenerate it with `just gen`. Do not edit generated files by hand.
 - Argo CD reconciles the cluster from `master`. A change in the working tree is not visible in the cluster until someone pushes it, per [ADR-0201](docs/adr/0201-gitops.md).
-  - To test uncommitted work on the full tier, pause Argo CD first with `mise run argo:pause`. Resume it with `mise run argo:resume` when you finish.
+  - To test uncommitted work on the full tier, pause Argo CD first with `just argo-pause`. Resume it with `just argo-resume` when you finish.
   - While Argo CD is paused, the cluster stops tracking `master` and gives no warning. Never leave it paused.
-- Before you finish a change, run `mise run check` or `mise run pre-commit` to lint, test, and format. `mise run test`, `lint`, and `format` run each step alone.
+- Before you finish a change, run `just check` or `just pre-commit` to lint, test, and format. `just test`, `lint`, and `format` run each step alone.

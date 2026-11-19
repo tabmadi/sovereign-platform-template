@@ -4,7 +4,7 @@
 
 It walks one change, **adding a field to a service**, through every gate that the change passes. The change is small on purpose, because the field is not the point. A two-line edit to an OpenAPI file touches eight mechanisms. The platform is fast to work in when you know which mechanism reports to you.
 
-**What you need first:** a local floor. Run `mise run cluster:up`. If the floor does not start, read [`../dev-loop.md`](../dev-loop.md).
+**What you need first:** a local floor. Run `just cluster-up`. If the floor does not start, read [`../dev-loop.md`](../dev-loop.md).
 
 ## The change
 
@@ -27,16 +27,16 @@ Three rules bind that field, and a gate checks each one:
 
 | Rule | Why | Gate |
 | --- | --- | --- |
-| Timestamps are RFC 3339, UTC, with a literal `Z` | one wire format. An offset other than `Z` is rejected, not converted, per [ADR-0003](../adr/0003-naming-and-identifiers.md) | `lint:openapi` |
-| Property names are `snake_case` | each surface has one fixed wire casing | `lint:openapi` |
-| Shared shapes come from `tools/codegen/shared-components.yaml` | timestamps, identifiers, and the error envelope are identical across specs, because they are one file, not five copies | `lint:openapi` |
+| Timestamps are RFC 3339, UTC, with a literal `Z` | one wire format. An offset other than `Z` is rejected, not converted, per [ADR-0003](../adr/0003-naming-and-identifiers.md) | `lint-openapi` |
+| Property names are `snake_case` | each surface has one fixed wire casing | `lint-openapi` |
+| Shared shapes come from `tools/codegen/shared-components.yaml` | timestamps, identifiers, and the error envelope are identical across specs, because they are one file, not five copies | `lint-openapi` |
 
 **If the field holds money, stop and read [ADR-0003](../adr/0003-naming-and-identifiers.md) before you type.** A money field of type `number` is a contract defect, because the generated TypeScript client parses it as a double. Use a `string` that carries a decimal, backed by Postgres `numeric`.
 
 ## 2. Generate
 
 ```sh
-mise run gen
+just gen
 ```
 
 This rewrites three trees from the edited spec:
@@ -68,13 +68,13 @@ Use `timestamptz`, never `timestamp`. A column that holds personal data also nee
 COMMENT ON COLUMN products.owner_email IS 'pii:contact';
 ```
 
-`lint:sql` checks both.
+`lint-sql` checks both.
 
 ## 4. Query and handler
 
 Add the column to the sqlc query, regenerate, and then wire the handler. Two rules apply here. The code around them does not show either one:
 
-- **No cross-service import.** If `restock_at` needs data from `orders`, the data arrives through the generated client, never as a Go import, per [ADR-0101](../adr/0101-monorepo.md). `depguard` fails the build on such an import.
+- **No cross-service import.** If `restock_at` needs data from `orders`, the data arrives through the generated client, never as a Go import, per [ADR-0111](../adr/0111-monorepo.md). `depguard` fails the build on such an import.
 - **Errors use the platform envelope**, not a custom shape. Return the RFC 9457 problem type. `libs/go/observability` fills `trace_id` from the active span, so your handler does not, per [ADR-0303](../adr/0303-api-contracts-and-lifecycle.md).
 
 An authz-relevant change belongs in a Temporal workflow, not in a bare store method. An example is a field that decides who can see a resource. The database write and the OpenFGA tuple write must succeed or fail together, per [ADR-0302](../adr/0302-temporal.md) and [ADR-0304](../adr/0304-identity-and-authorization.md).
@@ -82,9 +82,9 @@ An authz-relevant change belongs in a Temporal workflow, not in a bare store met
 ## 5. Run it
 
 ```sh
-mise run db:migrate
-mise run server                     # terminal 1
-mise run service:dev -- catalog     # terminal 2, once
+just db-migrate
+just server                     # terminal 1
+just service-dev catalog     # terminal 2, once
 ```
 
 Then call it through `https://dev.localtest.me:8443/api/products`, not through the port directly. **A curl to the port sends your service forged identity headers.** A request that works on the port and fails through the edge is the most common local surprise, per [`../dev-loop.md`](../dev-loop.md).
@@ -95,17 +95,17 @@ Nine gates, in the order in which they fail:
 
 | Gate | Rejects | Where |
 | --- | --- | --- |
-| `ci:gen` | generated trees that do not match your spec. This is the drift check | before anything else is worth reading |
-| `lint:openapi` | casing, timestamp format, a divergent shared component, a missing `example` on a 2xx response | the spec |
-| `lint:service-contract` | a resource prefix that collides with one from another service | the spec |
+| `ci-gen` | generated trees that do not match your spec. This is the drift check | before anything else is worth reading |
+| `lint-openapi` | casing, timestamp format, a divergent shared component, a missing `example` on a 2xx response | the spec |
+| `lint-service-contract` | a resource prefix that collides with one from another service | the spec |
 | `oasdiff` | a breaking change. It **labels** the pull request and does not block it | the spec, against `master` |
-| `lint:sql` | a `timestamp` where `timestamptz` belongs, a PII column without a tag | the migration |
-| `lint:api-audience` | a route exposed at the wrong audience | the spec and the edge config |
-| `ci:lint` | everything else: Go, TypeScript, Markdown, shell | the whole diff |
-| `ci:affected` | nothing. It **selects** what the rest of CI runs | the diff |
-| `ci:test` | unit and integration tests for the selected services | the selection |
+| `lint-sql` | a `timestamp` where `timestamptz` belongs, a PII column without a tag | the migration |
+| `lint-api-audience` | a route exposed at the wrong audience | the spec and the edge config |
+| `ci-lint` | everything else: Go, TypeScript, Markdown, shell | the whole diff |
+| `ci-affected` | nothing. It **selects** what the rest of CI runs | the diff |
+| `ci-test` | unit and integration tests for the selected services | the selection |
 
-**Understand `ci:affected` above all.** It reads your diff and decides which services CI exercises. Nothing tests a change that it does not select. That is a known and accepted risk, not a bug, per row 8 of [`../reference/risk-register.md`](../reference/risk-register.md). A change can be subtle, for example in a shared library, a chart value, or a generated tree. Then check that the affected output lists the services you expect.
+**Understand `ci-affected` above all.** It reads your diff and decides which services CI exercises. Nothing tests a change that it does not select. That is a known and accepted risk, not a bug, per row 8 of [`../reference/risk-register.md`](../reference/risk-register.md). A change can be subtle, for example in a shared library, a chart value, or a generated tree. Then check that the affected output lists the services you expect.
 
 **Add the `e2e` label if your change touches more than one service.** The full browser suite runs nightly. Without the label, a cross-service regression stays in `master` until the morning, per [`../reference/build-path.md`](../reference/build-path.md).
 
@@ -124,7 +124,7 @@ A machine already checks everything else.
 
 The dense rules above buy you these savings:
 
-- No version to bump. Releases use CalVer over the repository, computed at release time, per [ADR-0103](../adr/0103-release-and-versioning.md).
+- No version to bump. Releases use CalVer over the repository, computed at release time, per [ADR-0112](../adr/0112-release-and-versioning.md).
 - No client to write by hand, in either language, and no admin page to build.
 - No chart to edit. The service chart is shared and takes values, per [ADR-0201](../adr/0201-gitops.md).
 - No environment to configure. Local, dev, staging, and production use the same chart with different values, per [ADR-0205](../adr/0205-environment-parity.md).

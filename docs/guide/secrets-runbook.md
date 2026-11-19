@@ -11,16 +11,16 @@ This guide shows how to manage secrets. [ADR-0202](../adr/0202-secrets.md) holds
 ## Generate or rotate the age key
 
 ```sh
-mise run secrets:age            # generates the local age key material
+just secrets-age            # generates the local age key material
 ```
 
-Locally, the key is disposable, and the bootstrap plants it, per [ADR-0205](../adr/0205-environment-parity.md). In a deployed environment, the age private key reaches the cluster out-of-band. It is the root of trust for decryption. A lost key is replaced: generate a new key, put its public half in `.sops.yaml`, and run `mise run secrets:updatekeys`. A leaked key also rotates every secret that it opens.
+Locally, the key is disposable, and the bootstrap plants it, per [ADR-0205](../adr/0205-environment-parity.md). In a deployed environment, the age private key reaches the cluster out-of-band. It is the root of trust for decryption. A lost key is replaced: generate a new key, put its public half in `.sops.yaml`, and run `just secrets-updatekeys`. A leaked key also rotates every secret that it opens.
 
 ## Edit a secret
 
 1. Decrypt the file in place with SOPS, edit it, and encrypt it again. SOPS does this as one transaction on save.
 2. Commit the encrypted file. ArgoCD and the sops-operator reconcile it into a Kubernetes Secret, per [ADR-0201](../adr/0201-gitops.md).
-3. Never paste the decrypted value into a chart values file. Review and `mise run lint:auth-inline` both guard against inlined secrets.
+3. Never paste the decrypted value into a chart values file. Review and `just lint-auth-inline` both guard against inlined secrets.
 
 ## Rotate a leaked secret
 
@@ -37,7 +37,7 @@ So change the identity in the store in the same step. Roll every consumer, not o
 
 ## Rotate the image-signing key
 
-The cosign key pair signs every first-party image. Kyverno verifies the signature at admission, per [ADR-0104](../adr/0104-supply-chain-security.md). This is the one rotation with a required order. The policy that trusts the key also blocks every deploy when the key is wrong.
+The cosign key pair signs every first-party image. Kyverno verifies the signature at admission, per [ADR-0113](../adr/0113-supply-chain-security.md). This is the one rotation with a required order. The policy that trusts the key also blocks every deploy when the key is wrong.
 
 **The policy carries both public keys through the window.** Images signed with the old key are already running. Any reschedule admits them again. If you remove the old key before those images are gone, the cluster cannot restart its own workloads.
 

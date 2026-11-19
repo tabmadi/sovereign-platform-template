@@ -15,11 +15,11 @@ If the answers need research, put it in [`docs/product/`](../product/README.md) 
 
 1. **Create the route at its final URL:** `src/app/[locale]/(<group>)/<path>/page.tsx`. Do not use a prototype path or a `-v2` suffix. Use the URL that the screen ships on.
 2. **Add the seam and its fixture.** Put the function that the screen calls in `src/lib/data/<domain>.ts`. Put its return value in `src/fixtures/<domain>.ts`. Keep the fixture deterministic: no `Math.random()` and no `new Date()` at render.
-3. **Type the fixture against the API.** End each export with `satisfies <T>`, and import `T` from `@sdks/*`. When the spec changes, `mise run gen` breaks the fixture, not the design.
+3. **Type the fixture against the API.** End each export with `satisfies <T>`, and import `T` from `@sdks/*`. When the spec changes, `just gen` breaks the fixture, not the design.
 4. **Mark an endpoint that no spec has.** Put `// no-spec: GET /members` in the fixture file and use a local type. Call `designOnly()` from `src/lib/data/mode.ts` in the seam before its real call, so the page answers 404 outside fixture mode. Data from outside every spec, such as Kratos, uses `// external: kratos GET /sessions/whoami` instead and needs no `designOnly()`.
-5. **Run with the switch on:** `NEXT_PUBLIC_FIXTURES=1 mise run dev:frontend`.
-6. **Write the copy as keys, not as text.** Add every string to `src/messages/en.json`, `de.json`, and `fa.json` in the same change. If one is missing, `lint:i18n` fails on parity. A literal in the markup fails `lint:ts`. Use `t.rich` for a sentence that contains a link. Never split one sentence into two keys.
-7. **Check the mirror.** Open the screen at `/fa/<path>` before you call it done. Use logical classes such as `ms-`, `pe-`, and `text-start`, so the layout mirrors with no extra work. `mise run lint:i18n -- -fix` converts the mechanical cases.
+5. **Run with the switch on:** `NEXT_PUBLIC_FIXTURES=1 just dev-frontend`.
+6. **Write the copy as keys, not as text.** Add every string to `src/messages/en.json`, `de.json`, and `fa.json` in the same change. If one is missing, `lint-i18n` fails on parity. A literal in the markup fails `lint-ts`. Use `t.rich` for a sentence that contains a link. Never split one sentence into two keys.
+7. **Check the mirror.** Open the screen at `/fa/<path>` before you call it done. Use logical classes such as `ms-`, `pe-`, and `text-start`, so the layout mirrors with no extra work. `just lint-i18n -fix` converts the mechanical cases.
 8. **Compose from `src/components/ui/`.** Use a primitive before you write markup. Add a missing primitive with `shadcn add <name>`. This also adds it to the job list of the design catalogue. Compose fields with `Field`. Never wire them by hand.
 9. **Use the tokens:** `bg-card`, `text-muted-foreground`, `border-border`. A raw colour in a screen is a token that escaped. [docs/brand.md](../brand.md) gives the purpose of each role.
 
@@ -38,8 +38,8 @@ A redesign of a shipped screen uses the same method. Create a branch, delete the
 Merge it. Do not keep the PR open until the backend is ready.
 
 1. If every endpoint exists, the design PR is also the promotion PR. Finish the table below in it.
-2. If an endpoint is missing, the page merges as design-only, as in step 4. `mise run release` lists it, and it answers 404 in production.
-3. The backend PR that adds the endpoint also changes the fixture to the SDK type and removes the `no-spec` marker. `lint:fixtures` fails that PR until it does.
+2. If an endpoint is missing, the page merges as design-only, as in step 4. `just release` lists it, and it answers 404 in production.
+3. The backend PR that adds the endpoint also changes the fixture to the SDK type and removes the `no-spec` marker. `lint-fixtures` fails that PR until it does.
 4. The frontend then promotes the page and removes the `designOnly()` call.
 
 ## Promoting it
@@ -51,7 +51,7 @@ A screen is finished when all five rows are true:
 | Data | the seam calls the service. The fixture stays, for design and for previews |
 | Copy | every string is a key in all three catalogues, and none is inline in the markup |
 | Accessibility | a `test()` block for the journey in `test/e2e/platform/a11y.spec.ts`, and a manual keyboard-only pass |
-| Visual | a baseline taken with `mise run e2e:visual -- --update-snapshots`, committed in the same PR |
+| Visual | a baseline taken with `just e2e-visual --update-snapshots`, committed in the same PR |
 | Catalogue | every new primitive has a kitchen-sink section |
 
 Then delete nothing. The fixture and the seam stay. They let you design the screen again.
@@ -59,9 +59,9 @@ Then delete nothing. The fixture and the seam stay. They let you design the scre
 ## What the gates stop
 
 - A production build with `NEXT_PUBLIC_FIXTURES` set fails. Fixtures cannot ship.
-- An import of `server-fetch`, a generated SDK, or a fixture from a page or a component fails `lint:ts`. Data goes through `src/lib/data/`.
-- A fixture export without `satisfies` and a type from `@sdks/*` fails `lint:fixtures`. A stale `no-spec` marker also fails it, and so does a seam that reads a `no-spec` fixture without `designOnly()`.
-- A token pair below WCAG AA in either palette fails `lint:contrast`.
-- Copy in the markup fails `lint:ts`.
-- A key missing from one catalogue fails `lint:i18n`. A physical layout class also fails it.
+- An import of `server-fetch`, a generated SDK, or a fixture from a page or a component fails `lint-ts`. Data goes through `src/lib/data/`.
+- A fixture export without `satisfies` and a type from `@sdks/*` fails `lint-fixtures`. A stale `no-spec` marker also fails it, and so does a seam that reads a `no-spec` fixture without `designOnly()`.
+- A token pair below WCAG AA in either palette fails `lint-contrast`.
+- Copy in the markup fails `lint-ts`.
+- A key missing from one catalogue fails `lint-i18n`. A physical layout class also fails it.
 - A `serious` or `critical` axe violation on a promoted journey fails the merge.

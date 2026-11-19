@@ -23,7 +23,7 @@ terraform -chdir=infra/talos/<env> apply
 
 # 3. Lay the bootstrap floor and the root Application. Argo CD reconciles
 #    everything else.
-mise run argocd:bootstrap <env>
+just argocd-bootstrap <env>
 
 # 4. Restore Postgres from its archive. In the environment's platform values,
 #    set `cluster.recovery.fromServer` to the lost cluster's archive name: its

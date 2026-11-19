@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0100](0100-language-and-runtime.md), [ADR-0101](0101-monorepo.md), [ADR-0103](0103-release-and-versioning.md), [ADR-0302](0302-temporal.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0500](0500-observability.md)
+- **Related:** [ADR-0003](0003-naming-and-identifiers.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0111](0111-monorepo.md), [ADR-0112](0112-release-and-versioning.md), [ADR-0302](0302-temporal.md), [ADR-0305](0305-edge-auth-and-traffic-policy.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0500](0500-observability.md)
 - **Decides:** Hand-written OpenAPI 3.1 is the contract source of truth, and every HTTP service implements the handler generated from it.
 
 ## Context
@@ -65,7 +65,7 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP is used eve
 | **ogen** | spec-first | the server itself, with typed handlers | **in the generated decoder**, from the same spec | **Chosen.** Drivers 2 and 5 follow from the design. Nothing enforces them on top of it *(reasoned)* |
 | oapi-codegen | spec-first | stubs *into* chi, echo, gin, or `net/http` | an optional middleware that reads the spec at runtime | The incumbent and the closest alternative. With validation as runtime middleware, a second copy of the contract is read at request time. It is not compiled into the types |
 | huma | **code-first**: the spec is emitted from Go types | the spec | struct tags | It reverses driver 5: the code becomes the source and the contract the artefact. It is right for an API with one co-shipped consumer. It is wrong when a third party pins the API |
-| OpenAPI Generator | spec-first | stubs in many languages | varies by generator | A JVM toolchain, per [ADR-0100](0100-language-and-runtime.md), and its Go output is among its weakest targets. It is kept below for public SDKs, where the range of languages is the whole point |
+| OpenAPI Generator | spec-first | stubs in many languages | varies by generator | A JVM toolchain, per [ADR-0110](0110-language-and-runtime.md), and its Go output is among its weakest targets. It is kept below for public SDKs, where the range of languages is the whole point |
 | Hand-written handlers plus a runtime spec validator | neither | nothing | a runtime check | Nothing forces the spec and the handlers to agree, which fails driver 5 |
 
 ### The rest of the spec toolchain
@@ -75,7 +75,7 @@ Four tools read the same OpenAPI files. Each is Tier 2, per [ADR-0002](0002-tool
 | Concern | Chosen | Picked over | Why |
 | --- | --- | --- | --- |
 | TypeScript client | **`openapi-typescript` with `openapi-fetch`** | Kubb, orval, Hey API, a hand-written `fetch` wrapper | It emits types plus a thin typed `fetch`, and nothing else. The alternatives emit framework-specific hooks. These couple the published SDK to the frontend's data-fetching choice, so a new choice means a new client, per [ADR-0400](0400-frontend.md) *(reasoned)* |
-| Spec linting | **vacuum** | Spectral, Redocly CLI, no spec lint | Spectral's rule model as a Go binary, not a Node program, per [ADR-0100](0100-language-and-runtime.md). Rules are portable between the two, so the exit is one ruleset file |
+| Spec linting | **vacuum** | Spectral, Redocly CLI, no spec lint | Spectral's rule model as a Go binary, not a Node program, per [ADR-0110](0110-language-and-runtime.md). Rules are portable between the two, so the exit is one ruleset file |
 | Breaking-change detection | **oasdiff** | openapi-diff, Optic, review alone | The only option that classifies a diff as breaking or not against a rule set. The others render the diff for a human to judge. Optic covers the same ground inside a hosted workflow |
 | Reference rendering | **Scalar** | Redoc, Swagger UI, Stoplight Elements | Its request console is in the open distribution, and Redoc's console is paid. A console on a different origin from the API loses the session that the developer portal exists to test, per [ADR-0306](0306-trust-tiers-and-urls.md) *(documented)* |
 
@@ -85,7 +85,7 @@ The contract source of truth is **OpenAPI 3.1**, one spec per HTTP service at `s
 
 ### Scope: mandatory, no per-service exemption
 
-Every service that serves HTTP ships a spec and implements the ogen-generated `Handler`. This includes east-west control-plane services. Only a service with no HTTP surface, a pure worker, ships no spec. `mise run gen` finds specs by glob.
+Every service that serves HTTP ships a spec and implements the ogen-generated `Handler`. This includes east-west control-plane services. Only a service with no HTTP surface, a pure worker, ships no spec. `just gen` finds specs by glob.
 
 The `authz` service of [ADR-0304](0304-identity-and-authorization.md) owns no database, and it sits behind Oathkeeper, not the `/api` edge. It is still spec-first: its `/authorize` decision endpoint and `/operators` action are ogen operations. OpenFGA is the source of truth for the authorization *model*. The spec is the source of truth for the *HTTP contract* of authz. The two describe different things.
 
@@ -117,7 +117,7 @@ The edge also produces errors: Oathkeeper denies a request before a handler runs
 
 **Entity identifiers are the type-prefixed UUIDv7 of [ADR-0003](0003-naming-and-identifiers.md).** Each is a `string`, and the schema declares the prefix pattern. A bare UUID on the wire is a lint failure.
 
-The canonical fragment that keeps these identical is `tools/codegen/shared-components.yaml`. It is the source, and the copy in a spec is only a copy. `lint:openapi` fails when the two differ. The duplication is deliberate, and it is not trusted. The check makes the shapes identical as a fact, not as a habit.
+The canonical fragment that keeps these identical is `tools/codegen/shared-components.yaml`. It is the source, and the copy in a spec is only a copy. `lint-openapi` fails when the two differ. The duplication is deliberate, and it is not trusted. The check makes the shapes identical as a fact, not as a habit.
 
 ### URL shape: flat resource namespace
 
@@ -139,7 +139,7 @@ The service that owns a resource is a hidden edge-routing detail. All specs shar
 | TS client | `openapi-typescript` with `openapi-fetch` | `libs/ts/sdks/<service>/` |
 | Public SDKs | OpenAPI Generator | published per language for a consumer outside this repository |
 
-All generated artifacts are committed and drift-checked in CI, per [ADR-0101](0101-monorepo.md).
+All generated artifacts are committed and drift-checked in CI, per [ADR-0111](0111-monorepo.md).
 
 OpenAPI YAML is hand-written. TypeSpec and equal authoring layers are not used. A spec that grows too large is a signal to split the service or to move shapes into more `components`. It is not a reason to add a second authoring tool.
 
@@ -147,7 +147,7 @@ OpenAPI YAML is hand-written. TypeSpec and equal authoring layers are not used. 
 
 1. An API change is a PR to `services/<service>/openapi.yaml`.
 2. CI runs **vacuum** with the repo ruleset at `tools/codegen/openapi-ruleset.yaml`. It holds style and structural rules, including the resource-prefix collision check below.
-3. `mise run gen` regenerates the Go server, Go client, and TS client.
+3. `just gen` regenerates the Go server, Go client, and TS client.
 4. CI fails if generated files are stale, through `git diff --exit-code`.
 5. Hand-written code imports generated types and declares no parallel ones.
 
@@ -185,7 +185,7 @@ The field follows Zalando's `x-audience` convention. The three values simplify Z
 
 ### Lifecycle default: one live version
 
-The live API is whatever the current production release serves, per [ADR-0103](0103-release-and-versioning.md). There is no version in the path, no version header, and no support window.
+The live API is whatever the current production release serves, per [ADR-0112](0112-release-and-versioning.md). There is no version in the path, no version header, and no support window.
 
 - **A breaking change is a normal PR.** The only consumer is the co-shipped frontend. So a breaking change updates its caller in the same commit, and the two deploy together. The previous shape is not kept alive. A frontend fixture is a caller too, per [ADR-0701](0701-product-design-and-discovery.md).
 - **One commit is not one moment.** The frontend and the services roll out separately, and an open browser tab keeps its old bundle. So a rename or a removal fails some requests during a rollout. This short window is accepted.
@@ -207,7 +207,7 @@ Nothing below is built or operated until then.
 | Element | Rule |
 | --- | --- |
 | Version label | a date header, `Api-Version: 2026-07-01` |
-| Where dates come from | the subset of release dates on which the public contract changed visibly, per [ADR-0103](0103-release-and-versioning.md). Most releases create no API version |
+| Where dates come from | the subset of release dates on which the public contract changed visibly, per [ADR-0112](0112-release-and-versioning.md). Most releases create no API version |
 | Missing header | resolves to the latest version, and the response echoes the resolved date. Clients are advised to pin |
 | Support window | N-1. At most two versions are live. The previous one is sunset on a documented date |
 | Deprecation signalling | `Deprecation`, per RFC 9745, plus `Sunset`, per RFC 8594, plus a `Link` to migration notes |
@@ -233,24 +233,24 @@ Nothing below is built or operated until then.
 
 ## Rules
 
-- The contract source of truth is OpenAPI 3.1, one file per HTTP service at `services/<service>/openapi.yaml`. Every HTTP service generates its server with ogen. East-west control-plane services are included. Only a service with no HTTP surface ships no spec. `(CI: lint:openapi; ref: OpenAPI 3.1)`
-- Each spec is self-contained: cross-service shapes are declared inline in `components` and kept identical across services. Cross-file `$ref` is not used. `(CI: lint:openapi)`
-- Cross-service shapes come from `tools/codegen/shared-components.yaml`, and a spec's copy is checked against it. The fragment changes first. A spec's copy is never edited on its own. `(CI: lint:openapi)`
-- Errors are RFC 9457 problem details served as `application/problem+json`, by services and by the edge alike. `type` is `about:blank`, except where two errors share a status code and a client handles them differently. That case takes a `urn:problem-type:` URN. Every error carries `trace_id`. `detail` contains no stack trace, query, or internal hostname. `(CI: lint:openapi; ref: RFC 9457)`
-- Timestamps on the wire are RFC 3339 in UTC with a literal `Z`, and a non-`Z` offset is rejected. A duration is an integer field named for its unit. Entity identifiers are the type-prefixed UUIDv7 of [ADR-0003](0003-naming-and-identifiers.md), and a bare UUID is a lint failure. `(CI: lint:openapi; ref: RFC 3339, RFC 9562)`
-- An edge-exposed spec's `servers` url is `/api`, and its paths are globally unique resource nouns. The exposed URL carries no service segment and no version segment. A service with only `cluster` operations uses `servers: /`. `(CI: lint:service-contract)`
-- Every spec declares `info.x-audience` on the ladder `cluster`, `internal`, `public`, with `cluster` as the default. An operation can override it. It scopes documentation and is not access control. `(CI: lint:api-audience)`
-- A service is edge-exposed if it has an `internal` or `public` operation, and only then. A service with only `cluster` operations has no `/api` route. `(CI: lint:api-audience)`
-- All clients and server stubs are generated from the spec and committed. `(CI: ci:gen)`
-- Hand-written code imports generated types. Parallel hand-written request and response types are not declared. `(CI: lint:authz)`
+- The contract source of truth is OpenAPI 3.1, one file per HTTP service at `services/<service>/openapi.yaml`. Every HTTP service generates its server with ogen. East-west control-plane services are included. Only a service with no HTTP surface ships no spec. `(CI: lint-openapi; ref: OpenAPI 3.1)`
+- Each spec is self-contained: cross-service shapes are declared inline in `components` and kept identical across services. Cross-file `$ref` is not used. `(CI: lint-openapi)`
+- Cross-service shapes come from `tools/codegen/shared-components.yaml`, and a spec's copy is checked against it. The fragment changes first. A spec's copy is never edited on its own. `(CI: lint-openapi)`
+- Errors are RFC 9457 problem details served as `application/problem+json`, by services and by the edge alike. `type` is `about:blank`, except where two errors share a status code and a client handles them differently. That case takes a `urn:problem-type:` URN. Every error carries `trace_id`. `detail` contains no stack trace, query, or internal hostname. `(CI: lint-openapi; ref: RFC 9457)`
+- Timestamps on the wire are RFC 3339 in UTC with a literal `Z`, and a non-`Z` offset is rejected. A duration is an integer field named for its unit. Entity identifiers are the type-prefixed UUIDv7 of [ADR-0003](0003-naming-and-identifiers.md), and a bare UUID is a lint failure. `(CI: lint-openapi; ref: RFC 3339, RFC 9562)`
+- An edge-exposed spec's `servers` url is `/api`, and its paths are globally unique resource nouns. The exposed URL carries no service segment and no version segment. A service with only `cluster` operations uses `servers: /`. `(CI: lint-service-contract)`
+- Every spec declares `info.x-audience` on the ladder `cluster`, `internal`, `public`, with `cluster` as the default. An operation can override it. It scopes documentation and is not access control. `(CI: lint-api-audience)`
+- A service is edge-exposed if it has an `internal` or `public` operation, and only then. A service with only `cluster` operations has no `/api` route. `(CI: lint-api-audience)`
+- All clients and server stubs are generated from the spec and committed. `(CI: ci-gen)`
+- Hand-written code imports generated types. Parallel hand-written request and response types are not declared. `(CI: lint-authz)`
 - The service validates request schemas through the generated ogen server. The edge performs no schema validation and no business-rule validation.
 - Server-Sent Events is the default streaming mechanism. A WebSocket endpoint carries a justification in the service README.
 - gRPC, Connect-RPC, GraphQL, and tRPC are not used.
 - OpenAPI YAML is hand-written. TypeSpec and equal authoring layers are not used.
-- A spec change is a PR. Merge is blocked until vacuum passes and `mise run gen` produces no diff. `(CI: ci:lint, ci:gen)`
+- A spec change is a PR. Merge is blocked until vacuum passes and `just gen` produces no diff. `(CI: ci-lint, ci-gen)`
 - The API serves a single live version: the current production release. There is no version in the path or in a header, and no support window.
 - A breaking contract change ships in one PR with its co-shipped caller, fixtures included. The previous shape is not kept alive.
 - Expand and contract is allowed only when one PR would be too large to review. The old shape then goes in a later release.
 - The frontend sets the Next.js `deploymentId` to its build version, so a tab from an older build reloads on its next navigation.
-- `oasdiff` labels breaking changes for review. It is not a version gate. `(CI: ci:lint)`
+- `oasdiff` labels breaking changes for review. It is not a version gate. `(CI: ci-lint)`
 - Online versioning is deferred behind the trigger of a consumer outside lockstep, and the default does not operate it. It consists of a date `Api-Version` header, an N-1 window, `Deprecation`, `Sunset`, and `Link` headers, and a response-transformation layer bounded to N-1.

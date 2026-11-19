@@ -189,10 +189,10 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 
 | Concern | Current decision | ADR |
 | --- | --- | --- |
-| Backend language | Go | [0100](docs/adr/0100-language-and-runtime.md) |
-| Frontend | Next.js and TypeScript on Bun, one app with route groups | [0100](docs/adr/0100-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) |
+| Backend language | Go | [0110](docs/adr/0110-language-and-runtime.md) |
+| Frontend | Next.js and TypeScript on Bun, one app with route groups | [0110](docs/adr/0110-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) |
 | Design system | `shadcn/ui`, vendored as source, on Tailwind, with the brand in one token file | [0400](docs/adr/0400-frontend.md), [0701](docs/adr/0701-product-design-and-discovery.md) |
-| Task runner | `mise` | [0101](docs/adr/0101-monorepo.md) |
+| Task runner | `mise` | [0111](docs/adr/0111-monorepo.md) |
 | Machines | Talos Linux, configured by machine config | [0200](docs/adr/0200-cluster-topology.md) |
 | Cloud resources | Terraform, for each project. Skipped where the infrastructure is provided | [0200](docs/adr/0200-cluster-topology.md) |
 | Cluster | upstream Kubernetes on etcd in every tier, on kind for both local tiers | [0200](docs/adr/0200-cluster-topology.md), [0600](docs/adr/0600-local-development-loop.md) |
@@ -213,14 +213,14 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 | Operator UIs | Grafana funnel, Hubble UI, Headlamp | [0501](docs/adr/0501-operator-uis-and-dashboards.md) |
 | Alerting | Prometheus rules and Alertmanager. Escalation goes to a hosted service | [0502](docs/adr/0502-alerting-and-on-call.md) |
 | Error tracking | OTel exceptions with a computed `error.fingerprint`. No separate product | [0503](docs/adr/0503-error-tracking.md) |
-| Source control and CI | Forgejo and Forgejo Actions, entered through `mise run ci:*`. A provider-hosted forge is the bootstrap path | [0102](docs/adr/0102-source-control-and-ci.md) |
-| Supply chain | cosign with a key pair held in SOPS, syft SBOM, SLSA provenance, Trivy as a merge gate | [0104](docs/adr/0104-supply-chain-security.md) |
-| Registry | zot, one instance for each environment, backed by object storage | [0105](docs/adr/0105-image-registry.md) |
+| Source control and CI | Forgejo and Forgejo Actions, entered through `just ci:*`. A provider-hosted forge is the bootstrap path | [0116](docs/adr/0116-forge-and-pipelines.md) |
+| Supply chain | cosign with a key pair held in SOPS, syft SBOM, SLSA provenance, Trivy as a merge gate | [0113](docs/adr/0113-supply-chain-security.md) |
+| Registry | zot, one instance for each environment, backed by object storage | [0114](docs/adr/0114-image-registry.md) |
 | Testing | Playwright, k6, `go test`, `bun test` | [0601](docs/adr/0601-testing-strategy.md) |
 | Internal admin | Lowdefy over the service APIs. pgweb, read-only | [0401](docs/adr/0401-internal-admin.md) |
 | Analytics | Faro events into a first-party service | [0700](docs/adr/0700-analytics.md) |
-| Dependency updates | Renovate, grouped, with digest pinning | [0106](docs/adr/0106-dependency-updates.md) |
-| Template propagation | Copier, which tracks upstream with a 3-way merge | [0106](docs/adr/0106-dependency-updates.md) |
+| Dependency updates | Renovate, grouped, with digest pinning | [0117](docs/adr/0117-updates-and-setup-modes.md) |
+| Template propagation | Copier, which tracks upstream with a 3-way merge | [0117](docs/adr/0117-updates-and-setup-modes.md) |
 
 ---
 
@@ -230,16 +230,16 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 # One-time setup
 curl https://mise.run | sh
 mise install                    # pinned toolchain from .mise.toml
-mise run setup                  # git hooks
-mise run secrets:age            # generate your age key, per ADR-0202
+just setup                  # git hooks
+just secrets-age            # generate your age key, per ADR-0202
 
 # Local cluster: the same charts as production, on two tiers
-mise run cluster:up             # the floor: edge, identity, Postgres, mocks
-mise run cluster:up -- full     # the whole platform, driven by ArgoCD, with observability
+just cluster-up             # the floor: edge, identity, Postgres, mocks
+just cluster-up full     # the whole platform, driven by ArgoCD, with observability
 
 # Inner loop on one service: a native process, no image build
 cd services/catalog
-mise run server
+just server
 ```
 
 The full walkthrough is [`docs/dev-loop.md`](docs/dev-loop.md).
@@ -261,7 +261,7 @@ infra/terraform/     provisioning, where the project owns its infrastructure
 docs/adr/            the decisions, and the reasons for them
 ```
 
-These conventions are not negotiable for each service. [0101](docs/adr/0101-monorepo.md), [0300](docs/adr/0300-data.md), and [0303](docs/adr/0303-api-contracts-and-lifecycle.md) depend on them. A deviation needs a new ADR.
+These conventions are not negotiable for each service. [0111](docs/adr/0111-monorepo.md), [0300](docs/adr/0300-data.md), and [0303](docs/adr/0303-api-contracts-and-lifecycle.md) depend on them. A deviation needs a new ADR.
 
 ---
 
@@ -283,10 +283,10 @@ Build real services from `services/_template/`.
 ## How decisions are recorded
 
 - **[ADRs](docs/adr)**: every load-bearing decision, with a comparison against the alternatives and the trigger that would open it again. Start at [ADR-0000](docs/adr/0000-platform-foundations.md). [`docs/adr/README.md`](docs/adr/README.md) has the block map and the full index.
-- **[ADR-0001](docs/adr/0001-documentation-and-output-conventions.md)**: the rules for these documents. It covers density, banned constructs, section order, and the same rules for code comments.
+- **[ADR-0001](docs/adr/0001-documentation-conventions.md)**: the rules for these documents. It covers density, banned constructs, section order, and the same rules for code comments.
 - **Rules sections**: each ADR ends with flat, greppable normative statements. They are written so that humans and LLMs apply them the same way.
 - **Requirements**: what each service must do, in `services/<name>/requirements.md`, and what each journey across services must do, in [`docs/requirements/`](docs/requirements). Every requirement has an ID that a test cites, and CI checks the trace, per [ADR-0602](docs/adr/0602-behaviour-requirements.md).
-- **Fitness functions**: machines enforce rules wherever possible, through admission control, type checking, drift-checked codegen, and static analysis for architectural invariants. A rule that a machine enforces names its mechanism, per [ADR-0001](docs/adr/0001-documentation-and-output-conventions.md).
+- **Fitness functions**: machines enforce rules wherever possible, through admission control, type checking, drift-checked codegen, and static analysis for architectural invariants. A rule that a machine enforces names its mechanism, per [ADR-0001](docs/adr/0001-documentation-conventions.md).
 
 ---
 

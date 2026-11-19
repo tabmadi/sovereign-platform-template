@@ -1,6 +1,6 @@
 # The full tier runs through ArgoCD locally, per ADR-0201 and ADR-0600
 
-`mise run cluster:up -- full` **is** the ArgoCD path. It does these steps in order:
+`just cluster-up full` **is** the ArgoCD path. It does these steps in order:
 
 1. It creates the cluster.
 2. It installs the two components that ArgoCD cannot bootstrap: the CNI and ArgoCD itself.
@@ -23,21 +23,21 @@ The local platform appset excludes Cilium and ArgoCD. The bootstrap installs the
 
 ## Testing uncommitted changes
 
-### Service code: `cluster:add`
+### Service code: `cluster-add`
 
 This is the fast path. Build your working-tree service into the cluster. It overrides the copy that Argo synced from the CI image:
 
 ```sh
-mise run cluster:add -- catalog     # build → push to the local registry → helm upgrade (Argo auto-sync paused)
+just cluster-add catalog     # build → push to the local registry → helm upgrade (Argo auto-sync paused)
 ```
 
-### Platform chart or values: `cluster:add`
+### Platform chart or values: `cluster-add`
 
 ```sh
-mise run cluster:add -- ory         # working-tree helm upgrade, Argo auto-sync paused on that app
+just cluster-add ory         # working-tree helm upgrade, Argo auto-sync paused on that app
 ```
 
-When you finish, turn GitOps on again for that app. The command prints the exact `kubectl patch`. Or run `cluster:up full` again.
+When you finish, turn GitOps on again for that app. The command prints the exact `kubectl patch`. Or run `cluster-up full` again.
 
 ### GitOps wiring: a branch
 
@@ -52,18 +52,18 @@ git push -u origin my-gitops-change
 # revision and targetRevision default to master. Then bring the full tier up:
 sed -i -E 's/(revision|targetRevision): master/\1: my-gitops-change/' \
   infra/gitops/local-bootstrap/*.yaml
-mise run cluster:up -- full
+just cluster-up full
 ```
 
 Revert the `sed` before you merge. `master` is the committed default. ArgoCD must be able to clone the repo. This template's repo is public, so a local run needs no credentials.
 
 ## CNI and CRD-operator changes, for example Cilium
 
-For these changes, prefer a new cluster to an in-place upgrade. Run `mise run cluster:down -- full`, then a fresh `cluster:up -- full` **with** the change. A CNI swap on a live cluster interrupts networking for a short time. This comes from the component, not from a gap in the tooling.
+For these changes, prefer a new cluster to an in-place upgrade. Run `just cluster-down full`, then a fresh `cluster-up -- full` **with** the change. A CNI swap on a live cluster interrupts networking for a short time. This comes from the component, not from a gap in the tooling.
 
-## Troubleshooting: `local-root` never converges after `cluster:stop`
+## Troubleshooting: `local-root` never converges after `cluster-stop`
 
-`cluster:stop` freezes cluster state. This includes any ArgoCD sync operation that is still `Running`. On resume, the controller attaches again to that operation. It reuses the task plan from the start of the operation, including sync waves. It ignores what the manifests say now. So a sync that started before a fix to a wave annotation never converges, and `argocd app wait` times out.
+`cluster-stop` freezes cluster state. This includes any ArgoCD sync operation that is still `Running`. On resume, the controller attaches again to that operation. It reuses the task plan from the start of the operation, including sync waves. It ignores what the manifests say now. So a sync that started before a fix to a wave annotation never converges, and `argocd app wait` times out.
 
-- `cluster:up full` repairs this itself. After the first wait times out, `scripts/cluster.sh` terminates the stuck operation. It then forces a fresh sync, which computes the plan again against current git. Only after that does the task fail.
+- `cluster-up full` repairs this itself. After the first wait times out, `scripts/cluster.sh` terminates the stuck operation. It then forces a fresh sync, which computes the plan again against current git. Only after that does the task fail.
 - Outside that path, run `argocd --core app terminate-op <app>`, then `argocd --core app sync <app>`.

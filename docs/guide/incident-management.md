@@ -31,7 +31,7 @@ For Sev 3 and 4, one person holds all three roles. The scribe's work is a few li
 
 ## The sequence
 
-1. **Declare.** Open an issue in the forge, per [ADR-0102](../adr/0102-source-control-and-ci.md). Give the severity and one sentence of user-visible impact. An early declaration that you later close costs little. A late declaration costs more.
+1. **Declare.** Open an issue in the forge, per [ADR-0116](../adr/0116-forge-and-pipelines.md). Give the severity and one sentence of user-visible impact. An early declaration that you later close costs little. A late declaration costs more.
 2. **Mitigate before you diagnose.** Service recovery and cause analysis are different jobs, and the first comes first. A rollback is a mitigation, per [ADR-0201](../adr/0201-gitops.md). Disabling a feature or shedding load are mitigations too.
 3. **Diagnose from the funnel.** The three dashboard levels answer in order, per [ADR-0501](../adr/0501-operator-uis-and-dashboards.md):
    - what is wrong
@@ -59,7 +59,7 @@ A postmortem is blameless in the operational sense. Its subject is the system th
 **An action item without a home is not an action item.** These are the homes:
 
 - a rule in the owning ADR
-- a check in `mise run lint`
+- a check in `just lint`
 - an alert rule
 - a row in [`deferral-register`](../reference/deferral-register.md)
 - a runbook under `docs/guide/`

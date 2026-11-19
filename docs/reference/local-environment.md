@@ -4,7 +4,7 @@ These are lookup tables for the local cluster: ports, URLs, and the environment 
 
 ## Service ports on the host
 
-`scripts/lib/ports.sh` assigns the ports, and each service's `.mise.toml` sets its port as `PORT`. `lint:ports` enforces that the two agree and that no two services collide.
+`scripts/lib/ports.sh` assigns the ports, and each service's `.mise.toml` sets its port as `PORT`. `lint-ports` enforces that the two agree and that no two services collide.
 
 | Service | Host port |
 | --- | --- |
@@ -20,7 +20,7 @@ To override the port for a single run, set `PORT=` in that service's `.env`. It 
 
 ## Forwarded dependencies
 
-`mise run dev:forward` exposes the in-cluster dependencies to the host process and to tools such as `psql`.
+`just dev-forward` exposes the in-cluster dependencies to the host process and to tools such as `psql`.
 
 | Dependency | Host address |
 | --- | --- |
@@ -65,14 +65,14 @@ The **Auth** column is the coarse gate, which is always on. It requires the `ope
 | `seaweedfs.ops.dev.localtest.me:8443` | SeaweedFS admin UI, non-prod only | none |
 | `zot.ops.dev.localtest.me:8443` | zot console: the registry catalogue, the tags, and what the mirror has cached | none |
 
-Every tool above trusts the edge and serves anonymously. So an operator who passes the gate lands directly on the tool. **The zot console cannot serve anonymously.** Its access policy is one configuration for one process. To open the console would also open `registry.dev.localtest.me:8443` to anonymous pulls, per [ADR-0105](../adr/0105-image-registry.md). So the platform presents the credential for the browser. A small reverse proxy in the zot pod adds the registry's `cluster` pull user on the `zot.ops` origin only. The operator sees no second prompt. The `registry.<host>` origin still asks for that credential. Read it with `kubectl -n platform get secret zot-credentials -o jsonpath='{.data.htpasswd}' | base64 -d`. The password of the local bundle is the committed throwaway one.
+Every tool above trusts the edge and serves anonymously. So an operator who passes the gate lands directly on the tool. **The zot console cannot serve anonymously.** Its access policy is one configuration for one process. To open the console would also open `registry.dev.localtest.me:8443` to anonymous pulls, per [ADR-0114](../adr/0114-image-registry.md). So the platform presents the credential for the browser. A small reverse proxy in the zot pod adds the registry's `cluster` pull user on the `zot.ops` origin only. The operator sees no second prompt. The `registry.<host>` origin still asks for that credential. Read it with `kubectl -n platform get secret zot-credentials -o jsonpath='{.data.htpasswd}' | base64 -d`. The password of the local bundle is the committed throwaway one.
 
 **Two zots run locally, and each answers a different question:**
 
 - `zot.ops` above is the platform's own registry. It runs in the cluster, uses the object store, and is the component that a deployed environment runs.
 - The **nodes pull from** the host container at `http://registry.localhost:5000`. It mirrors the upstream registries and holds the repo's own images. It serves its console at that address with no login. So you can check on a page whether an image is cached, with no `curl`.
 
-The split is not redundancy. A `*.localtest.me` name does not resolve inside a node. So locally the in-cluster registry cannot be the node pull source, per [ADR-0105](../adr/0105-image-registry.md). The host container is the pull source. The in-cluster instance is still deployed, so that the full tier exercises its chart. After bring-up, `cluster:up full` mirrors the first-party images into it. So its `zot.ops` catalogue shows the same images that CI pushes in a deployed environment, and it is not empty. A CI job skips the mirror, because no test reads the catalogue. If `zot.ops` is empty, the mirror step has not run. `mise run cluster:populate-zot` fills it.
+The split is not redundancy. A `*.localtest.me` name does not resolve inside a node. So locally the in-cluster registry cannot be the node pull source, per [ADR-0114](../adr/0114-image-registry.md). The host container is the pull source. The in-cluster instance is still deployed, so that the full tier exercises its chart. After bring-up, `cluster-up full` mirrors the first-party images into it. So its `zot.ops` catalogue shows the same images that CI pushes in a deployed environment, and it is not empty. A CI job skips the mirror, because no test reads the catalogue. If `zot.ops` is empty, the mirror step has not run. `just cluster-populate-zot` fills it.
 
 **Why the node registry is not on `localtest.me`.** A browser on the host reaches every origin in the table above. On the host, `*.localtest.me` resolves to `127.0.0.1`, and the edge answers. But a **node's containerd** reaches the registry. Inside a node container, `127.0.0.1` is the node itself. So a `localtest.me` name would send every image pull to the wrong place. `registry.localhost` is the registry container's own name. Docker's embedded DNS resolves it to the container's address from any container on the network. The registry also cannot go through the edge: Traefik's own image must be pulled before Traefik can route anything.
 
@@ -84,7 +84,7 @@ Without the edge, you can still reach Grafana with `kubectl -n platform port-for
 
 ## Frontend environment contract
 
-`mise run dev:frontend` sets these variables. Another way to start the dev server needs the same values, for example an IDE run configuration or a debugger. For this, copy `apps/frontend/.env.example` to `.env.local`. Next loads it before it evaluates its config.
+`just dev-frontend` sets these variables. Another way to start the dev server needs the same values, for example an IDE run configuration or a debugger. For this, copy `apps/frontend/.env.example` to `.env.local`. Next loads it before it evaluates its config.
 
 | Variable | Why it exists |
 | --- | --- |
@@ -101,18 +101,18 @@ Browser-side calls need none of this. The client uses a relative `/api`, which i
 
 | Task | Does |
 | --- | --- |
-| `mise run setup` | install the git hooks. Once per clone |
-| `mise run server`, `mise run worker` | run a service natively. Resolves the floor plus its declared dependencies |
-| `mise run dev:forward` | port-forward the dependencies to the host. Leave it running |
-| `mise run dev:frontend` | run the frontend dev server against the edge |
-| `mise run db:migrate` | apply the migrations of every service to the local database |
-| `mise run auth:seed` | seed the committed test identities |
-| `mise run cluster:up` | the local floor |
-| `mise run cluster:up -- full` | the real charts at single replica, through Argo CD |
-| `mise run cluster:add -- <name>` | build, import, and deploy one service or platform chart |
-| `mise run cluster:remove -- <name>` | uninstall **and restore Argo auto-sync** |
-| `mise run cluster:stop`, `mise run cluster:down` | stop and keep the image cache, or delete. Both take the tier: `-- full` |
-| `mise run cluster:heal` | recover a cluster that is stuck after a host reboot |
-| `mise run e2e`, `mise run e2e:smoke` | browser acceptance suites, per [ADR-0601](../adr/0601-testing-strategy.md) |
-| `mise run perf`, `perf:smoke`, `perf:stress`, `perf:seed` | load suites, per the [perf runbook](../guide/performance-runbook.md) |
-| `mise run lint`, `mise run format` | every language, including Markdown |
+| `just setup` | install the git hooks. Once per clone |
+| `just server`, `just worker` | run a service natively. Resolves the floor plus its declared dependencies |
+| `just dev-forward` | port-forward the dependencies to the host. Leave it running |
+| `just dev-frontend` | run the frontend dev server against the edge |
+| `just db-migrate` | apply the migrations of every service to the local database |
+| `just auth-seed` | seed the committed test identities |
+| `just cluster-up` | the local floor |
+| `just cluster-up full` | the real charts at single replica, through Argo CD |
+| `just cluster-add <name>` | build, import, and deploy one service or platform chart |
+| `just cluster-remove <name>` | uninstall **and restore Argo auto-sync** |
+| `just cluster-stop`, `just cluster-down` | stop and keep the image cache, or delete. Both take the tier: `-- full` |
+| `just cluster-heal` | recover a cluster that is stuck after a host reboot |
+| `just e2e`, `just e2e-smoke` | browser acceptance suites, per [ADR-0601](../adr/0601-testing-strategy.md) |
+| `just perf`, `perf-smoke`, `perf-stress`, `perf-seed` | load suites, per the [perf runbook](../guide/performance-runbook.md) |
+| `just lint`, `just format` | every language, including Markdown |

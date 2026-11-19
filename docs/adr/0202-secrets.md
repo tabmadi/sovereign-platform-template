@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0101](0101-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md)
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0003](0003-naming-and-identifiers.md), [ADR-0111](0111-monorepo.md), [ADR-0200](0200-cluster-topology.md), [ADR-0201](0201-gitops.md), [ADR-0205](0205-environment-parity.md)
 - **Decides:** Secrets are SOPS-encrypted to three classes of age recipient, and an operator decrypts them in the cluster.
 
 ## Context
@@ -72,7 +72,7 @@ Every encrypted file has exactly three recipient classes, declared in `.sops.yam
 
 **The local tier is the exemption, and the same file bounds it.** A local cluster lives only as long as a `mise` task, and no bootstrap step creates a key for it. So the local private key is committed at `infra/gitops/platform/local/age.key`, and its creation rule names that key as the only recipient. The key is safe because of what it opens, not because it is secret. It opens throwaway values in a cluster that holds no real data, per [ADR-0205](0205-environment-parity.md). A real credential encrypted to this key is a leak, not a shortcut. The preview tier uses the same path for the same reason.
 
-**The committed key is per project, not per template.** A template that ships one local key ships a default credential to every project generated from it. The reasoning that the key is throwaway does not travel with the copy. So `cluster:up` creates a new local key on first use and re-encrypts the local bundle to it, through `mise run bootstrap`. The shared key then stops opening a project as soon as anyone runs its cluster. This is not a second exemption. It keeps the first one bounded to one repository.
+**The committed key is per project, not per template.** A template that ships one local key ships a default credential to every project generated from it. The reasoning that the key is throwaway does not travel with the copy. So `cluster-up` creates a new local key on first use and re-encrypts the local bundle to it, through `just bootstrap`. The shared key then stops opening a project as soon as anyone runs its cluster. This is not a second exemption. It keeps the first one bounded to one repository.
 
 The `secrets` ApplicationSet delivers these per-environment files to the cluster at sync-wave 1, per [ADR-0201](0201-gitops.md). This wave comes after the operator in the base tier and before the data tier that consumes the Secrets.
 
@@ -96,20 +96,20 @@ Service authors reference secrets by Kubernetes Secret name in Helm values, in t
 
 ### Local decryption
 
-Run `mise run secrets:age` once. After that, `cluster:up` and any `sops decrypt` work with no more configuration. To run against the secrets of a real environment:
+Run `just secrets-age` once. After that, `cluster-up` and any `sops decrypt` work with no more configuration. To run against the secrets of a real environment:
 
 ```sh
 sops exec-env infra/gitops/platform/dev/secrets/platform.enc.yaml -- mise run -C services/<svc> server
 ```
 
-The inner loop needs no decryption. Each service's `.env.example` carries local development credentials. It is copied to `.env` and loaded by the service's `.mise.toml`, so `mise run server` works alone.
+The inner loop needs no decryption. Each service's `.env.example` carries local development credentials. It is copied to `.env` and loaded by the service's `.mise.toml`, so `just server` works alone.
 
 ### Key lifecycle
 
 | Event | Procedure |
 | --- | --- |
-| Onboarding | The engineer runs `mise run secrets:age`, opens a PR that adds the public key to `.sops.yaml`, and runs `mise run secrets:updatekeys`. The PR diff is the audit trail |
-| Offboarding | Remove the public key, run `mise run secrets:updatekeys`, and **rotate every secret that the engineer could read**. Removal of a recipient re-keys later versions only. Every published commit stays readable by the key it was encrypted to. Rotation is standing policy, whatever the reason for the departure |
+| Onboarding | The engineer runs `just secrets-age`, opens a PR that adds the public key to `.sops.yaml`, and runs `just secrets-updatekeys`. The PR diff is the audit trail |
+| Offboarding | Remove the public key, run `just secrets-updatekeys`, and **rotate every secret that the engineer could read**. Removal of a recipient re-keys later versions only. Every published commit stays readable by the key it was encrypted to. Rotation is standing policy, whatever the reason for the departure |
 | Cluster-key rotation | Generate a new pair. Add the public key as an extra recipient on environment-scoped files. Update the Secret in the cluster. Remove the old key after one full sync cycle |
 | Ops-recovery rotation | A new key is generated each year as part of the security review. The old key is destroyed |
 
@@ -120,7 +120,7 @@ The encrypted files live in git, so they have git's distribution. The private ke
 | Key | Backup |
 | --- | --- |
 | Engineer | one offline copy that the engineer keeps. With the laptop and the copy both lost, the engineer runs the onboarding flow again with a new key |
-| Cluster | none. A lost key is replaced: a new key, its public half in `.sops.yaml`, and `mise run secrets:updatekeys`. On Talos, the SOPS-encrypted machine config carries the key, and an apply of that config plants it again |
+| Cluster | none. A lost key is replaced: a new key, its public half in `.sops.yaml`, and `just secrets-updatekeys`. On Talos, the SOPS-encrypted machine config carries the key, and an apply of that config plants it again |
 | Ops-recovery | offline copies on the hardware tokens of more than one senior engineer, so a single departure does not lose recovery |
 
 ## Consequences
@@ -142,16 +142,16 @@ The encrypted files live in git, so they have git's distribution. The private ke
 
 ## Rules
 
-- Plaintext secret values do not appear in any committed file. The one exemption is the local tier's age private key at `infra/gitops/platform/local/age.key`. It decrypts throwaway local values only, per [ADR-0205](0205-environment-parity.md). `(CI: lint:secrets)`
+- Plaintext secret values do not appear in any committed file. The one exemption is the local tier's age private key at `infra/gitops/platform/local/age.key`. It decrypts throwaway local values only, per [ADR-0205](0205-environment-parity.md). `(CI: lint-secrets)`
 - All committed secrets are SOPS-encrypted to age recipients listed in `.sops.yaml`.
 - Every encrypted file outside the local tier has exactly three recipient classes: per-engineer keys, the cluster key of the matching environment, and the ops-recovery key. Local files are encrypted to the committed local key alone.
 - Age private keys are not stored in shared services. Engineer keys live on laptops. Cluster keys live only in the cluster they belong to, with two exceptions: the local tier's committed key, and the SOPS-encrypted Talos machine config that plants the key.
 - A credential that no machine consumes is registered in [`docs/reference/credential-register.md`](../reference/credential-register.md) with its home, never its value.
 - A credential that reaches or repairs the infrastructure that serves this repository is also held offline. A recovery credential stored only inside what it recovers is unreachable at the moment it is needed.
 - Every engineer and ops-recovery age private key has an offline backup. The key is one line of text, and it opens every secret encrypted to it. Without a backup, the loss of its laptop is a total loss.
-- A cluster key has no backup of its own. A lost key is replaced, not restored from a copy. The replacement is a new key, its public half in `.sops.yaml`, and `mise run secrets:updatekeys`. Every file it opens is also encrypted to the engineers. So a lost cluster key costs one commit, and a backup of it is one more copy to guard.
+- A cluster key has no backup of its own. A lost key is replaced, not restored from a copy. The replacement is a new key, its public half in `.sops.yaml`, and `just secrets-updatekeys`. Every file it opens is also encrypted to the engineers. So a lost cluster key costs one commit, and a backup of it is one more copy to guard.
 - Service Helm values reference secrets by Kubernetes Secret name. Services do not call SOPS or age at runtime.
-- Onboarding adds a public key by PR plus `mise run secrets:updatekeys`. Offboarding removes it by PR plus `mise run secrets:updatekeys`, plus rotation of every secret that the engineer could read.
+- Onboarding adds a public key by PR plus `just secrets-updatekeys`. Offboarding removes it by PR plus `just secrets-updatekeys`, plus rotation of every secret that the engineer could read.
 - Rotation at offboarding is mandatory, whatever the reason for the departure.
 - The ops-recovery private key is never online and never on a single machine, and it is rotated every year.
 - The sops-operator produces every cluster Secret from an encrypted file in the repo. `kubectl create secret` is not used.

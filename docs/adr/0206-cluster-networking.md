@@ -120,7 +120,7 @@ Traefik  (TLS via cert-manager, L7 routing, rate limiting)
 
 **DNS.** One wildcard `A` record per environment points at the load-balancer IP. cert-manager requests one wildcard certificate per environment through DNS-01. `external-dns` is not used, because the wildcard covers new services.
 
-**The zone is declared in the repository and applied from it** by [dnscontrol](https://docs.dnscontrol.org/), through `mise run dns:apply`. A wildcard leaves few records, and few records make the whole zone declarable. The file states every record, and the apply deletes every record that the provider holds and the file does not. The alternative is a zone that states intent while a console holds the truth. That is the drift that every other part of this platform refuses. `external-dns` stays unused. It reconciles records for Kubernetes objects, and the wildcard leaves none to reconcile.
+**The zone is declared in the repository and applied from it** by [dnscontrol](https://docs.dnscontrol.org/), through `just dns-apply`. A wildcard leaves few records, and few records make the whole zone declarable. The file states every record, and the apply deletes every record that the provider holds and the file does not. The alternative is a zone that states intent while a console holds the truth. That is the drift that every other part of this platform refuses. `external-dns` stays unused. It reconciles records for Kubernetes objects, and the wildcard leaves none to reconcile.
 
 Terraform owns DNS where a project provisions through a provider, per [ADR-0200](0200-cluster-topology.md). Where a project operates its own hypervisor and runs no Terraform, dnscontrol owns the zone.
 
@@ -170,8 +170,8 @@ Cilium covers CNI and mesh as one component. Its eBPF datapath without sidecars 
 - Default-deny is enforced for ingress and egress across every platform pod. All allows add to it. `(enforced: CiliumNetworkPolicy)`
 - WireGuard transparent encryption is on for all east-west pod traffic. Plaintext east-west traffic is not shipped.
 - A clusterwide policy denies `169.254.169.254/32`, so no egress grant can become a metadata-SSRF path. `(enforced: CiliumNetworkPolicy)`
-- Cilium NetworkPolicy is the internal trust boundary between services, and each service declares its allowed callers. `(CI: lint:service-contract)`
+- Cilium NetworkPolicy is the internal trust boundary between services, and each service declares its allowed callers. `(CI: lint-service-contract)`
 - No dedicated service mesh is deployed, with sidecars or ambient. A mesh runs over the CNI, not in place of it. So a mesh is a second component that provides encryption, identity, and L4 policy again, after Cilium. The edge and the app already cover its L7 layer.
 - Each environment has one wildcard `A` record and one wildcard certificate. `external-dns` is not used.
-- Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. `(CI: dns:check)`
+- Every record in every zone that the project owns is declared in `infra/dns/` and applied from it. A record created in the provider's console does not survive the next apply. `(CI: dns-check)`
 - An environment is provisioned only where the provider offers a DNS API that cert-manager supports and `PTR` delegation on the mail egress IP.
