@@ -47,9 +47,9 @@ apex="$(ask apex_host "The apex host of the product. The environments are dev., 
 registry="$(ask image_registry "The registry namespace of the published images, per ADR-0114" "ghcr.io/acme/${slug}")"
 forge="$(ask forge "Where the pipelines run, per ADR-0116: github or forgejo" "github")"
 [[ "$forge" =~ ^(github|forgejo)$ ]] || fail "the forge is github or forgejo: ${forge}"
-provisioning="$(ask provisioning "How the nodes come to exist, per ADR-0200: terraform, provided, or hypervisor" "terraform")"
-[[ "$provisioning" =~ ^(terraform|provided|hypervisor)$ ]] ||
-  fail "the provisioning is terraform, provided, or hypervisor: ${provisioning}"
+provisioning="$(ask provisioning "How the nodes come to exist, per ADR-0200: opentofu, provided, or hypervisor" "opentofu")"
+[[ "$provisioning" =~ ^(opentofu|provided|hypervisor)$ ]] ||
+  fail "the provisioning is opentofu, provided, or hypervisor: ${provisioning}"
 
 step "initialising ${project_name} as ${slug}"
 bash scripts/project-rename.sh "$slug" "$module" "$apex" "$registry"
@@ -67,7 +67,7 @@ drop_mode() { # <answer> <value> <path>
 drop_mode "$forge" forgejo infra/runner
 drop_mode "$forge" forgejo infra/forge-host
 drop_mode "$provisioning" hypervisor infra/hypervisor
-drop_mode "$provisioning" terraform infra/terraform
+drop_mode "$provisioning" opentofu infra/opentofu
 
 bash scripts/forge-mode.sh "$forge"
 

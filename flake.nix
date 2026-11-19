@@ -44,11 +44,7 @@
           ...
         }:
         let
-          pkgs = import inputs.nixpkgs {
-            inherit system;
-            # Terraform is under the Business Source License, which nixpkgs marks as unfree, per ADR-0200.
-            config.allowUnfreePredicate = p: lib.getName p == "terraform";
-          };
+          pkgs = inputs.nixpkgs.legacyPackages.${system};
 
           inherit (config.tabnix.bun) check;
 
@@ -187,7 +183,7 @@
             pkgs.kubectl
             pkgs.argocd
             pkgs.cilium-cli
-            pkgs.terraform
+            pkgs.opentofu
             pkgs.kind
             pkgs.talosctl
             pkgs.age

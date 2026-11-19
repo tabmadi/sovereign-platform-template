@@ -91,7 +91,7 @@ test/e2e/.auth/
 # A committed summary is out of date the next day.
 test/perf/results/
 
-# Helm and Terraform
+# Helm and OpenTofu
 **/charts/*.tgz
 # The exception: charts with no `dependencies:` that vendor their subcharts instead.
 # The ArgoCD repo-server then renders them with no network fetch, which hangs behind the local privoxy edge.

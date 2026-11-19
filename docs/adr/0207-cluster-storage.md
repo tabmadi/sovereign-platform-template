@@ -128,7 +128,7 @@ A Temporal `Schedule` rehearses the restore quarterly and opens a tracking issue
 
 **The platform does not provision it. This is a decision, not an omission.**
 
-[ADR-0200](0200-cluster-topology.md) already makes Terraform a per-project tool and skips it where infrastructure is pre-provided. A reference module for the object store would reverse that for one component. A module must name a provider, and that choice picks a cloud for every adopter. It would do so for the one component that this ADR places outside the cluster and outside its failure domain. An adopter on a different provider would then delete a module instead of filling in a blank. That is worse than no module.
+[ADR-0200](0200-cluster-topology.md) already makes OpenTofu a per-project tool and skips it where infrastructure is pre-provided. A reference module for the object store would reverse that for one component. A module must name a provider, and that choice picks a cloud for every adopter. It would do so for the one component that this ADR places outside the cluster and outside its failure domain. An adopter on a different provider would then delete a module instead of filling in a blank. That is worse than no module.
 
 So the provisioning of the store is a **per-project obligation**. In exchange, this ADR owes a requirement exact enough to meet without guessing:
 

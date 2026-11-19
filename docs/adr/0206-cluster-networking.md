@@ -122,13 +122,13 @@ Traefik  (TLS via cert-manager, L7 routing, rate limiting)
 
 **The zone is declared in the repository and applied from it** by [dnscontrol](https://docs.dnscontrol.org/), through `just dns-apply`. A wildcard leaves few records, and few records make the whole zone declarable. The file states every record, and the apply deletes every record that the provider holds and the file does not. The alternative is a zone that states intent while a console holds the truth. That is the drift that every other part of this platform refuses. `external-dns` stays unused. It reconciles records for Kubernetes objects, and the wildcard leaves none to reconcile.
 
-Terraform owns DNS where a project provisions through a provider, per [ADR-0200](0200-cluster-topology.md). Where a project operates its own hypervisor and runs no Terraform, dnscontrol owns the zone.
+OpenTofu owns DNS where a project provisions through a provider, per [ADR-0200](0200-cluster-topology.md). Where a project operates its own hypervisor and runs no OpenTofu, dnscontrol owns the zone.
 
 | Option | State to keep | Runtime cost | Verdict |
 | --- | --- | --- | --- |
 | **dnscontrol** | none: the zone file is the state, and each run reads the provider | a pinned binary, run on demand | **Chosen.** It is one Go binary on a toolchain that is already Go. Its deletion logic runs across many more zones than this platform holds *(reasoned)* |
 | OctoDNS | none, with the same model | a Python runtime that this repository does not pin | The nearest equivalent. It is the right answer for a project that already carries Python or spans several providers. Recorded as the runner-up |
-| Terraform's provider | a state file per zone, kept somewhere and never lost | none beyond the binary | It brings back the tool that the hypervisor mode drops, for a few records. A lost state file leaves the zone harder to recover than the file that describes it |
+| OpenTofu's provider | a state file per zone, kept somewhere and never lost | none beyond the binary | It brings back the tool that the hypervisor mode drops, for a few records. A lost state file leaves the zone harder to recover than the file that describes it |
 | A script against the provider API | none | none | Deletion is the one operation where custom code is hardest to justify. The failure is silent, remote, and hard to reverse |
 | The provider's console | none committed | none | The truth lives where no reviewer sees it. That is the drift this ADR refuses |
 

@@ -73,7 +73,7 @@
       "groupSlug": "charts"
     },
     {
-      "description": "Terraform moves on its own, slower schedule.",
+      "description": "OpenTofu providers and modules move on their own, slower schedule. Renovate reads them with its terraform manager.",
       "matchManagers": [
         "terraform"
       ],

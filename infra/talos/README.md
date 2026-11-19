@@ -19,9 +19,9 @@ The result is that **node configuration drift is not reduced here. It is impossi
 
 ADR-0200 splits on provisioning, and **only** on provisioning. Everything after it is identical: machine configuration, Kubernetes, Cilium, and Argo CD.
 
-**A project that owns its infrastructure** runs Terraform in `infra/terraform/`. Terraform creates the instances. Then it applies these same documents through the first-party `siderolabs/talos` provider. Machine-config apply and bootstrap become a plan, and not a script.
+**A project that owns its infrastructure** runs OpenTofu in `infra/opentofu/`. OpenTofu creates the instances. Then it applies these same documents through the first-party `siderolabs/talos` provider. Machine-config apply and bootstrap become a plan, and not a script.
 
-**A project that gets existing machines** does not use Terraform. It applies these documents to the nodes named in `inventory/<env>/nodes.yml`. Pre-provided means **pre-provided Talos**. A fleet that runs another system needs a reprovision, and not a configuration step.
+**A project that gets existing machines** does not use OpenTofu. It applies these documents to the nodes named in `inventory/<env>/nodes.yml`. Pre-provided means **pre-provided Talos**. A fleet that runs another system needs a reprovision, and not a configuration step.
 
 ## Applying
 

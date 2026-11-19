@@ -2,4 +2,4 @@
 slug: example
 apex: example.com
 forge: github
-provisioning: terraform
+provisioning: opentofu

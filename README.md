@@ -195,7 +195,7 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 | Toolchain | Nix with flakes, through the shared tabnix module | [0100](docs/adr/0100-toolchain.md) |
 | Task runner | `just` | [0103](docs/adr/0103-tasks.md), [0111](docs/adr/0111-monorepo.md) |
 | Machines | Talos Linux, configured by machine config | [0200](docs/adr/0200-cluster-topology.md) |
-| Cloud resources | Terraform, for each project. Skipped where the infrastructure is provided | [0200](docs/adr/0200-cluster-topology.md) |
+| Cloud resources | OpenTofu, for each project. Skipped where the infrastructure is provided | [0200](docs/adr/0200-cluster-topology.md) |
 | Cluster | upstream Kubernetes on etcd in every tier, on kind for both local tiers | [0200](docs/adr/0200-cluster-topology.md), [0600](docs/adr/0600-local-development-loop.md) |
 | Deploy | Argo CD, the only mechanism. One shared Helm chart, with values for each environment | [0201](docs/adr/0201-gitops.md) |
 | Network and policy | Cilium with Hubble, WireGuard, default-deny | [0206](docs/adr/0206-cluster-networking.md) |
@@ -260,7 +260,7 @@ libs/{go,ts}/sdks/   generated OpenAPI clients, committed and drift-checked in C
 infra/helm/          the shared service chart, and the platform component charts
 infra/gitops/        Argo CD Applications and the values for each environment
 infra/talos/         machine configs
-infra/terraform/     provisioning, where the project owns its infrastructure
+infra/opentofu/     provisioning, where the project owns its infrastructure
 docs/adr/            the decisions, and the reasons for them
 ```
 

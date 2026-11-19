@@ -364,7 +364,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 
 | Rule | Enforced by |
 | --- | --- |
-| Production runs on plain compute instances, never on managed Kubernetes. Terraform is a per-project tool. A project skips it where infrastructure is pre-provided or where the project operates the hypervisor itself. | review |
+| Production runs on plain compute instances, never on managed Kubernetes. OpenTofu is a per-project tool. A project skips it where infrastructure is pre-provided or where the project operates the hypervisor itself. | review |
 | Where the project creates its own nodes, the creation steps and the image reference are committed with the inventory. | review |
 | Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node. | review |
 | Every environment runs three control-plane nodes with etcd on each. Workers are added when the resource-pressure trigger fires. | review |

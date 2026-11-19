@@ -53,7 +53,7 @@ MACHINERY=(template scripts/project-rename.sh scripts/project-init.sh scripts/fo
 MODES="forge|forgejo|infra/runner
 forge|forgejo|infra/forge-host
 provisioning|hypervisor|infra/hypervisor
-provisioning|terraform|infra/terraform"
+provisioning|opentofu|infra/opentofu"
 
 mode_problems() { # <out> <fixture>
   local out="$1" fixture="$2" key value path chosen
@@ -61,7 +61,7 @@ mode_problems() { # <out> <fixture>
     chosen="$(yq -r ".${key} // \"\"" "$fixture")"
     case "$key" in
     forge) chosen="${chosen:-github}" ;;
-    provisioning) chosen="${chosen:-terraform}" ;;
+    provisioning) chosen="${chosen:-opentofu}" ;;
     esac
     if [ "$chosen" = "$value" ] && [ ! -e "$out/$path" ]; then echo "${path} is missing for ${key} ${value}"; fi
     if [ "$chosen" != "$value" ] && [ -e "$out/$path" ]; then echo "${path} is present for ${key} ${chosen}"; fi

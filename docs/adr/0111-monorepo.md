@@ -111,7 +111,7 @@ libs/
     └── sdks/<service>/       # generated TS client
 
 infra/
-├── terraform/                # cluster + DNS + LB provisioning
+├── opentofu/                 # cluster + DNS + LB provisioning
 ├── helm/                     # Helm charts (ours + values for upstream)
 ├── gitops/                   # ArgoCD ApplicationSets + per-env values
 ├── talos/                    # node machine configs (ADR-0200)

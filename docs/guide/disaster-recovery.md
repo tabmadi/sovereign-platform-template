@@ -14,12 +14,12 @@ Run every command from the repository root. Step 1 applies only where the projec
 
 ```sh
 # 1. Provision a new node set: instances, network, LB, DNS, firewall, bucket.
-terraform -chdir=infra/terraform/environments/<env> apply
+tofu -chdir=infra/opentofu/environments/<env> apply
 
 # 2. Apply the Talos machine configs, bootstrap the cluster, and add the
-#    in-cluster age key. The target is the nodes from Terraform, or the
+#    in-cluster age key. The target is the nodes from OpenTofu, or the
 #    committed inventory of provided Talos nodes.
-terraform -chdir=infra/talos/<env> apply
+tofu -chdir=infra/talos/<env> apply
 
 # 3. Lay the bootstrap floor and the root Application. Argo CD reconciles
 #    everything else.

@@ -35,59 +35,89 @@ Parity at the manifest layer is a constraint from [ADR-0205](0205-environment-pa
 
 Kubernetes is Tier 1, per [ADR-0002](0002-tool-adoption.md). Every chart, policy, and operator, and the whole GitOps layer, use its API. A platform that assumes Kubernetes without a comparison cannot justify its weight.
 
-| Option | Ecosystem this platform depends on | Operational weight | What replaces the API | Verdict |
-| --- | --- | --- | --- | --- |
-| **Upstream Kubernetes** | CNPG, Cilium, cert-manager, Argo CD, Kyverno, and every chart on the floor exist because of it *(reasoned)* | high. It is the largest term in [`../operational-surface.md`](../operational-surface.md) | nothing | **Chosen.** The floor is not Kubernetes. The floor is the operators that exist only on Kubernetes. Without it, each operator would be a first-party system |
-| Nomad | It covers scheduling and secrets. **It does not cover the stateful operators.** It has no CNPG equivalent, so Postgres HA, backup scheduling, and PITR become first-party work *(documented)* | much lower: one binary, and no CRD layer | Nomad job files, plus Consul for service discovery | **The runner-up.** It wins on weight. It loses on the most important row at axis C high: the database. It reopens if the estate stops needing an operator ecosystem |
-| Docker Swarm | none of it | lowest of the orchestrators | compose files | It is not maintained as a growing platform. It has no policy or admission layer |
-| systemd units on plain instances | none | lowest overall, and highest per service | provisioning, plus a service discovery mechanism to write | The honest baseline. It is the correct answer at axis A low. At axis A high, the cost per service grows into the coordination problem that an orchestrator solves |
-| A self-hosted PaaS: Dokku, CapRover, or Coolify | none | low | the PaaS's own model | Each is an abstraction over containers with its own fixed deploy path. None has an operator model for stateful workloads. Principle 1 also fails: their state is a database, and their UI is the editor |
-| Managed Kubernetes | all of it | the provider's | nothing | It fails principle 3. It is here because most reference architectures at this position take it |
+| Option | 1 Sovereignty | 3 Novelty spent where it removes a failure class | 4 One node lost is not downtime | Stateful operators, the axis C obligation | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Upstream Kubernetes** | **Yes. Self-hosted, with no fee per cluster** | **The most widely operated orchestrator** | **Yes, with three control-plane nodes** | **Yes. CNPG, Cilium, cert-manager, Argo CD, and Kyverno exist because of it** | **Chosen. It is the largest term in [`operational-surface.md`](../operational-surface.md), and the operators pay for it** |
+| Nomad | Under the BUSL since 1.7, so one vendor sets the terms | Widely operated, and much lighter: one binary and no CRD layer | Yes | No. It has no CNPG equivalent, so Postgres HA, backup, and PITR become first-party work | Rejected on driver 1 and on the operators. It is the runner-up on weight |
+| Docker Swarm | Yes | Maintained by Mirantis, with no policy or admission layer | Yes | No | Rejected on the operators |
+| systemd units on plain instances | Yes | Yes | No. Each service needs its own failover | No | Rejected on driver 4 at axis A high |
+| A self-hosted PaaS: Dokku, CapRover, or Coolify | Yes | Each has its own fixed deploy path | Coolify and CapRover cluster partly | No operator model for stateful workloads | Rejected on the operators |
+| Managed Kubernetes | No. The provider sets the terms of the control plane | Yes | Yes | Yes | Rejected on driver 1 |
 
-**Stateful workloads decide the comparison.** At axis C high, failover, backup, and point-in-time recovery are the platform's core obligation, not a component choice. CloudNativePG expresses that obligation as four CRDs instead of a runbook and a cron job. Nomad's advantage in weight is real. The platform would spend it to buy back the same capability in first-party code.
+Sources:
+
+- Nomad and the other HashiCorp products moved to the BUSL in August 2023: [HashiCorp, licensing FAQ](https://www.hashicorp.com/license-faq).
+- CloudNativePG runs only on Kubernetes: [CloudNativePG](https://cloudnative-pg.io/).
+- Swarm mode and its maintainer: [Mirantis, Swarm](https://www.mirantis.com/software/swarm/).
+- Kubernetes control-plane quorum: [Kubernetes docs, options for highly available topology](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/).
+
+**Stateful workloads decide the comparison.** At axis C high, failover, backup, and point-in-time recovery are the core obligation of the platform. CloudNativePG expresses that obligation as four CRDs instead of a runbook and a cron job. Nomad's advantage in weight is real. The platform would spend it to buy back the same capability in first-party code.
 
 ### Node operating system
 
-| Option | Shell and SSH on the node | Configuration | Kubernetes | Verdict |
+| Option | 1 Sovereignty | 2 A node matches its description | 3 Novelty spent where it removes a failure class | Verdict |
 | --- | --- | --- | --- | --- |
-| **Talos Linux** | **neither. An API is the only interface** | a declarative machine config document, applied over gRPC | upstream, shipped and upgraded with the OS | **Chosen** *(reasoned)* |
-| Flatcar Container Linux | kept, with about two thousand binaries | Ignition at provision time, and anything that changes the host after that | installed separately | The CoreOS line. It keeps the shell and the drift that a shell allows. Only `/usr` is read-only |
-| Fedora CoreOS | kept | Ignition and rpm-ostree | installed separately | The same as Flatcar. It also does not assume Kubernetes, so the parts this platform never uses are still attack surface |
-| Bottlerocket | disabled by default, reachable through an admin container | API-driven, the closest in approach to Talos | installed separately | The nearest match in approach. Its platform support centres on AWS, and its bare-metal documentation is poor. Driver 1 makes this decisive |
-| Debian stable, converged by Ansible | full | playbooks that converge a mutable host | k3s, installed by playbook | The honest baseline. A node matches its description only as far as the playbooks are complete. Re-running them is the only evidence |
+| **Talos Linux** | **Yes. MPL-2.0, and bare metal is a first-class target** | **Yes. No shell and no SSH. An API applies one machine config document** | **It removes host drift as a class, which driver 3 asks for** | **Chosen** |
+| Flatcar Container Linux | Yes | No. A shell and SSH stay, and only `/usr` is read-only | Widely operated | Rejected on driver 2 |
+| Fedora CoreOS | Yes | No. A shell stays, and rpm-ostree layers change the host | Widely operated | Rejected on driver 2 |
+| Bottlerocket | Partly. Its variants centre on AWS, with fewer for bare metal | Mostly. API-driven, with an admin container for a shell | Less widely operated than Talos off AWS | Rejected on driver 1 |
+| NixOS, with Kubernetes from nixpkgs | Yes | Yes, as far as the Nix config declares the host. A shell stays | Kubernetes on NixOS is less widely operated than on Talos | Rejected on driver 3. NixOS stays the choice for the hosts outside the cluster, per [ADR-0100](0100-toolchain.md) |
+| Debian stable, converged by Ansible | Yes | Only as far as the playbooks are complete | The most widely operated | Rejected on driver 2 |
+
+Sources:
+
+- Talos has no shell or SSH, and an API applies the machine config: [Talos docs, philosophy](https://www.talos.dev/latest/learn-more/philosophy/).
+- Flatcar mounts `/usr` read-only and keeps the rest: [Flatcar docs](https://www.flatcar.org/docs/latest/).
+- Fedora CoreOS and rpm-ostree: [Fedora CoreOS docs](https://docs.fedoraproject.org/en-US/fedora-coreos/).
+- Bottlerocket variants: [Bottlerocket, variants](https://github.com/bottlerocket-os/bottlerocket/blob/develop/variants/README.md).
+- Kubernetes on NixOS: [NixOS wiki, Kubernetes](https://wiki.nixos.org/wiki/Kubernetes).
 
 **The node is the only mutable part left in the system.** Git reconciles cluster state, per [ADR-0201](0201-gitops.md). Pods run on a base with no shell and no package manager, per [ADR-0111](0111-monorepo.md). The pod network is default-deny. Against that posture, the host shell is the one remaining escalation path and the one remaining source of drift. An immutable node makes the description and the described thing one object. This is the failure class that driver 3 requires the ADR to name.
 
-Driver 3 also admits the cost: this OS is less widely operated than Debian. The ADR records that cost in *Consequences*.
-
 ### Kubernetes distribution
 
-| Option | Installer to operate | Coupling to the node OS | What it bundles | Verdict |
+| Option | 1 Sovereignty | 2 A node matches its description | 3 Novelty | Verdict |
 | --- | --- | --- | --- | --- |
-| **Upstream Kubernetes, shipped by Talos** | none | one artefact, one upgrade path | nothing beyond Kubernetes | **Chosen.** The distribution and the OS upgrade together, with no installer between them *(reasoned)* |
-| k3s | its own | independent | Traefik, ServiceLB, `local-path`, and CoreDNS, all replaceable | The bundles are the real loss here. A chart in this repository already replaces each one. Its smaller footprint comes from the single-node SQLite configuration. Three-node HA needs etcd, so that configuration is not available. **Resources do not decide this row in either direction.** k3s is conformant, so it is not a smaller Kubernetes to move away from later |
-| k0s | its own | independent | nothing | k3s without the bundles. This removes the only real difference from the chosen option and keeps the separate installer |
-| Full upstream kubeadm | its own | independent | nothing | The same upstream Kubernetes, with an installer to operate. Talos removes that installer |
-| Managed Kubernetes: EKS, GKE, or AKS | none. The provider operates it | none | the provider's choices | It fails driver 1. The provider sets the terms on which the control plane runs, and fees per cluster add up across environments |
+| **Upstream Kubernetes, shipped by Talos** | **Yes** | **Yes. One artefact, one upgrade path, no installer** | **Upstream and conformant** | **Chosen** |
+| k3s | Yes | Its installer and bundles live beside the OS. A chart here already replaces Traefik, ServiceLB, `local-path`, and CoreDNS | Conformant. Three-node HA needs etcd, so its small SQLite setup is not available | Rejected on driver 2 |
+| k0s | Yes | A separate installer | Conformant | Rejected on driver 2 |
+| kubeadm | Yes | A separate installer to operate | Upstream | Rejected on driver 2 |
+| Managed Kubernetes: EKS, GKE, or AKS | No | Not applicable | Upstream | Rejected on driver 1 |
+
+Sources:
+
+- Talos ships upstream Kubernetes and upgrades it with the OS: [Talos docs, upgrading Kubernetes](https://www.talos.dev/latest/kubernetes-guides/upgrading-kubernetes/).
+- k3s bundles and its datastore options: [k3s docs, architecture](https://docs.k3s.io/architecture), [k3s docs, datastore](https://docs.k3s.io/datastore).
 
 ### Day-one node count
 
-| Option | Failure behaviour | Migration to HA later | Verdict |
+| Option | 4 One node lost is not downtime | Migration to HA later | Verdict |
 | --- | --- | --- | --- |
-| **Three nodes, embedded etcd** | survives the loss of one node with no downtime | not needed | **Chosen.** Embedded etcd needs three nodes for quorum. Starting at three removes the rebuild *(reasoned)* |
-| One node | downtime of several minutes on any node failure | a rebuild, with a data migration | It fails driver 4 at every scale |
-| Two nodes | **worse than one.** It has no quorum, and two failure domains can lose it | a rebuild | An even quorum is the classic mistake. This row names it |
-| Three nodes, etcd on dedicated hosts | the same as the chosen option | not needed | The same guarantee on more machines. It becomes right when etcd competes with workloads. That is a growth trigger, not a day-one shape |
+| **Three nodes, embedded etcd** | **Yes** | **not needed** | **Chosen** |
+| One node | No | a rebuild, with a data migration | Rejected on driver 4 |
+| Two nodes | No. Two members have no quorum when one fails, so it is worse than one | a rebuild | Rejected on driver 4 |
+| Three nodes, etcd on dedicated hosts | Yes | not needed | Rejected for day one. It becomes right when etcd competes with workloads |
+
+Sources:
+
+- etcd needs a majority of members: [etcd docs, failure tolerance](https://etcd.io/docs/v3.5/faq/#what-is-failure-tolerance).
 
 ### Provisioning
 
-| Option | Licence | State model | Provider coverage for this shape | Verdict |
+| Option | 1 Sovereignty | 2 A node matches its description | 3 Novelty | Verdict |
 | --- | --- | --- | --- | --- |
-| **Terraform** | [BUSL-1.1](https://www.hashicorp.com/license-faq) *(documented)* | one state file per environment, kept with the project's infrastructure | The `siderolabs/talos` provider is first-party. With it, machine-config apply and bootstrap are a plan, not a script *(documented)* | **Chosen.** A project with pre-provided infrastructure skips it, so the licence binds a tool that a project may never run |
-| OpenTofu | MPL-2.0 | the same | the same providers, and its own registry | The fork exists because of the licence above, and it is a drop-in replacement. It is the standing exit, not the choice. Releases of the Talos provider target Terraform first, and this is the one provider whose currency is load-bearing |
-| Pulumi | Apache-2.0 | a service or a self-managed backend | good | Infrastructure in a general-purpose language. That is more expressive than this shape needs, and it adds a backend to run or a service to depend on |
-| Crossplane | Apache-2.0 | Kubernetes resources, reconciled | good | The cluster provisions its own base. This is a bootstrap circularity: the creator runs inside the thing it creates |
-| Provider CLIs in a script | not applicable | none | total | The honest baseline. It has no plan step, so a run shows the difference between intent and effect only after it happens |
+| Terraform | No. The BUSL lets one vendor change the terms | Yes. A plan shows the change before it applies | The most widely operated | Rejected on driver 1 |
+| **OpenTofu** | **Yes. MPL-2.0, under the Linux Foundation** | **Yes. The same plan and state model** | **A fork of Terraform with the same language and providers, the `siderolabs/talos` provider included** | **Chosen** |
+| Pulumi | Yes, with a self-managed backend | Yes | A general-purpose language and a backend to run | Rejected. It adds a backend to the floor |
+| Crossplane | Yes | Yes, reconciled | The cluster provisions its own base, a bootstrap cycle | Rejected. The creator runs inside the thing it creates |
+| Provider CLIs in a script | Yes | No. No plan step | Yes | Rejected on driver 2 |
+
+Sources:
+
+- The licence of Terraform: [HashiCorp, licensing FAQ](https://www.hashicorp.com/license-faq).
+- OpenTofu, its licence, and its home at the Linux Foundation: [OpenTofu](https://opentofu.org/), [OpenTofu FAQ](https://opentofu.org/faq/).
+- The Talos provider in the OpenTofu registry: [siderolabs/talos](https://search.opentofu.org/provider/siderolabs/talos/latest).
+- Crossplane provisions from inside a cluster: [Crossplane docs](https://docs.crossplane.io/).
 
 ## Decision
 
@@ -97,13 +127,13 @@ Production runs on **plain compute instances**, never on a provider's managed Ku
 
 | Mode | Provisioning | Bucket |
 | --- | --- | --- |
-| The project provisions its own infrastructure | Terraform under `infra/terraform/` creates instances, network, LB, DNS, firewall, and bucket. It isolates the provider behind a stable interface. A provider change is a module swap, not a topology change | created |
-| Infrastructure is pre-provided | Terraform is skipped. The machine configs are applied to existing Talos nodes named in a committed inventory | referenced by configuration |
-| The project operates the hypervisor | Committed scripts create the nodes on hardware that the project runs. To rebuild a node, the project re-images its disk from the Talos image. Terraform is skipped: no provider API sits between the project and the metal, so the node lifecycle is a script against one hypervisor | created |
+| The project provisions its own infrastructure | OpenTofu under `infra/opentofu/` creates instances, network, LB, DNS, firewall, and bucket. It isolates the provider behind a stable interface. A provider change is a module swap, not a topology change | created |
+| Infrastructure is pre-provided | OpenTofu is skipped. The machine configs are applied to existing Talos nodes named in a committed inventory | referenced by configuration |
+| The project operates the hypervisor | Committed scripts create the nodes on hardware that the project runs. To rebuild a node, the project re-images its disk from the Talos image. OpenTofu is skipped: no provider API sits between the project and the metal, so the node lifecycle is a script against one hypervisor | created |
 
-**The modes differ only in provisioning.** Everything after it is identical: machine configuration, Kubernetes, Cilium, and Argo CD. Terraform belongs to the project that owns its infrastructure. The second mode never calls it.
+**The modes differ only in provisioning.** Everything after it is identical: machine configuration, Kubernetes, Cilium, and Argo CD. OpenTofu belongs to the project that owns its infrastructure. The second mode never calls it.
 
-**In the third mode, the project owns provisioning, and no provider exists to address.** A hypervisor on the project's own hardware has no API that needs a plan in front of it. The lifecycle is create, re-image, and destroy against one machine. An idempotent script states it as completely as a module does. The mode keeps the requirement that Terraform enforces elsewhere: the node definitions, the image reference, and the creation steps are committed. A lost host then costs the time to re-run them, and never the knowledge of what they were.
+**In the third mode, the project owns provisioning, and no provider exists to address.** A hypervisor on the project's own hardware has no API that needs a plan in front of it. The lifecycle is create, re-image, and destroy against one machine. An idempotent script states it as completely as a module does. The mode keeps the requirement that OpenTofu enforces elsewhere: the node definitions, the image reference, and the creation steps are committed. A lost host then costs the time to re-run them, and never the knowledge of what they were.
 
 **Pre-provided means pre-provided Talos.** Talos installs by booting its own image. It is not converged onto a running general-purpose distribution. So this mode requires nodes that already run Talos and are reachable on its API. A pre-provided fleet that runs anything else needs a reprovision, not a configuration step.
 
@@ -115,7 +145,7 @@ Self-hosting has an operational cost. The machine configuration under `infra/tal
 
 | Concern | Mechanism |
 | --- | --- |
-| Configuration | one committed machine config document per node role, applied by the [`siderolabs/talos`](https://registry.terraform.io/providers/siderolabs/talos/latest) Terraform provider |
+| Configuration | one committed machine config document per node role, applied by the [`siderolabs/talos`](https://search.opentofu.org/provider/siderolabs/talos/latest) OpenTofu provider |
 | OS upgrade | `talosctl upgrade`. It swaps between two image slots with rollback, one node at a time |
 | Kubernetes upgrade | `talosctl upgrade-k8s`, versioned separately from the OS |
 | Anything outside the base image, such as drivers, iSCSI, or GPU support | a system extension built into a custom installer image through [Image Factory](https://docs.siderolabs.com/talos/latest/learn-more/image-factory). It is referenced by schematic and pinned like any other artefact, per [ADR-0113](0113-supply-chain-security.md) |
@@ -166,9 +196,9 @@ The version is pinned, not left at `latest`. A Kubernetes upgrade can add a crit
 ### Provisioning order
 
 ```text
-0. terraform apply   # instances, network, LB, DNS, firewall, bucket
+0. tofu apply   # instances, network, LB, DNS, firewall, bucket
                      # only when the project provisions its own infra
-1. terraform apply   # applies the machine configs and bootstraps the cluster
+1. tofu apply   # applies the machine configs and bootstraps the cluster
                      # through the siderolabs/talos provider. Cilium comes
                      # with it as an inline manifest
 2. just argocd-bootstrap <env>
@@ -192,7 +222,7 @@ Cilium joins them wherever it is not an inline manifest, per [ADR-0206](0206-clu
 
 No configuration-management step sits between provisioning and Argo CD, because no mutable host state exists to converge.
 
-Git and the SOPS-encrypted machine secrets reproduce the cluster identity. Where a provider is addressed, one Terraform state file is also part of it. Where none is, the committed inventory, the node-creation scripts, and the referenced bucket are part of it.
+Git and the SOPS-encrypted machine secrets reproduce the cluster identity. Where a provider is addressed, one OpenTofu state file is also part of it. Where none is, the committed inventory, the node-creation scripts, and the referenced bucket are part of it.
 
 ### Disaster recovery
 
@@ -200,7 +230,7 @@ Three-node HA survives the failure of one node with no downtime, because etcd ke
 
 A full-cluster loss recovers in this order:
 
-1. `terraform apply`, where it applies.
+1. `tofu apply`, where it applies.
 2. Machine-config apply and bootstrap.
 3. Argo CD reconciles from git.
 4. CNPG restores from PITR.
@@ -229,7 +259,7 @@ The recovery is rehearsed quarterly with the backup restore drill in [ADR-0207](
 - An OS upgrade is an image swap with a rollback. It is not a package transaction that can fail halfway.
 - The same Kubernetes API runs end to end. Environments differ in detail, not in shape.
 - Measurable conditions drive the growth triggers.
-- Git reproduces provisioning, and Terraform is not a day-one dependency.
+- Git reproduces provisioning, and OpenTofu is not a day-one dependency.
 
 ### Negative and Risks
 
@@ -245,7 +275,7 @@ The recovery is rehearsed quarterly with the backup restore drill in [ADR-0207](
 
 ## Rules
 
-- Production runs on plain compute instances, never on managed Kubernetes. Terraform is a per-project tool. A project skips it where infrastructure is pre-provided or where the project operates the hypervisor itself.
+- Production runs on plain compute instances, never on managed Kubernetes. OpenTofu is a per-project tool. A project skips it where infrastructure is pre-provided or where the project operates the hypervisor itself.
 - Where the project creates its own nodes, the creation steps and the image reference are committed with the inventory.
 - Every node runs Talos Linux, configured only by its machine config. There is no SSH, no configuration-management agent, and no manual change to a node.
 - Every environment runs three control-plane nodes with etcd on each. Workers are added when the resource-pressure trigger fires.

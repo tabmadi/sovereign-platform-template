@@ -10,7 +10,7 @@ Each mode is an answer to a question of `just init`. `just init` removes the pat
 | --- | --- | --- | --- | --- |
 | `forge` | `github`, the default | [ADR-0116](../adr/0116-forge-and-pipelines.md) | the provider-hosted workflows, with their `permissions` blocks | the platform cluster serves its first environment, which is the trigger of ADR-0116 |
 | `forge` | `forgejo` | [ADR-0116](../adr/0116-forge-and-pipelines.md) | `infra/forge-host/` and `infra/runner/`. The workflows move to `.forgejo/workflows/` and lose their `permissions` blocks, which Forgejo ignores with a warning. The design-preview generator reads the forge, per [ADR-0701](../adr/0701-product-design-and-discovery.md) | the project leaves its own forge |
-| `provisioning` | `terraform`, the default | [ADR-0200](../adr/0200-cluster-topology.md) | `infra/terraform/` | the provider stops being the place that the nodes come from |
+| `provisioning` | `tofu`, the default | [ADR-0200](../adr/0200-cluster-topology.md) | `infra/opentofu/` | the provider stops being the place that the nodes come from |
 | `provisioning` | `provided` | [ADR-0200](../adr/0200-cluster-topology.md) | none. Someone else gives the machines, and `infra/talos/` starts at the machine config | the project starts to create its own machines |
 | `provisioning` | `hypervisor` | [ADR-0200](../adr/0200-cluster-topology.md) | `infra/hypervisor/` | the project stops running its own hardware |
 

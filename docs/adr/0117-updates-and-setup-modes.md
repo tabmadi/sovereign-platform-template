@@ -68,7 +68,7 @@ The weekly `renovate` workflow runs `just ci-renovate` as the `ci` machine user,
 | Container base images and platform chart images | one PR for the images and one PR for the charts, minor and patch together, tag and digest together | weekly |
 | Pins that add a digest or an exact version to a reference without one | one PR for every pin | weekly |
 | Anything with a fixed CVE that Trivy gates on | one PR each, at once | on detection |
-| Terraform providers and modules | one PR | monthly |
+| OpenTofu providers and modules | one PR | monthly |
 
 After each upgrade, Renovate runs `just bun-nix` and `bash scripts/nix-hashes.sh`. So `bun.nix` and the two fixed-output hashes of `flake.nix` follow `bun.lock`, `go.sum`, and each `Chart.lock` in the same pull request.
 
