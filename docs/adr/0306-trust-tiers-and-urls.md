@@ -33,7 +33,7 @@ This ADR fixes three things:
 
 ### Where ops tooling lives
 
-| Option | Browser isolation | Per-tool hosting cost | Verdict |
+| Option | 1 Browser isolation | Per-tool hosting cost | Verdict |
 | --- | --- | --- | --- |
 | **A subdomain per tool under a shared `ops.` label** | **each origin is distinct**: cookies, storage, CSP, and rate-limit scope are isolated by construction | none: every tool is served at a root | **Chosen** *(reasoned)* |
 | Paths on the product origin | **none**. Path segments share cookies, `localStorage`, and the DOM. So a flaw in code we do not control runs in the same origin as the product session | a fight per tool. The router of Hubble UI is hardwired to basename `/` and returns 404 under any prefix. Grafana needs sub-path serving. Argo CD and the Temporal UI have their own quirks | Both problems disqualify it |
@@ -41,9 +41,13 @@ This ADR fixes three things:
 | Paths on the product origin with `__Host-` cookies per tool | **none between tools**. The prefix binds a cookie to the host, not to a path, so every tool still shares one origin | the same fight per tool | The cheap middle option, and it does not exist. `__Host-` hardens a cookie against subdomain injection and gives no path isolation, because the same-origin policy has no path dimension |
 | A separate registrable domain for ops | strongest: no shared parent | none, plus a second certificate authority chain and DNS zone | Justified only where the parent-scoped cookie is itself the threat. Recorded as the hardening path |
 
+Sources:
+
+- The same-origin policy and cookie scope: [MDN, same-origin policy](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy), [MDN, cookie Domain attribute](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#define_where_cookies_are_sent).
+
 ### How ops origins are named
 
-| Option | Survives a change of tool | Naming decision per tool | Verdict |
+| Option | Survives a change of tool | 4 Naming decision per tool | Verdict |
 | --- | --- | --- | --- |
 | **After the tool, lowercased**: `grafana`, `hubble`, `temporal` | no: the URL moves with the tool | none. The name is already chosen | **Chosen.** One sentence, no judgement calls, and a rename happens only on an event that is already a migration *(reasoned)* |
 | After the concept: `o11y`, `map`, `workflows`, `s3` | **claimed, but no** | one debate per tool | The theory is that a concept name outlives the tool. It does not hold. A change from a network-flow UI to an APM suite changes the concept too, and the concept of a tool drifts as it grows features. So concept naming produces renames on tool changes *and* naming debates between them. A hostname can also claim territory. A host that claims `observability` makes a complementary second tool look like a rival for the name, not a tool that answers a different question |
@@ -61,12 +65,16 @@ Tool names leak the stack. The objection is real but weak here, for three reason
 
 ### Where the service API lives
 
-| Option | CORS | Isolation gained | Verdict |
+| Option | CORS | 1 Isolation gained | Verdict |
 | --- | --- | --- | --- |
 | **A path on the product origin, `<host>/api/<resource>`** | **none needed** | does not apply | **Chosen.** A JSON API has no DOM, JS, or browser storage to isolate. So a separate origin protects nothing that it has *(reasoned)* |
 | `api.<host>` | created for our own frontend | **none against the cookie**. A `Domain=<host>` cookie reaches `api.<host>` too | The reasons that make it sound right do not hold. WAF and rate limits already attach per path router. The edge already routes `/api/*` to services and `/` to the frontend |
 | A separate registrable domain | required | **hard credential isolation**: the app session cookie cannot reach the API | Justified only for that guarantee, or for separate edge and CDN infrastructure at scale. Not the default |
 | Per-service paths, `/api/<svc>/...` | none needed | does not apply | Leaks topology into every URL. So a resource cannot move between services without breaking callers |
+
+Sources:
+
+- [MDN, CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS).
 
 ## Decision
 

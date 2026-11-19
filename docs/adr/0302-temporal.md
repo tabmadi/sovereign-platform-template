@@ -30,7 +30,7 @@ Without one durable-execution platform, each problem grows its own machinery: ou
 
 ### The engine
 
-| Option | Workflow is authored as | Added datastores | Verdict |
+| Option | 4 Workflow is authored as | Added datastores | Verdict |
 | --- | --- | --- | --- |
 | **Temporal, self-hosted** | ordinary Go, replayed deterministically | none: a database on the existing Postgres cluster | **Chosen.** One model holds activities, child workflows, signals, queries, timers, schedules, and sagas. It has first-party SDKs for the mainstream runtimes *(documented)* |
 | Restate | ordinary code, a similar model | its own embedded log | A simpler operational shape and a close model. It is younger, with fewer operators. The saga and long-timer ergonomics that this platform depends on are its newest part |
@@ -41,6 +41,10 @@ Without one durable-execution platform, each problem grows its own machinery: ou
 | DIY: outbox, queue, cron, retry loops | four mechanisms | none new | It builds a weaker Temporal four times, once per service |
 | Kubernetes Jobs, CronJobs, Argo Workflows | pipeline DAGs | none new | Not business workflows. Kept for pure infrastructure tasks |
 | Temporal Cloud | the same as Temporal | none | Fails driver 5. Client call sites stay cloud-neutral, so a deploy reverses the position, not a rewrite |
+
+Sources:
+
+- [Temporal](https://docs.temporal.io/), [Restate](https://docs.restate.dev/), [Cadence](https://cadenceworkflow.io/), [Argo Workflows](https://argoproj.github.io/workflows/), [DBOS](https://docs.dbos.dev/).
 
 ### Applying a schedule
 

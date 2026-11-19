@@ -37,7 +37,7 @@ Service-to-service calls bypass the edge entirely. Cilium NetworkPolicy gates th
 
 Traefik is Tier 1, per [ADR-0002](0002-tool-adoption.md). Every inbound request crosses it. Its middleware model expresses the forward-auth chain. The routes are CRDs that the GitOps tree owns. The table compares the two properties that decide this position: how routing is authored, and whether the forward-auth seam is first-class.
 
-| Option | Routing authored as | Forward-auth | Data plane | Verdict |
+| Option | Routing authored as | 2 Forward-auth | Data plane | Verdict |
 | --- | --- | --- | --- | --- |
 | **Traefik** | `IngressRoute` CRDs, with middleware as separate composable resources | **first-class middleware**, and the chained shape that the next table needs | its own, in Go | **Chosen.** Middleware is a resource, not an annotation. So a reviewer reads the auth chain of a route as a list of objects, not as a string *(reasoned)* |
 | Envoy Gateway | Gateway API resources, with policy attachment | through `ext_authz`, the native and more expressive mechanism of Envoy | Envoy | **The runner-up**, and the better data plane. It loses on weight: Envoy plus a control plane is two components, and Traefik is one. `ext_authz` buys expressiveness that this platform spends at the application layer instead |
@@ -46,24 +46,32 @@ Traefik is Tier 1, per [ADR-0002](0002-tool-adoption.md). Every inbound request 
 | Contour | `HTTPProxy` CRDs, or Gateway API | `ext_authz`, delegated to Envoy | Envoy | The shape of Envoy Gateway, with a longer history and a narrower feature set. Envoy Gateway supersedes it |
 | Gateway API on any implementation, no controller chosen | portable resources | implementation-defined | varies | The portability is real, but the forward-auth chain is not portable. So the property it buys does not cover the property that decides the row |
 
+Sources:
+
+- [Traefik, ForwardAuth](https://doc.traefik.io/traefik/middlewares/http/forwardauth/), [Envoy Gateway](https://gateway.envoyproxy.io/), the retirement of ingress-nginx: [Kubernetes blog, ingress-nginx retirement](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/), [HAProxy Ingress](https://haproxy-ingress.github.io/).
+
 **Throughput is not the deciding axis here, and this ADR records that.** At the shape of this platform, every option in this table saturates the network before it saturates itself. So the deciding property is how a reviewer reads an auth chain in a diff.
 
 ### Certificate lifecycle
 
 TLS terminates at the ingress above. So this section decides what issues and renews the certificate.
 
-| Option | Renewal | Configuration | Added components | Verdict |
+| Option | Renewal | Configuration | 4 Added components | Verdict |
 | --- | --- | --- | --- | --- |
 | **[cert-manager](https://cert-manager.io/docs/)** | a controller reconciles `Certificate` resources and renews them before expiry | CRDs in the repository | one controller | **Chosen.** The certificate is a Kubernetes object. So a renewal failure is a resource condition that an alert already reads, not a log line in a cron job *(reasoned)* |
 | certbot in a `CronJob` | the schedule, and what it writes | a shell script and a mounted secret | one Job and a script to own | A renewal failure is silent until TLS breaks. That is the slowest-arriving failure on the floor. Nothing about this option is cheaper |
 | A private CA | we issue it, on our own schedule | ours | a CA to run, plus trust-anchor distribution to every client | The exit if the public ACME dependency becomes unacceptable, per [ADR-0000](0000-platform-foundations.md). It costs a trust anchor on every browser and every client |
 | Manual issuance | a person, once a year | none | none | The honest baseline. It fails on the wildcard-per-environment shape: a certificate whose renewal is a calendar entry of one person expires in the end |
 
+Sources:
+
+- [cert-manager](https://cert-manager.io/docs/), [Traefik ACME](https://doc.traefik.io/traefik/https/acme/).
+
 Each environment has one wildcard certificate, issued over ACME DNS-01. [ADR-0206](0206-cluster-networking.md) holds the record shape and the provider requirement that it implies.
 
 ### The forward-auth mechanism
 
-| Option | Added components | Reads a Kratos browser session | Identity passed onward as | Verdict |
+| Option | 4 Added components | 3 Reads a Kratos browser session | 1 Identity passed onward as | Verdict |
 | --- | --- | --- | --- | --- |
 | **Ory Oathkeeper as ForwardAuth** | **none beyond one Go binary**, no datastore | **yes**, and Hydra JWTs through the same rule set | mutated trusted headers, one shape for every route | **Chosen.** Declarative YAML access rules in git. It is the only option that reads both credential formats of this platform with no hop between them *(reasoned)* |
 | Plain Traefik `ForwardAuth` to Kratos `/sessions/whoami` | **none at all** | yes | nothing: `whoami` authenticates but does not mutate the request | The zero-component baseline, and the row that prices the chosen option. Without mutation, every service must strip client-supplied identity headers itself. There is also no rule language to mark a route public |
@@ -74,6 +82,10 @@ Each environment has one wildcard certificate, issued over ACME DNS-01. [ADR-020
 | Tyk or Kong | a control plane, a datastore, a plugin runtime | through a plugin | plugin-defined | Rich API management. Its one unique value here is edge OpenAPI validation, and in-service validation already does that, per [ADR-0303](0303-api-contracts-and-lifecycle.md) |
 | Traefik's commercial OIDC middleware | none | no: OIDC | headers | It closes the JWT gap in the open distribution of Traefik. It is a paid tier, against principle 3 of [ADR-0000](0000-platform-foundations.md) |
 | A DIY ForwardAuth service | one first-party service | yes, once written | ours | Viable. It puts auth-critical validation under our ownership. Oathkeeper has the same shape, is declarative, and someone else maintains it |
+
+Sources:
+
+- [Ory Oathkeeper](https://www.ory.sh/docs/oathkeeper/), [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/), [Pomerium](https://www.pomerium.com/docs), [Envoy ext_authz](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/ext_authz_filter).
 
 **The OIDC mismatch removes most of the field.** Kratos issues browser sessions, not OIDC tokens. Hydra issues OAuth2 tokens for third-party clients, per [ADR-0304](0304-identity-and-authorization.md). So every proxy above that expects an OIDC provider needs Hydra in the first-party browser path. That adds an OAuth2 flow that serves the proxy and no consumer.
 

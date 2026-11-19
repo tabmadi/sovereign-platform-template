@@ -33,7 +33,7 @@ This ADR names them because they set the deadline and the scope of the machinery
 
 ## Considered options
 
-| Option | Survives a partial failure | Spans stores outside one database | How it shows the request is done | Verdict |
+| Option | 2 Survives a partial failure | 1 Spans stores outside one database | 3 How it shows the request is done | Verdict |
 | --- | --- | --- | --- | --- |
 | **Temporal workflows for erasure, DSAR, and retention** | yes: each activity retries, and the execution resumes where it stopped | yes, including OpenFGA | one execution, and its event history is the audit trail | **Chosen.** The obligation is a long-running, multi-store mutation with a deadline. [ADR-0302](0302-temporal.md) already buys a primitive for that shape *(reasoned)* |
 | Outbox events, consumed per service | yes, per hop | yes, eventually | only by correlating every consumer | No single execution owns the request. [ADR-0302](0302-temporal.md) keeps the outbox for fire-and-forget work, and a legal deadline is not fire-and-forget |
@@ -42,6 +42,10 @@ This ADR names them because they set the deadline and the scope of the machinery
 | A scheduled script per service | no | no: nothing coordinates OpenFGA | logs only | It produces the exact failure that driver 1 names |
 | Database-level cascade deletes | within one transaction | no | none | OpenFGA is not in the database, and neither is the data of another service |
 | A manual runbook on request, the honest baseline | no | only as far as the operator is thorough | a ticket | Latency has no bound, and correctness depends on who runs it |
+
+Sources:
+
+- Durable execution resumes a workflow after a failure: [Temporal docs, workflows](https://docs.temporal.io/workflows).
 
 ## Decision
 

@@ -40,7 +40,7 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP is used eve
 
 ### Contract format
 
-| Option | Browser | Public consumers | Cost |
+| Option | 4 Browser | 3 Public consumers | Cost |
 | --- | --- | --- | --- |
 | **OpenAPI 3.1, ogen, and openapi-typescript** | native `fetch` | docs and SDKs generated | **Chosen.** One spec drives the server, both clients, docs, and SDKs *(reasoned)* |
 | gRPC and `grpc-web` | needs an Envoy or Connect proxy, and loses streaming semantics | expect OpenAPI anyway | a proxy tier plus a second IDL |
@@ -48,9 +48,13 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP is used eve
 | GraphQL | good | a poor fit for service-to-service | a query planner is a platform component that the budget does not hold, per [ADR-0000](0000-platform-foundations.md) |
 | tRPC | good | none | TypeScript-only, and the backend is Go |
 
+Sources:
+
+- [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0), [gRPC-Web](https://github.com/grpc/grpc-web), [Connect](https://connectrpc.com/).
+
 ### Version scheme, for when online versioning is flagged on
 
-| Option | URL stability | Why not |
+| Option | 6 URL stability | Why not |
 | --- | --- | --- |
 | **Date in a request header**: `Api-Version: 2026-07-01` | flat resource URL kept | **Chosen.** REST APIs that change continuously converge on this convention. Examples are Stripe's `Stripe-Version` and GitHub's `X-GitHub-Api-Version`. One calendar covers release and contract. Azure also pins a version, but as a query parameter, not a header. That forks the URL for a caching layer and keeps the path *(documented)* |
 | SemVer major in the path: `/api/v2/...` | forks the URL | It conflicts with the flat URL that hides the topology, per [ADR-0306](0306-trust-tiers-and-urls.md). Its value is the breaking signal to an independent pinner, and pin-and-sunset already gives that |
@@ -58,15 +62,23 @@ Wire efficiency for internal calls is not a priority. JSON over HTTP is used eve
 | Query parameter: `?api-version=` | path kept, cache key forked | Azure's shape. A version in the query string is part of the cache key and of every logged URL. A caller can easily omit it, so the default version becomes load-bearing |
 | `Accept` header content negotiation | flat resource URL kept | The canonical REST answer. It overloads a header whose job is representation. Media-type versioning also works badly with generated clients: they set `Accept` for content type, not for contract age |
 
+Sources:
+
+- Date-based versions in a header: [Stripe, API versioning](https://docs.stripe.com/api/versioning).
+
 ### Go code generation
 
-| Option | Direction | What it generates | Where request validation lives | Verdict |
+| Option | 5 Direction | What it generates | 2 Where request validation lives | Verdict |
 | --- | --- | --- | --- | --- |
 | **ogen** | spec-first | the server itself, with typed handlers | **in the generated decoder**, from the same spec | **Chosen.** Drivers 2 and 5 follow from the design. Nothing enforces them on top of it *(reasoned)* |
 | oapi-codegen | spec-first | stubs *into* chi, echo, gin, or `net/http` | an optional middleware that reads the spec at runtime | The incumbent and the closest alternative. With validation as runtime middleware, a second copy of the contract is read at request time. It is not compiled into the types |
 | huma | **code-first**: the spec is emitted from Go types | the spec | struct tags | It reverses driver 5: the code becomes the source and the contract the artefact. It is right for an API with one co-shipped consumer. It is wrong when a third party pins the API |
 | OpenAPI Generator | spec-first | stubs in many languages | varies by generator | A JVM toolchain, per [ADR-0110](0110-language-and-runtime.md), and its Go output is among its weakest targets. It is kept below for public SDKs, where the range of languages is the whole point |
 | Hand-written handlers plus a runtime spec validator | neither | nothing | a runtime check | Nothing forces the spec and the handlers to agree, which fails driver 5 |
+
+Sources:
+
+- [ogen](https://ogen.dev/), [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen), [openapi-typescript](https://openapi-ts.dev/).
 
 ### The rest of the spec toolchain
 

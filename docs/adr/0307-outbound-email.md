@@ -38,7 +38,7 @@ So a need for mailboxes never changes this decision. The choice of system for th
 
 ## Considered options
 
-| Option | Sends as our domain | Component weight | What it costs | Verdict |
+| Option | 1 Sends as our domain | 4 Component weight | What it costs | Verdict |
 | --- | --- | --- | --- | --- |
 | **maddy, submission and DKIM only** | yes | **one Go binary**, no datastore | we own IP warmup, blocklist monitoring, and DMARC reporting | **Chosen.** It holds principle 3 at the lowest component count. The software is cheap to change, because the reputation lives elsewhere *(reasoned)* |
 | Postfix | yes | one daemon, plus its own spool | the same reputation work, plus a configuration language of its own | The boring choice, and principle 4 says to be boring where the exit costs months. Here the exit cost is a config rewrite, not a migration. The agent that sends does not affect the reputation. Rejected on operational legibility, not on maturity |
@@ -53,6 +53,10 @@ So a need for mailboxes never changes this decision. The choice of system for th
 | Managed transactional provider, such as Postmark, SES, or Mailgun | yes | none | deliverability becomes the problem of someone else, and recipient metadata leaves our control | **The sanctioned exit**, ranked first on the swap list of [ADR-0000](0000-platform-foundations.md). Not the default, because principle 3 is a constraint, not a preference |
 | Do nothing, the honest baseline | does not apply | none | nothing | Account verification and recovery have no delivery path, so identity is unusable |
 
+Sources:
+
+- [maddy](https://maddy.email/), [Postfix](https://www.postfix.org/), [Haraka](https://haraka.github.io/), [Exim](https://www.exim.org/).
+
 ### The non-production sink
 
 A sink is chosen for the property that the agent above is chosen against: it must not deliver.
@@ -65,6 +69,10 @@ A sink is chosen for the property that the agent above is chosen against: it mus
 | maddy, the production agent | needs the mailbox and IMAP surface that this ADR puts out of scope, plus an IMAP client in the test suite | one Go binary, plus a mailbox store | Rejected. Its special configuration is DKIM, `PTR`, DANE, and MTA-STS. Without public DNS and real receivers, none of it has anything to act on. So it runs a configuration that ships nowhere. A correctly configured maddy also delivers. That makes the never-deliver rule a setting, not a property |
 | A logging sink | the raw message in a log line | none | It loses the rendered message, and with it the recovery link that a flow test follows |
 | No sink | nothing to read | none | Identity flows cannot run below production |
+
+Sources:
+
+- [Mailpit](https://mailpit.axllent.org/), [MailHog](https://github.com/mailhog/MailHog), [smtp4dev](https://github.com/rnwood/smtp4dev).
 
 ## Decision
 

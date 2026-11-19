@@ -40,7 +40,7 @@ The decision has three parts: the identity provider, the OAuth2 authorization se
 
 ### Identity provider
 
-| Option | Headless flow | Config source of truth | Verdict |
+| Option | 2 Headless flow | 1 Config source of truth | Verdict |
 | --- | --- | --- | --- |
 | **Ory Kratos** | fully headless self-service flows | **JSON Schema identity files and YAML in git** | **Chosen.** Go, Apache-2.0, and the reference implementation of the headless pattern *(documented)* |
 | Zitadel | a real headless Session API that covers password, MFA, passkeys, and external IdPs | **its own event-sourced database**, despite its OpenTofu provider | Rejected on driver 1. The same driver rejected Coroot, per [ADR-0501](0501-operator-uis-and-dashboards.md). A second reason: its own guide makes hosted login the default. The guide says it was `designed with security in mind, which limits the customization capabilities`. Its main customization story is to fork a beta Next.js app, and the UI constraint excludes that by name |
@@ -50,11 +50,15 @@ The decision has three parts: the identity provider, the OAuth2 authorization se
 | Logto | headless Management and Experience APIs | its own database, with a Terraform provider over the management API | Fails driver 1 in the same way as Zitadel: the API is the source of truth, and git holds a script that talks to it |
 | Casdoor | a headless API, but the UI is the primary surface | database, with configuration objects | Broad protocol coverage across a wide feature surface. It has the same database-as-truth problem |
 
+Sources:
+
+- [Ory Kratos, self-service flows](https://www.ory.sh/docs/kratos/self-service), [Keycloak](https://www.keycloak.org/documentation), [Zitadel](https://zitadel.com/docs), [Authentik](https://docs.goauthentik.io/), [Logto](https://docs.logto.io/).
+
 ### OAuth2 and OIDC server
 
 The platform needs this server only when a third-party client gets its own credentials. First-party browsers use Kratos sessions.
 
-| Option | Added runtime and datastore | Consent flow integrates with the chosen IdP | Config source of truth | Verdict |
+| Option | 4 Added runtime and datastore | Consent flow integrates with the chosen IdP | 1 Config source of truth | Verdict |
 | --- | --- | --- | --- | --- |
 | **Ory Hydra** | none: Go on the existing Postgres | **yes, first-party with Kratos** | YAML plus committed client definitions | **Chosen.** The only option that adds an OAuth2 server and does not also add a second identity system *(reasoned)* |
 | Keycloak | a JVM, and its own store | it *is* the IdP, so the question goes away, and so does Kratos | realm import, with drift to the database | To adopt it here decides the row above again, and [ADR-0110](0110-language-and-runtime.md) bars the runtime |
@@ -65,11 +69,15 @@ The platform needs this server only when a third-party client gets its own crede
 | Build our own | none | does not apply | ours | Excluded by [ADR-0000](0000-platform-foundations.md): the platform does not hand-roll security-critical infrastructure |
 | Ship no OAuth2 server, the honest baseline | none | does not apply | does not apply | Correct until a third party needs credentials. This is why Hydra is flag-gated Opt-in and not Core, per [`operational-surface.md`](../operational-surface.md) |
 
+Sources:
+
+- [Ory Hydra](https://www.ory.sh/docs/hydra/), [Ory Hydra, login and consent](https://www.ory.sh/docs/hydra/guides/custom-ui-oauth2).
+
 ### Authorization engine
 
 The day-one requirements are ReBAC, not flat RBAC. They include cross-org sharing, a role per org per resource, and reverse-index questions such as `which resources can this user see`. That limits the field to Zanzibar-style engines.
 
-| Engine | Model and capability | Governance | Fit | Verdict |
+| Engine | 3 Model and capability | Governance | 4 Fit | Verdict |
 | --- | --- | --- | --- | --- |
 | **OpenFGA** | Zanzibar ReBAC. ABAC through CEL conditions and contextual tuples. Reverse index through `ListObjects` and `ListUsers` | **CNCF**: vendor-neutral, with contributors from many vendors | a single Go binary on Postgres. `.fga` DSL, `fga model test` in CI, and the official Go SDK behind a seam | **Chosen.** It matches SpiceDB on capability and operational shape, and wins on governance. Contextual tuples also let a check read data at request time. This eases the sync that the dual write carries *(reasoned)* |
 | SpiceDB | Zanzibar ReBAC. ABAC through CEL caveats. The strongest reverse-index and `Watch` APIs. `ZedToken` consistency | single-vendor | a single Go binary on Postgres | The credible fallback, equal on capability. It loses only on governance. Its consistency advantage matters only at large scale |
@@ -79,6 +87,10 @@ The day-one requirements are ReBAC, not flat RBAC. They include cross-org sharin
 | Casbin | a PERM-model **library** with role inheritance and implicit-permission queries. **No relationship-graph traversal and no reverse index over resources** | Apache, vendor-neutral | in-process. Ports in other languages must agree on matcher semantics | Not a Zanzibar engine. It answers `what may this user do` well. It answers `which resources can this user see` only by enumeration, and that is the day-one requirement |
 | Oso | policy-as-code in Polar, with relationship rules evaluated over the application's own data | single-vendor. [The open-source library is deprecated](https://www.osohq.com/docs/oss/any/getting-started/deprecation.html) in favour of the hosted Oso Cloud | in-process as a library, or a call to that service | The maintained path is a third party's service, and principle 3 excludes that. The self-hosted part that is left is a library that its author no longer develops |
 | In-process RBAC per service | hand-rolled | ours | differs per service | The complex cases exist from day one. A later move to a Zanzibar engine is a data migration per feature |
+
+Sources:
+
+- [OpenFGA](https://openfga.dev/docs), a CNCF project, [SpiceDB](https://authzed.com/docs), [Casbin](https://casbin.org/), [Oso](https://www.osohq.com/docs), [Permify](https://docs.permify.co/).
 
 Any two Zanzibar engines are interchangeable at the architecture level. The `Checker` seam in `libs/go/authz/` is engine-agnostic. So a change of engine touches one library, the model file, and the chart. It does not touch the services.
 
