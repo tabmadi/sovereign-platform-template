@@ -14,9 +14,9 @@ default:
 setup:
     nix develop --command just setup-node
 
-# Install the locked node_modules of the workspace
+# Install the locked node_modules of the workspace, in the hoisted layout that Next.js and the checks of flake.nix use
 setup-node: in-shell
-    bun install --frozen-lockfile
+    bun install --frozen-lockfile --linker=hoisted
 
 # Turn this copy into a project: answer the seven questions, rename, and apply the setup modes, per ADR-0117
 init *args:

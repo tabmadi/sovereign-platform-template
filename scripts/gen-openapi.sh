@@ -41,4 +41,4 @@ JSON
 done
 
 # The block above wrote workspace manifests. CI installs with `--frozen-lockfile`, which rejects a lockfile that does not know them.
-bun install >/dev/null 2>&1 || true
+bun install --linker=hoisted >/dev/null 2>&1 || true
