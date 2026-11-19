@@ -12,6 +12,6 @@ infra/opentofu/
   environments/<env>/   # backend config and a module block per environment
 ```
 
-A project that provisions its own infrastructure also gets the first-party [`siderolabs/talos`](https://search.opentofu.org/provider/siderolabs/talos/latest) provider. It applies the machine configs and bootstraps the cluster as part of the plan. That is the real difference between the two modes. The cluster is the same. The machine-config apply becomes a planned resource, and not a command that someone runs.
+A project that provisions its own infrastructure also gets the first-party [`siderolabs/talos`](https://search.opentofu.org/provider/siderolabs/talos/latest) provider. It applies the machine configs and bootstraps the cluster as part of the plan. Set `talos_version` of its `talos_machine_configuration` to the release that the nodes run, as `--talos-version` does in `infra/talos/README.md`. That is the real difference between the two modes. The cluster is the same. The machine-config apply becomes a planned resource, and not a command that someone runs.
 
 In both modes, the node addresses go in `infra/talos/inventory/<env>/nodes.yml`. `talosctl` and `lint-naming` both read that file.

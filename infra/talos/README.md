@@ -31,6 +31,7 @@ talosctl gen secrets -o secrets.yaml
 sops --encrypt --in-place secrets.yaml   # per ADR-0202: never committed in the clear
 
 talosctl gen config example https://kube.dev.example.com:6443 \
+  --talos-version v1.13 \
   --with-secrets secrets.yaml \
   --config-patch @patches/common.yaml \
   --config-patch-control-plane @patches/controlplane.yaml \
@@ -39,6 +40,8 @@ talosctl gen config example https://kube.dev.example.com:6443 \
 talosctl apply-config --insecure -n 203.0.113.11 -f controlplane.yaml   # per node
 talosctl bootstrap -n 203.0.113.11                                      # ONCE, one node
 ```
+
+`--talos-version` names the release that the nodes run. The `talosctl` of the dev shell can be newer. From 1.14 it writes the new multi-document config, and the v1alpha1 patches here no longer apply to it. Move the flag with the release of the installer image.
 
 `bootstrap` initialises etcd. It runs on exactly one node, one time. If you run it on a second node, you make a second cluster.
 
