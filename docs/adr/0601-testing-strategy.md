@@ -48,7 +48,7 @@ The absolute footprint grows with the fleet and with log volume. The shape does 
 
 ### Browser, e2e, and visual engine
 
-| Option | Cross-origin | Visual regression | Runtime | Verdict |
+| Option | 1 Cross-origin | Visual regression | 2 Runtime | Verdict |
 | --- | --- | --- | --- | --- |
 | **Playwright, in TypeScript** | native, with a driver in a separate process | built in: [`toHaveScreenshot`](https://playwright.dev/docs/test-snapshots) | Node | **Chosen.** Its auto-waiting gives the fewest flaky results on heavy SPA dashboards. It crosses the Kratos redirect and the `*.ops.<host>` subdomains natively, per [ADR-0306](0306-trust-tiers-and-urls.md) *(documented)* |
 | WebdriverIO | BiDi | an added service | Node | More flaky results by default, and its added visual service fails where sensitivity is highest. Its decisive strength, native mobile, is not used here. It does not remove the Node runtime either |
@@ -57,9 +57,13 @@ The absolute footprint grows with the fleet and with log volume. The shape does 
 | Rod or chromedp, in pure Go | workable | **none**. Pixel diffing, baselines, and a review flow must be written by hand | Go | The only path without Node. It is rejected on the two most needed capabilities. Raw-CDP auto-wait is weaker on heavy dashboards |
 | Stagehand, Midscene, Shortest | from the engine below | from the engine below | Node | They build on Playwright or CDP, or put a nondeterministic LLM in the loop and lean towards the cloud. They wrap an engine that must still be chosen |
 
+Sources:
+
+- [Playwright](https://playwright.dev/docs/intro), [Cypress, cross-origin](https://docs.cypress.io/api/commands/origin), [Selenium](https://www.selenium.dev/documentation/).
+
 ### Load generator
 
-| Option | Runtime added | Scenario artefact | Metrics path | Verdict |
+| Option | 6 Runtime added | Scenario artefact | 7 Metrics path | Verdict |
 | --- | --- | --- | --- | --- |
 | **k6, from Grafana** | none. A single static Go binary with an embedded JS engine, Sobek | committed JS files | built-in OTLP output | **Chosen.** Thresholds set the exit code, so a run is a CI gate with no wrapper *(documented)* |
 | Locust | Python: a third toolchain, a pip tree, and an image | committed Python | its own store, which needs an exporter sidecar | Fails drivers 6 and 7 |
@@ -68,20 +72,28 @@ The absolute footprint grows with the fleet and with log volume. The shape does 
 | Vegeta | none, it is Go | a URL list | its own | It sends requests to URLs at a constant rate. The interesting path has several steps and state, and Vegeta models that only through shell scripts around it |
 | Write one in Go | none | Go | ours | It rebuilds VU scheduling, ramping executors, percentile aggregation, and threshold evaluation, only to avoid one pinned binary |
 
+Sources:
+
+- [k6, OpenTelemetry output](https://grafana.com/docs/k6/latest/results-output/real-time/opentelemetry/), [Gatling](https://docs.gatling.io/), [Locust](https://docs.locust.io/).
+
 ### Where a service integration test gets its dependencies
 
-| Option | Source of Postgres, Temporal, OpenFGA | Fidelity to production | Cost per run | Verdict |
+| Option | Source of Postgres, Temporal, OpenFGA | 4 Fidelity to production | 5 Cost per run | Verdict |
 | --- | --- | --- | --- | --- |
 | **`cluster-up` plus the service's declared components** | the same charts that production runs, per [ADR-0205](0205-environment-parity.md) | **the operators, the CRDs, and the network policy** | one cluster, shared by every test in the run | **Chosen.** Each service already declares its dependencies for deployment. So the test environment comes from the deploy manifest, and nobody describes it twice *(reasoned)* |
 | testcontainers-go | one container for each dependency, started by the test process | plain images: no CNPG, no operator behaviour, no NetworkPolicy | one container set for each package, removed afterwards | The industry default for Go service tests. Each service then declares its dependencies a second time, in Go. It also cannot exercise the operator-managed behaviour of this platform's data tier: failover, the pooler, the seeded authz model |
 | A shared long-lived test database | a persistent environment | high | none per run, but tests interfere with each other permanently | State leaks between runs. A failing test becomes a question about who else was running |
 | Mocks at the repository boundary | nothing | none. The SQL never runs | fastest | It tests the code against its own assumptions about Postgres. That layer is exactly what these tests exist to check |
 
+Sources:
+
+- [Testcontainers for Go](https://golang.testcontainers.org/).
+
 **testcontainers is the strongest rejected option**, for one specific reason. This platform's dependencies are operator-managed, so a plain `postgres:17` container is not what production runs. For a platform built on plain images, that verdict reverses.
 
 ### Contract testing
 
-| Option | What it verifies | Where the truth lives | Verdict |
+| Option | 1 What it verifies | Where the truth lives | Verdict |
 | --- | --- | --- | --- |
 | **The generated client, compiled against the spec** | that the consumer and the provider agree, at build time | the OpenAPI spec, per [ADR-0303](0303-api-contracts-and-lifecycle.md) | **Chosen by inheritance.** Every consumer calls through generated code, and CI fails on stale generated code. So a contract break is a compile error, not a test failure *(reasoned)* |
 | Pact, or another consumer-driven contract broker | that a consumer's expectations still hold | pacts that consumers write, plus a broker to store them | Consumer-driven contracts solve a problem that this repo does not have: consumers that ship separately from providers. Here they ship in the same commit, per [ADR-0112](0112-release-and-versioning.md). The broker is also a component |

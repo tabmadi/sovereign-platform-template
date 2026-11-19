@@ -42,12 +42,16 @@ So the question is not how to simulate the platform. The question is **which par
 
 ### Local Kubernetes approach
 
-| Approach | How it works | Cost | Verdict |
+| Approach | How it works | 3 Cost | Verdict |
 | --- | --- | --- | --- |
 | **Local cluster** | a scaled-down copy of the whole system on the laptop | the laptop's resource ceiling. Stand-ins can drift | **Chosen.** No shared infra, no platform team, full isolation, and it works offline *(reasoned)* |
 | Sync tools | a tool watches files, rebuilds images, and deploys again | a second orchestrator beside Helm and Argo, and an image build on the hot path | **Partly chosen:** the deploy step, not the watch loop |
 | Shared cluster, one service local | the base cluster runs remotely, and the service under development joins it | needs a platform team. It has contention unless someone builds isolation at the request level | The highest fidelity. It is the destination past the ceiling below |
 | Cloud workspaces | the whole dev environment moves to a remote machine | a cost for each engineer, a dependency on the network, and the weakest local tooling | Unrelated to parity |
+
+Sources:
+
+- Remote dev environments and request routing: [Signadot](https://www.signadot.com/docs), [Uber, SLATE](https://www.uber.com/blog/simplifying-developer-testing-through-slate/).
 
 ### Local Kubernetes distribution
 
@@ -62,7 +66,7 @@ Conformance makes a chart apply. It does not make the cluster behave the same. A
 | Service datapath | Cilium's eBPF dataplane, with `cluster.proxy.disabled: true` and no kube-proxy | Service routing, source-IP preservation, and backend health semantics |
 | Edge | the committed Traefik chart | middleware and CRD behaviour on the path of every request |
 
-| Option | Node shape | Getting an image in | Differs at | Verdict |
+| Option | Node shape | Getting an image in | 6 Differs at | Verdict |
 | --- | --- | --- | --- | --- |
 | **kind** | upstream Kubernetes in Docker, provisioned by kubeadm | `kind load docker-image`, or a local registry | node count and the machine config, in both tiers | **Chosen for both tiers.** It runs upstream Kubernetes on etcd, declines kube-proxy at create time, and bundles no edge. So Cilium runs its eBPF dataplane against the committed chart. There is one provisioner, one image path, and one bring-up to debug *(reasoned)* |
 | Talos in Docker | Talos nodes as containers, driven by `talosctl` and a machine config | a local registry only. A Talos node holds no image that the cluster did not pull | the host kernel and the installer path: no system extensions, no disk layout, no upgrade path. Container mode lacks the `upgrade` and `reset` APIs | **Rejected after a real run.** Its case was to exercise the machine config, and that case is weaker than it looks. The local patch is not the deployed one, so the tier validates a config that exists nowhere else. Its cost was measured: see the operating cost below *(measured)* |
@@ -70,6 +74,10 @@ Conformance makes a chart apply. It does not make the cluster behave the same. A
 | minikube | a VM or a container, with many drivers | `minikube image load`, or its Docker daemon | the datapath and the edge, plus its addon layer | The most portable across host operating systems, and the heaviest cluster. Its addons are a second source of cluster configuration, which works against parity |
 | Docker Desktop or Orbstack Kubernetes | bundled with the host tool | shares the host image store, so no load step at all | the datapath and the edge, managed by the vendor | The best image path in the field, but no control of the cluster lifecycle. It is one cluster, tied to one desktop product. The lifecycle of [ADR-0205](0205-environment-parity.md), where each engineer recreates clusters freely, needs that control |
 | Two distributions, one for each tier | not applicable | not applicable | not applicable | **Rejected on its operating cost.** Every seam between the two caused its own defect. A stand-in cleanup deleted the resource that shared its name. An image-unwedge tool worked on one tier only. A preload path branched for each tier. A tier boundary is a workload question. To make it a distribution question puts a second product under it |
+
+Sources:
+
+- [kind](https://kind.sigs.k8s.io/), [k3d](https://k3d.io/), [minikube](https://minikube.sigs.k8s.io/docs/), [Talos in Docker](https://www.talos.dev/latest/talos-guides/install/local-platforms/docker/).
 
 The measurement behind these verdicts used a bare single-node cluster of each option, with no CNI and no load balancer. It compared the time to a ready API and the idle memory of the node container. To take it again, create one cluster of each and sample both. A result that reverses it makes the k3d row wrong, not stale.
 
@@ -108,7 +116,7 @@ The inner loop cannot show anything that the machine config carries. The full ti
 
 Skaffold, Tilt, DevSpace, and Okteto promote live file sync as their main feature. Here it does not matter: **the inner loop runs the service natively on the host, so no container exists to sync into.** Four of the five orchestrators solve a problem that this design does not have.
 
-| Tool | Resolves the dependencies of each service on a subset | Parallel config system | Verdict |
+| Tool | Resolves the dependencies of each service on a subset | 5 Parallel config system | Verdict |
 | --- | --- | --- | --- |
 | Garden | **the only one that does** | `garden.yml` for each action | The right convention, the wrong dependency. See below |
 | Skaffold | partly, at module level | `skaffold.yaml` | Adopting it again reverses [ADR-0111](0111-monorepo.md) and adds no capability |
@@ -116,6 +124,10 @@ Skaffold, Tilt, DevSpace, and Okteto promote live file sync as their main featur
 | DevSpace | coarse: across repos, always first | `devspace.yaml` | The wrong level of detail |
 | Okteto | no | `okteto.yml` | Built for remote namespaces |
 | **`just`, bash, Helm, and Argo** | no. **This is the gap** | none | **Chosen**, and the gap is closed below *(reasoned)* |
+
+Sources:
+
+- [Garden](https://docs.garden.io/), [Skaffold](https://skaffold.dev/docs/), [Tilt](https://docs.tilt.dev/), [DevSpace](https://www.devspace.sh/docs/), [Okteto](https://www.okteto.com/docs/), [just](https://just.systems/man/en/).
 
 **The platform adopts Garden's convention, not Garden.** There are two independent reasons:
 
@@ -139,11 +151,15 @@ Garden does **not** win on graph resolution, the property that first made it att
 | Gefyra | none | no | no | **no**. Docker only, and that is the whole inner loop |
 | **Edge glue plus port-forward** | none | no | no. A `.env` copied by hand | yes |
 
+Sources:
+
+- [mirrord](https://metalbear.co/mirrord/docs/), [Telepresence](https://telepresence.io/docs/).
+
 **mirrord closes the one remaining weak cell:** it gives a natively run process the pod's environment and files. Its design has no cluster component, which fits the constraints. This ADR compares it and does not adopt it, because the local-process seam works without it.
 
 ### API mock
 
-| Tool | 3.1 support | Source of truth | Runtime added | Verdict |
+| Tool | 3.1 support | 1 Source of truth | 4 Runtime added | Verdict |
 | --- | --- | --- | --- | --- |
 | **Prism, from Stoplight** | full | the spec. It serves committed `examples`, and otherwise generates from schemas | a container, with no tool in the dev shell and no `package.json` | **Chosen.** Request validation gives free feedback: an unknown route gets 404, and a bad body gets 422 *(documented)* |
 | MSW | not applicable | typed handlers | in-process | An in-process double, not a running API. Nothing outside the Next server can reach it. It owns the test layer, and that separate concern is the justification that driver 5 requires |
@@ -154,6 +170,10 @@ Garden does **not** win on graph resolution, the property that first made it att
 | Hoverfly | not applicable | recorded traffic | none, it is Go | It needs real traffic to capture first. It adds to a real environment and does not replace one |
 | Fake services from `ogen` | full | the spec | none | The highest fidelity, including state, at a cost **for each service**. Across a fleet, this is a parallel implementation of the platform |
 | No mock | not applicable | not applicable | none | The true baseline. It does not scale with a growing fleet, and it does not help an engineer who changes no service |
+
+Sources:
+
+- [Prism](https://github.com/stoplightio/prism), with its v5.16.0 release in July 2026, [Microcks](https://microcks.io/documentation/), [openapi-mock](https://github.com/muonsoft/openapi-mock), with its last release in 2023, [MSW](https://mswjs.io/docs/), [Mockoon](https://mockoon.com/docs/latest/about/), [Hoverfly](https://docs.hoverfly.io/).
 
 ### Identity source
 
