@@ -217,7 +217,7 @@ format-data: in-shell
 lint: lint-go lint-gostyle lint-template-build lint-determinism lint-ts lint-prose lint-md lint-data lint-nix lint-just lint-secrets lint-platform
 
 # The gates of the platform that run with no network and no cluster. CI runs them in the sandbox
-lint-platform: lint-sql lint-service-deps lint-activity-register lint-authz-dual-write lint-money lint-naming lint-helm-deps lint-openapi lint-api-audience lint-floating-tags lint-shell lint-node-scope lint-auth-inline lint-authz lint-log-vocab lint-resource-governance lint-ports lint-l7-routes lint-service-databases lint-workspace-copies lint-service-contract lint-adr-xref lint-requirements lint-readme-drift lint-rules-index lint-data-classes lint-image-allowlist lint-thin-workflows lint-workarounds lint-dns lint-contrast lint-i18n lint-fixtures lint-tool-register lint-alert-severity lint-parity lint-gitops-env-scope
+lint-platform: lint-sql lint-service-deps lint-activity-register lint-authz-dual-write lint-money lint-naming lint-helm-deps lint-openapi lint-api-audience lint-floating-tags lint-shell lint-node-scope lint-auth-inline lint-authz lint-log-vocab lint-resource-governance lint-ports lint-l7-routes lint-service-databases lint-workspace-copies lint-service-contract lint-adr-xref lint-readme-drift lint-rules-index lint-data-classes lint-image-allowlist lint-thin-workflows lint-workarounds lint-dns lint-contrast lint-i18n lint-fixtures lint-tool-register lint-alert-severity lint-parity lint-gitops-env-scope
 
 # Go correctness and style with golangci-lint, per ADR-0110
 lint-go: in-shell
@@ -354,10 +354,6 @@ image-digest *args: in-shell
 # The cross references that tablint has no rule for
 lint-adr-xref: in-shell
     go run ./tools/lint-adr-xref
-
-# The requirement trace of ADR-0602
-lint-requirements: in-shell
-    go run ./tools/lint-requirements
 
 # The README matches the decisions it summarizes
 lint-readme-drift: in-shell

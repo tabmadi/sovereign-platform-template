@@ -118,7 +118,6 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint-parity` | Every key of a deployed environment exists in the local overlay, per ADR-0205 | flake.nix |
 | `lint-ports` | The local ports are unique and registered, per ADR-0205 | flake.nix |
 | `lint-readme-drift` | The README matches the decisions it summarizes | flake.nix |
-| `lint-requirements` | The requirement trace of ADR-0602 | flake.nix |
 | `lint-resource-governance` | Render every chart and check its resources against the guardrails, per ADR-0204 | flake.nix |
 | `lint-rules-index` | The drift check of the generated rule documents | flake.nix |
 | `lint-secrets-history` | The secret scan over the whole git history, per ADR-0202 | history.yml |

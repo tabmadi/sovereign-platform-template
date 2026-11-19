@@ -39,7 +39,7 @@ The set is large, and each task needs a small part of it. Grep the Rules section
 
 | Changing | Load | Then check |
 | --- | --- | --- |
-| A service's behaviour | the service's `requirements.md` first, then [0602](docs/adr/0602-behaviour-requirements.md) requirements, [0303](docs/adr/0303-api-contracts-and-lifecycle.md) contracts, [0300](docs/adr/0300-data.md) data, [0304](docs/adr/0304-identity-and-authorization.md) authorization, [0500](docs/adr/0500-observability.md) instrumentation | `go test -run '/<ID>'` for each changed requirement, then `just lint-requirements`, `lint-service-contract`, `lint-authz` |
+| A service's behaviour | the service's `requirements.md` first, then [0602](docs/adr/0602-behaviour-requirements.md) requirements, [0303](docs/adr/0303-api-contracts-and-lifecycle.md) contracts, [0300](docs/adr/0300-data.md) data, [0304](docs/adr/0304-identity-and-authorization.md) authorization, [0500](docs/adr/0500-observability.md) instrumentation | `go test -run '/<ID>'` for each changed requirement, then `just lint-prose`, `lint-service-contract`, `lint-authz` |
 | An API spec | [0303](docs/adr/0303-api-contracts-and-lifecycle.md), [0003](docs/adr/0003-naming-and-identifiers.md) identifiers | `just gen`, then `lint-openapi`, `lint-api-audience` |
 | A workflow | [0302](docs/adr/0302-temporal.md), and `docs/reference/long-running-workflows.md` if the workflow runs for a long time | replay tests |
 | A chart or values file | [0201](docs/adr/0201-gitops.md), [0204](docs/adr/0204-resource-management.md), [0205](docs/adr/0205-environment-parity.md) | `just lint-resource-governance`, `lint-floating-tags` |

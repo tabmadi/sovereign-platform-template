@@ -7,7 +7,7 @@ What this service must do, per [ADR-0602](../../docs/adr/0602-behaviour-requirem
 
 <!--
 Written to ADR-0602. Before merging, check:
-  - The prefix is two to four capital letters that no other requirements file uses. `TPL` fails lint-requirements outside services/_template/.
+  - The prefix is two to four capital letters that no other requirements file uses. `TPL` fails lint-prose outside services/_template/.
   - Each row is one EARS sentence in the present tense. It opens with The, When, While, If, or Where.
   - A row states observable behaviour: a status, a state change, an order of effects, or what a failure leaves behind. It never restates a field, a type, or a format from openapi.yaml.
   - A test cites each ID in its name: t.Run("TPL-001 a nameless item is a bad request", ...). Run it alone with go test -run '/TPL-001'.

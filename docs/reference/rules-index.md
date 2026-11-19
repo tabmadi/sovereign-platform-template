@@ -886,13 +886,13 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Rule | Enforced by |
 | --- | --- |
 | What a service must do is written in `services/<name>/requirements.md`. What a journey across services must do is written in `docs/requirements/<journey>.md`. | `lint-service-contract` in CI |
-| A requirement uses one EARS pattern, in the present tense, and starts with `The`, `When`, `While`, `If`, or `Where`. | `lint-requirements` in CI |
-| A requirement is one table row: its ID, then one sentence. | `lint-requirements` in CI |
+| A requirement uses one EARS pattern, in the present tense, and starts with `The`, `When`, `While`, `If`, or `Where`. | `lint-prose` in CI |
+| A requirement is one table row: its ID, then one sentence. | `lint-prose` in CI |
 | A requirement states observable behaviour. It does not restate a field, a type, or a format of the OpenAPI spec, or the reason for an ADR. | review |
-| Each requirements file declares one prefix of two to four capital letters. No two files share a prefix, and no file outside `services/_template/` uses `TPL`. | `lint-requirements` in CI |
-| An ID is the prefix, a hyphen, and three digits. It is unique across the repository. | `lint-requirements` in CI |
+| Each requirements file declares one prefix of two to four capital letters. No two files share a prefix, and no file outside `services/_template/` uses `TPL`. | `lint-prose` in CI |
+| An ID is the prefix, a hyphen, and three digits. It is unique across the repository. | `lint-prose` in CI |
 | An ID names one meaning. A requirement whose meaning changes gets a new ID, and a retired ID is not used again. | review |
-| Every requirement is cited by at least one test, and every ID that a test cites exists in a requirements file. | `lint-requirements` in CI |
+| Every requirement is cited by at least one test, and every ID that a test cites exists in a requirements file. | `lint-prose` in CI |
 | A test cites a requirement by its ID in the test name: a Go subtest or case name, or a Playwright tag. A Go test function with no subtest cites it in its doc comment. | review |
 | A pull request that changes behaviour changes the requirements file, the tests, and the code together. | review |
 | No proposal, plan, or task file for a change is committed. The pull request's diff is the proposal. | review |
