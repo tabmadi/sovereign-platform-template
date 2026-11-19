@@ -33,12 +33,17 @@ This ADR decides the assignment and the rule that produces it. It adds no mechan
 
 ## Considered options
 
-| Option | Reaches state that CI did not create | Failure mode | Added components | Verdict |
+| Option | 2 Reaches state that CI did not create | 3 Failure mode | 4 Added components | Verdict |
 | --- | --- | --- | --- | --- |
 | **Layered by class of invariant, one layer each** | yes, for the classes that need it | per layer, stated per layer below | none. Other ADRs already decide every mechanism | **Chosen.** It is the only option that answers driver 2 and driver 3 separately for each rule, not once for all rules *(reasoned)* |
 | Everything in CI | **no.** A manual apply, a break-glass action, or a compromised pipeline is unchecked | fails open: a check that did not run counts as passed | none | Sound for repository properties and unsound for cluster properties. That difference is the question to decide |
 | Everything through one policy engine | yes | **one [webhook whose outage blocks every deploy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy)**, including the deploy that fixes it | none beyond Kyverno | It puts all of driver 3's risk into a single component, to buy uniformity that nobody reads. It would also move rules that the API server enforces in-tree onto a controller, against driver 4 |
 | A choice in each ADR, unstated | not consistently | unknown until an incident | none | The honest baseline: what exists without this document. It produces both failure modes in the Context above. Neither is visible until someone tests a rule |
+
+Sources:
+
+- An admission webhook with `failurePolicy: Fail` blocks every request it matches while it is down: [Kubernetes docs, failure policy](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy).
+- CEL policies run in the API server: [Kubernetes docs, ValidatingAdmissionPolicy](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/).
 
 ## Decision
 

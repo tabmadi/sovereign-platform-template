@@ -33,13 +33,17 @@ Parity comes from [ADR-0205](0205-environment-parity.md). Topology may differ be
 
 Object storage carries the durable data. So this section decides only the volumes that back a pod between reschedules.
 
-| Option | Added components | Survives node loss | Talos cost | Verdict |
+| Option | 5 Added components | Survives node loss | Talos cost | Verdict |
 | --- | --- | --- | --- | --- |
 | **`local-path-provisioner`** | one small provisioner | **no.** A volume is pinned to its node | none. It uses a directory under `/var`, the writable path | **Chosen.** The durable data is already off-cluster, so replication here would pay twice *(reasoned)* |
 | Longhorn | a controller, engines on each node, and a UI | yes, replicated | the `iscsi-tools` and `util-linux-tools` extensions, a data path under `/var/mnt`, and a separate disk | The answer when a volume is too large to lose. It is the storage trigger below. It is an OS-image change, not a chart |
 | OpenEBS Mayastor | a control plane, and data planes on each node | yes | hugepages and a dedicated device | Longhorn's guarantee with higher performance and a larger operational surface. No component here has a workload profile that needs it |
 | Rook-Ceph | a full Ceph cluster | yes, strongly | extensions and dedicated disks | A distributed storage system to operate. Principle 2 refuses this for volumes that hold no durable data |
 | A provider CSI driver | none in the cluster | yes | none | It fails driver 4, and it couples the cluster to the API of one provider again |
+
+Sources:
+
+- [local-path-provisioner](https://github.com/rancher/local-path-provisioner), [Longhorn on Talos](https://www.talos.dev/latest/kubernetes-guides/configuration/storage/), [OpenEBS Mayastor](https://openebs.io/docs/), [Rook](https://rook.io/).
 
 ### Object storage
 
@@ -51,7 +55,7 @@ So the selection is one comparison against one set of requirements. The store ru
 
 This store holds backups that an operator credential can reach. So driver 2 makes **Object Lock a requirement, not a feature**. It is the only control that survives an attacker with valid credentials.
 
-| Option | One component everywhere | Object Lock | Storage cost | Operator UI | Verdict |
+| Option | 3 One component everywhere | 2 Object Lock | Storage cost | Operator UI | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | **SeaweedFS** | **yes.** `weed mini` is the whole store in one process for local and dev. Production runs master, volume, filer, and S3 off-cluster, from the same binary | **yes.** Versioning with GOVERNANCE and COMPLIANCE retention | erasure coding on warm data, about 1.4 times | master, filer, and admin UIs, started by the same command | **Chosen.** It is the only option that meets driver 3 and driver 2 together *(reasoned)* |
 | Garage | yes. A single binary in both | **no, and it cannot get it.** Object Lock requires versioning, and Garage does not implement versioning | replication only, **3 times** | none first-party. A CLI and an HTTP admin API | The best fit and the lightest to operate. Without Object Lock, it is a **bet, not a deferral**. There is no seam, and a later adoption is an object-store migration that moves every byte |
@@ -60,6 +64,10 @@ This store holds backups that an operator credential can reach. So driver 2 make
 | RustFS | yes | young | not assessed | a console | Principle 4 puts object storage in the conservative class, and this slot is the data plane |
 | A provider bucket in every environment | **no.** It breaks the offline local loop and puts a credential in the environment of every developer | yes | not applicable | the provider's | It gives up axis B on the one Core data path where the platform never recorded that choice. It is correct as a ranked concession, not as the default |
 | Two implementations, one per tier, the honest baseline | no | varies | varies | varies | It buys a lighter component for non-prod. The price is a dialect gap that only production can find |
+
+Sources:
+
+- [SeaweedFS, S3 Object Lock](https://github.com/seaweedfs/seaweedfs/wiki/S3-Object-Lock), [Garage, S3 compatibility](https://garagehq.deuxfleurs.fr/documentation/reference-manual/s3-compatibility/), [Ceph RGW, Object Lock](https://docs.ceph.com/en/latest/radosgw/s3/), [MinIO community edition status](https://github.com/minio/minio), [RustFS](https://github.com/rustfs/rustfs).
 
 **Both remaining candidates had S3-dialect defects, and the failure modes were different.** In January 2025, AWS SDKs started to send CRC32 checksum trailers by default. Garage rejected those requests. SeaweedFS wrote the trailer into the stored object bodies. Both defects are fixed. Silent corruption on the path that Postgres backups use is the more serious failure. So *Negative and Risks* records it as a current risk, not as history.
 

@@ -19,13 +19,17 @@
 
 ## Considered options
 
-| Option | Divergence expressed as | Exercises the production path elsewhere | Cost of an upstream change | Verdict |
+| Option | 3 Divergence expressed as | 1 Exercises the production path elsewhere | 2 Cost of an upstream change | Verdict |
 | --- | --- | --- | --- | --- |
 | **One chart set, values overlays per environment** | one values file per environment | yes. Every tier renders the same templates | once | **Chosen.** The divergence surface is one file per environment that a diff can show *(reasoned)* |
 | Kustomize overlays on a shared base | a base, plus a patch directory per environment | yes | once, plus a new check that each patch still matches the base | A patch matches the base by structure. An upstream change can silently turn a patch into a no-op, and the divergence becomes invisible. [ADR-0201](0201-gitops.md) rejects this templating layer for the same reason |
 | Chart forks per environment | separate chart directories | no. Only its own environment exercises each fork | once per fork | Drift is invisible until an environment breaks |
 | Chart logic that branches on the environment | `{{ if eq .Values.env "prod" }}` | **no. The production branch is the least-exercised code in the repo** | once, and every branch needs new reasoning | It moves divergence into templates, where it cannot be reviewed as configuration |
 | A different stack locally, such as Compose | a parallel definition | no | twice, in two languages | A second definition of the system that drifts silently. The local tier would validate something that production does not run |
+
+Sources:
+
+- [Helm docs, values files](https://helm.sh/docs/chart_template_guide/values_files/), [Kustomize patches](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patches/), [Docker Compose](https://docs.docker.com/compose/).
 
 ## Decision
 

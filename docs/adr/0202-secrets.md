@@ -26,15 +26,15 @@ Every environment needs secrets: database passwords, JWT signing keys, OAuth cli
 ## Considered options
 
 | Option | 1 Self-hosted and open | 4 Added stateful component | 3 An engineer can decrypt locally | Diff granularity | Verdict |
-| --- | --- | --- | --- | --- |
-| **SOPS with age** | **Yes** | none. The operator is stateless | **yes**, with the engineer's own key | per value. The structure stays readable, and values are encrypted blobs | **Chosen.** It is the only option that meets drivers 3 and 4 together *(reasoned)* |
-| SOPS with GPG | Yes | none | yes | per value | It needs a key server, a web-of-trust ceremony, and a multi-line key format. age has a single-line public key and no ceremony |
-| SOPS with a cloud KMS key | No. The root of trust is the provider | none | through the provider, with provider credentials | per value | The chosen file format, with its root of trust outside infrastructure that the platform controls. Driver 1 rejects it, for the same reason as the provider row below. age needs no service |
-| sealed-secrets | Yes | a controller that holds a key. The controller generates, backs up, and rotates the key | **no. The encryption is one-way by design** | per value. `encryptedData` is a map per key. The ciphertext is non-deterministic, so re-sealing also rewrites values that did not change | It fails driver 3. An engineer cannot read a committed secret or run against one, so local and cluster need different mechanisms |
-| Vault or OpenBao | OpenBao yes. Vault is under the BUSL | **a service to run, unseal, back up, and upgrade** | through the service | not applicable | It fails driver 4. Its real value is dynamic short-lived credentials. That is a separate question from the storage of static config |
-| External Secrets Operator | Yes, with OpenBao or Infisical behind it | a controller **plus a store behind it** | through that store | not applicable | It can meet driver 1, because OpenBao and Infisical self-host. It fails driver 4 worse than the row above: the same stateful store, plus a sync controller |
-| A provider secret manager, synced in | No | only a controller in the cluster | through the provider | not applicable | It fails driver 1 completely. The secret path leaves infrastructure that the platform controls, and the provider becomes a bootstrap dependency |
-| Uncommitted `kubectl create secret`, the honest baseline | Yes | none | not applicable. Nothing is committed | not applicable. The values are not in git | The repo can no longer reproduce an environment. Each value exists only in the shell history of the person who created it |
+| --- | --- | --- | --- | --- | --- |
+| **SOPS with age** | **Yes** | **None. The operator is stateless** | **Yes, with the engineer's own key** | **Per value. The structure stays readable** | **Chosen** |
+| SOPS with GPG | Yes | None | Yes | Per value | Rejected. A key server and a web of trust, where age has a one-line public key |
+| SOPS with a cloud KMS key | No. The provider holds the root of trust | None | Only with provider credentials | Per value | Rejected on driver 1 |
+| sealed-secrets | Yes | A controller that holds the key and must back it up | No. The encryption is one-way | Per value, and every value changes on a reseal | Rejected on driver 3 |
+| Vault or OpenBao | OpenBao yes. Vault is under the BUSL | A service to run, unseal, back up, and upgrade | Only through the service | Not in git | Rejected on driver 4. Its strength is dynamic credentials, a separate question |
+| External Secrets Operator | Yes, with OpenBao or Infisical behind it | A controller and a store | Only through the store | Not in git | Rejected on driver 4 |
+| A provider secret manager, synced in | No | A controller | Only through the provider | Not in git | Rejected on driver 1 |
+| Uncommitted `kubectl create secret` | Yes | None | Not applicable | Not in git | Rejected. The repo can no longer rebuild an environment |
 
 Sources:
 

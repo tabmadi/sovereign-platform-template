@@ -23,31 +23,43 @@ The platform-engineering budget in [ADR-0000](0000-platform-foundations.md) leav
 
 ### Guardrails
 
-| Option | Applies with no per-service work | Bypassable | Added components | Verdict |
+| Option | 2 Applies with no per-service work | 1 Bypassable | 4 Added components | Verdict |
 | --- | --- | --- | --- | --- |
 | **`LimitRange`, `ResourceQuota`, `PriorityClass`, and `PodDisruptionBudget`** | yes. They are namespace-scoped | no. They are API-server objects | **none. They are in-tree** | **Chosen.** The API server already enforces these four primitives *(reasoned)* |
 | Per-service requests only, reviewed by hand | no | yes, by omission | none | The omission is the failure mode, and review does not catch what is absent |
 | A mutating admission policy that stamps defaults | yes | no | an admission controller | It reaches one case that the chosen option cannot: a chart with no field to set. A controller only for defaults turns driver 4 upside down. Where [ADR-0113](0113-supply-chain-security.md) brings Kyverno for signature verification, Kyverno covers that case as a side effect |
 | Vertical Pod Autoscaler | yes | no | one controller | It rewrites requests from observed usage. This conflicts with values that come from a recorded measurement and are reviewed in git |
 
+Sources:
+
+- [Kubernetes docs, LimitRange](https://kubernetes.io/docs/concepts/policy/limit-range/), [ResourceQuota](https://kubernetes.io/docs/concepts/policy/resource-quotas/), [PriorityClass](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/), [PodDisruptionBudget](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/), [Vertical Pod Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler).
+
 ### CPU limits
 
-| Option | Behaviour under contention | Failure mode | Verdict |
+| Option | 1 Behaviour under contention | 3 Failure mode | Verdict |
 | --- | --- | --- | --- |
 | **Requests and memory limits, no CPU limit** | CPU is shared in proportion to requests, and a burst may use idle capacity | a busy neighbour slows a burst | **Chosen.** Memory is incompressible, so its limit is the only barrier between one leak and an OOM across the node. CPU is compressible, so a limit adds nothing that the requests do not already give *(measured)* |
 | A CPU limit on every container | CFS throttles at the quota even when the node is idle | a burst becomes tail latency, which looks like a code defect | Measured: `temporal-history` bursts to 2121m from almost idle. A 500m limit that looks reasonable cuts it to a quarter, and this shows only as slow checkouts |
 | CPU limits equal to requests | no bursts. Guaranteed QoS class | capacity stays idle while a pod throttles | It buys a predictable eviction order, and the `PriorityClass` tiers already give that |
 | No limits of any kind | nothing bounds a leak | one leak takes the node | The difference above is the point: memory needs the limit, and CPU does not |
 
+Sources:
+
+- CPU limits throttle through the CFS quota even on an idle node: [Kubernetes docs, CPU resource units and limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#how-pods-with-resource-limits-are-run).
+
 ### Autoscaling
 
-| Option | Scales on | Added components | Verdict |
+| Option | Scales on | 4 Added components | Verdict |
 | --- | --- | --- | --- |
 | **No HPA by default, opt-in per service** | a documented sustained-load signal | none | **Chosen.** This is the one place where driver 2 points the other way. A default that guesses is worse than an explicit opt-in *(reasoned)* |
 | An HPA on CPU for every service | CPU usage as a share of the request | none. It is in-tree | With no CPU limit, that share is a weak signal. A service with no load history oscillates against it |
 | Vertical Pod Autoscaler | observed usage, written back into requests | one controller | The same as above: it overwrites reviewed, measured values |
 | VPA in recommendation-only mode | the same, as advice | one controller and a dashboard | The [ADR-0601](0601-testing-strategy.md) load suite already produces this advice, into a dashboard that already exists |
 | KEDA | queue depth and external metrics | one controller and its CRDs | The right answer for event-driven scaling. Nothing here scales on a queue: Temporal workers pull their own work |
+
+Sources:
+
+- [Kubernetes docs, HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), [KEDA](https://keda.sh/).
 
 ## Decision
 

@@ -31,16 +31,22 @@ This ADR decides three things: the CNI, the postures that are on from day one, a
 
 | Capability | flannel only | Calico, eBPF dataplane | flannel with KubeSpan and Calico | flannel with Linkerd | **Cilium with WireGuard** |
 | --- | --- | --- | --- | --- | --- |
-| Components to operate | 1 | 1 | **3** | 2 | **1** |
-| L3 and L4 default-deny segmentation | **none. A flat network** | all pods | all pods | meshed app traffic only | all pods |
+| 3 Components to operate | 1 | 1 | **3** | 2 | **1** |
+| 1 L3 and L4 default-deny segmentation | **none. A flat network** | all pods | all pods | meshed app traffic only | all pods |
 | Protection of the data tier: Postgres, object storage, and OpenFGA | fully open | NetworkPolicy | NetworkPolicy | only if the data tier is meshed, and the bootstrap with many Jobs works against that | NetworkPolicy |
 | Cryptographic workload identity | none | none | none | mTLS certificates, meshed pods only | label identity. SPIFFE is an option later |
-| Encryption in transit, east-west | **plaintext** | all pods, WireGuard | only between nodes | meshed pods only | all pods, WireGuard |
+| 2 Encryption in transit, east-west | **plaintext** | all pods, WireGuard | only between nodes | meshed pods only | all pods, WireGuard |
 | Services without kube-proxy | no | yes, in the eBPF dataplane | **no. Policy-only mode uses iptables** | no | yes |
 | L7 authz by route and method | none | limited, and based on Envoy in the paid tier | none | fine-grained | coarse, through Envoy |
 | Egress control, DNS and FQDN, metadata SSRF | none | CIDR egress. **FQDN is in the paid tier** | CIDR egress | not a Linkerd concern | FQDN and L3 egress in the open distribution |
 | Per-flow visibility | none | **metrics for denied packets. Flow logs are paid** | none | meshed pods only | Hubble, from the same datapath |
 | Verdict | The API server accepts policy, and nothing enforces it | **Runner-up.** This platform commits to both capabilities that it puts behind a paywall | the most components and the fewest capabilities | Scoped to the mesh. It adds to a CNI and does not replace one | **Chosen** *(reasoned)* |
+
+Sources:
+
+- [Cilium docs, WireGuard encryption](https://docs.cilium.io/en/stable/security/network/encryption-wireguard/), [kube-proxy replacement](https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/), [Hubble](https://docs.cilium.io/en/stable/observability/hubble/).
+- Calico features by edition: [Calico docs](https://docs.tigera.io/calico/latest/about/).
+- [Talos docs, KubeSpan](https://www.talos.dev/latest/talos-guides/network/kubespan/), [Linkerd](https://linkerd.io/2/features/).
 
 **flannel ships no NetworkPolicy controller.** So the API server accepts a policy, and nothing enforces it. This is worse than no policy, because it gives false confidence.
 
