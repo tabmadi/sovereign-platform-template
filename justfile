@@ -154,8 +154,9 @@ frontend-build: in-shell
 auth-seed: in-shell
     bash scripts/identity-seed.sh
 
-# Run every generator. The edge reads no OpenAPI spec, so it has no generator, per ADR-0305
+# Run every generator, then format the data files they write. The edge reads no OpenAPI spec, so it has no generator, per ADR-0305
 gen: gen-shared-components gen-openapi gen-openapi-public gen-zod gen-sqlc gen-admin gen-adr-rules gen-data-classes gen-image-allowlist gen-build-path
+    dprint fmt --excludes '**/templates/**' >/dev/null
 
 # Write the rules index and the security baseline from the Rules sections, per ADR-0203
 gen-adr-rules: in-shell
