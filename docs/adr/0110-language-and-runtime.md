@@ -28,7 +28,7 @@ This ADR picks three things:
 
 ## Considered options
 
-| Option | Overlap with the operated stack | Axis C affordances | SDK floor | Verdict |
+| Option | 1 Overlap with the operated stack | 3 Axis C affordances | 4 SDK floor | Verdict |
 | --- | --- | --- | --- | --- |
 | **Go** | **the stack itself:** Kubernetes and its controller ecosystem, ArgoCD, Traefik, Ory, Temporal's server, the OTel Collector, Prometheus, Loki, and Tempo | static types and CSP concurrency. **No decimal type in the standard library**, and no sum types | passes it, as four others do. Its OTel log signal is beta. The .NET and Java log signals are stable | **Chosen** on drivers 1 and 5. Verbose error handling and a thin type system are accepted. A section below closes the arithmetic gap *(reasoned)* |
 | Rust | no | the strongest on offer: exhaustive matching, and no data races by construction. [`sqlx`](https://github.com/launchbadge/sqlx) checks every query against the live schema at compile time. `sqlc` infers it | **fails it.** Temporal is [first-party at public preview](https://temporal.io/changelog/rust-sdk-public-preview), not GA. [OTel Rust](https://opentelemetry.io/docs/languages/) is beta on all three signals | Best correctness in the field. Driver 4 is unmet, and each service pays the velocity cost. **Kept as an escape hatch** |
@@ -39,18 +39,29 @@ This ADR picks three things:
 | Elixir on BEAM | no | supervision trees and true process isolation. Dynamically typed | **fails it:** no first-party durable-execution SDK | Temporal and Kubernetes already give most of its fault-tolerance model here. The platform then pays for that property twice |
 | Polyglot by team choice | mixed | mixed | mixed | The honest baseline. At axis A high, the per-language cost multiplies by the number of teams, not by services. Every shared library is written once per language |
 
+Sources:
+
+- The languages of the operated stack: [Kubernetes](https://github.com/kubernetes/kubernetes), [Argo CD](https://github.com/argoproj/argo-cd), [Traefik](https://github.com/traefik/traefik), [Temporal server](https://github.com/temporalio/temporal), [OTel Collector](https://github.com/open-telemetry/opentelemetry-collector), [Prometheus](https://github.com/prometheus/prometheus).
+- The maturity of each OTel SDK by signal: [OpenTelemetry, language status](https://opentelemetry.io/docs/languages/).
+- The Temporal SDKs and the Rust preview: [Temporal docs, SDKs](https://docs.temporal.io/encyclopedia/temporal-sdks), [Rust SDK public preview](https://temporal.io/changelog/rust-sdk-public-preview).
+- The decimal types: [.NET decimal](https://learn.microsoft.com/en-us/dotnet/api/system.decimal), [Java BigDecimal](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/BigDecimal.html), [Python decimal](https://docs.python.org/3/library/decimal.html).
+
 **Runtime footprint no longer separates the compiled options.** [.NET Native AOT](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/) and GraalVM native images put C# and Java in the same order of magnitude as a Go binary. This holds at idle and at startup. A decision on resident memory was once decisive and is not now, so drivers 1 and 3 carry the decision.
 
 ### The frontend language
 
 The browser runs JavaScript, so the question is which language compiles to it.
 
-| Option | Type system | Ecosystem for the decided frontend | Verdict |
+| Option | 3 Type system | 2 Cost per dependency | Verdict |
 | --- | --- | --- | --- |
 | **TypeScript** | structural, and erased at runtime | native. The framework and design system of [ADR-0400](0400-frontend.md) publish their own types. The generated client of [ADR-0303](0303-api-contracts-and-lifecycle.md) does too | **Chosen.** It is the type layer that this field publishes against, so no binding is written here |
 | JavaScript | none | native | The contract types of the generated client become comments. Those types are the one reason to generate a client |
 | ReScript | sound, and its own | a binding per library, written and maintained here | A stronger type system, paid for per dependency. Most of this frontend is other people's code |
 | Elm | sound, and its own | none. Interop goes through ports | A different runtime model. The component library of [ADR-0400](0400-frontend.md) sits on React interop, which is weak in Elm |
+
+Sources:
+
+- [TypeScript](https://www.typescriptlang.org/), [ReScript, bindings](https://rescript-lang.org/docs/manual/latest/external), [Elm, ports](https://guide.elm-lang.org/interop/ports.html).
 
 ## Decision
 

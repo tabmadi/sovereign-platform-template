@@ -35,16 +35,23 @@ Two constraints come from other ADRs, and they select nothing below, because eve
 
 ### The controller
 
-| Option | Fleet fan-out | Ordered bootstrap | Operator UI | Verdict |
+| Option | 2 Flat onboarding cost | 3 Ordered bootstrap | Operator UI | Verdict |
 | --- | --- | --- | --- | --- |
 | **Argo CD** | **[ApplicationSet generators](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators/)**: git-directory, list, and cluster. They fan out across the fleet with no manifest per service | sync waves, health checks, and hooks before and after sync | strong. It answers what is deployed during on-call | **Chosen.** Apache-2.0, CNCF graduated *(documented)* |
 | Flux | a Kustomization and a HelmRelease per target, or a hand-written generator | `dependsOn` | none first-party | Driver 2 decides it: onboarding a service must not require a new manifest |
 | Flux with a third-party UI | the same as Flux | the same as Flux | Flamingo renders Flux resources through Argo's UI | It adds a second project to the floor to get back what Argo CD ships. It leaves driver 2 unanswered |
 | CI pushes with `helm upgrade` | not applicable | script order | none | CI holds cluster credentials, and drift is invisible. It fails drivers 1 and 4 |
 
+Sources:
+
+- ApplicationSet generators: [Argo CD docs, generators](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators/).
+- Sync waves and hooks: [Argo CD docs, sync waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/).
+- Flux ordering with `dependsOn`: [Flux docs, Kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/#dependencies).
+- Flamingo, the Argo CD UI for Flux: [Flamingo](https://flamingo.dev/).
+
 ### Templating
 
-| Option | Environment differences | Cost of the Nth service | Verdict |
+| Option | 5 Differences in values | 2 Cost of the Nth service | Verdict |
 | --- | --- | --- | --- |
 | **Helm values** | one values file per target | one values file against a shared chart | **Chosen.** It is driver 5 in its cheapest form. The ecosystem ships charts, so third-party components need no translation *(reasoned)* |
 | Kustomize overlays | a base, plus a patch directory per environment | a base, plus one overlay directory per environment | A patch matches the base by structure, so a base change can silently turn a patch into a no-op. Directories multiply by services times environments, against driver 2 |
@@ -52,13 +59,22 @@ Two constraints come from other ADRs, and they select nothing below, because eve
 | CUE, Timoni, or jsonnet | typed and composable | strong | A third language in the deploy layer. Every upstream component still arrives as a chart that needs a wrapper |
 | A manifest per environment, the honest baseline | copies | three copies | Driver 5 exists to refuse this |
 
+Sources:
+
+- [Helm docs, values files](https://helm.sh/docs/chart_template_guide/values_files/), [Kustomize](https://kubectl.docs.kubernetes.io/references/kustomize/), [Timoni](https://timoni.sh/), [CUE](https://cuelang.org/), [Jsonnet](https://jsonnet.org/).
+
 ### Ordering generated Applications
 
-| Option | Ordering it can express | Effect on sync policy | Verdict |
+| Option | 3 Ordering it can express | 1 Effect on continuous reconciliation | Verdict |
 | --- | --- | --- | --- |
 | **Four ApplicationSets under a root app-of-apps** | between tiers, by sync wave on the root's children | none. Each generated Application keeps its own automated sync | **Chosen.** The ordering sits at the only level Argo sequences, and the sync policy stays per environment *(reasoned)* |
 | One ApplicationSet, with sync waves on the generated Applications | **none.** The waves are inert, as the Decision explains | none | This is how most readers understand the feature, and it does not work |
 | One ApplicationSet with `RollingSync` progressive syncs | between steps inside the set | **forces automated sync off** on every generated Application | It is built for ordering. To get that ordering, it removes the continuous reconciliation that driver 1 requires |
+
+Sources:
+
+- Progressive syncs need automated sync off: [Argo CD docs, progressive syncs](https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Progressive-Syncs/).
+- Sync waves order the resources of one Application, not Applications that a set generates: [Argo CD docs, sync waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/).
 
 ## Decision
 

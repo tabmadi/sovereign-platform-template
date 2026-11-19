@@ -25,16 +25,20 @@ Every environment needs secrets: database passwords, JWT signing keys, OAuth cli
 
 ## Considered options
 
-| Option | Added stateful component | An engineer can decrypt locally | Diff granularity | Verdict |
+| Option | 1 Self-hosted and open | 4 Added stateful component | 3 An engineer can decrypt locally | Diff granularity | Verdict |
 | --- | --- | --- | --- | --- |
-| **SOPS with age** | none. The operator is stateless | **yes**, with the engineer's own key | per value. The structure stays readable, and values are encrypted blobs | **Chosen.** It is the only option that meets drivers 3 and 4 together *(reasoned)* |
-| SOPS with GPG | none | yes | per value | It needs a key server, a web-of-trust ceremony, and a multi-line key format. age has a single-line public key and no ceremony |
-| SOPS with a cloud KMS key | none | through the provider, with provider credentials | per value | The chosen file format, with its root of trust outside infrastructure that the platform controls. Driver 1 rejects it, for the same reason as the provider row below. age needs no service |
-| sealed-secrets | a controller that holds a key. The controller generates, backs up, and rotates the key | **no. The encryption is one-way by design** | per value. `encryptedData` is a map per key. The ciphertext is non-deterministic, so re-sealing also rewrites values that did not change | It fails driver 3. An engineer cannot read a committed secret or run against one, so local and cluster need different mechanisms |
-| Vault or OpenBao | **a service to run, unseal, back up, and upgrade** | through the service | not applicable | It fails driver 4. Its real value is dynamic short-lived credentials. That is a separate question from the storage of static config |
-| External Secrets Operator | a controller **plus a store behind it** | through that store | not applicable | It can meet driver 1, because OpenBao and Infisical self-host. It fails driver 4 worse than the row above: the same stateful store, plus a sync controller |
-| A provider secret manager, synced in | only a controller in the cluster | through the provider | not applicable | It fails driver 1 completely. The secret path leaves infrastructure that the platform controls, and the provider becomes a bootstrap dependency |
-| Uncommitted `kubectl create secret`, the honest baseline | none | not applicable. Nothing is committed | not applicable. The values are not in git | The repo can no longer reproduce an environment. Each value exists only in the shell history of the person who created it |
+| **SOPS with age** | **Yes** | none. The operator is stateless | **yes**, with the engineer's own key | per value. The structure stays readable, and values are encrypted blobs | **Chosen.** It is the only option that meets drivers 3 and 4 together *(reasoned)* |
+| SOPS with GPG | Yes | none | yes | per value | It needs a key server, a web-of-trust ceremony, and a multi-line key format. age has a single-line public key and no ceremony |
+| SOPS with a cloud KMS key | No. The root of trust is the provider | none | through the provider, with provider credentials | per value | The chosen file format, with its root of trust outside infrastructure that the platform controls. Driver 1 rejects it, for the same reason as the provider row below. age needs no service |
+| sealed-secrets | Yes | a controller that holds a key. The controller generates, backs up, and rotates the key | **no. The encryption is one-way by design** | per value. `encryptedData` is a map per key. The ciphertext is non-deterministic, so re-sealing also rewrites values that did not change | It fails driver 3. An engineer cannot read a committed secret or run against one, so local and cluster need different mechanisms |
+| Vault or OpenBao | OpenBao yes. Vault is under the BUSL | **a service to run, unseal, back up, and upgrade** | through the service | not applicable | It fails driver 4. Its real value is dynamic short-lived credentials. That is a separate question from the storage of static config |
+| External Secrets Operator | Yes, with OpenBao or Infisical behind it | a controller **plus a store behind it** | through that store | not applicable | It can meet driver 1, because OpenBao and Infisical self-host. It fails driver 4 worse than the row above: the same stateful store, plus a sync controller |
+| A provider secret manager, synced in | No | only a controller in the cluster | through the provider | not applicable | It fails driver 1 completely. The secret path leaves infrastructure that the platform controls, and the provider becomes a bootstrap dependency |
+| Uncommitted `kubectl create secret`, the honest baseline | Yes | none | not applicable. Nothing is committed | not applicable. The values are not in git | The repo can no longer reproduce an environment. Each value exists only in the shell history of the person who created it |
+
+Sources:
+
+- [SOPS](https://getsops.io/docs/), [age](https://github.com/FiloSottile/age), [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets), [OpenBao](https://openbao.org/), [External Secrets Operator](https://external-secrets.io/).
 
 ### Detecting a plaintext secret
 
@@ -46,6 +50,10 @@ Correct storage of secrets and detection of a secret stored wrongly are differen
 | trufflehog | a single Go binary | outbound calls to the providers of the credentials it finds | Its main feature is **verification**: it asks the provider whether a found credential is live. That has real value on a large estate. It also puts CI on the network path to every third party that a false positive names |
 | detect-secrets | Python | a Python toolchain in every clone and every runner | It fails principle 6 of [ADR-0000](0000-platform-foundations.md). With its baseline-file workflow, a reviewer cannot tell an unreviewed finding from a reviewed one |
 | Review alone, the honest baseline | none | none | This repository held this position. It is the one defect class that survives its own fix. A revert of the file leaves the value in history, so the remedy is rotation |
+
+Sources:
+
+- [gitleaks](https://github.com/gitleaks/gitleaks), [trufflehog verification](https://github.com/trufflesecurity/trufflehog#what-is-credential-verification), [detect-secrets](https://github.com/Yelp/detect-secrets).
 
 **A history scan has a separate scope from a tree scan**, because the two answer different questions. The working-tree scan checks that the next change is clean. A pre-commit hook needs this. The history scan checks for an old committed secret that was never rotated. This is a CI question, and CI answers it once per branch, not once per commit.
 
