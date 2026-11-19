@@ -29,25 +29,41 @@ A managed forge is the one dependency that pinning or a contract cannot reconcil
 
 ## Considered options
 
-| Option | Component weight | Pipelines | Governance | Verdict |
-| --- | --- | --- | --- | --- |
-| **Forgejo with Forgejo Actions** | one Go binary, plus a Postgres on the forge host | built in, with GitHub-Actions workflow syntax. Runners are self-hosted by definition | a non-profit umbrella, [Codeberg e.V.](https://forgejo.org/), under [GPLv3+](https://lwn.net/Articles/986998/) | **Chosen.** The only option that meets drivers 1 to 4 together *(reasoned)* |
-| Gitea with Gitea Actions | identical | identical | company-controlled | Functionally equivalent. Provenance is *recorded evidence about exit cost*, per principle 4. The governing body is the only thing that separates these two otherwise equal choices |
-| Gogs | one Go binary | **none.** No built-in CI | maintainer-led | Both rows above forked from it, and the pipelines went with the forks. Adopting it lands on the row for a separate CI engine below |
-| GitLab CE | a suite: Gitaly, Redis, Sidekiq, its own Postgres, and several web services | mature and complete | company-controlled, open-core | Rejected by principle 2, as [ADR-0000](0000-platform-foundations.md) already records. It replaces one component with a platform |
-| Self-hosted forge with a separate CI engine | two components | Woodpecker, Tekton, or Argo Workflows | varies | Rejected by principle 5, as [ADR-0000](0000-platform-foundations.md) already records. It is a second system beside the forge |
-| A managed forge, the do-nothing baseline | none | hosted runners | third-party | Fails driver 1 outright. Axis B is only asserted, not held. The identity that signs artefacts stays under the control of a third party |
+### The forge
 
-Forgejo and Gitea come from the same software lineage, and they score the same on every technical row. Principle 4 says that provenance does not veto a choice, but is recorded. Here it is the only evidence that separates them, so it decides.
+| Option | 1 Sovereignty | 2 Thin floor | 3 Cheap to leave | 4 One primitive per concern | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Forgejo with Forgejo Actions** | **Yes. Self-hosted, GPL-3.0-or-later, under the non-profit Codeberg e.V.** | **One Go binary and a Postgres** | **Yes. Actions reads the workflow syntax of GitHub** | **Yes. CI is built in** | **Chosen** |
+| Gitea with Gitea Actions | Yes, self-hosted. A company, Gitea Ltd, steers it | The same | The same | The same | Rejected. The technical rows tie, and governance is the only difference, per principle 4 of [ADR-0000](0000-platform-foundations.md). It is the runner-up |
+| Gogs | Yes | One Go binary | No CI | No. A second CI engine | Rejected on driver 4 |
+| GitLab CE | Yes | No. Gitaly, Redis, Sidekiq, Postgres, and several web services | Its own CI syntax | Yes | Rejected on driver 2 |
+| A forge with a separate CI engine: Woodpecker, Tekton, or Argo Workflows | Yes | Two components | Each has its own syntax | No | Rejected on driver 4 |
+| A managed forge | No. A third party holds the identity that signs | Nothing to run | Yes | Yes | Rejected on driver 1. It is the start, per *Provider-hosted workflows are the start* |
+
+Sources:
+
+- Forgejo, its licence, and its home at Codeberg e.V.: [Forgejo](https://forgejo.org/), [LWN, Forgejo moves to GPL](https://lwn.net/Articles/986998/).
+- Forgejo Actions reads the GitHub workflow syntax: [Forgejo docs, Actions](https://forgejo.org/docs/latest/user/actions/overview/).
+- Gitea Ltd and the Gitea project: [Gitea, the company](https://about.gitea.com/).
+- The components of GitLab: [GitLab docs, architecture](https://docs.gitlab.com/development/architecture/).
+- Gogs has no built-in CI: [Gogs](https://gogs.io/).
 
 ### The two tools the pipeline runs on
 
-Both are Tier 2, per [ADR-0002](0002-tool-adoption.md). Both follow from the runner shape. They are not independent preferences.
+| Concern | Option | 2 Thin floor | 5 The build environment is pinned | Verdict |
+| --- | --- | --- | --- | --- |
+| Image builds | **BuildKit, through buildx on the Docker of the runner** | **Yes. The runner already has Docker for kind** | **Base images by digest, Go modules by `go.sum`** | **Chosen** |
+| Image builds | Nix with `dockerTools`, from the same `flake.lock` as the dev shell | Yes | Yes, every input of the build, down to the system libraries, per [ADR-0100](0100-toolchain.md) | The next candidate. It wins on driver 5. The switch rewrites the image path of every tier: CI, `cluster-add`, and the preview |
+| Image builds | Buildah or Kaniko | Yes | The same as BuildKit | Rejected. They add a second builder beside the Docker that the runner holds |
+| Local workflow runs | **act** | **One binary** | **Not applicable** | **Chosen. A recipe runs most checks directly, and `act` covers the workflow wiring** |
+| Local workflow runs | A push to a branch, or a runner on the workstation | Yes | Not applicable | Rejected. Each run costs a push or a second runner |
 
-| Concern | Chosen | Picked over | Why |
-| --- | --- | --- | --- |
-| Image builds | **BuildKit**, through buildx on the Docker of the runner | Buildah, Kaniko | A runner is a dedicated machine with Docker, as described below, because the jobs that start kind need one. The builder uses the daemon that is already there *(reasoned)*. The `Dockerfile` syntax is defined against BuildKit, so cache mounts and multi-stage behaviour need no translation. Buildah is the runner-up, and its exit is a task change |
-| Running a workflow locally | **act** | pushing to a branch, or running a self-hosted runner on the workstation | Workflow YAML is a thin caller of `just` recipes, so most local checks run the recipe directly. `act` covers the remaining case, the workflow wiring itself, without a push |
+Sources:
+
+- BuildKit is the builder of Docker: [Docker docs, BuildKit](https://docs.docker.com/build/buildkit/).
+- Image builds with Nix: [nixpkgs manual, dockerTools](https://nixos.org/manual/nixpkgs/stable/#sec-pkgs-dockerTools).
+- Buildah and Kaniko: [Buildah](https://buildah.io/), [Kaniko](https://github.com/GoogleContainerTools/kaniko).
+- act runs workflows locally: [act](https://github.com/nektos/act).
 
 ## Decision
 

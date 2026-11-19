@@ -43,12 +43,16 @@ So a per-component SemVer line would encode a compatibility promise that **no ex
 
 ### The version line
 
-| Option | What the number signals | Human judgement per release | Verdict |
-| --- | --- | --- | --- |
-| **[CalVer](https://calver.org/) `vYYYY.0M.MICRO`, one repo-wide line** | when it shipped | none, because it is the date | **Chosen.** It answers the only question asked of a release version *(reasoned)* |
-| [SemVer](https://semver.org/), one repo-wide line | a compatibility contract | bump level, every release | The contract has no independent pinner. So the signal goes to nobody, and the judgement call is pure cost |
-| SemVer per component, prefixed tag namespaces | per-component compatibility | one judgement per component | Multiplies the same unread promise by the component count, plus tag bookkeeping |
-| Git SHA only, no human version | nothing | none | Deploy identity is already the SHA. A changelog and a release note need a label that a human can say aloud |
+| Option | 1 Unit of version is unit of shipping | 2 The number signals something to a reader | Judgement per release | Verdict |
+| --- | --- | --- | --- | --- |
+| **[CalVer](https://calver.org/) `vYYYY.0M.MICRO`, one repo-wide line** | **Yes** | **Yes. When it shipped, which an operator reads** | **None** | **Chosen** |
+| [SemVer](https://semver.org/), one repo-wide line | Yes | No. A compatibility promise with no pinner to read it | A bump level each release | Rejected on driver 2 |
+| SemVer per component, prefixed tags | No. Production moves as a whole | No | One per component | Rejected on drivers 1 and 2 |
+| Git SHA only | Yes | No. A changelog needs a label that a person can say | None | Rejected on driver 2 |
+
+Sources:
+
+- The CalVer scheme: [calver.org](https://calver.org/). The SemVer promise: [semver.org](https://semver.org/).
 
 Driver 2 decides this table. The number of SemVer is addressed to a pinner, and there is none.
 
@@ -62,21 +66,30 @@ Driver 2 decides this table. The number of SemVer is addressed to a pinner, and 
 
 ### Commit convention
 
-| Option | Machine-readable | How a breaking change is marked | Verdict |
+| Option | 3 Machine-readable, checked at write time | How a breaking change is marked | Verdict |
 | --- | --- | --- | --- |
-| **Conventional Commits** | **a specified grammar, with parsers in every ecosystem** | `!` after the type or scope, or a `BREAKING CHANGE:` footer | **Chosen.** Driver 3: the changelog and the breaking signal are derived, not curated *(reasoned)* |
-| Free-form messages, with a changelog written by hand | no | by whoever remembers | Makes the changelog a writing task at release time, and the breaking signal a matter of memory |
-| gitmoji | a prefix set, with no grammar behind it | no defined marker | Expressive and popular. A gate has nothing to key off |
-| A house prefix scheme | as far as we build it | as far as we build it | The same grammar, written and maintained here, with no third-party parser to inherit |
+| **Conventional Commits** | **Yes. A specified grammar, with parsers in every ecosystem** | **`!` after the type, or a `BREAKING CHANGE:` footer** | **Chosen, and shared, per [ADR-0101](0101-source-control-and-ci.md)** |
+| Free-form messages and a changelog by hand | No | By memory | Rejected on driver 3 |
+| gitmoji | A prefix set with no grammar | Not defined | Rejected on driver 3 |
+| A house prefix scheme | As far as we build it | As far as we build it | Rejected. The same grammar with no parser to inherit |
+
+Sources:
+
+- [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/), [gitmoji](https://gitmoji.dev/).
 
 ### Release tooling
 
-| Option | Computes the version | Enforces the grammar | Verdict |
-| --- | --- | --- | --- |
-| **cocogitto, changelog-only** | not used, because CalVer comes from the date | **yes, at `commit-msg` and in CI** | **Chosen.** One binary covers enforcement and changelog rendering. The version it could compute is not wanted *(reasoned)* |
-| commitlint | no | yes | The same enforcement as a Node program. [ADR-0110](0110-language-and-runtime.md) bars Node for authored tooling |
-| release-please | yes, by inferring SemVer bumps from commit history | no | Its whole value is bump inference. The version-line decision above makes that irrelevant |
-| changesets | yes, per package, from intent files that authors write | no | Built for independently published packages. The same decision rules those out |
+| Option | 3 Enforces the grammar at write time | Computes the version | Runtime | Verdict |
+| --- | --- | --- | --- | --- |
+| **cocogitto, changelog only** | **Yes, in the `commit-msg` hook and in CI** | **Not used. CalVer comes from the date** | **One binary** | **Chosen, and shared, per [ADR-0101](0101-source-control-and-ci.md)** |
+| commitlint | Yes | No | Node.js | Rejected. It needs Node for authored tooling, per [ADR-0110](0110-language-and-runtime.md) |
+| release-please | No | SemVer bumps from history | A GitHub Action | Rejected. Its value is the SemVer bump, which the version line rules out |
+| changesets | No | Per package, from intent files | Node.js | Rejected. It serves packages that publish one by one |
+| git-cliff | No | No | One binary | Rejected. It renders a changelog and enforces nothing |
+
+Sources:
+
+- [cocogitto](https://docs.cocogitto.io/), [commitlint](https://commitlint.js.org/), [release-please](https://github.com/googleapis/release-please), [changesets](https://github.com/changesets/changesets), [git-cliff](https://git-cliff.org/).
 
 ## Decision
 
