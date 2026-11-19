@@ -83,6 +83,9 @@ if [ -d template ]; then
   detail "removed template/"
 fi
 rm -f .github/workflows/template.yml .forgejo/workflows/template.yml scripts/project-rename.sh scripts/forge-mode.sh
+# A longer name can push a line of YAML past the width of the formatter.
+dprint fmt --excludes '**/templates/**' >/dev/null
+
 # The init recipe goes with the script it calls.
 sed -i '/^# Turn this copy into a project/,/^$/d' justfile
 
