@@ -231,7 +231,7 @@ format-shell: in-shell
 # Format JSON, JSONC, TOML, YAML, and Nix, per ADR-0104
 format-data: in-shell
     dprint fmt --excludes '**/templates/**'
-    nixfmt $(git ls-files '*.nix')
+    nixfmt $(git ls-files --cached --others --exclude-standard '*.nix')
 
 # Run every linter
 lint: lint-go lint-gostyle lint-template-build lint-determinism lint-ts lint-prose lint-md lint-data lint-nix lint-just lint-secrets lint-platform
@@ -273,7 +273,7 @@ lint-data: in-shell
 
 # Nix format, per ADR-0104
 lint-nix: in-shell
-    nixfmt --check $(git ls-files '*.nix')
+    nixfmt --check $(git ls-files --cached --others --exclude-standard '*.nix')
 
 # justfile format, per ADR-0104
 lint-just:
