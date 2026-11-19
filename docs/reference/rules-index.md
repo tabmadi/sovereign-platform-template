@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 210 |
-| Review-enforced | 403 |
-| **Total** | **613** |
+| Review-enforced | 408 |
+| **Total** | **618** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -498,6 +498,18 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Erasure reaches live stores immediately and locked backups when the lock window expires, and this bound is disclosed. | review |
 | Database backups are written off-cluster to that bucket, and the restore is rehearsed quarterly. | review |
 | Loki, Tempo, CNPG backups, and Pyroscope write to object storage, not to a block volume. | review |
+
+## ADR-0208: Hypervisor host
+
+[Full decision](../adr/0208-hypervisor-host.md)
+
+| Rule | Enforced by |
+| --- | --- |
+| The hypervisor host is the NixOS configuration `hypervisor` of `infra/hypervisor/`. No step on the host is by hand. | review |
+| Every VM of the host is an entry of `hypervisor.vms`, and its address comes from the inventory or from the kit of its role. | review |
+| The first deploy after `just hypervisor-install` changes nothing. | review |
+| A NixOS release upgrade of the host is `just hypervisor-deploy-boot`, never a live switch. | review |
+| `just hypervisor-lab` passes before a deploy that changes `vms.nix`, `host.nix`, or the images. | review |
 
 ## ADR-0300: Data and Migrations
 

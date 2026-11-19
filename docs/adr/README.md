@@ -67,6 +67,7 @@ The shared toolchain is 0100 to 0109, with the same number for the same topic in
 | [0205](0205-environment-parity.md) | Environment Parity | What may differ across environments, what may not, and the PR preview tier |
 | [0206](0206-cluster-networking.md) | Cluster Networking | The CNI, the day-one postures, and why no service mesh |
 | [0207](0207-cluster-storage.md) | Cluster Storage and Backups | Node-local volumes, one object store everywhere, and where backups live |
+| [0208](0208-hypervisor-host.md) | Hypervisor Host | NixOS on the owned machine, its VMs, its network, its install, and its rollback |
 
 ### 03xx: Application platform
 

@@ -41,7 +41,7 @@ talosctl apply-config --insecure -n 203.0.113.11 -f controlplane.yaml   # per no
 talosctl bootstrap -n 203.0.113.11                                      # ONCE, one node
 ```
 
-`--talos-version` names the release that the nodes run. The `talosctl` of the dev shell can be newer. From 1.14 it writes the new multi-document config, and the v1alpha1 patches here no longer apply to it. Move the flag with the release of the installer image.
+`--talos-version v1.13` keeps the v1alpha1 form that the patches here use. From 1.14, `talosctl` writes the new multi-document config, and the patches conflict with it. A node of 1.14 accepts the v1.13 form, as the QEMU copy of ADR-0208 shows.
 
 `bootstrap` initialises etcd. It runs on exactly one node, one time. If you run it on a second node, you make a second cluster.
 

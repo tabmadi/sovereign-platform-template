@@ -15,6 +15,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
+    # The disk layout of the hypervisor mode, per ADR-0208. A project in another mode never fetches it.
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -26,7 +31,9 @@
         tabnix.flakeModules.default
         tabnix.flakeModules.bun
       ]
-      ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./template/scope.nix) ./template/scope.nix;
+      ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./template/scope.nix) ./template/scope.nix
+      # The hypervisor mode of ADR-0208 adds the host, its deploy, and its QEMU copy.
+      ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./infra/hypervisor/flake-module.nix) ./infra/hypervisor/flake-module.nix;
 
       # The cluster tools and the image builds run on Linux. The tools of a workstation also run on macOS.
       systems = [
@@ -234,7 +241,7 @@
             };
             shfmt = {
               name = "shfmt";
-              entry = "${pkgs.shfmt}/bin/shfmt --diff";
+              entry = "${pkgs.shfmt}/bin/shfmt --diff -i 2";
               files = "\\.sh$";
             };
           };

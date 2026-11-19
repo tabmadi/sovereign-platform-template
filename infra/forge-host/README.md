@@ -16,7 +16,7 @@ This directory exists in a project whose `forge` answer is `forgejo`, per [modes
 
 Each step is safe to run again. `configure` keeps the secrets of an existing `app.ini`, so a second run does not end sessions or break tokens.
 
-1. Create a Debian machine. On the project's own hypervisor, run `bash infra/hypervisor/vm.sh create forge`.
+1. Create a Debian machine. On the project's own hypervisor, the host runs it as the VM `forge`, per `infra/hypervisor/`.
 2. Point `FORGE_DOMAIN` at the machine's public address in DNS, per [ADR-0206](../../docs/adr/0206-cluster-networking.md).
 3. Run `bash infra/forge-host/forge.sh install`.
 4. Run `just secrets-gpg` once. It makes the signing keys of the forge and of `ci`, per [ADR-0116](../../docs/adr/0116-forge-and-pipelines.md). Then run `just forge-signing` to import the forge key.

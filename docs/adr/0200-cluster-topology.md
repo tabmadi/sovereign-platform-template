@@ -129,11 +129,11 @@ Production runs on **plain compute instances**, never on a provider's managed Ku
 | --- | --- | --- |
 | The project provisions its own infrastructure | OpenTofu under `infra/opentofu/` creates instances, network, LB, DNS, firewall, and bucket. It isolates the provider behind a stable interface. A provider change is a module swap, not a topology change | created |
 | Infrastructure is pre-provided | OpenTofu is skipped. The machine configs are applied to existing Talos nodes named in a committed inventory | referenced by configuration |
-| The project operates the hypervisor | Committed scripts create the nodes on hardware that the project runs. To rebuild a node, the project re-images its disk from the Talos image. OpenTofu is skipped: no provider API sits between the project and the metal, so the node lifecycle is a script against one hypervisor | created |
+| The project operates the hypervisor | A NixOS host on hardware that the project runs declares the nodes as VMs, per [ADR-0208](0208-hypervisor-host.md). To rebuild a node, the host writes its disk again from the Talos image. OpenTofu is skipped: no provider API sits between the project and the metal, so the node lifecycle is a deploy of one host | created |
 
 **The modes differ only in provisioning.** Everything after it is identical: machine configuration, Kubernetes, Cilium, and Argo CD. OpenTofu belongs to the project that owns its infrastructure. The second mode never calls it.
 
-**In the third mode, the project owns provisioning, and no provider exists to address.** A hypervisor on the project's own hardware has no API that needs a plan in front of it. The lifecycle is create, re-image, and destroy against one machine. An idempotent script states it as completely as a module does. The mode keeps the requirement that OpenTofu enforces elsewhere: the node definitions, the image reference, and the creation steps are committed. A lost host then costs the time to re-run them, and never the knowledge of what they were.
+**In the third mode, the project owns provisioning, and no provider exists to address.** A hypervisor on the project's own hardware has no API that needs a plan in front of it. The lifecycle is create, re-image, and destroy against one machine. The NixOS configuration of the host states it as completely as a module does, per [ADR-0208](0208-hypervisor-host.md). The mode keeps the requirement that OpenTofu enforces elsewhere: the node definitions, the image reference, and the creation steps are committed. A lost host then costs the time to re-run them, and never the knowledge of what they were.
 
 **Pre-provided means pre-provided Talos.** Talos installs by booting its own image. It is not converged onto a running general-purpose distribution. So this mode requires nodes that already run Talos and are reachable on its API. A pre-provided fleet that runs anything else needs a reprovision, not a configuration step.
 
@@ -210,7 +210,7 @@ The version is pinned, not left at `latest`. A Kubernetes upgrade can add a crit
                      # Application. Argo CD reconciles the rest
 ```
 
-In the other two modes, step 0 is the hypervisor's node-creation script, or nothing. Step 1 is `talosctl apply-config` per node, then one `talosctl bootstrap`.
+In the other two modes, step 0 is the deploy of the hypervisor host, or nothing. Step 1 is `talosctl apply-config` per node, then one `talosctl bootstrap`.
 
 **Step 2 is the bootstrap floor, and it is not optional.** Each of the three is a prerequisite of the thing that would otherwise deploy it:
 

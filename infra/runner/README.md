@@ -19,7 +19,7 @@ This directory exists in a project whose `forge` answer is `forgejo`, per [modes
 
 ## Building the runner
 
-1. Create a Debian machine. On the project's own hypervisor, run `bash infra/hypervisor/vm.sh create runner`.
+1. Create a Debian machine. On the project's own hypervisor, the host runs it as the VM `runner`, per `infra/hypervisor/`.
 2. Set `RUNNER_SSH`, `RUNNER_JUMP`, and `RUNNER_ADDRESS` in `runner.env`.
 3. Export `MISE_GITHUB_TOKEN`, so jobs do not hit the anonymous limit of the GitHub API.
 4. Run `bash infra/runner/runner.sh install`.

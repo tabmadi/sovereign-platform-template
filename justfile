@@ -5,6 +5,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 set positional-arguments
 
 import? 'template/justfile'
+import? 'infra/hypervisor/justfile'
 
 # List the recipes
 default:
