@@ -95,7 +95,7 @@
             dontFixup = true;
             outputHashMode = "recursive";
             outputHashAlgo = "sha256";
-            outputHash = "sha256-iqfy2D5abhrC1yQMudW269ZaVm2NR/X2ipg+bPiRe5Y=";
+            outputHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
           };
 
           # The subcharts that Chart.lock pins, fetched once, so a check renders a chart with no network.

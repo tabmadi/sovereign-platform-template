@@ -12,7 +12,9 @@ for output in go-modules helm-charts; do
   current="$(awk -v n="name = \"${output}\";" 'index($0, n) {f = 1} f && /outputHash = "/ {match($0, /sha256-[A-Za-z0-9+\/=]+/); print substr($0, RSTART, RLENGTH); exit}' flake.nix)"
   [ -n "$current" ] || fail "no outputHash for ${output} in flake.nix"
   sed -i "s|${current}|${fake}|" flake.nix
-  got="$(nix build ".#packages.${system}.${output}" --no-link 2>&1 | sed -nE 's/.*got: +(sha256-[A-Za-z0-9+/=]+).*/\1/p' | head -1)"
+  # The build fails on the fake hash on purpose, and its message holds the real one.
+  log="$(nix build ".#packages.${system}.${output}" --no-link 2>&1 || true)"
+  got="$(sed -nE 's/.*got: +(sha256-[A-Za-z0-9+/=]+).*/\1/p' <<<"$log" | head -1)"
   sed -i "s|${fake}|${got:-$current}|" flake.nix
   if [ -z "$got" ]; then
     detail "${output}: unchanged"
