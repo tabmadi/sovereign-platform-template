@@ -12,7 +12,6 @@ NO_PROXY="127.0.0.1,localhost"
 HOST_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "src") print $(i + 1)}' || true)"
 [[ -n "$HOST_IP" ]] && NO_PROXY+=",$HOST_IP"
 
-ACT_ARGS=()
 proxy_env=()
 if [[ -n "$PROXY" ]]; then
   step "checking proxy ${PROXY}"

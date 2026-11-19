@@ -16,7 +16,7 @@ for spec in services/*/openapi.yaml; do
   # `ogen --clean` overwrites and removes orphans itself. The directory stays full, so a concurrent go or lint pass never sees it empty.
   # `gen-clean` deletes it.
   mkdir -p "$go_out"
-  ogen --target "$go_out" --package "$pkg" --clean "$spec"
+  go tool ogen --target "$go_out" --package "$pkg" --clean "$spec"
 
   step "$service: TS client"
   mkdir -p "$ts_out"
