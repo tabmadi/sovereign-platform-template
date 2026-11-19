@@ -25,7 +25,7 @@ Most of a house style is already published. A new rulebook that repeats it is lo
 
 ## Considered options
 
-| Option | Coverage | Maintenance | Why not |
+| Option | 1 Checkable by a linter | 4 Maintenance | Why not |
 | --- | --- | --- | --- |
 | No written style | none | none | Each surface gets its own dialect, and a reviewer has no basis to call a PR wrong |
 | Write a complete house style guide | total | high: a second standards body to run | It repeats Google, OTel, and clig.dev at lower quality and drifts from them |
@@ -33,6 +33,10 @@ Most of a house style is already published. A new rulebook that repeats it is lo
 | Full ASD-STE100 with its dictionary | prose | high | The dictionary has about 900 words and one meaning each. Platform reasoning needs more general words than that |
 | **Adopt standards by reference, add a Simple English profile on the ASD-STE100 model, make only the deltas normative** | total | low: the deltas are short and a linter checks most of them | **Chosen** *(reasoned)* |
 | Adopt [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) keywords for Rules | normative strength | low | Its `SHOULD` and `MAY` levels invite negotiation. Every Rule here binds. The enforcement annotation carries strength instead |
+
+Sources:
+
+- [ASD-STE100](https://www.asd-ste100.org/), [ISO 24495-1](https://www.iso.org/standard/78907.html), [Google developer documentation style guide](https://developers.google.com/style), [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
 ## Decision
 

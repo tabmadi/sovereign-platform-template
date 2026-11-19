@@ -44,7 +44,7 @@ This ADR owns the **grammar and charset** of every name that the platform assign
 
 ### Resource names
 
-| Option | File-console parity | Provider agnostic | Verdict |
+| Option | 1 File-console parity | 2 Provider agnostic | Verdict |
 | --- | --- | --- | --- |
 | **One slug on a standards-derived charset, plus one mechanical compact form** | exact | yes: the charset is RFC 1123, not a provider survey | **Chosen** *(reasoned)* |
 | One slug on the intersection of a named provider set | exact | no: the intersection changes when the provider set changes, and a template cannot name its provider set | Only a new survey of providers can derive it again, and nobody does that. The cap becomes folklore |
@@ -52,6 +52,10 @@ This ADR owns the **grammar and charset** of every name that the platform assign
 | Org prefix on every name, such as `acme-corp-` | exact | yes | It spends characters of a tight budget on a constant, and the project slug already tells projects apart |
 | Descriptive per-resource suffixes on collision, such as `-eu` or `-2` | exact | yes | A meaningful suffix is itself a guess that can collide again. It brings back the per-resource judgement that this ADR removes |
 | Generated opaque names: a UUID, or a name the provider assigns | exact | yes | They are unreadable, so a command in the wrong context is invisible. That is the failure this ADR exists to prevent |
+
+Sources:
+
+- DNS labels: [RFC 1123](https://www.rfc-editor.org/rfc/rfc1123), [Kubernetes docs, object names](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/).
 
 ### Entity identifiers
 
@@ -65,6 +69,10 @@ The exit cost is months and customer data. An identifier is part of every row, e
 | ULID | none | sequential | none | It solves the same problem as v7 outside the RFC. It has no database type, no `uuid` column, and no library in every language |
 | Bare UUIDv7, no prefix | none | sequential | none | It loses the whole reason for the surface convention: a bare UUID in a log or a ticket says nothing about what it identifies |
 | Separate internal key and public key | none | ideal | partial | Two identifiers per row, a join to translate, and a permanent question about which one a code path holds |
+
+Sources:
+
+- [RFC 9562, UUIDv7](https://www.rfc-editor.org/rfc/rfc9562), [TypeID](https://github.com/jetify-com/typeid), [ULID](https://github.com/ulid/spec).
 
 ## Decision
 

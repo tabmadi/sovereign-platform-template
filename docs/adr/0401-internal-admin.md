@@ -31,7 +31,7 @@ Each service owns its own database, per [ADR-0300](0300-data.md). Each spec alre
 
 ## Considered options
 
-| Option | Config format | Licence | Verdict |
+| Option | 1 Config format | Licence | Verdict |
 | --- | --- | --- | --- |
 | **Lowdefy** | **pure YAML**, about 30 lines per page | [Apache-2.0](https://github.com/lowdefy/lowdefy/blob/main/LICENSE) | **Chosen.** These engineers already read YAML every day for Helm, Kubernetes, and GitOps. YAML is dense, and LLMs write it well. Lowdefy has first-class REST and Postgres connectors. It is stateless when it uses external auth *(documented)* |
 | **An `(admin)` route group in the existing frontend** | **React, in the app that already exists** | not applicable, first-party | **The baseline, and the real contender.** It adds no component and reuses the design system, session, and generated clients. It loses on driver 4. Every CRUD screen is React written by hand, by the people whom driver 4 describes as unwilling to write it. The generated pages in the chosen option are exactly that work. It also puts an operator-facing surface inside the product origin, against [ADR-0306](0306-trust-tiers-and-urls.md) |
@@ -44,14 +44,22 @@ Each service owns its own database, per [ADR-0300](0300-data.md). Each spec alre
 | NocoDB | UI-first | AGPL-3.0 | A database UI, not an application builder. Driver 2 forbids the direct-SQL shape that it does best |
 | Directus | UI-first | [BUSL 1.1](https://directus.io/bsl) | The same as above, and the licence is not OSI-approved |
 
+Sources:
+
+- [Lowdefy](https://docs.lowdefy.com/), [Appsmith](https://docs.appsmith.com/), [Budibase](https://docs.budibase.com/), [ToolJet](https://docs.tooljet.com/), [react-admin](https://marmelab.com/react-admin/).
+
 ### The read-only database inspector
 
-| Option | Shape | Read-only enforcement | Verdict |
+| Option | Shape | 2 Read-only enforcement | Verdict |
 | --- | --- | --- | --- |
 | **pgweb** | a single Go binary | the `--readonly` flag, and a read-only database role | **Chosen.** It has the same one-stateless-container shape as Lowdefy, and two independent read-only layers *(reasoned)* |
 | pgAdmin | a stateful Python application | none, because it is a full client | It goes against a toolchain of single binaries, per [ADR-0110](0110-language-and-runtime.md). It offers write access that the role must then remove |
 | CloudBeaver | a Java server | at the connection level | A heavier runtime again, for extra features that break-glass does not use |
 | `psql` through `talosctl` and a pod | none | the role only | Always available, and the real fallback. It is not a UI. The inspector exists so that an operator does not need this row during an incident |
+
+Sources:
+
+- [pgweb](https://github.com/sosedoff/pgweb), [Adminer](https://www.adminer.org/), [pgAdmin](https://www.pgadmin.org/).
 
 ## Decision
 

@@ -38,7 +38,7 @@ This ADR is the single entry point for a newcomer who works on the frontend.
 
 Every option below is MIT and can be self-hosted as a container. So the important column is what self-hosting *costs*: which features silently assume the vendor's platform.
 
-| Option | Server rendering model | Cost of self-hosting | Governance | Verdict |
+| Option | 2 Server rendering model | 4 Cost of self-hosting | 5 Governance | Verdict |
 | --- | --- | --- | --- | --- |
 | **Next.js, App Router** | Server Components by default, with an opt-in client boundary | `output: standalone` is a first-party target. Image optimisation and incremental regeneration need a cache and a resizer, which the vendor supplies otherwise | **Vercel** | **Chosen.** The server-first model makes driver 2 the default, not an assembly job. Its self-hosting gaps are a cache and a resizer. Both are replaceable, and both run inside the cluster *(documented)* |
 | TanStack Start | client-first, with server functions | no vendor path to depend on | TanStack, vendor-neutral and community-funded | **The strongest alternative on driver 5.** It is the only option here outside the orbit of a hosting vendor. It is younger. Its server model is server functions, not a component-level boundary, so the author handles driver 2 again on every page |
@@ -47,6 +47,10 @@ Every option below is MIT and can be self-hosted as a container. So the importan
 | Nuxt | Vue, with server routes through Nitro | none. Nitro targets a plain Node server | Nuxt is MIT and independently governed. **Vercel acquired NuxtLabs in 2025** | The same as SvelteKit: a different component ecosystem, with no gain the panel can name. On driver 5, choosing it does not move away from Vercel |
 | Astro | islands, static by default | none | Astro Technology Company | Correct for the landing routes and wrong for the panel. Adopting it means two frameworks, against driver 1 |
 | A single-page app and a separate static site | none | none | not applicable | The honest baseline. It has two build pipelines and two deploy targets, and the API credential can live only in the browser |
+
+Sources:
+
+- [Next.js, self-hosting](https://nextjs.org/docs/app/guides/self-hosting), [Remix and React Router](https://reactrouter.com/), [Astro](https://docs.astro.build/), [SvelteKit](https://svelte.dev/docs/kit), [Nuxt](https://nuxt.com/docs).
 
 **Driver 5 does not save any of them.** Vercel employs the Next.js team and Svelte's creator, and it acquired NuxtLabs. So three of the six options are in one vendor's orbit, and only TanStack Start is outside it. Every option is MIT and runs as a container here. So the governance column records a relationship, not a dependency. The exit from Next.js is a rewrite of routing and data loading. That exit is expensive because of the framework's shape, not because of who funds it.
 
@@ -57,7 +61,7 @@ By exit cost, this is Tier 1, per [ADR-0002](0002-tool-adoption.md). It is the d
 - where the source lives
 - how easy that source is to read for the person who edits it, which under driver 3 is the design surface itself
 
-| Option | Where the component source lives | Legibility of the source | Accessibility base | Licence | Verdict |
+| Option | 3 Where the component source lives | Legibility of the source | Accessibility base | Licence | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | **shadcn/ui** | **vendored into the repository as source** by a CLI that fetches one component at a time. It is edited like first-party code | one file per primitive, plain Tailwind classes, and a variant table, with no wrapper API to learn. It is the most widely copied React component source that exists, so an LLM's edits to it are predictable *(documented)* | Radix primitives underneath | MIT, with no commercial tier above it | **Chosen.** Driver 3 asks which source is the cheapest to read and change in place. Every contributor, human or model, already knows this one |
 | Untitled UI React and Tailwind | vendored as source, the same model | a deep folder tree, index barrels, and its own helpers such as `cx`, `sortCx`, and `isReactComponent` to learn before editing a component | React Aria Components underneath | MIT for the React library. **The Figma kit and the PRO component tiers are commercial** | **The displaced choice, with the same shape.** It won an earlier form of driver 3: fidelity to its Figma kit. That assumed design came from that tool. With design authored here, the kit is not a capability, and its layer of house helpers is a cost |
@@ -65,6 +69,10 @@ By exit cost, this is Tier 1, per [ADR-0002](0002-tool-adoption.md). It is the d
 | Park UI | vendored as source, over Ark UI | similar to the choice, with a smaller ecosystem | Ark UI underneath | MIT | The closest structural match. Its primitive layer is younger, and much less is written about it |
 | Material UI | an installed package | theme objects and `sx`, and the markup belongs to the library | its own, mature | MIT | It carries a strong visual language that a product design system then fights. Emotion is a second styling engine |
 | Radix or React Aria and hand-written components | ours | the highest, because we wrote it | the primitives' | MIT or Apache-2.0 | The honest baseline. The chosen option is this baseline *plus* the components. Choosing the baseline means authoring the design system, which is the work the chosen option buys |
+
+Sources:
+
+- [shadcn/ui](https://ui.shadcn.com/docs), [Radix](https://www.radix-ui.com/), [MUI](https://mui.com/), [Mantine](https://mantine.dev/).
 
 **Vendoring as source makes the exit affordable.** The components are in the repository, and they are edited there. So leaving upstream costs the updates, not the code. That keeps this Tier 1 exit cost at the low end of Tier 1.
 
@@ -74,13 +82,17 @@ By exit cost, this is Tier 1, per [ADR-0002](0002-tool-adoption.md). It is the d
 
 By exit cost, this is Tier 2, per [ADR-0002](0002-tool-adoption.md). The message catalogues are portable JSON. Leaving means a rewrite of the call sites, not of the copy. The comparison uses what a **server-first** app needs from the library. That is less than the feature lists suggest.
 
-| Option | Server-component support | Locale in the URL | Message format | Verdict |
+| Option | 2 Server-component support | Locale in the URL | Message format | Verdict |
 | --- | --- | --- | --- | --- |
 | **next-intl** | first-class: the async API for pages, the hook for components, and the locale resolved from a route param *(documented)* | its own routing helpers, with no prefix on the default locale | ICU MessageFormat, so plurals and word order belong to the translator, not to the code | **Chosen.** It is the only option built for the App Router's rendering model, not adapted to it. It also keeps prerendering per locale |
 | react-i18next | works, through a provider and a client boundary | written by hand | ICU through a plugin | The most widely deployed i18n library in React. Its server model here is a provider that it was not designed for. Adopting it means we own the routing and the split between server and client |
 | Lingui | supported, with a compile step | written by hand | ICU, compiled to a runtime format | The best extraction in the field: messages come out of the source, not a catalogue kept by hand. It also adds a macro or compiler step to a build that this repo keeps free of one |
 | Next's own `i18n` config | none, because it is a Pages Router feature | yes, and only there | none | Not available. It is listed because a reader expects to find it. The App Router replaced it with nothing |
 | A hand-written dictionary and a hook | whatever we write | written by hand | whatever we write | The honest baseline. It is about 200 lines and no dependency. It stops being cheap at the first plural, the first date, and the first reader who needs `fa` |
+
+Sources:
+
+- [next-intl](https://next-intl.dev/docs), [react-i18next](https://react.i18next.com/), [Lingui](https://lingui.dev/).
 
 **The catalogues are the exit.** They are plain JSON keyed by path, and every option above can read them. So a change of library costs only the call sites. That work is mechanical, and `lint-i18n` shows it while it is half-done.
 
@@ -102,6 +114,10 @@ By exit cost, this is Tier 2, per [ADR-0002](0002-tool-adoption.md). The message
 | Client state | **Zustand** for the little state that outlives a component tree | Jotai and Valtio are equal at this size, so the question is which one, not whether. XState is right for flows with real state, and it is a modelling commitment the panel does not need. Redux and MobX are on nobody's shortlist here |
 | Forms | **`react-hook-form`** | TanStack Form is the closer competitor, and it is younger. Conform is server-action-first, which couples form code to one framework's action model |
 | Browser telemetry | **Grafana Faro** through the collector | The OTel web SDK alone has no session or web-vitals support. A Sentry browser SDK implies the error backend that [ADR-0503](0503-error-tracking.md) declines |
+
+Sources:
+
+- [Next.js App Router](https://nextjs.org/docs/app), [Tailwind CSS](https://tailwindcss.com/docs), [TanStack Query](https://tanstack.com/query/latest), [React Hook Form](https://react-hook-form.com/), [zod](https://zod.dev/).
 
 ## Decision
 

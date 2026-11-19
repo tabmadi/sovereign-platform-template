@@ -30,12 +30,16 @@ Out of scope: how a product decides its own roadmap, and the content of any one 
 
 The question is where design is authored. By exit cost this is Tier 2, per [ADR-0002](0002-tool-adoption.md). Leaving means moving the work, not rewriting the product, so the table is short.
 
-| Option | Cost of the first screen | Cost of the tenth redesign | How a design becomes code | Verdict |
+| Option | Cost of the first screen | 2 Cost of the tenth redesign | 1 How a design becomes code | Verdict |
 | --- | --- | --- | --- | --- |
 | **In this repository, at the screen's final URL** | a route, its fixtures, and the gates that already run | the same as the first: branch, edit, preview | it is already code *(reasoned)* | **Chosen.** Driver 2 is the whole decision. This is the only option where the second year costs the same as the first week |
 | An external design tool, handed over | the lowest, with no toolchain at all | low in the tool, then paid again in translation, every time | a person reads the file and writes markup that is close to it | **The runner-up, on the first half of driver 1 only.** Every screen is authored twice, and the copies diverge. The platform also cannot gate what it cannot read |
 | A separate prototype repository | the lowest of the three in week one: an empty repo and no gates | **the highest.** The components have diverged and the brand has changed. A new mock of a mature product is a rewrite | a port: markup is translated and tokens are matched again | Loses on driver 2, which describes most of a product's life |
 | A prototype app or route group inside this repository | low | low | a file move and new wiring | The closest to the choice. The difference is a permanent exception zone in every gate. The data seam gives the same result without one |
+
+Sources:
+
+- [Figma Dev Mode](https://www.figma.com/dev-mode/), [Storybook](https://storybook.js.org/docs), [Penpot](https://penpot.app/).
 
 **The chosen option's cost is not zero.** Sketching happens under strict TypeScript, Biome, and an axe scan. A throwaway sketch has none of these. This cost is accepted. The accessibility gates change layout decisions at the point where the change is still free. A hand-off lets exactly this class of defect through.
 

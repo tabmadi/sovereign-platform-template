@@ -31,16 +31,20 @@ Routing is a solved component that the platform chose not to run. Escalation is 
 
 ### Where alerts evaluate and route
 
-| Option | Rules as files | Routing, grouping, silencing | Weight | Verdict |
+| Option | 2 Rules as files | 1 Routing, grouping, silencing | 4 Weight | Verdict |
 | --- | --- | --- | --- | --- |
 | **Prometheus rules and Alertmanager** | native rule files, already shipped | Alertmanager's routing tree, as a committed config | one Go binary, no datastore | **Chosen.** It is the receiver the rule files were always written for *(reasoned)* |
 | Grafana unified alerting | rules become Grafana objects, provisionable as YAML | built into Grafana, already Core | none, because Grafana already runs | Zero added weight, and rejected on principle 5. Alert state moves into Grafana's database. Evaluation splits between two engines while the rule files of [ADR-0500](0500-observability.md) still exist |
 | Alertmanager with [Karma](https://github.com/prymitive/karma) in front | native rule files | Alertmanager's, with Karma as the surface over it | one more always-on UI | Karma reads an Alertmanager and does not replace one. So it adds to the chosen row and does not compete with it. The surface here is Grafana, which already runs |
 | Rule files with no receiver, the honest baseline | yes | none | none | An alert that evaluates and reaches nobody. Driver 1 rules it out |
 
+Sources:
+
+- [Prometheus, alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/), [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/), [Grafana alerting](https://grafana.com/docs/grafana/latest/alerting/).
+
 ### Escalation and paging
 
-| Option | Self-hosted | Rotation, escalation, acknowledgement | Reaches a phone | Verdict |
+| Option | 5 Self-hosted | Rotation, escalation, acknowledgement | 1 Reaches a phone | Verdict |
 | --- | --- | --- | --- | --- |
 | **A managed paging service, reached by webhook** | no | yes | yes | **Chosen as the sanctioned concession**, exactly where [ADR-0000](0000-platform-foundations.md) ranks it *(reasoned)* |
 | Grafana OnCall | **no longer** | yes | never, without Grafana's cloud | The self-hosted answer the field used to have. Its open-source distribution entered maintenance in March 2025 and was **archived in March 2026**. The repository is read-only, and OSS users lost phone and SMS delivery. It is the direct evidence behind ADR-0000's ranking of this component |
@@ -51,6 +55,10 @@ Routing is a solved component that the platform chose not to run. Escalation is 
 | ntfy or Gotify as a receiver | yes | none, delivery only | push notification, not a call | The honest self-hosted delivery floor. It moves a notification to a device. It does not know who is on duty, and it does not notice that nobody acknowledged |
 | Email and chat only | yes | none | no | Enough where no rotation exists, and honest about its limits. It is the default |
 | Build a rotation and escalation service | yes | whatever we write | whatever we integrate | An incident-management product, not platform glue |
+
+Sources:
+
+- Grafana OnCall OSS is in maintenance mode and archives in 2026: [Grafana Labs, OnCall OSS](https://grafana.com/blog/2025/03/11/grafana-oncall-maintenance-mode/). [ntfy](https://docs.ntfy.sh/), [PagerDuty](https://www.pagerduty.com/), [Grafana Cloud IRM](https://grafana.com/products/cloud/irm/).
 
 **No self-hosted option reaches a phone without a third party.** That is the lasting finding. It is narrower than the claim that no self-hosted escalation layer exists: GoAlert is one, and it works. But it cannot put a call through alone. SMS and voice need a carrier account, so a self-hosted scheduler moves the dependency and does not remove it. Grafana OnCall seemed to avoid this, and its archival removed that option. It only seemed to avoid it because Grafana's own cloud did the delivery.
 

@@ -39,7 +39,7 @@ The last row sets the shape of this decision. Issue lifecycle is a workflow prod
 
 ## Considered options
 
-| Option | Added always-on components | Correlation with traces and logs | Licence | Verdict |
+| Option | 3 Added always-on components | 1 Correlation with traces and logs | Licence | Verdict |
 | --- | --- | --- | --- | --- |
 | **OTel `exception.*` records in the existing backends** | **none** | native: the same collector, the same trace ids, the same Grafana | none | **Chosen.** It gives grouping and novelty at no floor cost *(reasoned)* |
 | **GlitchTip** | Django app, Postgres, Redis | a copied trace id, by hand | MIT | The strongest self-hosted tracker for this platform's size. It is Sentry-SDK-compatible, so the ingest protocol is an exit. **Deferred to a Scale swap**, not rejected. The trigger is below |
@@ -48,6 +48,10 @@ The last row sets the shape of this decision. Issue lifecycle is a workflow prod
 | [Bugsink](https://github.com/bugsink/bugsink) | one service and its database | a copied trace id, by hand | Polyform Shield: source-available, non-compete | The same shape as the row above, with a smaller footprint. Its licence is recorded, and it does not disqualify the tool, per principle 4. GlitchTip is MIT and has the longer operating history. That is the whole difference |
 | Sentry SaaS, Bugsnag, Rollbar | none | the same island | proprietary | Fails principle 3, and stack traces are the payload most likely to carry user data. It would join the swap list of [ADR-0000](0000-platform-foundations.md), not the floor |
 | Do nothing | none | native | none | The honest baseline. Errors stay findable but cannot be grouped. A fault that fires all the time looks the same as a fault that fired once |
+
+Sources:
+
+- [Sentry self-hosted](https://develop.sentry.dev/self-hosted/), [GlitchTip](https://glitchtip.com/documentation), [OpenTelemetry, exceptions](https://opentelemetry.io/docs/specs/semconv/exceptions/).
 
 **The two open trackers lose to a design, not to a rival product.** GlitchTip and Highlight are both good at their work, and weight is not the whole objection.
 

@@ -32,7 +32,7 @@ This ADR decides four things:
 
 ### The backend stack
 
-| Option | Dashboards and alerts as code | Signals covered | Query language | Verdict |
+| Option | 1 Dashboards and alerts as code | 6 Signals covered | 5 Query language | Verdict |
 | --- | --- | --- | --- | --- |
 | **Grafana stack: Loki, Prometheus, Tempo, Pyroscope** | **JSON and YAML files in git**, reconciled by Argo | all four, and browser RUM through a Faro receiver | PromQL, LogQL, and TraceQL, all portable | **Chosen** *(reasoned)* |
 | VictoriaMetrics, VictoriaLogs, VictoriaTraces | files, and Grafana stays the UI | three, with no continuous profiling | **PromQL-compatible**, and MetricsQL | The serious challenger on operational weight. It uses much less resource than Prometheus and Loki at the same retention. It keeps driver 5, because Grafana and PromQL do not change. It loses on completeness. Profiling has no counterpart, so Pyroscope stays and the consolidation is partial. The components also differ in maturity, and the traces backend is the youngest |
@@ -40,6 +40,10 @@ This ADR decides four things:
 | OpenObserve | **UI-only click-ops state** | three | its own | The same failure as SigNoz on driver 1, and a query language that is not portable |
 | Elastic stack | index templates and dashboards can be exported, but the working source of truth is the UI | three | its own | It is heavier to operate than the whole Grafana stack. Its query language is the one that does not travel. Elasticsearch has offered AGPL-3.0 again since 2024, so the licence is no longer the objection |
 | One vendor's managed platform | not applicable | all | proprietary | Excluded by driver 4 |
+
+Sources:
+
+- [Grafana, provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/), [Loki](https://grafana.com/docs/loki/latest/), [Tempo](https://grafana.com/docs/tempo/latest/), [Pyroscope](https://grafana.com/docs/pyroscope/latest/), [SigNoz](https://signoz.io/docs/), [OpenObserve](https://openobserve.ai/docs/), [Coroot](https://docs.coroot.com/).
 
 ### Component substitutions inside the stack
 
@@ -56,7 +60,7 @@ The table above chose a stack. Each member was also compared with the strongest 
 
 ### The collection tier
 
-| Option | Added workloads | Enrichment with pod metadata | Verdict |
+| Option | Added workloads | 6 Enrichment with pod metadata | Verdict |
 | --- | --- | --- | --- |
 | **OTel Collector as a DaemonSet** | one per node | at the node, from the kubelet | **Chosen.** Every service emits to `localhost:4317`. So the destination is a collector concern, not an application concern *(reasoned)* |
 | DaemonSet and a gateway Deployment | one per node, and a tier | as above | The right shape once spans must be held to sample on outcome. It is the deferral below, and adding it changes no service |
@@ -64,6 +68,10 @@ The table above chose a stack. Each member was also compared with the strongest 
 | Grafana Alloy for everything | one per node | yes | It already runs for `pprof` scraping, and it is a Grafana distribution of the same collector. Using it for OTLP too trades the vendor-neutral collector for a vendor's build, against driver 2 |
 | Vector | one per node | yes for logs | Good at logs, but not an OTLP-native path for traces or profiles. So it covers one signal of four |
 | Direct from SDK to backend | none | in each service | Every service learns every backend's address and protocol. A backend change becomes a fleet-wide redeploy |
+
+Sources:
+
+- [OTel Collector, k8sattributes processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor), [Grafana Alloy](https://grafana.com/docs/alloy/latest/).
 
 The deciding property is the same one that decided identity in [ADR-0304](0304-identity-and-authorization.md) and the operator UIs: **a component whose configuration lives in its own database is invisible to review and to Argo.** Applying that to observability and not to identity, or the reverse, would be the inconsistency.
 

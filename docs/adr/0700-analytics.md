@@ -36,7 +36,7 @@ So the decision is not which analytics tool to use. It is **which store holds Fa
 
 ## Considered options
 
-| Option | Session identity | Components added | Verdict |
+| Option | 1 Session identity | 2 Components added | Verdict |
 | --- | --- | --- | --- |
 | **Faro events into a first-party service on the existing Postgres** | **shared with ops telemetry** | **none** | **Chosen** *(reasoned)* |
 | Umami | **its own, separate from Faro's** | **none. It runs on PostgreSQL**, which the platform already has | The cheapest self-hosted product here by component weight. It still fails the correlation requirement: its session identity is its own, so a funnel step cannot join to a trace or an error. It gives privacy-first page and event analytics, but not the product-analytics answers this ADR needs |
@@ -47,6 +47,10 @@ So the decision is not which analytics tool to use. It is **which store holds Fa
 | PostHog Cloud | native OpenTelemetry ingest, ids attached automatically, and a direct jump from exception to replay | none | **The closest product fit.** Rejected as the default, because the data leaves the estate and one frontend runs two RUM agents. **Kept as the documented escape hatch** |
 | OpenReplay self-hosted | its own | a floor of 2 vCPU, 8 GB memory, and 50 GB storage, plus bundled Postgres, Redis, and ClickHouse | Maintained charts, versioned releases, and the best replay in the category. Correlation to our traces is integration work, not a native join. It comes back into scope only if the replay trigger fires |
 | Loki as the analytics store | shared | none | Works for a first week, but not as an endpoint. It has no funnel step joins. Routing identity-bearing events into the log store also breaks the PII rule of [ADR-0500](0500-observability.md) |
+
+Sources:
+
+- [Grafana Faro](https://grafana.com/docs/grafana-cloud/monitor-applications/frontend-observability/), [Plausible](https://plausible.io/docs), [Umami](https://umami.is/docs), [PostHog](https://posthog.com/docs), [Matomo](https://matomo.org/docs/).
 
 ## Decision
 
@@ -152,6 +156,10 @@ Two other stores were compared with it.
 | --- | --- | --- |
 | TimescaleDB | a Postgres extension with hypertables, columnar compression, and continuous aggregates | It keeps one engine. But the two features worth adopting it for are under [the Timescale License](https://www.tigerdata.com/legal/licenses), not Apache-2.0. That licence permits self-hosting. The operator's images do not carry the extension, per [ADR-0300](0300-data.md), so the store gains an image to build |
 | DuckDB | an in-process analytical engine over one file | It has no server, so only the service that embeds it can write. It is correct for a query someone runs, and wrong for the store a panel reads |
+
+Sources:
+
+- [TimescaleDB](https://docs.timescale.com/), [ClickHouse](https://clickhouse.com/docs), [DuckDB](https://duckdb.org/docs/).
 
 ## Consequences
 

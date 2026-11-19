@@ -25,7 +25,7 @@ This ADR sets the tiers, the depth each tier owes, the single register, and the 
 
 ### How depth is set
 
-| Option | What decides depth | Failure mode | Verdict |
+| Option | 1 What decides depth | Failure mode | Verdict |
 | --- | --- | --- | --- |
 | **Tiers by exit cost** | how long removal takes and what it touches | a tier assignment can be argued, and the argument is the useful part | **Chosen.** It is principle 4 applied to the record, so the same judgement produces both the adoption and its documentation *(reasoned)* |
 | Principle 7 alone, no tiers | the author | depth follows novelty and enthusiasm, and the boring expensive choice gets the thinnest record *(reasoned)* | The observed failure of the rule with no qualifier |
@@ -33,9 +33,13 @@ This ADR sets the tiers, the depth each tier owes, the single register, and the 
 | Tiers by component tier: Core, Scale, Opt-in | operational obligation | independent of exit cost. An Opt-in library can need a rewrite to remove, and a Core component can be a chart swap | It measures the wrong axis. [`docs/operational-surface.md`](../operational-surface.md) keeps that tiering for its own purpose |
 | Weighted scoring matrix | a numeric total | it creates false precision from qualitative trade-offs, and the author chooses the weights after the answer is known | Rejected on the same grounds as scoring grids in [ADR-0001](0001-documentation-conventions.md) |
 
+Sources:
+
+- The decision record and its drivers: [MADR](https://adr.github.io/madr/). Innovation tokens: [Choose Boring Technology](https://mcfunley.com/choose-boring-technology). The radar format: [Thoughtworks Technology Radar](https://www.thoughtworks.com/radar/faq).
+
 ### Where the record lives
 
-| Option | Discoverable by | Why not |
+| Option | 4 Discoverable by | Why not |
 | --- | --- | --- |
 | **Comparison in the owning ADR, one register row per tool** | reading the decision, or the register | **Chosen.** The reasoning sits beside what it decides. The register answers `what is in here and why` in one file *(reasoned)* |
 | Register only, with no ADR table | the register | A row cannot carry what each option was judged on. The comparison becomes a list of names *(reasoned)* |

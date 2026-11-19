@@ -33,12 +33,16 @@ Without a stated dashboard structure, a growing dashboard set leads to two failu
 
 ### Application-observability suite
 
-| Option | Service map | Dashboards as code | Footprint | Verdict |
+| Option | 1 Service map | 2 Dashboards as code | 3 Footprint | Verdict |
 | --- | --- | --- | --- | --- |
 | **Grafana stack and bundled Hubble UI** | Hubble UI, live | JSON in git | zero added, because both already run | **Chosen** *(reasoned)* |
 | [Coroot Community Edition](https://github.com/coroot/coroot/blob/main/LICENSE), Apache-2.0 | keyed by Deployment, with no name collapse | **UI-only click-ops state in ClickHouse**. It is not in git, not reviewable, and invisible to Argo | five always-on components and ClickHouse | Rejected. It fails driver 2 completely and duplicates most of the Grafana stack. CE also has no SSO or RBAC and about 7 days of retention. It needs tracefs and debugfs mounts. It has no stable query API for the acceptance gauge of [ADR-0601](0601-testing-strategy.md). Its eBPF extras cover uninstrumented workloads, and instrumented services already give more through OTLP |
 | Cisco Isovalent Enterprise Hubble | maintained, with no collapse defect | not applicable | not applicable | Commercial, per principle 3 of [ADR-0000](0000-platform-foundations.md) |
 | No map at all | the `hubble` CLI answers only point queries | not applicable | zero | The UI is free once Hubble runs |
+
+Sources:
+
+- [Grafana](https://grafana.com/docs/grafana/latest/), [Hubble UI](https://github.com/cilium/hubble-ui), [Headlamp](https://headlamp.dev/docs/latest/), [Kiali](https://kiali.io/docs/).
 
 ### Service-map data source inside Grafana
 
