@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 210 |
-| Review-enforced | 408 |
-| **Total** | **618** |
+| Review-enforced | 409 |
+| **Total** | **619** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -148,6 +148,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 
 | Rule | Enforced by |
 | --- | --- |
+| Linux, on x86-64 and ARM, is the one supported platform. No file works around another one. | review |
 | Every tool comes from the dev shell of `flake.nix`, never from a second version manager. | review |
 | `flake.lock` is committed. Renovate updates it, and the CI gate decides. | review |
 | Every check is a derivation under `checks` in `flake.nix`. | `ci` in CI |

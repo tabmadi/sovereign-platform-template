@@ -11,7 +11,7 @@
     };
     # A new version is a new tag here.
     tabnix = {
-      url = "github:tabmadi/tabnix/v0.6.0";
+      url = "github:tabmadi/tabnix/v0.7.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
@@ -34,14 +34,6 @@
       ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./template/scope.nix) ./template/scope.nix
       # The hypervisor mode of ADR-0208 adds the host, its deploy, and its QEMU copy.
       ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./infra/hypervisor/flake-module.nix) ./infra/hypervisor/flake-module.nix;
-
-      # The cluster tools and the image builds run on Linux. The tools of a workstation also run on macOS.
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
-      ];
 
       perSystem =
         {
