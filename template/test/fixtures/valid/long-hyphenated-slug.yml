@@ -1,0 +1,6 @@
+# The upper bound, and the only valid use of a hyphen in the grammar.
+project_name: Eleven Chars
+project_slug: elev-enchar
+module_path: github.com/eleven/elev-enchar
+apex_host: elev-enchar.example
+image_registry: ghcr.io/eleven/elev-enchar

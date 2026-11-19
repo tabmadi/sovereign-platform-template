@@ -1,0 +1,6 @@
+# A module path and registry on a self-hosted forge, not github.com. The registry namespace sorts late among third-party entries, the opposite of defaults.yml.
+project_name: Zulu Works
+project_slug: zuluwork
+module_path: forge.zulu.internal/platform/zuluwork
+apex_host: zuluwork.internal
+image_registry: registry.zulu.internal/platform/zuluwork

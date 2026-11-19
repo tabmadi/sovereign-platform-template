@@ -1,0 +1,6 @@
+# Upper case is outside the grammar.
+project_name: Bad
+module_path: github.com/bad/bad
+apex_host: bad.example
+image_registry: ghcr.io/bad/bad
+project_slug: AcmePlat

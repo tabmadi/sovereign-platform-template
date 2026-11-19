@@ -1,0 +1,6 @@
+# The lower bound of the ADR-0003 range of 5 to 11 characters.
+project_name: Fiver
+project_slug: fiver
+module_path: github.com/fiver/fiver
+apex_host: fiver.example
+image_registry: ghcr.io/fiver/fiver
