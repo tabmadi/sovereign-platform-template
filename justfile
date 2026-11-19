@@ -131,6 +131,25 @@ mock-logs: in-shell
 db-migrate *args: in-shell
     bash scripts/db-migrate.sh "$@"
 
+# The release of Lowdefy, from the one place that pins it
+lowdefy := `sed -n 's/^ARG LOWDEFY_VERSION=//p' apps/admin/Dockerfile`
+
+# Build the Lowdefy admin console in its island shell, per ADR-0401
+admin-build:
+    nix develop .#admin --command bash -c 'cd apps/admin && pnpm dlx lowdefy@{{ lowdefy }} build'
+
+# Run the Lowdefy admin console with live reload, per ADR-0401
+admin-run:
+    nix develop .#admin --command bash -c 'cd apps/admin && pnpm dlx lowdefy@{{ lowdefy }} dev'
+
+# Validate the Lowdefy config, per ADR-0401
+admin-lint:
+    nix develop .#admin --command bash -c 'cd apps/admin && pnpm dlx lowdefy@{{ lowdefy }} validate'
+
+# Build the frontend for production, per ADR-0400
+frontend-build: in-shell
+    cd apps/frontend && bun run build
+
 # Seed the committed test identities into a running Kratos, per ADR-0601
 auth-seed: in-shell
     bash scripts/identity-seed.sh
