@@ -95,7 +95,7 @@ There is one tool per language. Each is a single binary from the dev shell of [A
 
 Sources:
 
-- [golangci-lint linters](https://golangci-lint.run/docs/linters/), [Biome](https://biomejs.dev/), [oxc, oxlint and oxfmt](https://oxc.rs/), [ESLint](https://eslint.org/), [shellcheck](https://www.shellcheck.net/), [shfmt](https://github.com/mvdan/sh), [sqruff](https://github.com/quarylabs/sqruff), [sqlfluff](https://sqlfluff.com/), [Vale](https://vale.sh/), [tablint](https://github.com/tabmadi/tablint).
+- [golangci-lint linters](https://golangci-lint.run/docs/linters/), [Biome](https://biomejs.dev/), [oxc, oxlint and oxfmt](https://oxc.rs/), [ESLint](https://eslint.org/), [shellcheck](https://www.shellcheck.net/), [shfmt](https://github.com/mvdan/sh), [sqruff](https://github.com/quarylabs/sqruff), [sqlfluff](https://sqlfluff.com/), [Vale](https://vale.sh/). `tablint rules` in the dev shell lists the rules of tablint.
 
 **The pattern is one property, repeated.** Every row picks a single static binary over a runtime plus a dependency tree, and accepts a narrower rule set for it. That trade lost for shell. There the ADR pays for two binaries and does not pretend that one covers it.
 

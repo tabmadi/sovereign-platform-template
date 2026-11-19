@@ -55,7 +55,7 @@ Both ran on the same four faults: an opener that is not EARS, a malformed row, a
 
 Sources:
 
-- The `requirement` rules: [tablint README](https://github.com/tabmadi/tablint).
+- The `requirement` rules: `tablint rules` in the dev shell lists them, and the measurement above ran both checkers.
 
 ## Decision
 
