@@ -45,4 +45,4 @@ jobs:
           EVENT: ${{ github.event_name }}
           WORKFLOW_FILE: ${{ inputs.workflow_file }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: nix develop --command just ci-nightly-gate >> "$GITHUB_OUTPUT"
+        run: nix develop .#gate --command just ci-nightly-gate >> "$GITHUB_OUTPUT"

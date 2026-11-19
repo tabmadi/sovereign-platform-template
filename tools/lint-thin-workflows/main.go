@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -117,6 +118,9 @@ func walk(n *yaml.Node, fn func(*yaml.Node)) {
 }
 
 // offending returns the trimmed line if it is logic, or an empty string if it is allowed.
+// thinStep is the one command a step may run: a recipe in the dev shell, or in one named dev shell of flake.nix.
+var thinStep = regexp.MustCompile(`^nix develop (\.#[a-z0-9-]+ )?--command just `)
+
 func offending(line string) string {
 	s := strings.TrimSpace(line)
 	if s == "" || strings.HasPrefix(s, "#") || s == "set -euo pipefail" {
@@ -130,7 +134,8 @@ func offending(line string) string {
 			break
 		}
 	}
-	if strings.HasPrefix(s, "nix develop --command just ") {
+	// A step may name one dev shell of flake.nix, such as the small shell of the activity gates.
+	if thinStep.MatchString(s) {
 		return ""
 	}
 	return strings.TrimSpace(line)

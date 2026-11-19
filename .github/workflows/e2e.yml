@@ -134,7 +134,7 @@ jobs:
         env:
           LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'run/e2e-smoke') }}
           BASE_REF: ${{ github.base_ref }}
-        run: nix develop --command just ci-e2e-gate >> "$GITHUB_OUTPUT"
+        run: nix develop .#gate --command just ci-e2e-gate >> "$GITHUB_OUTPUT"
 
   smoke:
     # A golden path and a key dashboard render, on the PRs that need them and on a manual smoke run.

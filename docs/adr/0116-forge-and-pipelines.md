@@ -71,7 +71,7 @@ Sources:
 | --- | --- |
 | Forge | **Forgejo**, self-hosted on its own host, with its Postgres on that same host |
 | Pipelines | **Forgejo Actions**, with runners on infrastructure we control |
-| Workflow content | checkout, toolchain setup, then `nix develop --command just <recipe>`. Logic does not live in YAML |
+| Workflow content | checkout, toolchain setup, then `nix develop --command just <recipe>`, or `nix develop .#<shell> --command just <recipe>` for a small dev shell. Logic does not live in YAML |
 | Review record | pull requests on the forge. Branch protection and required checks are configuration in the repository, per principle 1 of [ADR-0000](0000-platform-foundations.md) |
 | Registry | **not** the package registry of the forge. [ADR-0114](0114-image-registry.md) decides it separately |
 

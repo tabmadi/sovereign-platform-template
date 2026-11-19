@@ -38,7 +38,7 @@ jobs:
       - id: check
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: nix develop --command just ci-lighthouse-gate >> "$GITHUB_OUTPUT"
+        run: nix develop .#gate --command just ci-lighthouse-gate >> "$GITHUB_OUTPUT"
 
   lighthouse:
     needs: gate

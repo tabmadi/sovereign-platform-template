@@ -252,6 +252,18 @@
                 PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = "true";
               };
             };
+            # The activity gates of CI decide whether a suite runs. Each job has five minutes, and the full dev shell
+            # takes longer on a cold runner, so a gate gets only the tools that its script calls.
+            gate = pkgs.mkShellNoCC {
+              packages = [
+                pkgs.just
+                pkgs.go
+                pkgs.git
+                pkgs.jq
+                pkgs.yq-go
+                pkgs.curl
+              ];
+            };
             # Lowdefy's CLI needs pnpm and Node.js, per ADR-0401.
             admin = pkgs.mkShellNoCC {
               packages = [
