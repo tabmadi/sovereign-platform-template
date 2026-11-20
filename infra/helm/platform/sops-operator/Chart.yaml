@@ -7,6 +7,8 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "0.22.4"
+annotations:
+  app-version-from: "dependency:sops-secrets-operator"
 
 dependencies:
   - name: sops-secrets-operator

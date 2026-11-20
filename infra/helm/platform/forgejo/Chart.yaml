@@ -16,3 +16,5 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "17.0.2"
+annotations:
+  app-version-from: "yaml:infra/helm/platform/forgejo/values.yaml:.forgejo.image.tag"

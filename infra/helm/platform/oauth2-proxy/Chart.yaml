@@ -7,3 +7,5 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "7.15.5"
+annotations:
+  app-version-from: "yaml:infra/helm/platform/oauth2-proxy/values.yaml:.oauth2Proxy.image.tag"

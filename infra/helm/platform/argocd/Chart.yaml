@@ -4,6 +4,8 @@ description: Argo CD with the App-of-Apps bootstrap, per ADR-0201.
 type: application
 version: "2026.11.0"
 appVersion: "3.6.2"
+annotations:
+  app-version-from: "dependency:argo-cd"
 
 dependencies:
   - name: argo-cd

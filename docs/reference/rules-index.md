@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 210 |
+| Machine-enforced | 211 |
 | Review-enforced | 411 |
-| **Total** | **621** |
+| **Total** | **622** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -239,6 +239,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | What a recipe acts on is an argument, never an environment variable: `just cluster-down full`. Environment variables carry the environment of the machine. A variable that a script exports for its own subprocesses is not an interface. | standard: clig.dev, POSIX Utility Conventions |
 | A recipe validates its operand against a closed set and fails on an unknown operand. It never falls back to a default. | review |
 | Every external tool is pinned. Developer and CI tools are pinned in `flake.lock`, Go code tools in `tools/go.mod`, and runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. | `lint-floating-tags` in CI |
+| The `appVersion` of each chart equals the version at the source that its `app-version-from` annotation names. A chart with no upstream release sets the annotation to `none`. | `lint-app-versions` in CI |
 | A PR that changes a spec, a SQL query, or any codegen input includes the regenerated artifacts. | `ci-gen` in CI |
 | A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. | `ci-affected` in CI |
 | Container images are tagged `<service>:<git-sha>`, and the same SHA goes through every environment. | `lint-floating-tags` in CI |

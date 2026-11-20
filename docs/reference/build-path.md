@@ -94,6 +94,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint-alert-severity` | The severity of every alert, per ADR-0502 | flake.nix |
 | `lint-api-audience` | The audience of a spec matches its route at the edge, per ADR-0303 | flake.nix |
 | `lint-api-breaking` | Label the breaking contract changes for review, per ADR-0303 | history.yml |
+| `lint-app-versions` | Each chart's appVersion names the release that the chart deploys, per ADR-0111 | flake.nix |
 | `lint-auth-inline` | The auth config has one source, per ADR-0305 | flake.nix |
 | `lint-authz` | The OpenFGA model, its assertions, and the access rules of the edge, per ADR-0304, ADR-0305, and ADR-0306 | flake.nix |
 | `lint-authz-dual-write` | An authorization tuple is written from an activity, never from a handler, per ADR-0304 | flake.nix |

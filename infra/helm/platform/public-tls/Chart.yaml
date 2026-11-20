@@ -14,3 +14,5 @@ description: |
     secret that a later tier delivers, and no later tier ever runs.
 type: application
 version: "2026.11.0"
+annotations:
+  app-version-from: "none"

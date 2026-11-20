@@ -4,6 +4,8 @@ description: Self-hosted Temporal cluster, per ADR-0302, backed by Postgres thro
 type: application
 version: "2026.11.0"
 appVersion: "1.32.2"
+annotations:
+  app-version-from: "dependency:temporal"
 
 dependencies:
   - name: temporal

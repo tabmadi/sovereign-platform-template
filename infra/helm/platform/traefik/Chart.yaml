@@ -4,6 +4,8 @@ description: The edge ingress controller that every environment runs, per ADR-03
 type: application
 version: "2026.11.0"
 appVersion: "3.7.19"
+annotations:
+  app-version-from: "dependency:traefik"
 
 dependencies:
   - name: traefik

@@ -12,3 +12,5 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "v2.1.23"
+annotations:
+  app-version-from: "yaml:infra/helm/platform/zot/values.yaml:.zot.image.tag"

@@ -17,6 +17,8 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "1.0.0"
+annotations:
+  app-version-from: "none"
 
 # The subcharts are vendored under `charts/` and rendered directly. There is no `dependencies:` block, on purpose.
 

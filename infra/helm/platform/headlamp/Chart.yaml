@@ -9,3 +9,5 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "0.46.0"
+annotations:
+  app-version-from: "yaml:infra/helm/platform/headlamp/values.yaml:.headlamp.image.tag"

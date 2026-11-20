@@ -16,3 +16,5 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "v0.0.37"
+annotations:
+  app-version-from: "yaml:infra/helm/platform/local-path/values.yaml:.localPath.image.tag"

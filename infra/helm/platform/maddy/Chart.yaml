@@ -12,3 +12,5 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "0.9.8"
+annotations:
+  app-version-from: "yaml:infra/helm/platform/maddy/values.yaml:.maddy.image.tag"

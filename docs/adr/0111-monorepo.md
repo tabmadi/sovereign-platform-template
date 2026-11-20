@@ -210,6 +210,15 @@ A recipe validates each operand against a closed set, and an unknown operand is 
 | Go tools that generate or check code: `ogen` and `workflowcheck` | a `tool` line in `tools/go.mod`, so the generator and its runtime library share one version |
 | Runtime services: Postgres, Temporal, Kratos, Oathkeeper, OpenFGA, SeaweedFS, the observability stack, Argo CD, and the CNPG operator | the Helm chart `appVersion`, plus an explicit `image.tag` in `infra/helm/.../values.yaml` |
 
+The `appVersion` of a chart names the release that it deploys. Renovate moves an image tag or a subchart, and nothing moves `appVersion`, so it goes stale with each update. The `app-version-from` annotation of each chart names the source of its version. A check compares the two, so a stale `appVersion` fails CI.
+
+| Annotation | The version is |
+| --- | --- |
+| `dependency:<name>` | the `appVersion` of that subchart, in the archive of its locked version |
+| `yaml:<file>:<expression>` | a `yq` expression on a file, with the path from the repo root |
+| `arg:<file>:<name>` | the default of an `ARG` in a Dockerfile |
+| `none` | absent, because the chart is our own and has no upstream release |
+
 Floating tags are forbidden in Dockerfiles, Helm values, and workflows. A floating tag is `latest`, `stable`, `main`, or an unpinned major. A tool-version change is a normal PR. So anyone who clones at any SHA reproduces the exact toolchain that built it.
 
 ### One Go module for the product, one for the gates
@@ -358,6 +367,7 @@ Each step is its own ADR when its trigger fires.
 - What a recipe acts on is an argument, never an environment variable: `just cluster-down full`. Environment variables carry the environment of the machine. A variable that a script exports for its own subprocesses is not an interface. `(ref: clig.dev, POSIX Utility Conventions)`
 - A recipe validates its operand against a closed set and fails on an unknown operand. It never falls back to a default.
 - Every external tool is pinned. Developer and CI tools are pinned in `flake.lock`, Go code tools in `tools/go.mod`, and runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. `(CI: lint-floating-tags)`
+- The `appVersion` of each chart equals the version at the source that its `app-version-from` annotation names. A chart with no upstream release sets the annotation to `none`. `(CI: lint-app-versions)`
 - A PR that changes a spec, a SQL query, or any codegen input includes the regenerated artifacts. `(CI: ci-gen)`
 - A change to `go.mod`, `go.sum`, root `package.json`, `infra/`, or `tools/` triggers a full-repo CI run. `(CI: ci-affected)`
 - Container images are tagged `<service>:<git-sha>`, and the same SHA goes through every environment. `(CI: lint-floating-tags)`

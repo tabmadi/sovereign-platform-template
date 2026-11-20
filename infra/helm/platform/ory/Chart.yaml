@@ -4,6 +4,8 @@ description: Ory Kratos for identity, Oathkeeper for the edge, and Hydra for OAu
 type: application
 version: "2026.11.0"
 appVersion: "26.2.0"
+annotations:
+  app-version-from: "dependency:kratos"
 
 dependencies:
   - name: kratos

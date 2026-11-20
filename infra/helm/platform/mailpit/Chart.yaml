@@ -11,3 +11,5 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "1.34.0"
+annotations:
+  app-version-from: "yaml:infra/helm/platform/mailpit/values.yaml:.mailpit.image.tag"

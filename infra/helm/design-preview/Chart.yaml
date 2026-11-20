@@ -7,3 +7,5 @@ description: |
 type: application
 version: "2026.11.0"
 appVersion: "2026.11.0"
+annotations:
+  app-version-from: "none"

@@ -238,7 +238,7 @@ format-data: in-shell
 lint: lint-go lint-gostyle lint-template-build lint-determinism lint-ts lint-prose lint-md lint-data lint-nix lint-just lint-secrets lint-platform
 
 # The gates of the platform that run with no network and no cluster. CI runs them in the sandbox
-lint-platform: lint-sql lint-service-deps lint-activity-register lint-authz-dual-write lint-money lint-naming lint-helm-deps lint-openapi lint-api-audience lint-floating-tags lint-shell lint-node-scope lint-auth-inline lint-authz lint-log-vocab lint-resource-governance lint-ports lint-l7-routes lint-service-databases lint-workspace-copies lint-service-contract lint-adr-xref lint-readme-drift lint-rules-index lint-data-classes lint-image-allowlist lint-thin-workflows lint-workarounds lint-dns lint-contrast lint-i18n lint-fixtures lint-tool-register lint-alert-severity lint-parity lint-gitops-env-scope
+lint-platform: lint-sql lint-service-deps lint-activity-register lint-authz-dual-write lint-money lint-naming lint-helm-deps lint-app-versions lint-openapi lint-api-audience lint-floating-tags lint-shell lint-node-scope lint-auth-inline lint-authz lint-log-vocab lint-resource-governance lint-ports lint-l7-routes lint-service-databases lint-workspace-copies lint-service-contract lint-adr-xref lint-readme-drift lint-rules-index lint-data-classes lint-image-allowlist lint-thin-workflows lint-workarounds lint-dns lint-contrast lint-i18n lint-fixtures lint-tool-register lint-alert-severity lint-parity lint-gitops-env-scope
 
 # Go correctness and style with golangci-lint, per ADR-0110
 lint-go: in-shell
@@ -291,6 +291,10 @@ lint-secrets-history: in-shell
 # Helm dependency calls resolve from Chart.yaml alone, per ADR-0111
 lint-helm-deps: in-shell
     bash scripts/lint-helm-deps.sh
+
+# Each chart's appVersion names the release that the chart deploys, per ADR-0111
+lint-app-versions: in-shell
+    bash scripts/lint-app-versions.sh
 
 # SQL with sqruff, and the pii class of each column with personal data, per ADR-0300 and ADR-0301
 lint-sql: in-shell
