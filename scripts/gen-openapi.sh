@@ -21,7 +21,7 @@ for spec in services/*/openapi.yaml; do
   step "$service: TS client"
   mkdir -p "$ts_out"
 
-  bun run openapi-typescript "$spec" --output "$ts_out/index.d.ts"
+  node --import ./scripts/lib/typescript6.mjs node_modules/openapi-typescript/bin/cli.js "$spec" --output "$ts_out/index.d.ts"
 
   # A package.json makes the generated SDK a real workspace package.
   # With only a tsconfig path alias, every import is an undeclared dependency, which Biome rejects.

@@ -10,8 +10,9 @@
     "libs/ts/sdks/*"
   ],
   "devDependencies": {
+    "@typescript/typescript6": "6.0.2",
     "openapi-typescript": "7.13.0",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "overrides": {
     "postcss": "8.5.33",
