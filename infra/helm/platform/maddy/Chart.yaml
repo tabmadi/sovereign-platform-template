@@ -11,4 +11,4 @@ description: |
   own DKIM selector.
 type: application
 version: "2026.11.0"
-appVersion: "0.9.5"
+appVersion: "0.9.8"

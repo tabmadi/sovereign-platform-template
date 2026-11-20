@@ -13,4 +13,4 @@ description: |
   and that is the same binary in both cases.
 type: application
 version: "2026.11.0"
-appVersion: "4.41"
+appVersion: "4.53"

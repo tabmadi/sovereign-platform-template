@@ -10,4 +10,4 @@ description: |
   mailpit.enabled=false in an environment overlay to drop it, as prod does.
 type: application
 version: "2026.11.0"
-appVersion: "1.30.7"
+appVersion: "1.34.0"
