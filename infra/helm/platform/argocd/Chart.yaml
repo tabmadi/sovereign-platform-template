@@ -3,9 +3,9 @@ name: argocd
 description: Argo CD with the App-of-Apps bootstrap, per ADR-0201.
 type: application
 version: "2026.11.0"
-appVersion: "3.4.4"
+appVersion: "3.6.2"
 
 dependencies:
   - name: argo-cd
-    version: "9.7.1"
+    version: "10.18.2"
     repository: https://argoproj.github.io/argo-helm

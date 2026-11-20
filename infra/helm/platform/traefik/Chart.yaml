@@ -3,9 +3,9 @@ name: traefik
 description: The edge ingress controller that every environment runs, per ADR-0305.
 type: application
 version: "2026.11.0"
-appVersion: "3.7.10"
+appVersion: "3.7.19"
 
 dependencies:
   - name: traefik
-    version: "41.7.1"
+    version: "42.4.1"
     repository: https://helm.traefik.io/traefik

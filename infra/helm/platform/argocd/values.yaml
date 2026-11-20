@@ -1,6 +1,10 @@
 argo-cd:
   global:
     domain: argocd.example.com
+    # Chart 10 creates its own NetworkPolicies by default. The CiliumNetworkPolicies of the network-policies chart already
+    # cover Argo CD, per ADR-0206, so a second set would only confuse which rule allows a flow.
+    networkPolicy:
+      create: false
   configs:
     params:
       server.insecure: "true" # TLS ends upstream, at Traefik
