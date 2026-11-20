@@ -137,7 +137,7 @@
             dontFixup = true;
             outputHashMode = "recursive";
             outputHashAlgo = "sha256";
-            outputHash = "sha256-dcZbaofNfSuR0kitUWSPBjCzYkkfeiXK9rhwPTXQ860=";
+            outputHash = "sha256-Yp2/pZh1GcRMHmeZK93SRCqWpC5PGfJ3FYVYYPR9Y30=";
           };
 
           # The tools of every gate. The dev shell holds them too, so a recipe runs the same way in both.
