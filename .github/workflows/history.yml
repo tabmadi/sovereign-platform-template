@@ -27,7 +27,7 @@ env:
 jobs:
   # The commit range, the secret scan of the history, and the breaking changes of the contracts.
   history:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,7 +42,7 @@ jobs:
   # A service that affected detection misses gets no image build, per ADR-0111.
   # This job breaks each service in a scratch worktree. A failure here means that the selection is wrong.
   affected-detection:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -55,7 +55,7 @@ jobs:
   # Separate from the gate, because it fails for a different reason, per ADR-0113.
   # A dependency that gets a published fix turns a green pull request red with no code change.
   scan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup

@@ -26,7 +26,7 @@ env:
 jobs:
   affected:
     if: ${{ !github.event.repository.is_template }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       services: ${{ steps.affected.outputs.services }}
       apps: ${{ steps.affected.outputs.apps }}
@@ -44,7 +44,7 @@ jobs:
     needs: affected
     # An affected set of `[]` is normal. The job is skipped, and promote reads the skip as no failure.
     if: ${{ needs.affected.outputs.images != '[]' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       # The toolchain for the signing step. cosign, syft, sops, and yq are pinned in flake.nix, per ADR-0100.
@@ -81,7 +81,7 @@ jobs:
   apps:
     needs: affected
     if: ${{ needs.affected.outputs.apps != '[]' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -109,7 +109,7 @@ jobs:
     needs: [affected, images, apps]
     # A skipped matrix is empty. A failed cell means a values file would name an image that the registry does not hold.
     if: ${{ !failure() && !cancelled() && (needs.affected.outputs.services != '[]' || needs.affected.outputs.apps != '[]') }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     concurrency: { group: promote, cancel-in-progress: false }
     permissions:
       contents: write
@@ -153,7 +153,7 @@ jobs:
   lighthouse:
     needs: [affected, promote]
     if: ${{ !cancelled() && contains(needs.affected.outputs.apps, '"frontend"') }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

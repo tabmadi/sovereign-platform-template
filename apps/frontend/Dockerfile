@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Bun is the only JS runtime in this image: install, build, and the production server.js all run under Bun.
 # Next's standalone output officially targets Node, but Bun runs it, and without Node the platform has one runtime, per ADR-0000 §"one way to do things".
-ARG BUN_VERSION=1.4.2
+ARG BUN_VERSION=1.4.5
 
 FROM oven/bun:${BUN_VERSION}-alpine AS build
 WORKDIR /app

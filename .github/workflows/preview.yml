@@ -30,7 +30,7 @@ jobs:
     if: >-
       contains(github.event.pull_request.labels.*.name, 'run/preview') &&
       (!github.event.label || github.event.label.name == 'run/preview')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 75
     env:
       PREVIEW_PR: ${{ github.event.pull_request.number }}

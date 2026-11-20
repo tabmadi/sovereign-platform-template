@@ -29,7 +29,7 @@ jobs:
     if: >-
       github.repository == 'tabmadi/sovereign-platform-template' &&
       (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'labeled'))
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -42,7 +42,7 @@ jobs:
       github.repository == 'tabmadi/sovereign-platform-template' &&
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.label.name == 'template-acceptance'))
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 120
     concurrency:
       group: acceptance-${{ github.ref }}

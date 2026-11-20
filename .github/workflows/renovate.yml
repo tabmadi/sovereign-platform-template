@@ -22,7 +22,7 @@ env:
 
 jobs:
   renovate:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     env:
       # A token that can open a pull request whose checks run. The job token cannot. A repository without it skips the run.

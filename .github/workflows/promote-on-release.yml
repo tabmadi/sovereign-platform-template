@@ -24,7 +24,7 @@ env:
 jobs:
   promote:
     if: ${{ !github.event.repository.is_template }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       # The machine user that branch protection lets merge, in infra/forge/branch-protection.yaml. It pushes the prod pin branch.
       - uses: actions/checkout@v7

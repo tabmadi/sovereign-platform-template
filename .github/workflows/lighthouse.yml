@@ -28,7 +28,7 @@ env:
 jobs:
   # A task, not a path filter, because it reads the affected manifest, per ADR-0116.
   gate:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
       run: ${{ steps.check.outputs.run }}
@@ -46,7 +46,7 @@ jobs:
   lighthouse:
     needs: gate
     if: needs.gate.outputs.run == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

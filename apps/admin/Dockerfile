@@ -4,7 +4,7 @@
 # Lowdefy 5 needs Node and pnpm to build, so this image is Node-based, unlike the Go and bun runtime images. It is one of the two Node exceptions that ADR-0110 allows, and the only one that ships as an image.
 # No repo runtime code is Node. Lowdefy is a third-party app, so upstream chooses the runtime. bun cannot replace it at build: the CLI stops unless pnpm is on PATH.
 # The last stage runs the standalone server of Lowdefy's Next build, which upstream targets at Node.
-ARG NODE_VERSION=22
+ARG NODE_VERSION=26
 ARG LOWDEFY_VERSION=5.4.0
 ARG PNPM_VERSION=10.18.2
 # Two stages. The build runs as root, and the last stage takes its tree with `COPY --chown`.

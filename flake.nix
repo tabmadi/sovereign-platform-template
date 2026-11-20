@@ -11,7 +11,7 @@
     };
     # A new version is a new tag here.
     tabnix = {
-      url = "github:tabmadi/tabnix/v0.8.0";
+      url = "github:tabmadi/tabnix/v0.9.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
@@ -191,7 +191,7 @@
 
           tabnix.packages = gateTools ++ [
             # The frontend dev server and the Next.js build run on Node.js, per ADR-0110.
-            pkgs.nodejs_24
+            pkgs.nodejs_26
             pkgs.gopls
             pkgs.typescript-language-server
             pkgs.kubectl
@@ -222,7 +222,7 @@
 
           # Next.js needs the hoisted layout of a plain `bun install`.
           tabnix.bun = {
-            tools = [ pkgs.nodejs_24 ];
+            tools = [ pkgs.nodejs_26 ];
             installFlags = [ "--linker=hoisted" ];
             env.NEXT_TELEMETRY_DISABLED = "1";
           };
@@ -265,7 +265,7 @@
             # Playwright drives the browsers of nixpkgs, so @playwright/test in test/e2e matches playwright-driver.
             e2e = pkgs.mkShellNoCC {
               packages = [
-                pkgs.nodejs_24
+                pkgs.nodejs_26
                 pkgs.just
               ];
               env = {
@@ -289,7 +289,7 @@
             # Lowdefy's CLI needs pnpm and Node.js, per ADR-0401.
             admin = pkgs.mkShellNoCC {
               packages = [
-                pkgs.nodejs_24
+                pkgs.nodejs_26
                 pkgs.pnpm
                 pkgs.just
               ];
