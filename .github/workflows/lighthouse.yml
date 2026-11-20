@@ -17,6 +17,9 @@ permissions:
   contents: read
 
 env:
+  # The binary cache of ADR-0101, read by the setup action. Without the variables both are empty.
+  NIX_CACHE_URL: ${{ vars.NIX_CACHE_URL }}
+  NIX_CACHE_PUBLIC_KEY: ${{ vars.NIX_CACHE_PUBLIC_KEY }}
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
   GIT_CONFIG_COUNT: "1"
   GIT_CONFIG_KEY_0: init.defaultBranch

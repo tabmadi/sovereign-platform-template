@@ -11,7 +11,7 @@
     };
     # A new version is a new tag here.
     tabnix = {
-      url = "github:tabmadi/tabnix/v0.7.0";
+      url = "github:tabmadi/tabnix/v0.8.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
@@ -49,16 +49,31 @@
 
           # cosign stays on 2.x, per ADR-0113: cosign 3 writes only the Sigstore bundle format,
           # and Kyverno verifies that format through the public TUF root, which ADR-0113 rejects.
-          cosign = pkgs.cosign.overrideAttrs {
-            version = "2.6.5";
-            src = pkgs.fetchFromGitHub {
-              owner = "sigstore";
-              repo = "cosign";
-              rev = "v2.6.5";
-              hash = "sha256-tJNNGHT8wFRcVR3/9y2xBAWymBF57zrYUSMtgDU5EPs=";
-            };
-            vendorHash = "sha256-6dHMqmiMxe0mPMyo/TMGcMxzViGp7H3gaS2uTAtrvU4=";
-          };
+          # The release binary of sigstore, not a build from source: a build takes minutes in each CI job, and the
+          # public Nix cache has only cosign 3. The hashes match the cosign_checksums.txt of the release.
+          cosign =
+            let
+              arch =
+                {
+                  x86_64-linux = "amd64";
+                  aarch64-linux = "arm64";
+                }
+                .${system};
+              hash =
+                {
+                  amd64 = "sha256-w7T1QQ5givA6XrCqrISkMT2NoTEkjgj/F1mscMedFkQ=";
+                  arm64 = "sha256-QmGTtMXaTU1kPoIvSP4MyKR2yheConJwSDH1oM73Ftc=";
+                }
+                .${arch};
+            in
+            pkgs.runCommand "cosign-2.6.5" { meta.mainProgram = "cosign"; } ''
+              install -Dm755 ${
+                pkgs.fetchurl {
+                  url = "https://github.com/sigstore/cosign/releases/download/v2.6.5/cosign-linux-${arch}";
+                  inherit hash;
+                }
+              } $out/bin/cosign
+            '';
           go = pkgs.go;
 
           # Every Go module that the workspace and its tools need, as a module proxy. The hash pins the download.

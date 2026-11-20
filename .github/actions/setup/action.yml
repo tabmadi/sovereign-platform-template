@@ -9,5 +9,10 @@ runs:
   using: composite
   steps:
     # A self-hosted runner keeps Nix and its store between jobs. Only a fresh hosted machine installs it.
+    # The binary cache of ADR-0101 comes from the env of the caller. Without its variables, both settings are empty.
     - if: runner.environment == 'github-hosted'
       uses: cachix/install-nix-action@v31
+      with:
+        extra_nix_config: |
+          extra-substituters = ${{ env.NIX_CACHE_URL }}
+          extra-trusted-public-keys = ${{ env.NIX_CACHE_PUBLIC_KEY }}

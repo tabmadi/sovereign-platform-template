@@ -480,6 +480,10 @@ check: lint test build
 ci:
     nix flake check --print-build-logs
 
+# Push what CI built to the binary cache, per ADR-0101. Without NIX_CACHE_URL it does nothing
+cache-push: in-shell
+    nix-cache-push
+
 # The services and apps that a change affects, as JSON, per ADR-0111
 ci-affected *args: in-shell
     go run ./tools/affected "$@"

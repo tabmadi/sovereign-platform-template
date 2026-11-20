@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 210 |
-| Review-enforced | 409 |
-| **Total** | **619** |
+| Review-enforced | 410 |
+| **Total** | **620** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -162,7 +162,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | --- | --- |
 | The git hooks are declared in `flake.nix`, through tabnix. | review |
 | Commit messages and pull request titles follow Conventional Commits with the types in `.config/cog.toml`. | standard: Conventional Commits 1.0.0 |
-| `just ci` is the only CI step after setup. | `ci` in CI |
+| `just ci` is the only gate step after setup. A push to the binary cache may follow it, and never fails the job. | `ci` in CI |
+| A binary cache is turned on by repository variables, never by a value in a committed file. | review |
 | A workflow never puts event text, such as a pull request title, directly into a `run` script. | review |
 | A secret never enters a commit. | `lint-secrets` in CI |
 

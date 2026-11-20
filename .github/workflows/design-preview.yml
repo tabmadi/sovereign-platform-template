@@ -18,6 +18,9 @@ permissions:
   pull-requests: write
 
 env:
+  # The binary cache of ADR-0101, read by the setup action. Without the variables both are empty.
+  NIX_CACHE_URL: ${{ vars.NIX_CACHE_URL }}
+  NIX_CACHE_PUBLIC_KEY: ${{ vars.NIX_CACHE_PUBLIC_KEY }}
   IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'ghcr.io' }}
   IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || github.repository }}
   # Every checkout runs `git init`, which prints a hint on each job while git has no default branch name.
