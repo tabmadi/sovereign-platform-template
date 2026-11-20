@@ -11,11 +11,11 @@
     "lighthouse": "lhci autorun --config=./lighthouserc.cjs"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.11.0",
-    "@lhci/cli": "0.15.1",
+    "@axe-core/playwright": "4.14.0",
+    "@lhci/cli": "0.16.1",
     "@playwright/test": "1.64.1",
-    "@types/node": "22.10.7",
-    "otplib": "13.5.0",
-    "typescript": "5.7.3"
+    "@types/node": "26.6.6",
+    "otplib": "13.6.0",
+    "typescript": "7.0.2"
   }
 }

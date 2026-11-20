@@ -12,7 +12,7 @@
     "@formatjs/intl-localematcher": "0.10.1",
     "@grafana/faro-web-sdk": "2.14.0",
     "@grafana/faro-web-tracing": "2.14.0",
-    "@hookform/resolvers": "5.9.2",
+    "@hookform/resolvers": "7.0.7",
     "@libs/id": "workspace:*",
     "@libs/money": "workspace:*",
     "@libs/observability": "workspace:*",
