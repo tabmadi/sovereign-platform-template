@@ -4,7 +4,7 @@ Use this guide in a project generated with `forge: forgejo`, per [Setup modes](.
 
 ## Set up the internal services
 
-1. Provision Forgejo and a dedicated runner with Nix and Docker. Follow `infra/forge-host/README.md` and `infra/runner/README.md` in the generated project. Stage the OS packages and installer binaries if provisioning also takes place on the closed network.
+1. Provision Forgejo and a dedicated runner with Nix and Docker. Follow `infra/forge-host/README.md` and `infra/runner/README.md`. Stage the OS packages and installer binaries if provisioning also takes place on the closed network.
 2. Mirror the Actions used in `.forgejo/workflows/` and `.github/actions/` at the revisions those files use. Point Forgejo and the workflows at the internal copies. Replace the direct Nix installer step in `check.yml` with the runner's preinstalled Nix. Configure artifact upload and cache steps to use services reachable from the runner.
 3. Configure the runner's Nix daemon to use and trust the internal binary cache, per [ADR-0101](../adr/0101-source-control-and-ci.md). Keep its local store between jobs. Test that the runner can read imported paths with public substituters disabled.
 4. Set the Forgejo registry variables and credentials for the internal Zot, per [ADR-0114](../adr/0114-image-registry.md). Point Argo CD at the internal Forgejo repository, per the [GitOps runbook](gitops-runbook.md). Give the runner, builders, and clusters access to internal DNS and any internal CA they need.
