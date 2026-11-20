@@ -53,6 +53,7 @@ The topic is in the filename, not in a directory. A directory with one file adds
 | [incident-management](guide/incident-management.md) | What counts as an incident, who does what, and what is owed after it |
 | [designing-a-screen](guide/designing-a-screen.md) | How to design a screen, and what promoting it requires |
 | [http-proxy](guide/http-proxy.md) | How to work behind a corporate proxy |
+| [forgejo-ci-offline](guide/forgejo-ci-offline.md) | How to run and time a Forgejo pipeline without public internet access |
 | [performance-runbook](guide/performance-runbook.md) | How to run a load test and read the result |
 
 ## Reference: lookup
