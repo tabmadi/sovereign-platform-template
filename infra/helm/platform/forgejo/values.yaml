@@ -6,9 +6,10 @@ forgejo:
 
   image:
     repository: codeberg.org/forgejo/forgejo
-    # The v16 line, not v15. v16.0.7 has had weeks of use in the field, and not days.
-    tag: "16.0.7"
-    digest: sha256:2fdfe28b5c68f82f49580e227b84e2afb43af0250e0631a54a386ef3b1d9b759
+    # The v17 line, not v16, which reached its end of life on 2026-10-29. The line has had weeks of use in the
+    # field. A patch on a supported line is a security fix, so it follows without a wait.
+    tag: "17.0.2"
+    digest: sha256:879f4f10a98e3e167b32cde5f7ae3af0163d50bfacf567559a27a0e95a95670c
     pullPolicy: IfNotPresent
 
   # One replica. This is not a placeholder for two.

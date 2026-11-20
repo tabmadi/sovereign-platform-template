@@ -92,7 +92,7 @@ jobs:
         run: nix develop --command just perf${{ (github.event_name == 'workflow_dispatch' && inputs.profile != 'load') && format('-{0}', inputs.profile) || '' }}
       - name: Upload k6 summaries
         if: always()
-        # Workaround for forgejo 16.0.7 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
+        # Workaround for forgejo 17.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
         uses: actions/upload-artifact@v7
@@ -143,7 +143,7 @@ jobs:
         run: nix develop --command just perf-smoke
       - name: Upload k6 summaries
         if: always()
-        # Workaround for forgejo 16.0.7 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
+        # Workaround for forgejo 17.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
         uses: actions/upload-artifact@v7

@@ -15,4 +15,4 @@ description: |
   system makes every pod start depend on the forge.
 type: application
 version: "2026.11.0"
-appVersion: "16.0.2"
+appVersion: "17.0.2"
