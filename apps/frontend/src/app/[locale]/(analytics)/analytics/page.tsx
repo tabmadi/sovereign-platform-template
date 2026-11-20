@@ -1,4 +1,4 @@
-// The funnel surface, per ADR-0700.
+// The funnel surface of the frontend, per ADR-0700.
 
 import { getTranslations } from "next-intl/server";
 import {
