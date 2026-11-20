@@ -31,6 +31,27 @@
       "matchDatasources": ["helm"],
       "matchPackageNames": ["kyverno"],
       "allowedVersions": "<3.10.0"
+    },
+    {
+      "description": "openapi-typescript builds its output with the JavaScript API of TypeScript, which TypeScript 7 does not have. TypeScript waits below 7 until openapi-typescript supports it.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
+    },
+    {
+      "description": "msw 3 no longer intercepts the fetch of Bun, and msw supports only Node.js. The frontend tests run on Bun, per ADR-0400. So msw waits below 3 until a release intercepts it again.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": ["msw"],
+      "allowedVersions": "<3"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "An image that a script starts outside the cluster, such as the host registry, is a NAME_IMAGE variable in scripts/lib. No other manager reads a shell script.",
+      "managerFilePatterns": ["/^scripts/lib/.+\\.sh$/"],
+      "matchStrings": ["[A-Z_]+_IMAGE=\"(?<depName>[^\":]+):(?<currentValue>[^\"@]+)\""],
+      "datasourceTemplate": "docker"
     }
   ]
 }

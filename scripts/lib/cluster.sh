@@ -21,7 +21,7 @@ KIND_CONFIG="infra/local/kind.yaml"
 REGISTRY="registry.localhost"
 # A path, never a named volume: a forge cache can restore a directory. A warm from nothing is most of the cost of `cluster-up`, per ADR-0205.
 ZOT_DATA="${ZOT_DATA:-${XDG_CACHE_HOME:-$HOME/.cache}/zot/${REGISTRY}}"
-ZOT_IMAGE="ghcr.io/project-zot/zot-linux-amd64:v2.1.20"
+ZOT_IMAGE="ghcr.io/project-zot/zot-linux-amd64:v2.1.23"
 FORCE="${FORCE:-}"
 # RFC 3339 in UTC, the format of Argo CD's startedAt, so a string comparison orders the two.
 UP_STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
