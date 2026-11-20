@@ -1,5 +1,5 @@
-# Pyroscope, the ADR-0501 POC for continuous profiling. A single-binary monolith with `-target=all`, and filesystem
-# storage on an emptyDir for the POC. A real deployment uses the off-cluster bucket, like Loki and Tempo.
+# Pyroscope, the ADR-0501 POC for continuous profiling. A single-binary monolith with the v2 store on the filesystem
+# of an emptyDir for the POC. A real deployment uses the off-cluster bucket, like Loki and Tempo.
 {{- $py := .Values.pyroscope }}
 {{/* Config in a define, so the Deployment stamps checksum/config and rolls on config edits. Without it, the
      analytics opt-out is in the ConfigMap, but the running pod still sends usage data. */}}
@@ -11,9 +11,6 @@
     # correctly, and that only adds noise to PolicyDropsDetected.
     analytics:
       reporting_enabled: false
-    # Local profile store: an emptyDir at /data for the POC. Use a bucket to persist it.
-    pyroscopedb:
-      data_path: /data
 {{- end }}
 apiVersion: v1
 kind: ConfigMap
@@ -52,7 +49,14 @@ spec:
         - name: pyroscope
           securityContext: {{- include "observability.containerSecurityContext" . | nindent 12 }}
           image: {{ $py.image }}
-          args: ["-config.file=/etc/pyroscope/config.yaml"]
+          # The v2 store only, on the filesystem default `./data/v2`. The working folder is `/`, so the store is on the
+          # emptyDir at /data for the POC. Use a bucket to persist it. The compactor's default temp folder is under the
+          # read-only /tmp, so it moves to /data too. One instance has no peers to wait for, so readiness does not wait.
+          args:
+            - -config.file=/etc/pyroscope/config.yaml
+            - -architecture.storage=v2
+            - -compaction-worker.temp-dir=/data/compactor
+            - -metastore.min-ready-duration=0
           ports:
             - { name: http, containerPort: 4040 }
           readinessProbe: { httpGet: { path: /ready, port: http }, initialDelaySeconds: 15 }

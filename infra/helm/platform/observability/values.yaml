@@ -200,9 +200,9 @@ prometheus:
     limits: { memory: "1Gi" }
 
 # Pyroscope, the ADR-0501 POC for continuous profiling, the fourth signal. `templates/pyroscope.yaml` renders it as a
-# single-binary monolith with `-target=all` and filesystem storage on an emptyDir. That is the POC minimum.
+# single-binary monolith with the v2 store on the filesystem of an emptyDir. That is the POC minimum.
 pyroscope:
-  image: grafana/pyroscope:1.21.1
+  image: grafana/pyroscope:2.4.3
   # The request follows the working set, because memory cannot be compressed. The
   # limit leaves room for ingest spikes.
   resources:
