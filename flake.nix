@@ -242,7 +242,14 @@
             };
             gofmt = {
               name = "golangci-lint fmt";
-              entry = "${pkgs.golangci-lint}/bin/golangci-lint fmt --config .config/golangci.yml";
+              # golangci-lint runs `go env` to find go.mod, so the hook carries the Go of the dev shell. GOTOOLCHAIN=local
+              # stops Go from downloading another toolchain when go.mod names a newer one.
+              entry = toString (
+                pkgs.writeShellScript "golangci-lint-fmt" ''
+                  export PATH=${go}/bin:$PATH GOTOOLCHAIN=local
+                  exec ${pkgs.golangci-lint}/bin/golangci-lint fmt --config .config/golangci.yml
+                ''
+              );
               files = "\\.go$";
               pass_filenames = false;
             };
