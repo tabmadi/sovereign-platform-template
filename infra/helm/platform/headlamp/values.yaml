@@ -8,7 +8,7 @@ headlamp:
 
   image:
     repository: ghcr.io/headlamp-k8s/headlamp
-    tag: v0.43.0
+    tag: v0.46.0
     pullPolicy: IfNotPresent
 
   replicas: 1

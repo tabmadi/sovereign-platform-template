@@ -14,5 +14,5 @@ dependencies:
   # `infra/helm/platform/temporal-worker-controller-crds`. This chart renders a `Connection` custom resource, and
   # Helm cannot validate a CR against a CRD that is installed in the same release.
   - name: temporal-worker-controller
-    version: "0.27.0"
+    version: "0.33.0"
     repository: oci://docker.io/temporalio

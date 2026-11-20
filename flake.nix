@@ -109,7 +109,7 @@
             dontFixup = true;
             outputHashMode = "recursive";
             outputHashAlgo = "sha256";
-            outputHash = "sha256-iqfy2D5abhrC1yQMudW269ZaVm2NR/X2ipg+bPiRe5Y=";
+            outputHash = "sha256-qkg+IDFru8zZ8K7nSgmi8RkDuQ2BXhOffIEOowzwPvo=";
           };
 
           # The subcharts that Chart.lock pins, fetched once, so a check renders a chart with no network.
@@ -137,7 +137,7 @@
             dontFixup = true;
             outputHashMode = "recursive";
             outputHashAlgo = "sha256";
-            outputHash = "sha256-fuGkfWYtVU15/UVyj9JKp3hhfEMKJ9Mh1SSHhZs8BkY=";
+            outputHash = "sha256-dcZbaofNfSuR0kitUWSPBjCzYkkfeiXK9rhwPTXQ860=";
           };
 
           # The tools of every gate. The dev shell holds them too, so a recipe runs the same way in both.

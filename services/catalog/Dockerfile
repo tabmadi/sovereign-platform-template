@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.29
 ARG GO_VERSION=1.27.3
 FROM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
@@ -29,6 +29,6 @@ COPY --from=build /out/app /app
 COPY --from=build /out/migrations /db/migrations
 # The static dbmate binary sits next to the migrations in the image. So the chart's
 # migration initContainer runs them from this image, with no separate dbmate image.
-COPY --from=amacneil/dbmate:2.27.0 /usr/local/bin/dbmate /usr/local/bin/dbmate
+COPY --from=amacneil/dbmate:2.38.2 /usr/local/bin/dbmate /usr/local/bin/dbmate
 USER nonroot:nonroot
 ENTRYPOINT ["/app"]

@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.29
 # The build context is this directory, apps/admin. It does not use the repo-root .dockerignore of the Go service images, which excludes apps/.
 
 # Lowdefy 5 needs Node and pnpm to build, so this image is Node-based, unlike the Go and bun runtime images. It is one of the two Node exceptions that ADR-0110 allows, and the only one that ships as an image.

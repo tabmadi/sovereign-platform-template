@@ -179,7 +179,7 @@ tempo:
 # Prometheus, the Core-tier metrics store: one Deployment, a local TSDB, native OTLP ingest, and no object storage.
 # `templates/prometheus.yaml` renders it as a ConfigMap, a Deployment, and a Service. It is not a subchart.
 prometheus:
-  image: prom/prometheus:v3.1.0
+  image: prom/prometheus:v3.16.0
   replicas: 1
   httpPort: 9090
   # Local-TSDB retention.
@@ -202,7 +202,7 @@ prometheus:
 # Pyroscope, the ADR-0501 POC for continuous profiling, the fourth signal. `templates/pyroscope.yaml` renders it as a
 # single-binary monolith with `-target=all` and filesystem storage on an emptyDir. That is the POC minimum.
 pyroscope:
-  image: grafana/pyroscope:1.14.0
+  image: grafana/pyroscope:1.21.1
   # The request follows the working set, because memory cannot be compressed. The
   # limit leaves room for ingest spikes.
   resources:
@@ -212,7 +212,7 @@ pyroscope:
 # Grafana Alloy, the ADR-0501 POC. It is the pprof-scraping agent that the withdrawn profiling flag always implied.
 # `templates/alloy.yaml` renders it.
 alloy:
-  image: grafana/alloy:v1.11.0
+  image: grafana/alloy:v1.22.0
   # The request matches the real working set. If it asks for less, the scheduler
   # overcommits a node and then evicts the agent, per ADR-0204.
   resources:
@@ -222,7 +222,7 @@ alloy:
 # The cluster-state metrics singleton in `templates/otel-cluster.yaml`. Its k8s_cluster receiver gives desired and
 # available replicas, restart counts, and resource limits as series.
 otelCluster:
-  image: otel/opentelemetry-collector-contrib:0.154.0
+  image: otel/opentelemetry-collector-contrib:0.165.0
   resources:
     requests: { cpu: "50m", memory: "192Mi" }
     limits: { memory: "512Mi" }

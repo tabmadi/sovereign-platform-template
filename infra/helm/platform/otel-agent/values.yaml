@@ -21,7 +21,7 @@ opentelemetry-collector:
     limits: { memory: "768Mi" }
   # The contrib distro. The kubernetesAttributes preset, with the k8sattributes processor, and the `faro` receiver
   # below need it. faroreceiver arrived in contrib 0.128.0.
-  image: { repository: otel/opentelemetry-collector-contrib, tag: "0.154.0" }
+  image: { repository: otel/opentelemetry-collector-contrib, tag: "0.165.0" }
   # logsCollection is the ADR-0500 filelog path. The agent tails `/var/log/pods` with the chart's filelog receiver,
   # using the container parser and excluding the collector's own logs. So PLATFORM workloads that write only to
   # stdout also land in Loki. Examples are postgres, temporal, grafana, and lowdefy.

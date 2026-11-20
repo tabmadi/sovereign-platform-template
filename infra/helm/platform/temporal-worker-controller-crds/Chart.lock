@@ -1,6 +1,6 @@
 dependencies:
 - name: temporal-worker-controller-crds
   repository: oci://docker.io/temporalio
-  version: 0.27.0
-digest: sha256:e3c0dfc725c88ad164746c4c833a626e65855bb3c777d0849386f0472d7c1886
-generated: "2026-07-25T03:13:08.628170015+04:00"
+  version: 0.33.0
+digest: sha256:35b41531c8d3674ee266d7394ef9a8d031ca6d058c5ebb43f91b0f275a74e2b8
+generated: "2026-11-20T07:14:04.159662063+04:00"

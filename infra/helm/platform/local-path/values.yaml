@@ -17,7 +17,7 @@ localPath:
   # It needs `mkdir`, `rm`, and nothing else.
   helperImage:
     repository: docker.io/library/busybox
-    tag: "1.37.0"
+    tag: "1.38.0"
     digest: sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
 
   # Where volumes live on the node. `/var` is the ONLY writable path on a Talos node. Everything else is a read-only

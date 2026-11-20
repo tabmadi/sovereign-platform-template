@@ -10,7 +10,7 @@ seaweedfs:
     # One minor version behind the head release. A store is the conservative slot under
     # ADR-0000 principle 4. The newest tag has had days of use in the field, and not
     # weeks.
-    tag: "4.41"
+    tag: "4.53"
     pullPolicy: IfNotPresent
 
   # The server creates the buckets at startup from `-bucket`. So there is no provisioning Job to schedule, to

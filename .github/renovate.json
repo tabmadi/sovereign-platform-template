@@ -25,6 +25,12 @@
       "matchManagers": ["nix", "github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "toolchain"
+    },
+    {
+      "description": "Kyverno 1.20, chart 3.10.0, no longer executes the kyverno.io policy types of this repo, per ADR-0203. The chart waits below 3.10.0 until every policy moves to a policies.kyverno.io type.",
+      "matchDatasources": ["helm"],
+      "matchPackageNames": ["kyverno"],
+      "allowedVersions": "<3.10.0"
     }
   ]
 }

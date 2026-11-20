@@ -97,7 +97,7 @@ temporal:
   web:
     image:
       repository: temporalio/ui
-      tag: "2.51.1"
+      tag: "2.58.1"
     # The UI image runs as `temporal`, 1000. Unlike for `server`, the chart sets
     # nothing for it. So the pod block is written out in full here.
     securityContext:

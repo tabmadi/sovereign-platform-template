@@ -48,6 +48,10 @@ spec:
             # Kubernetes expands `$(VAR)` in args from the container's own env. So the password reaches the flag, and it does
             # not appear in the pod spec.
             - -admin.password=$(ADMIN_PASSWORD)
+            {{- else }}
+            # Since 4.53 a UI with no password binds to 127.0.0.1, and the edge then gets a 502. The network policy in
+            # 15-object-storage.yaml lets only the edge reach this port, so the edge stays the only way in, per ADR-0306.
+            - -admin.allowInsecureBind
             {{- end }}
           env:
             # `weed mini` turns this pair into the S3 identity on first start.

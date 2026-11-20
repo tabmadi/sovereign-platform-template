@@ -3,13 +3,13 @@
 # The hygiene report runs promtool, which ships in the Prometheus image. It is
 # pinned here and not read from the observability chart, because a chart renders
 # from its own values only.
-prometheusImage: prom/prometheus:v3.1.0
+prometheusImage: prom/prometheus:v3.16.0
 
 alertmanager:
   enabled: true
   image:
     repository: prom/alertmanager
-    tag: v0.28.1
+    tag: v0.35.0
     pullPolicy: IfNotPresent
   replicas: 1
   httpPort: 9093

@@ -7,17 +7,17 @@ appVersion: "26.2.0"
 
 dependencies:
   - name: kratos
-    version: "0.62.1"
+    version: "0.64.0"
     repository: https://k8s.ory.sh/helm/charts
   # Edge identity and access proxy, per ADR-0305. Always on: Kratos, Oathkeeper, and OpenFGA
   # are the internal-only default stack.
   - name: oathkeeper
-    version: "0.62.1"
+    version: "0.64.0"
     repository: https://k8s.ory.sh/helm/charts
     condition: oathkeeper.enabled
   # Hydra is a public-API add-on, per ADR-0305. It is deployed only when `hydra_thirdparty`
   # is on. It is off by default for internal-only projects.
   - name: hydra
-    version: "0.62.1"
+    version: "0.64.0"
     repository: https://k8s.ory.sh/helm/charts
     condition: hydra.enabled

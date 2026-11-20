@@ -3,7 +3,7 @@
 # per the OpenFGA release notes.
 image:
   repository: openfga/openfga
-  tag: "v1.14.2"
+  tag: "v1.22.1"
 
 replicas: 2
 logLevel: info
@@ -20,7 +20,7 @@ seed:
   enabled: true
   # curl and jq for the HTTP-API seed. There is no fga CLI at runtime, because its image
   # is distroless and cannot script a find-or-create flow.
-  image: alpine/k8s:1.31.1
+  image: alpine/k8s:1.37.2
   # Each ops dashboard, per ADR-0306, granted to the members of `group:operator`.
   dashboards: [
     lowdefy,

@@ -6,9 +6,8 @@ forgejo:
 
   image:
     repository: codeberg.org/forgejo/forgejo
-    # v16.0.2 and not the v15 line. Both got patch releases on the same day, so both are maintained. v16 has had
-    # weeks of use in the field, and not days.
-    tag: "16.0.2"
+    # The v16 line, not v15. v16.0.7 has had weeks of use in the field, and not days.
+    tag: "16.0.7"
     digest: sha256:2fdfe28b5c68f82f49580e227b84e2afb43af0250e0631a54a386ef3b1d9b759
     pullPolicy: IfNotPresent
 

@@ -6,7 +6,7 @@ zot:
 
   image:
     repository: ghcr.io/project-zot/zot-linux-amd64
-    tag: "v2.1.20"
+    tag: "v2.1.23"
     pullPolicy: IfNotPresent
 
   # The S3 bucket where zot stores images and their referrers, on the platform's own
@@ -70,7 +70,7 @@ zot:
       # Fully qualified. The allow-list generator collects only references that name
       # a registry path, and the local warm set pulls by the same reference.
       repository: docker.io/library/nginx
-      tag: "1.27-alpine"
+      tag: "1.31-alpine"
       pullPolicy: IfNotPresent
     # Per ADR-0204. It adds one static header and streams the response. The request
     # rate is an operator who clicks through a catalogue, not a pull.

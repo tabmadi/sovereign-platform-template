@@ -6,7 +6,7 @@ maddy:
 
   image:
     repository: foxcpp/maddy
-    tag: "0.9.5"
+    tag: "0.9.8"
     pullPolicy: IfNotPresent
 
   # The identity that platform mail authenticates as.
