@@ -43,7 +43,7 @@ talosctl apply-config --insecure -n 203.0.113.11 -f controlplane.yaml \
 talosctl bootstrap -n 203.0.113.11                                      # ONCE, one node
 ```
 
-etcd reads this setting when it starts, and Talos has no API to restart it. On a running cluster, apply the patch with `--mode=reboot`, one node at a time.
+etcd reads this setting when it starts, and Talos has no API to restart it. On a running cluster, apply the patch with `talosctl patch mc --mode=staged`, then run `talosctl reboot`, one node at a time.
 
 `--talos-version v1.13` keeps the v1alpha1 form that the patches here use. From 1.14, `talosctl` writes the new multi-document config, and the patches conflict with it. A node of 1.14 accepts the v1.13 form, as the QEMU copy of ADR-0208 shows.
 
