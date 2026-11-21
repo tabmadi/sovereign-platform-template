@@ -70,7 +70,7 @@ The weekly `renovate` workflow runs `just ci-renovate` as the `ci` machine user,
 | Anything with a fixed CVE that Trivy gates on | one PR each, at once | on detection |
 | OpenTofu providers and modules | one PR | monthly |
 
-After each upgrade, Renovate runs `just bun-nix` and `bash scripts/nix-hashes.sh`. So `bun.nix` and the two fixed-output hashes of `flake.nix` follow `bun.lock`, `go.sum`, and each `Chart.lock` in the same pull request.
+After each upgrade, Renovate runs `just deps-sync`, which runs `just bun-nix` and `just nix-hashes`. So `bun.nix` and the two fixed-output hashes of `flake.nix` follow `bun.lock`, `go.sum`, and each `Chart.lock` in the same pull request.
 
 **A digest is updated with its tag, never separately.** A digest that moves while its tag does not is a rebuild of the same version. A reviewer cannot judge this case from the diff alone, so the PR body carries both.
 

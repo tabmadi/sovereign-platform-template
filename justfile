@@ -742,6 +742,9 @@ dns-apply: in-shell
 nix-hashes: in-shell
     bash scripts/nix-hashes.sh
 
+# Write the files that follow a dependency change, per ADR-0117
+deps-sync: bun-nix nix-hashes
+
 # Write bun.nix again from bun.lock. Run it after each change of a dependency
 bun-nix: in-shell
     bun2nix -o bun.nix

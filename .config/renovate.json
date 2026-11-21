@@ -6,8 +6,7 @@
   ],
   "binarySource": "global",
   "allowedCommands": [
-    "^just bun-nix$",
-    "^bash scripts/nix-hashes\\.sh$"
+    "^just deps-sync$"
   ],
   "pinDigests": true,
   "separateMultipleMajor": true,
@@ -119,8 +118,7 @@
   ],
   "postUpgradeTasks": {
     "commands": [
-      "just bun-nix",
-      "bash scripts/nix-hashes.sh"
+      "just deps-sync"
     ],
     "executionMode": "branch"
   },
