@@ -23,6 +23,7 @@ if [ "$CHART" = "lowdefy" ]; then
   bash scripts/gen-admin.sh
   docker build -t "${REG}/admin:local" -f apps/admin/Dockerfile apps/admin
   docker push "${REG}/admin:local"
+  kind load docker-image "${REG}/admin:local" --name "$(cluster_name)" >/dev/null
 fi
 
 APP="local-platform-${CHART}"
@@ -59,9 +60,9 @@ h upgrade --install "$CHART" "$CHART_DIR" -n "$NS" \
   -f infra/gitops/platform/local/values.yaml --timeout 8m
 
 # lowdefy's image tag `:local` does not change, so helm sees no change and starts no rollout.
-# Restart it to pull the image rebuilt above.
+# Restart it to run the image loaded above.
 if [ "$CHART" = "lowdefy" ]; then
-  step "restarting lowdefy to pull the rebuilt image"
+  step "restarting lowdefy to run the rebuilt image"
   k -n "$NS" rollout restart deploy/lowdefy
   k -n "$NS" rollout status deploy/lowdefy --timeout=180s
 fi

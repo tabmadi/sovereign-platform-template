@@ -152,7 +152,8 @@ lowdefy:
   image:
     repository: registry.localhost:5000/admin
     tag: local
-    pullPolicy: Always
+    # cluster-up full loads the rebuilt :local into the node.
+    pullPolicy: IfNotPresent
 
 # Core ops tools, local wiring. Headlamp at `headlamp.ops`, per ADR-0501, and pgweb at `pgweb.ops`, per ADR-0401,
 # are Core. Their chart defaults turn them on in every environment.

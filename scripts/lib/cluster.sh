@@ -605,8 +605,12 @@ stage_images() {
     # Buildkit's fetch of the frontend and base images can hit TLS-handshake timeouts on a slow link.
     # The layers it got are cached, so a retry continues from there.
     for attempt in 1 2 3; do
+      # The node gets the image directly. A pull asks zot, and zot asks every upstream about a name that only it holds.
       docker build -t "${push_reg}/${name}:local" -f "$dockerfile" "$@" "$context" &&
-        docker push "${push_reg}/${name}:local" && return 0
+        docker push "${push_reg}/${name}:local" &&
+        docker tag "${push_reg}/${name}:local" "${reg}/${name}:local" &&
+        kind load docker-image "${reg}/${name}:local" --name "$(cluster_name)" >/dev/null &&
+        docker rmi "${reg}/${name}:local" >/dev/null && return 0
       detail "build and push of ${name} attempt ${attempt} failed, retrying"
     done
     fail "could not build and push ${name} after 3 attempts"

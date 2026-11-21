@@ -4,7 +4,7 @@ name: orgs
 image:
   repository: registry.localhost:5000/orgs-server
   tag: local # the local registry stands in for CI. Prod uses a git SHA, per ADR-0111
-  pullPolicy: Always # pull the rebuilt :local again on each cluster-up full run
+  pullPolicy: IfNotPresent # cluster-up full loads the rebuilt :local into the node
 worker:
   enabled: true # RegisterUser dual-write, per ADR-0302
   image:
