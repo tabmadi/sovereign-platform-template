@@ -2,6 +2,7 @@
 import { expect, test } from "@playwright/test";
 import { expectNoA11yViolations, kitchenSinkSections } from "../fixtures/a11y";
 import { BASE_URL, REGISTER_URL, RTL_LOCALE, rtlURL, USER_STATE } from "../fixtures/env";
+import { gotoFlow } from "../fixtures/kratos";
 
 // Scalar renders into its own container with its own theme. The route group AROUND it is in scope, and the console is not.
 const SCALAR = ".scalar-app, [data-scalar], #scalar-api-reference";
@@ -42,14 +43,12 @@ test.describe("accessibility @a11y", () => {
     });
 
     test("login", async ({ page }) => {
-      await page.goto(`${BASE_URL}/auth/login`);
-      await expect(page.locator("form")).toBeVisible();
+      await gotoFlow(page, `${BASE_URL}/auth/login`, "form");
       await expectNoA11yViolations(page, "(landing) /auth/login");
     });
 
     test("registration", async ({ page }) => {
-      await page.goto(REGISTER_URL);
-      await expect(page.locator("form")).toBeVisible();
+      await gotoFlow(page, REGISTER_URL, "form");
       await expectNoA11yViolations(page, "(landing) /auth/register");
     });
 
