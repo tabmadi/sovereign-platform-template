@@ -4,6 +4,10 @@
   imports = [ inputs.tabnix.flakeModules.template ];
 
   tabnix.template = {
+    extraVoice = [
+      "github\\.com/tabmadi"
+      "blueprints"
+    ];
     # The workflow of the template scope must stay in .github/workflows/ to run, so the copy leaves it out by name.
     exclude = [ ".github/workflows/template.yml" ];
     description = "A self-hosted platform monorepo, with every reusable decision recorded as an ADR and enforced in CI";

@@ -34,27 +34,24 @@ linters:
     errorlint:
       comparison: false
     wrapcheck:
-      # tools/internal/* is this repo's own code, not a boundary that an error crosses.
       # libs/go/apierr makes a new API error, per ADR-0303. It wraps nothing.
       ignore-package-globs:
-        - github.com/tabmadi/sovereign-platform-template/tools/internal/*
         - github.com/tabmadi/sovereign-platform-template/libs/go/apierr
     gocritic:
       enabled-checks:
         - ruleguard
       settings:
         ruleguard:
-          rules: "${base-path}/tools/gorules/rules.go"
+          rules: "@tabnix-go-rules@"
     depguard:
       rules:
         no-deep-imports:
           list-mode: lax
           files:
             - "**/apps/**"
-            - "**/tools/**"
           deny:
             - pkg: github.com/tabmadi/sovereign-platform-template/services
-              desc: apps/ and tools/ must not import services/<X>/internal/. Use the generated client.
+              desc: apps/ must not import services/<X>/internal/. Use the generated client.
         pgx-transaction-mode:
           list-mode: lax
           files:
@@ -231,9 +228,6 @@ linters:
           - gocritic
           - prealloc
         path: _test\.go
-      - linters:
-          - revive
-        path: tools/
     paths:
       - third_party$
       - builtin$

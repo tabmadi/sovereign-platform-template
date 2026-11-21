@@ -219,7 +219,7 @@ if [ -n "$HOST" ] && has svc catalog-server && has svc ory-kratos-admin; then
   done
   status=""
   for _ in $(seq 1 30); do
-    status="$(edge -b "$jar" "${base}/api/orders/${order##*/}" | jq -r '.status // ""')" # tablint:allow
+    status="$(edge -b "$jar" "${base}/api/orders/${order##*/}" | jq -r '.status // ""')" # tabrules:allow
     case "$status" in confirmed | failed) break ;; esac
     sleep 2
   done

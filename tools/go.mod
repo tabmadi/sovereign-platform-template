@@ -2,11 +2,7 @@ module github.com/tabmadi/sovereign-platform-template/tools
 
 go 1.26.0
 
-require (
-	github.com/quasilyte/go-ruleguard/dsl v0.3.23
-	golang.org/x/tools v0.53.0
-	gopkg.in/yaml.v3 v3.0.1
-)
+require github.com/quasilyte/go-ruleguard/dsl v0.3.23
 
 require (
 	github.com/dlclark/regexp2 v1.12.0 // indirect
@@ -33,6 +29,7 @@ require (
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
+	golang.org/x/tools v0.53.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

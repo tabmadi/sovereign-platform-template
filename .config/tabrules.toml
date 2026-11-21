@@ -1,0 +1,213 @@
+# The settings of tabrules, per ADR-0001 and ADR-0104.
+
+[prose]
+status-exempt = ["docs/operational-surface.md", "README.md"]
+slash-terms = ["ci/cd", "i/o", "tcp/ip", "shadcn/ui"]
+# Evidence grades, per ADR-0002, and the grade placeholder of the ADR template.
+ignore = ['\((?:reasoned|documented|measured|grade)\b[^()]*(?:\([^()]*\)[^()]*)*\)', '\(\$\{PullRequestReference\}\)']
+
+[comments]
+paths = [
+  "{apps,libs,services,tools,scripts,infra,test}/**/*.{go,ts,tsx,sh,toml,sql,yaml,yml}",
+  "{.github,.forgejo}/workflows/**",
+]
+skip-dirs = ["node_modules", ".next", "dist", "build", "_generated", "sdks", "schemas", "secrets", "testdata"]
+directives = ["platform/not-deployed"]
+# `tabrules gen shared-components` writes these regions of each spec.
+skip-regions = [[">>> shared-components:", "<<< shared-components"]]
+
+[adr]
+# The index shortens each Decides line, per docs/adr/README.md.
+index-matches-decides = false
+
+[docs]
+genre-dirs = ["adr", "guide", "reference", "requirements", "product"]
+root-files = [
+  "README.md",
+  "reading-path.md",
+  "dev-loop.md",
+  "brand.md",
+  "operational-surface.md",
+  "adoption-path.md",
+  "tool-register.md",
+  "security-baseline.md",
+]
+forbidden-links = [{ from = "docs/**", to = "README.md", reason = "a generated project rewrites the root README" }]
+
+[messages]
+dir = "apps/frontend/src/messages"
+
+# The rules of tabrules that this repo adopts. Each ADR that states a rule names its recipe, per ADR-0104.
+
+[rules."comment/workaround"]
+cite = "ADR-0001"
+
+[rules."workflow/thin"]
+cite = "ADR-0116"
+
+[rules.image]
+cite = "ADR-0111"
+
+[rules."script/log-vocabulary"]
+cite = "ADR-0001"
+
+[rules."version/sync"]
+cite = "ADR-0110"
+
+[rules."just/doc-comment"]
+cite = "ADR-0103"
+
+[rules."adr/tool-register"]
+cite = "ADR-0002"
+
+[rules."docs/stack-table"]
+cite = "ADR-0001"
+
+[rules."docs/principles"]
+cite = "ADR-0001"
+
+[rules."docs/headcount"]
+cite = "ADR-0001"
+
+[rules."frontend/message-parity"]
+cite = "ADR-0400"
+
+[rules."frontend/logical-property"]
+cite = "ADR-0400"
+
+[rules."frontend/contrast"]
+cite = "ADR-0400"
+
+[rules."frontend/fixture"]
+cite = "ADR-0701"
+
+[rules."sql/pii-tag"]
+cite = "ADR-0301"
+
+[rules."alert/severity"]
+cite = "ADR-0502"
+
+[rules.api]
+cite = "ADR-0303"
+
+[rules."edge/api-wildcard"]
+cite = "ADR-0306"
+
+[rules."edge/authorizer"]
+cite = "ADR-0306"
+
+[rules."edge/auth-inline"]
+cite = "ADR-0305"
+
+[rules."edge/l7-routes"]
+cite = "ADR-0305"
+
+[rules."edge/strip-headers"]
+cite = "ADR-0305"
+
+[rules."naming/resource"]
+cite = "ADR-0003"
+
+[rules.helm]
+cite = "ADR-0111"
+
+[rules."gitops/env-scope"]
+cite = "ADR-0201"
+
+[rules."gitops/parity"]
+cite = "ADR-0205"
+
+[rules."service/ports"]
+cite = "ADR-0205"
+
+[rules."service/contract"]
+cite = "ADR-0205"
+
+[rules."service/databases"]
+cite = "ADR-0300"
+
+[rules."service/node-scope"]
+cite = "ADR-0110"
+
+[rules."go/call-args"]
+cite = "ADR-0110"
+
+[rules."go/activity-register"]
+cite = "ADR-0302"
+
+[rules."go/service-deps"]
+cite = "ADR-0600"
+
+[rules.money]
+cite = "ADR-0110"
+
+[rules."project/identity"]
+cite = "ADR-0117"
+footprints = [
+  "github.com/tabmadi/sovereign-platform-template",
+  "ghcr.io/tabmadi/sovereign-platform-template",
+  "example.com",
+  "example-dev-cp",
+  "example-staging-cp",
+  "example-prod-cp",
+]
+
+[rules."kube/resource-governance"]
+cite = "ADR-0204"
+
+[rules."service/workspace-copies"]
+
+[rules."gen/rules-index"]
+rules-path = "docs/reference/rules-index.md"
+baseline-path = "docs/security-baseline.md"
+rules-intro = "This document lists every normative rule in the ADR set, with the mechanism that enforces it. The owning ADR carries the reasoning. This document carries only the rule, so a reviewer can read the whole law without reading the whole set.\n\nReview enforces a rule with no annotation. That rule binds in the same way as an annotated one. The annotation states where the gate is, not how strong the rule is, per [ADR-0001](../adr/0001-documentation-conventions.md).\n\n"
+rules-outro = "The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.\n"
+baseline-intro = "These are the security controls that every instance of this platform holds. Each one is a rule from the ADR that owns it, with the mechanism that enforces it. This document is generated from those Rules sections, so a control cannot be described here and decided differently there.\n\n**Scope.** These controls hold for every instance. A particular project turns on more controls for its own risk profile or compliance framework. Those are in [`per-instance-hardening.md`](reference/per-instance-hardening.md). That file is written by hand, because it is a property of the instance, not of the baseline.\n\n**Review enforces a control with no annotation.** Review is a weaker gate, but the rule binds in both cases. The difference is visible here for the same reason it is visible in the ADRs.\n"
+
+[rules."gen/data-classes"]
+output = "docs/reference/data-classes.md"
+retention = ".config/retention.yaml"
+header = ".config/data-classes/header.tmpl"
+footer = ".config/data-classes/footer.tmpl"
+
+[rules."gen/shared-components"]
+source = ".config/shared-components.yaml"
+
+[rules."gen/zod"]
+out-dir = "libs/ts/schemas"
+header = "// GENERATED by `just gen-zod`. Do not edit.\n//\n// Zod schemas for the request bodies in {service}/openapi.yaml, per ADR-0400. Forms\n// validate with these through the shared <Form> primitive, so a field in the\n// browser enforces the same rule that the spec states.\nimport { z } from \"zod\";\n"
+
+[rules."gen/admin"]
+out-dir = "apps/admin/_generated"
+header = "# GENERATED by tabrules, per ADR-0401. Do not edit. Run `just gen-admin`.\n"
+
+[rules."gen/build-path"]
+doc = "docs/reference/build-path.md"
+
+[rules."gen/rules-index".security-areas]
+"0113" = "Supply chain"
+"0200" = "Node and workload isolation"
+"0202" = "Secrets"
+"0203" = "Policy enforcement"
+"0206" = "Network isolation"
+"0207" = "Durable data and recovery"
+"0301" = "Data lifecycle and privacy"
+"0304" = "Identity and authorization"
+"0305" = "Edge authentication and traffic policy"
+"0306" = "Trust tiers and origins"
+"0307" = "Outbound mail"
+"0700" = "Analytics and consent"
+
+[rules."kube/resource-governance".namespaces]
+argocd = "argocd"
+cilium = "kube-system"
+traefik = "kube-system"
+
+[rules."kube/resource-governance".chart-set]
+lowdefy = "lowdefy.image.repository=r lowdefy.image.tag=v"
+openfga = "image.repository=r image.tag=v"
+
+# Each CPU limit that stays has its reason, per ADR-0204.
+[rules."kube/resource-governance".cpu-limit-allow]
+"kyverno/kyverno-migrate-resources/kyverno-cli" = "An upstream hook Job with an undeletable default, which runs once"
+"cilium/cilium/install-cni-binaries" = "An upstream init container that runs once at pod start"

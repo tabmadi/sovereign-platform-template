@@ -56,7 +56,7 @@ The choice is reversible in one direction only. Adding a repository is easy. Ext
 | --- | --- | --- | --- |
 | **Single repo-wide `go.mod`** | **Yes** | **None** | **Chosen** |
 | Module per service | No. A shared bump lands in N modules one by one | Each module drifts | Rejected on driver 6 |
-| A `go.work` overlay of many modules | Yes | Partly | Rejected for the product. Taken for `tools/` alone, where the isolation keeps gate code out of the product graph |
+| A `go.work` overlay of many modules | Yes | Partly | Rejected for the product. Taken for `tools/` alone, where the isolation keeps the pins of Go tools out of the product graph |
 
 Sources:
 
@@ -90,7 +90,7 @@ There is one tool per language. Each is a single binary from the dev shell of [A
 | Shell | **shellcheck and shfmt** | **Yes, two binaries** | **No single binary both lints and formats shell** | **Chosen** |
 | SQL | **sqruff** | **Yes** | **The sqlfluff rules, in Rust** | **Chosen** |
 | SQL | sqlfluff | No. Python | The reference rule set | Rejected on driver 7 |
-| Prose, comments, and the ADR set | **tablint** | **Yes** | **The profile of [ADR-0001](0001-documentation-conventions.md) and the requirement trace of [ADR-0602](0602-behaviour-requirements.md)** | **Chosen** |
+| Prose, comments, and the ADR set | **tabrules** | **Yes** | **The profile of [ADR-0001](0001-documentation-conventions.md) and the requirement trace of [ADR-0602](0602-behaviour-requirements.md)** | **Chosen** |
 | Prose, comments, and the ADR set | Vale with Conftest | Yes, two binaries | Two rule languages to write the same rules | Rejected. It matched the old Go linters only with two rule languages *(measured)* |
 
 Sources:
@@ -141,7 +141,7 @@ infra/
 ├── gateway/                  # Traefik routing + rate limits
 └── observability/            # dashboards and alerts as code
 
-tools/                        # repo-local Go programs
+tools/                        # the module that pins the Go tools
 scripts/                      # shell entered through just recipes
 
 test/                         # external harnesses driving an assembled system
@@ -162,8 +162,8 @@ docs/                         # genre decides the directory (ADR-0001)
 | `services/` and `apps/` are siblings | Services are headless, horizontally-scaled, internally-addressed backends. `apps/` holds first-party deployable applications. The slot stays open for partner portals, CLIs, or mobile apps with no layout migration. A new entry under `apps/` requires its own ADR |
 | `services/` stays spelled out | `svc` already means a Kubernetes Service here. It is also the per-service metavariable in docs. A directory name is short only when the short form is not ambiguous |
 | `infra/` holds both IaC and the configuration of what it deploys | One top-level directory removes the recurring question of `infra` or `ops` |
-| `tools/` holds repo-local Go programs only | It is not a place for shell scripts. The dev shell of `flake.nix` holds the external tools. The own module of `tools/` keeps linter dependencies out of the graph that every service image builds from. `tools/internal/` holds the packages that those programs share |
-| `scripts/` holds shell, and shell only | This is the other side of the row above, so the split is a language boundary, not a habit. When the work of a script is a Go program, it is not a script: the recipe calls the program directly. A wrapper that only changes directory and shells out puts one name in two trees |
+| `tools/` holds only the module that pins Go tools | It holds no program. The own module of `tools/` keeps `ogen`, `workflowcheck`, and the ruleguard DSL out of the graph that every service image builds from. Custom rules and generators come from tabrules, per [ADR-0104](0104-formatters-and-linters.md) |
+| `scripts/` holds shell, and shell only | This is the other side of the row above, so the split is a language boundary, not a habit. When the work of a script is a program, it is not a script: the recipe calls the program directly. A wrapper that only changes directory and shells out puts one name in two trees |
 | `test/` holds external harnesses, and is singular for that reason | Each suite drives an assembled, running system from outside it, so no suite belongs to one service, per [ADR-0601](0601-testing-strategy.md). It is not where the tests live. A Go test of an `internal/` package **cannot** move here. Only the subtree under the parent of `internal/` can import it, so the compiler rejects the import. Unit tests sit beside their code. This also lets `ci-affected` map a changed package to the tests that cover it |
 | Each Node island has its own dev shell | `test/e2e/` runs in `nix develop .#e2e`, and `apps/admin/` runs in `nix develop .#admin`. `test/` has no `package.json`, no lockfile, and no tool pin of its own. `(CI: lint-node-scope)` |
 
@@ -225,7 +225,7 @@ Floating tags are forbidden in Dockerfiles, Helm values, and workflows. A floati
 
 One `go.mod` at the repo root covers every service, library, and generated client. There is no per-service module and no `replace` directive. Services and libraries are plain packages, imported by the module path of the repo.
 
-`tools/` is the single exception: a second module, joined by a committed `go.work`. The dependencies of a gate, such as a ruleguard DSL or an AST walker, are not a dependency of anything that ships. In the product graph, they would put linter code in the module that every service resolves against. The tool tree needs exactly the isolation that the product does not need. A service image never sees the workspace. Its Dockerfile copies `go.mod`, `go.sum`, `libs/go`, and one service directory, so `go.work` is not in the build context.
+`tools/` is the single exception: a second module, joined by a committed `go.work`. The pins of a generator or a gate, such as `ogen`, `workflowcheck`, and the ruleguard DSL, are not a dependency of anything that ships. In the product graph, they would put linter code in the module that every service resolves against. The tool tree needs exactly the isolation that the product does not need. A service image never sees the workspace. Its Dockerfile copies `go.mod`, `go.sum`, `libs/go`, and one service directory, so `go.work` is not in the build context.
 
 Here, dependency **consistency** is worth more than dependency **isolation**:
 
@@ -270,7 +270,7 @@ Every workflow but the shared gate takes its toolchain from the `./.github/actio
 
 ### Affected detection
 
-`tools/affected/` reads `git diff --name-only origin/master...HEAD` and maps changes to scopes:
+`tabrules affected` reads `git diff --name-only origin/master...HEAD` and maps changes to scopes:
 
 | Change under | Affects |
 | --- | --- |
@@ -280,7 +280,7 @@ Every workflow but the shared gate takes its toolchain from the `./.github/actio
 | `apps/frontend/` | the frontend |
 | `infra/`, `tools/`, `go.mod`, `go.sum`, `package.json` | **global**: everything runs |
 
-`just ci-affected` produces a JSON manifest that the workflows consume. As the fleet grows, this is the most load-bearing repo tooling, and it has unit tests.
+`just ci-affected` produces a JSON manifest that the workflows consume. As the fleet grows, this is the most load-bearing part of the tooling, and tabrules tests it.
 
 ### Codegen is committed and drift-checked
 
@@ -373,7 +373,7 @@ Each step is its own ADR when its trigger fires.
 - Container images are tagged `<service>:<git-sha>`, and the same SHA goes through every environment. `(CI: lint-floating-tags)`
 - `services/<X>/` does not import `services/<Y>/`. Sharing goes through `libs/` or generated clients. `(CI: lint-go, lint-service-contract)`
 - Route groups inside `apps/frontend/` do not import from each other. `(CI: lint-ts)`
-- `tools/` holds repo-local Go programs and the packages under `tools/internal/` that they share. `scripts/` holds shell. A recipe calls a Go program directly. A shell script that only shells out to one is not written.
+- `tools/` holds only the module that pins Go tools. `scripts/` holds shell. A recipe calls a program directly. A shell script that only shells out to one is not written.
 - `test/` holds the external harnesses that drive an assembled system: `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package.
 - Each Node island runs in its own dev shell of `flake.nix`. `test/` itself has no package manifest or lockfile. `(CI: lint-node-scope)`
 - Build-graph tools are not used on day one. These are Nx, moon, Pants, and Bazel. Adoption requires its own ADR.

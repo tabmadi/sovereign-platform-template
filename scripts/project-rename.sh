@@ -17,7 +17,7 @@ old_apex="example.com"
 # The identity gate and its test name the template's footprints, so the rename leaves them alone. A rename would turn the gate against the project it protects.
 step "renaming to ${slug}"
 PRUNE=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.rumdl_cache
-  --exclude=lint-project-identity.sh --exclude-dir=template --binary-files=without-match)
+  --exclude=tabrules.toml --exclude-dir=template --binary-files=without-match)
 
 replace() { # <from> <to>
   # `|` is the sed delimiter, so an argument cannot contain it unescaped. A module path, a host, and a registry namespace are URL-shaped,

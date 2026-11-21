@@ -99,7 +99,7 @@ apps/admin/
 ├── lowdefy.yaml       # root config: connections, page index, theme
 ├── pages/             # hand-written pages not tied to one service
 ├── custom/<service>/  # hand-written pages the generator cannot express
-└── _generated/        # tools/admin-gen output, committed, drift-checked, never edited
+└── _generated/        # `tabrules gen admin` output, committed, drift-checked, never edited
     ├── pages.yaml     # page index: hand-written first, then generated
     └── <service>/
         ├── <resource>.yaml    # one CRUD page per x-admin: crud tag
@@ -110,7 +110,7 @@ apps/admin/
 
 ### Generation from the spec
 
-`tools/admin-gen/` generates pages from the service specs. Two markers drive it:
+`tabrules gen admin` generates pages from the service specs. Two markers drive it:
 
 | Marker | Placed on | Produces |
 | --- | --- | --- |

@@ -43,7 +43,7 @@ func TestExpired(t *testing.T) {
 // The period here and the `device` class in the registry must agree. A change to one without the other fails here.
 func TestPeriodMatchesTheRegistry(t *testing.T) {
 	t.Parallel()
-	raw, err := os.ReadFile("../../../../tools/codegen/retention.yaml")
+	raw, err := os.ReadFile("../../../../.config/retention.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

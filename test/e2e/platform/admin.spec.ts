@@ -169,7 +169,7 @@ test.describe("lowdefy ops dashboard", () => {
     });
   });
 
-  // The other generated pages, from tools/admin-gen. Behind the AAL2 operator session, each must paint a page-specific control.
+  // The other generated pages, from `tabrules gen admin`. Behind the AAL2 operator session, each must paint a page-specific control.
   // This proves that the Lowdefy page rendered, and did not redirect to login or stop on an empty shell.
   test.describe("generated pages render", () => {
     test.use({ storageState: OPERATOR_STATE });

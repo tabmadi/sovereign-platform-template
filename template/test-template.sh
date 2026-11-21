@@ -86,7 +86,7 @@ for fixture in "$FIXTURES"/valid/*.yml; do
   problems=()
   for literal in "$OLD_MODULE" "$OLD_REGISTRY" "$OLD_APEX" "$OLD_NODE"; do
     hits="$({ grep -rlF --exclude-dir=.git --exclude-dir=node_modules --binary-files=without-match \
-      --exclude=lint-project-identity.sh -- "$literal" "$out" 2>/dev/null || true; } | wc -l)"
+      --exclude=tabrules.toml -- "$literal" "$out" 2>/dev/null || true; } | wc -l)"
     [ "$hits" -eq 0 ] || problems+=("${hits} file(s) still carry '${literal}'")
   done
   for f in "${MACHINERY[@]}"; do

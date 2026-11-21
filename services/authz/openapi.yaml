@@ -161,7 +161,7 @@ paths:
         default: { $ref: "#/components/responses/Error" }
 components:
   responses:
-    # >>> shared-components: responses. Generated from tools/codegen/shared-components.yaml. Do not edit
+    # >>> shared-components: responses. Generated from .config/shared-components.yaml. Do not edit
     Error:
       description: An error, as RFC 9457 problem details.
       content:
@@ -169,7 +169,7 @@ components:
           schema: { $ref: "#/components/schemas/Problem" }
     # <<< shared-components
   schemas:
-    # >>> shared-components: schemas. Generated from tools/codegen/shared-components.yaml. Do not edit
+    # >>> shared-components: schemas. Generated from .config/shared-components.yaml. Do not edit
     # RFC 9457 problem details. `instance` is absent on purpose: `trace_id` identifies the occurrence and leads to the trace.
     # An instance URL leads nowhere.
     Problem:

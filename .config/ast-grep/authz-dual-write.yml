@@ -1,0 +1,19 @@
+# An authorization tuple is written from an activity, never from a handler, per ADR-0304.
+id: authz-dual-write
+language: go
+severity: error
+message: an authz tuple is written outside an activity. Write the row and the tuple as two activities of one workflow
+files:
+  - "**/services/**/*.go"
+ignores:
+  - "**/services/_*/**"
+  - "**/*_test.go"
+  - "**/internal/activities/**"
+rule:
+  kind: call_expression
+  has:
+    field: function
+    kind: selector_expression
+    has:
+      field: field
+      regex: ^(Grant|Revoke)$

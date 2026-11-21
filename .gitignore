@@ -111,13 +111,6 @@ core.*
 # rumdl cache
 .rumdl_cache
 
-# Compiled Go binaries at the repo root. `go build ./tools/<name>` with no -o writes a binary named after the package into the CWD.
-# Every tool runs with `go run`, as the lint recipes in justfile show, so a built binary is scratch.
-/lint-*
-/gen-*
-/data-classes
-/zod-gen
-
 # proxy-setup writes these. They hold this machine's egress route into the cluster.
 infra/local/proxy.local.yaml
 infra/local/proxy.local.env

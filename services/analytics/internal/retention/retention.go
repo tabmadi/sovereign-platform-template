@@ -15,7 +15,7 @@ import (
 )
 
 // Period is how long an event row is kept. A row holds a `device` column, the class with the shortest period in
-// tools/codegen/retention.yaml, so the whole row goes when that class expires.
+// .config/retention.yaml, so the whole row goes when that class expires.
 const Period = 90 * 24 * time.Hour
 
 const (

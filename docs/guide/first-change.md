@@ -29,7 +29,7 @@ Three rules bind that field, and a gate checks each one:
 | --- | --- | --- |
 | Timestamps are RFC 3339, UTC, with a literal `Z` | one wire format. An offset other than `Z` is rejected, not converted, per [ADR-0003](../adr/0003-naming-and-identifiers.md) | `lint-openapi` |
 | Property names are `snake_case` | each surface has one fixed wire casing | `lint-openapi` |
-| Shared shapes come from `tools/codegen/shared-components.yaml` | timestamps, identifiers, and the error envelope are identical across specs, because they are one file, not five copies | `lint-openapi` |
+| Shared shapes come from `.config/shared-components.yaml` | timestamps, identifiers, and the error envelope are identical across specs, because they are one file, not five copies | `lint-openapi` |
 
 **If the field holds money, stop and read [ADR-0003](../adr/0003-naming-and-identifiers.md) before you type.** A money field of type `number` is a contract defect, because the generated TypeScript client parses it as a double. Use a `string` that carries a decimal, backed by Postgres `numeric`.
 

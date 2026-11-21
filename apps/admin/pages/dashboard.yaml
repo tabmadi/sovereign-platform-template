@@ -13,7 +13,7 @@ blocks:
         opens a **changelist** like the Django admin: a table of records with an **Add**
         button. Click a row to open its **edit** page, where you can save or delete.
 
-        `tools/admin-gen` generates the pages of each service from the service OpenAPI
+        `tabrules gen admin` generates the pages of each service from the service OpenAPI
         specs, per ADR-0401. This landing page is hand-written. The generator does not
         make cross-service views like this one.
 

@@ -161,23 +161,23 @@ gen: gen-shared-components gen-openapi gen-openapi-public gen-zod gen-sqlc gen-a
 
 # Write the rules index and the security baseline from the Rules sections, per ADR-0203
 gen-adr-rules: in-shell
-    go run ./tools/adr-rules
+    tabrules gen rules-index
 
 # Write the machinery table in docs/reference/build-path.md, per ADR-0000
 gen-build-path: in-shell
-    bash scripts/gen-build-path.sh
+    tabrules gen build-path
 
 # Write the registry of data classes and retention, per ADR-0301
 gen-data-classes: in-shell
-    go run ./tools/data-classes
+    tabrules gen data-classes
 
 # Write the zod schemas of each request body from the OpenAPI specs, per ADR-0303
 gen-zod: gen-shared-components
-    go run ./tools/zod-gen
+    tabrules gen zod
 
 # Write the shared error, money, and timestamp components into every spec, per ADR-0303
 gen-shared-components: in-shell
-    go run ./tools/shared-components
+    tabrules gen shared-components
 
 # Write the Go and TypeScript clients and servers from each OpenAPI spec, per ADR-0303
 gen-openapi: gen-shared-components
@@ -214,8 +214,8 @@ format: format-go format-ts format-md format-shell format-data
 
 # Format Go: the gostyle fixes, then the formatters of golangci-lint, per ADR-0110
 format-go: in-shell
-    go run ./tools/gostyle -fix ./...
-    golangci-lint fmt --config .config/golangci.yml ./... ./tools/...
+    tabrules fix
+    golangci-lint fmt --config .config/golangci.yml ./...
 
 # Format TypeScript, JavaScript, and CSS with Biome, per ADR-0110
 format-ts: in-shell
@@ -242,11 +242,11 @@ lint-platform: lint-sql lint-service-deps lint-activity-register lint-authz-dual
 
 # Go correctness and style with golangci-lint, per ADR-0110
 lint-go: in-shell
-    golangci-lint run --config .config/golangci.yml ./... ./tools/...
+    golangci-lint run --config .config/golangci.yml ./...
 
 # The custom Go style analyzers
 lint-gostyle: in-shell
-    go run ./tools/gostyle ./...
+    tabrules check --only go/call-args
 
 # Vet services/_template, which `go build ./...` cannot see behind its build tag
 lint-template-build: in-shell
@@ -262,7 +262,7 @@ lint-ts: in-shell
 
 # Prose, comments, ADRs, and the requirement trace, per ADR-0001 and ADR-0602
 lint-prose: in-shell
-    tablint check
+    tabrules check
 
 # Markdown structure and format, per ADR-0001
 lint-md: in-shell
@@ -290,11 +290,11 @@ lint-secrets-history: in-shell
 
 # Helm dependency calls resolve from Chart.yaml alone, per ADR-0111
 lint-helm-deps: in-shell
-    bash scripts/lint-helm-deps.sh
+    tabrules check --only helm/dependency-fallback
 
 # Each chart's appVersion names the release that the chart deploys, per ADR-0111
 lint-app-versions: in-shell
-    bash scripts/lint-app-versions.sh
+    tabrules check --only helm/app-version
 
 # SQL with sqruff, and the pii class of each column with personal data, per ADR-0300 and ADR-0301
 lint-sql: in-shell
@@ -306,83 +306,83 @@ lint-openapi: in-shell
 
 # Every service provides the same artifacts, per ADR-0205
 lint-service-contract: in-shell
-    bash scripts/lint-service-contract.sh
+    tabrules check --only service/contract
 
 # The frontend image build copies every TypeScript workspace member
 lint-workspace-copies: in-shell
-    bash scripts/lint-workspace-copies.sh
+    tabrules check --only service/workspace-copies
 
 # A service with migrations has a database, per ADR-0300
 lint-service-databases: in-shell
-    bash scripts/lint-service-databases.sh
+    tabrules check --only service/databases
 
 # The local ports are unique and registered, per ADR-0205
 lint-ports: in-shell
-    bash scripts/lint-ports.sh
+    tabrules check --only service/ports
 
 # A caller limited to some routes uses only the cluster operations of the spec, per ADR-0305
 lint-l7-routes: in-shell
-    bash scripts/lint-l7-routes.sh
+    tabrules check --only edge/l7-routes
 
 # The audience of a spec matches its route at the edge, per ADR-0303
 lint-api-audience: in-shell
-    go run ./tools/lint-api-audience
+    tabrules check --only api/audience
 
 # The dependency graph of the inner loop matches the code, per ADR-0600 and ADR-0205
 lint-service-deps: in-shell
-    go run ./tools/lint-service-deps
+    tabrules check --only go/service-deps
 
 # Every activity that a workflow names is registered on its worker, per ADR-0302
 lint-activity-register: in-shell
-    go run ./tools/lint-activity-register
+    tabrules check --only go/activity-register
 
 # An authorization tuple is written from an activity, never from a handler, per ADR-0304
 lint-authz-dual-write: in-shell
-    go run ./tools/lint-authz-dual-write
+    ast-grep scan --rule .config/ast-grep/authz-dual-write.yml .
 
 # The severity of every alert, per ADR-0502
 lint-alert-severity: in-shell
-    go run ./tools/lint-alert-severity
+    tabrules check --only alert/severity
 
 # A money value is the shared Money component and never a float, per ADR-0110 and ADR-0300
 lint-money: in-shell
-    go run ./tools/lint-money
+    tabrules check --only money
 
 # The resource name grammar of ADR-0003
 lint-naming: in-shell
-    go run ./tools/lint-naming
+    tabrules check --only naming/resource
 
 # Render every chart and check its resources against the guardrails, per ADR-0204
 lint-resource-governance: in-shell
-    go run ./tools/lint-resource-governance
+    tabrules check --only kube/resource-governance
 
 # An environment's bootstrap folder names only that environment, per ADR-0201
 lint-gitops-env-scope: in-shell
-    bash scripts/lint-gitops-env-scope.sh
+    tabrules check --only gitops/env-scope
 
 # Every key of a deployed environment exists in the local overlay, per ADR-0205
 lint-parity: in-shell
-    bash scripts/lint-parity.sh
+    tabrules check --only gitops/parity
 
 # An image reference pins a digest or an exact version, per ADR-0111 and ADR-0113
 lint-floating-tags: in-shell
-    bash scripts/lint-floating-tags.sh
+    tabrules check --only image
 
 # A project has its own name before it pushes, per ADR-0117
 lint-project-identity: in-shell
-    bash scripts/lint-project-identity.sh
+    tabrules check --only project/identity
 
 # Resolve a tag to the index digest that a pin uses, per ADR-0111 and ADR-0113
 image-digest *args: in-shell
     bash scripts/image-digest.sh "$@"
 
-# The cross references that tablint has no rule for
+# The adoption documents and the deferral register agree with the ADRs, per ADR-0001
 lint-adr-xref: in-shell
-    go run ./tools/lint-adr-xref
+    tabrules check --only adr/adoption-components,adr/deferral-register
 
 # The README matches the decisions it summarizes
 lint-readme-drift: in-shell
-    go run ./tools/lint-readme-drift
+    tabrules check --only docs/stack-table,docs/principles,docs/headcount
 
 # The drift check of the image allow-list
 lint-image-allowlist: in-shell
@@ -390,11 +390,11 @@ lint-image-allowlist: in-shell
 
 # The drift check of the data-class registry
 lint-data-classes: in-shell
-    go run ./tools/data-classes --check
+    tabrules gen data-classes --check
 
 # The drift check of the generated rule documents
 lint-rules-index: in-shell
-    go run ./tools/adr-rules -check
+    tabrules gen rules-index --check
 
 # shellcheck over every shell file, per ADR-0111
 lint-shell: in-shell
@@ -402,46 +402,44 @@ lint-shell: in-shell
 
 # Scripts use the log vocabulary of ADR-0001
 lint-log-vocab: in-shell
-    bash scripts/lint-log-vocab.sh
+    tabrules check --only script/log-vocabulary
 
 # Node.js and npm stay in their islands, per ADR-0110 and ADR-0601
 lint-node-scope: in-shell
-    bash scripts/lint-node-scope.sh
+    tabrules check --only service/node-scope
 
 # The auth config has one source, per ADR-0305
 lint-auth-inline: in-shell
-    bash scripts/lint-auth-inline.sh
+    tabrules check --only edge/auth-inline
 
 # The OpenFGA model, its assertions, and the access rules of the edge, per ADR-0304, ADR-0305, and ADR-0306
 lint-authz: in-shell
     bash scripts/validate-openfga.sh
-    go run ./tools/lint-authorizer infra/auth/oathkeeper/access-rules.json
-    go run ./tools/lint-api-wildcard infra/auth/oathkeeper/access-rules.json
-    bash scripts/lint-strip-headers.sh
+    tabrules check --only edge/authorizer,edge/api-wildcard,edge/strip-headers
 
 # The register rules of ADR-0002
 lint-tool-register: in-shell
-    go run ./tools/lint-tool-register
+    tabrules check --only adr/tool-register
 
 # Every string is in the message catalogues, per ADR-0400
 lint-i18n: in-shell
-    go run ./tools/lint-i18n
+    tabrules check --only frontend/message-parity,frontend/logical-property
 
 # Every fixture is typed against a generated SDK, per ADR-0701
 lint-fixtures: in-shell
-    go run ./tools/lint-fixtures
+    tabrules check --only frontend/fixture
 
 # The contrast of the design tokens, per ADR-0400
 lint-contrast: in-shell
-    go run ./tools/lint-contrast
+    tabrules check --only frontend/contrast
 
 # Every workaround matches the version its file pins, per ADR-0001
 lint-workarounds: in-shell
-    go run ./tools/lint-workarounds
+    tabrules check --only comment/workaround
 
 # Workflow YAML checks out, sets up the toolchain, and calls a recipe, per ADR-0116
 lint-thin-workflows: in-shell
-    go run ./tools/lint-thin-workflows
+    tabrules check --only workflow/thin
 
 # infra/dns/dnsconfig.js is a valid zone, per ADR-0206
 lint-dns: in-shell
@@ -449,7 +447,7 @@ lint-dns: in-shell
 
 # Conventional Commits over the commit range of a pull request, per ADR-0101
 lint-commits: in-shell
-    bash scripts/lint-commits.sh
+    commit-range
 
 # Label the breaking contract changes for review, per ADR-0303
 lint-api-breaking: in-shell
@@ -458,9 +456,9 @@ lint-api-breaking: in-shell
 # Run every test
 test: test-go test-ts test-frontend
 
-# Every Go test, the tools included, per ADR-0601
+# Every Go test, per ADR-0601
 test-go: in-shell
-    go test ./... ./tools/...
+    go test ./...
 
 # The tests of the shared TypeScript libraries
 test-ts: in-shell
@@ -470,9 +468,9 @@ test-ts: in-shell
 test-frontend: in-shell
     bash scripts/test-frontend.sh
 
-# Compile every Go module, the tools included, per ADR-0111
+# Compile the Go module, per ADR-0111
 build: in-shell
-    go build ./... ./tools/...
+    go build ./...
 
 # Format, then run every linter
 pre-commit: format lint
@@ -490,7 +488,7 @@ cache-push: in-shell
 
 # The services and apps that a change affects, as JSON, per ADR-0111
 ci-affected *args: in-shell
-    go run ./tools/affected "$@"
+    tabrules affected "$@"
 
 # The checks of a pull request that need the git history: commits, the secret history, and breaking contracts
 ci-lint: lint-commits lint-secrets-history lint-api-breaking

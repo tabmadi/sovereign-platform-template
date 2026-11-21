@@ -11,7 +11,7 @@
     };
     # A new version is a new tag here.
     tabnix = {
-      url = "github:tabmadi/tabnix/v0.10.0";
+      url = "github:tabmadi/tabnix/v0.15.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
@@ -30,6 +30,8 @@
       imports = [
         tabnix.flakeModules.default
         tabnix.flakeModules.bun
+        tabnix.flakeModules.go
+        tabnix.flakeModules.shell
       ]
       ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./template/scope.nix) ./template/scope.nix
       # The hypervisor mode of ADR-0208 adds the host, its deploy, and its QEMU copy.
@@ -145,7 +147,8 @@
           gateTools = with pkgs; [
             bashInteractive
             go
-            golangci-lint
+            config.tabnix.go.golangci
+            ast-grep
             sqlc
             sqruff
             dbmate
@@ -164,7 +167,7 @@
             just
             gitMinimal
             nixfmt
-            config.tabnix.tablint
+            config.tabnix.tabrules.package
           ];
 
           # A gate runs its just recipes on the tracked files, with the locked node_modules, Go modules, and subcharts.
@@ -247,16 +250,11 @@
               entry = toString (
                 pkgs.writeShellScript "golangci-lint-fmt" ''
                   export PATH=${go}/bin:$PATH GOTOOLCHAIN=local
-                  exec ${pkgs.golangci-lint}/bin/golangci-lint fmt --config .config/golangci.yml
+                  exec ${config.tabnix.go.golangci}/bin/golangci-lint fmt --config .config/golangci.yml
                 ''
               );
               files = "\\.go$";
               pass_filenames = false;
-            };
-            shfmt = {
-              name = "shfmt";
-              entry = "${pkgs.shfmt}/bin/shfmt --diff -i 2";
-              files = "\\.sh$";
             };
           };
 

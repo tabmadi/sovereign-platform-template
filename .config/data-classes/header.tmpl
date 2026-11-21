@@ -6,4 +6,4 @@ Every classified column on the platform, and what happens to it, per [ADR-0301](
 
 A new service is reviewed against this checklist. Without it, a service can omit its obligations and nobody sees it. The gap then shows on the first erasure request that needs it, at best a month before the deadline.
 
-**It is a view, not a source.** The classes come from the `pii:<class>` tags in the migrations. The tag lives in the DDL and moves with the schema. The periods and disposals come from `tools/codegen/retention.yaml`. A column tag cannot hold how long to keep a class, or whether to delete or anonymise it. An edit to this file changes nothing: add the tag, or change the policy.
+**It is a view, not a source.** The classes come from the `pii:<class>` tags in the migrations. The tag lives in the DDL and moves with the schema. The periods and disposals come from `.config/retention.yaml`. A column tag cannot hold how long to keep a class, or whether to delete or anonymise it. An edit to this file changes nothing: add the tag, or change the policy.

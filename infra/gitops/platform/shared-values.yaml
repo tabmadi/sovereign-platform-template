@@ -25,7 +25,7 @@ opentelemetry-collector:
 
 temporal-worker-controller:
   # The same deletion. It is the first reason this file exists. The allow-list in
-  # `tools/lint-resource-governance` carried this container with a note: inherited and cannot be removed,
+  # `kube/resource-governance` carried this container with a note: inherited and cannot be removed,
   # because a parent `values.yaml` cannot delete a subchart key.
   resources:
     limits:

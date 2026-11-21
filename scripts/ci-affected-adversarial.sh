@@ -16,10 +16,6 @@ step "creating a scratch worktree at ${BASE}"
 git worktree add --quiet --detach "$work/tree" "$BASE"
 base_sha="$(git -C "$work/tree" rev-parse HEAD)"
 
-# Built from the working tree, to a binary outside it. `tools/` is a global trigger, so a classifier inside the tree makes every probe return `global: true`.
-step "building the classifier under test"
-go build -o "$work/affected" ./tools/affected
-
 fail=0
 checked=0
 
@@ -41,7 +37,7 @@ for dir in services/*/; do
   git -C "$work/tree" -c user.email=ci@local -c user.name=ci \
     commit --quiet --no-verify -m "chore: perturb ${svc}"
 
-  manifest="$(cd "$work/tree" && "$work/affected" --base "$base_sha")"
+  manifest="$(cd "$work/tree" && tabrules affected --base "$base_sha")"
   named="$(printf '%s' "$manifest" | jq -r --arg s "$svc" '(.services // []) | index($s) != null')"
   global="$(printf '%s' "$manifest" | jq -r '.global')"
 

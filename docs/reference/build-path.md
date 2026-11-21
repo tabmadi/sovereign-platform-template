@@ -59,7 +59,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 
 | Recipe | Owns | Reached from |
 | --- | --- | --- |
-| `build` | Compile every Go module, the tools included, per ADR-0111 | flake.nix |
+| `build` | Compile the Go module, per ADR-0111 | flake.nix |
 | `cache-push` | Push what CI built to the binary cache, per ADR-0101. Without NIX_CACHE_URL it does nothing | check.yml |
 | `ci` | Run exactly what CI runs: every check of flake.nix in the Nix sandbox | check.yml, git hooks |
 | `ci-affected-adversarial` | Break each service in a scratch worktree and check that affected detection names it | history.yml |
@@ -90,7 +90,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lighthouse-down` | Remove the containers and the network of lighthouse-up | lighthouse.yml, publish.yml |
 | `lighthouse-up` | The Lighthouse origin with no cluster, per ADR-0400 | lighthouse.yml, publish.yml |
 | `lint-activity-register` | Every activity that a workflow names is registered on its worker, per ADR-0302 | flake.nix |
-| `lint-adr-xref` | The cross references that tablint has no rule for | flake.nix |
+| `lint-adr-xref` | The adoption documents and the deferral register agree with the ADRs, per ADR-0001 | flake.nix |
 | `lint-alert-severity` | The severity of every alert, per ADR-0502 | flake.nix |
 | `lint-api-audience` | The audience of a spec matches its route at the edge, per ADR-0303 | flake.nix |
 | `lint-api-breaking` | Label the breaking contract changes for review, per ADR-0303 | history.yml |
@@ -144,7 +144,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `secrets-age` | Create your age key and write .sops.yaml, per ADR-0202. It runs again safely | e2e.yml, perf.yml, preview.yml |
 | `supply-chain-inventory` | Verify the SBOM of every pinned image and record its contents, per ADR-0113 | supply-chain.yml |
 | `test-frontend` | The frontend tests, with a coverage floor for each route group, per ADR-0400 | flake.nix |
-| `test-go` | Every Go test, the tools included, per ADR-0601 | flake.nix |
+| `test-go` | Every Go test, per ADR-0601 | flake.nix |
 | `test-ts` | The tests of the shared TypeScript libraries | flake.nix |
 
 <!-- machinery:end -->

@@ -40,6 +40,7 @@ A coding agent follows these steps to bring a project made from this template to
    - A new file of the template comes into the project with the names of the project.
    - Skip the files of a setup mode that the project did not choose: `infra/runner`, `infra/forge-host`, `infra/hypervisor`, and `infra/opentofu`. `docs/reference/modes.md` lists the modes.
    - A forgejo project keeps its workflows in `.forgejo/workflows/` with no `permissions` blocks. Apply a workflow change there.
+   - The custom rules and generators are not files of the project. They arrive with the tabnix tag in `flake.nix`. Merge a change to `.config/tabrules.toml` like any other config.
 
 5. Apply the changes of the lock files by running the tools, never by a text merge.
    - `flake.lock`: run `nix flake lock` after you change an input in `flake.nix`.

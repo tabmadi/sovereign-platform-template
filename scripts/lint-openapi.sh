@@ -17,14 +17,14 @@ if [[ ${#specs[@]} -eq 0 ]]; then
 fi
 
 step "linting ${#specs[@]} OpenAPI spec(s) with vacuum"
-vacuum lint --ruleset tools/codegen/openapi-ruleset.yaml --fail-severity error "${specs[@]}"
+vacuum lint --ruleset .config/openapi-ruleset.yaml --fail-severity error "${specs[@]}"
 
 # Resource-prefix ownership is the one rule vacuum cannot express, per ADR-0303.
 # It is a property of the set of specs, and vacuum lints one document at a time.
 step "checking resource-prefix ownership across the /api namespace"
-go run ./tools/lint-api-prefixes
+tabrules check --only api/prefixes
 
 # The shared components are copied into each spec, not $ref'd across files, so each document stays self-contained for ogen and vacuum, per ADR-0303.
 # This check makes `identical across specs` a fact and not a habit.
 step "checking the shared components have not diverged"
-go run ./tools/shared-components -check
+tabrules gen shared-components --check

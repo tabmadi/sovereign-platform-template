@@ -62,7 +62,7 @@ func (a Amount) WithCurrency(currency string) (Amount, error) {
 }
 
 // wire is the JSON shape, matching the Money component in
-// tools/codegen/shared-components.yaml.
+// .config/shared-components.yaml.
 type wire struct {
 	Amount   string `json:"amount"`
 	Currency string `json:"currency"`

@@ -129,7 +129,7 @@ The edge also produces errors: Oathkeeper denies a request before a handler runs
 
 **Entity identifiers are the type-prefixed UUIDv7 of [ADR-0003](0003-naming-and-identifiers.md).** Each is a `string`, and the schema declares the prefix pattern. A bare UUID on the wire is a lint failure.
 
-The canonical fragment that keeps these identical is `tools/codegen/shared-components.yaml`. It is the source, and the copy in a spec is only a copy. `lint-openapi` fails when the two differ. The duplication is deliberate, and it is not trusted. The check makes the shapes identical as a fact, not as a habit.
+The canonical fragment that keeps these identical is `.config/shared-components.yaml`. It is the source, and the copy in a spec is only a copy. `lint-openapi` fails when the two differ. The duplication is deliberate, and it is not trusted. The check makes the shapes identical as a fact, not as a habit.
 
 ### URL shape: flat resource namespace
 
@@ -158,7 +158,7 @@ OpenAPI YAML is hand-written. TypeSpec and equal authoring layers are not used. 
 ### Workflow
 
 1. An API change is a PR to `services/<service>/openapi.yaml`.
-2. CI runs **vacuum** with the repo ruleset at `tools/codegen/openapi-ruleset.yaml`. It holds style and structural rules, including the resource-prefix collision check below.
+2. CI runs **vacuum** with the repo ruleset at `.config/openapi-ruleset.yaml`. It holds style and structural rules, including the resource-prefix collision check below.
 3. `just gen` regenerates the Go server, Go client, and TS client.
 4. CI fails if generated files are stale, through `git diff --exit-code`.
 5. Hand-written code imports generated types and declares no parallel ones.
@@ -247,7 +247,7 @@ Nothing below is built or operated until then.
 
 - The contract source of truth is OpenAPI 3.1, one file per HTTP service at `services/<service>/openapi.yaml`. Every HTTP service generates its server with ogen. East-west control-plane services are included. Only a service with no HTTP surface ships no spec. `(CI: lint-openapi; ref: OpenAPI 3.1)`
 - Each spec is self-contained: cross-service shapes are declared inline in `components` and kept identical across services. Cross-file `$ref` is not used. `(CI: lint-openapi)`
-- Cross-service shapes come from `tools/codegen/shared-components.yaml`, and a spec's copy is checked against it. The fragment changes first. A spec's copy is never edited on its own. `(CI: lint-openapi)`
+- Cross-service shapes come from `.config/shared-components.yaml`, and a spec's copy is checked against it. The fragment changes first. A spec's copy is never edited on its own. `(CI: lint-openapi)`
 - Errors are RFC 9457 problem details served as `application/problem+json`, by services and by the edge alike. `type` is `about:blank`, except where two errors share a status code and a client handles them differently. That case takes a `urn:problem-type:` URN. Every error carries `trace_id`. `detail` contains no stack trace, query, or internal hostname. `(CI: lint-openapi; ref: RFC 9457)`
 - Timestamps on the wire are RFC 3339 in UTC with a literal `Z`, and a non-`Z` offset is rejected. A duration is an integer field named for its unit. Entity identifiers are the type-prefixed UUIDv7 of [ADR-0003](0003-naming-and-identifiers.md), and a bare UUID is a lint failure. `(CI: lint-openapi; ref: RFC 3339, RFC 9562)`
 - An edge-exposed spec's `servers` url is `/api`, and its paths are globally unique resource nouns. The exposed URL carries no service segment and no version segment. A service with only `cluster` operations uses `servers: /`. `(CI: lint-service-contract)`

@@ -31,7 +31,7 @@ detail "stamped version fields: ${semver}"
 
 # The pages that wait for an endpoint, per ADR-0701. They answer 404 in production, so they never block a release.
 step "listing the design-only pages"
-go run ./tools/lint-fixtures
+tabrules check --only frontend/fixture
 
 if git rev-parse --verify --quiet "refs/tags/${version}" >/dev/null; then
   fail "${version} already exists. A release tag is immutable"
