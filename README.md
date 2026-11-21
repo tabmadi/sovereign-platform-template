@@ -247,6 +247,39 @@ just server
 
 The full walkthrough is [`docs/dev-loop.md`](docs/dev-loop.md).
 
+### Starting a project
+
+With Nix, run the first block above, then follow these steps:
+
+1. Run `just init`. It asks seven questions, renames the project, applies the setup modes, and removes the `A new copy` line of `AGENTS.md`.
+2. Run `just bootstrap`, then `just gen` and `just check`, and commit.
+3. Rewrite this README for the project.
+4. Update the contacts in `.github/SECURITY.md` and the copyright line in `LICENSE`.
+5. On GitHub, set the squash merge message to the pull request title, with no body, and turn off the other merge styles:
+
+   ```bash
+   gh api -X PATCH repos/OWNER/REPO -f squash_merge_commit_title=PR_TITLE -f squash_merge_commit_message=BLANK -F allow_merge_commit=false -F allow_rebase_merge=false
+   ```
+
+   On Forgejo, `.forgejo/default_merge_message/SQUASH_TEMPLATE.md` sets the message.
+6. Run Renovate from its workflow, per ADR-0117, and keep `.template-version` for the next update.
+
+#### With the GitHub template button
+
+The button copies every file, the `template/` folder included. Its first commit, `Initial commit`, is not a Conventional Commit, and it can start workflows while the copy still has the old names.
+
+1. Clone the new repository, and run `nix develop` in it.
+2. Run `just init`.
+3. Replace the first commit of GitHub. This is safe before anyone else clones the repository:
+
+   ```bash
+   git add -A
+   git commit --amend -m "chore: start from <template> <release>"
+   git push --force-with-lease
+   ```
+
+4. Follow the steps above from step 2.
+
 ---
 
 ## Layout

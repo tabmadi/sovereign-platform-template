@@ -66,6 +66,7 @@ drop_mode() { # <answer> <value> <path>
 }
 drop_mode "$forge" forgejo infra/runner
 drop_mode "$forge" forgejo infra/forge-host
+drop_mode "$forge" forgejo .forgejo
 drop_mode "$provisioning" hypervisor infra/hypervisor
 drop_mode "$provisioning" opentofu infra/opentofu
 
@@ -86,7 +87,8 @@ rm -f .github/workflows/template.yml .forgejo/workflows/template.yml scripts/pro
 # A longer name can push a line of YAML past the width of the formatter.
 dprint fmt --excludes '**/templates/**' >/dev/null
 
-# The init recipe goes with the script it calls.
+# The setup line of the agent guide and the init recipe go with the script they name.
+sed -i '/^- A new copy starts with the steps/d' AGENTS.md
 sed -i '/^# Turn this copy into a project/,/^$/d' justfile
 
 ok "initialised ${project_name}. Run 'just gen' and 'just check', then commit"

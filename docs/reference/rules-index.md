@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 211 |
-| Review-enforced | 411 |
-| **Total** | **622** |
+| Review-enforced | 412 |
+| **Total** | **623** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -162,6 +162,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | --- | --- |
 | The git hooks are declared in `flake.nix`, through tabnix. | review |
 | Commit messages and pull request titles follow Conventional Commits with the types in `.config/cog.toml`. | standard: Conventional Commits 1.0.0 |
+| A commit message is a title only, with no body. The squash commit of a pull request is its title only. | review |
 | `just ci` is the only gate step after setup. A push to the binary cache may follow it, and never fails the job. | `ci` in CI |
 | A binary cache is turned on by repository variables, never by a value in a committed file. | review |
 | A workflow never puts event text, such as a pull request title, directly into a `run` script. | review |
@@ -335,7 +336,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
 | The default branch takes a direct push from one identity only: the `ci` machine user. Its `PROMOTE_TOKEN` pushes the dev and staging promotion commit, per [ADR-0201](../adr/0201-gitops.md). Every other change reaches the branch through a reviewed pull request. | review |
 | **Every commit on the default branch is signed**, by the forge or by the `ci` machine user. Branch protection sets `require_signed_commits`, and Forgejo checks it on each push. | review |
-| Pull requests merge by squash only. Each commit on the default branch is one reviewed pull request, and its title is the pull request title. The repository settings in `infra/forge/branch-protection.yaml` turn the other merge styles off. | review |
+| Pull requests merge by squash only. Each commit on the default branch is one reviewed pull request, its title is the pull request title, and it has no body. `.forgejo/default_merge_message/SQUASH_TEMPLATE.md` sets this message. The repository settings in `infra/forge/branch-protection.yaml` turn the other merge styles off. | review |
 | The forge signs each squash commit with its own key, and `repository.signing` `MERGES` is `always`. The default value also needs signed branch commits, so the forge would sign no merge of a contributor. Contributors need no key. | review |
 | `ci` signs its promotion commits with its own key, which is a SOPS secret that only CI decrypts, per [ADR-0202](../adr/0202-secrets.md). The public half is a key of the `ci` account, and its email is a listed email of that account. | review |
 | Forgejo has no linear history rule, so a direct push can still add a merge commit. | review |

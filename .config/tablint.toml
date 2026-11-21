@@ -4,7 +4,7 @@
 status-exempt = ["docs/operational-surface.md", "README.md"]
 slash-terms = ["ci/cd", "i/o", "tcp/ip", "shadcn/ui"]
 # Evidence grades, per ADR-0002, and the grade placeholder of the ADR template.
-ignore = ['\((?:reasoned|documented|measured|grade)\b[^()]*(?:\([^()]*\)[^()]*)*\)']
+ignore = ['\((?:reasoned|documented|measured|grade)\b[^()]*(?:\([^()]*\)[^()]*)*\)', '\(\$\{PullRequestReference\}\)']
 
 [comments]
 paths = [

@@ -52,6 +52,7 @@ MACHINERY=(template scripts/project-rename.sh scripts/project-init.sh scripts/fo
 # The paths of each mode: `<key>|<value>|<path>`, the same list as scripts/project-init.sh.
 MODES="forge|forgejo|infra/runner
 forge|forgejo|infra/forge-host
+forge|forgejo|.forgejo
 provisioning|hypervisor|infra/hypervisor
 provisioning|opentofu|infra/opentofu"
 

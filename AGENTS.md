@@ -26,6 +26,7 @@ Every text you write in this repo follows the Simple English profile in [ADR-000
 
 ## Read first
 
+- A new copy starts with the steps in `Starting a project` in `README.md`. Delete this line when they are done.
 - [ADR-0000](docs/adr/0000-platform-foundations.md): the thesis, principles, vocabulary, and ADR process. Read it before anything else.
 - [docs/adr/README.md](docs/adr/README.md): the block map and the full ADR index, one line for each ADR.
 - The [ADR index](docs/adr): every load-bearing decision. Each ADR ends with a flat **Rules** section and has a one-sentence **Decides** line in its header. The index's *Decides* column is the fastest full pass over the set.
@@ -92,3 +93,4 @@ The set is large, and each task needs a small part of it. Grep the Rules section
   - To test uncommitted work on the full tier, pause Argo CD first with `just argo-pause`. Resume it with `just argo-resume` when you finish.
   - While Argo CD is paused, the cluster stops tracking `master` and gives no warning. Never leave it paused.
 - Before you finish a change, run `just check`, which lints, tests, and builds. `just ci` runs every check in the Nix sandbox, as CI does. `just format` applies every formatter.
+- Commit messages are a Conventional Commits title only, with no body. Never push unless asked to.
