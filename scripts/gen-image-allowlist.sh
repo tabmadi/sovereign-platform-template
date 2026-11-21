@@ -50,7 +50,7 @@ collect_images() {
     printf '%s' "$rendered" | yq -r '
       select(.kind == "ConfigMap") | .data // {} | to_entries | .[] | select(.key | test("_IMAGE$")) | .value
     ' 2>/dev/null || true
-    # Two shapes: one with a registry or namespace, and a bare Docker Hub official image such as `postgres:17-alpine`.
+    # Two shapes: one with a registry or namespace, and a bare Docker Hub official image such as `postgres:19-alpine`.
     # The bare form needs a tag, because without one it matches any lower-case word.
   } | grep -E '^([a-z0-9][a-z0-9._-]*(:[0-9]+)?(/[a-z0-9._/-]+)+(:[A-Za-z0-9._-]+)?(@sha256:[a-f0-9]+)?|[a-z0-9][a-z0-9._-]*:[A-Za-z0-9._-]+)$' || true
 }

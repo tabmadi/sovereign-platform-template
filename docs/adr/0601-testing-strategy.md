@@ -89,7 +89,7 @@ Sources:
 
 - [Testcontainers for Go](https://golang.testcontainers.org/).
 
-**testcontainers is the strongest rejected option**, for one specific reason. This platform's dependencies are operator-managed, so a plain `postgres:17` container is not what production runs. For a platform built on plain images, that verdict reverses.
+**testcontainers is the strongest rejected option**, for one specific reason. This platform's dependencies are operator-managed, so a plain `postgres:19` container is not what production runs. For a platform built on plain images, that verdict reverses.
 
 ### Contract testing
 

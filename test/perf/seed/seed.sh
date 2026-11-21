@@ -44,12 +44,10 @@ esac
 
 step "seeding ${n} products into catalog, primary: ${primary}"
 # One statement, generated on the server: 5,000 round-trips take minutes. The service mints ids, so the seed mints UUIDv7s of the same shape, per ADR-0003.
-# Postgres 17 has no uuidv7(). Prices vary, so rows are not byte-identical. Identical rows would let Postgres and the JSON encoder perform better than real data.
+# Prices vary, so rows are not byte-identical. Identical rows would let Postgres and the JSON encoder perform better than real data.
 psql_catalog -c "
   insert into products (id, name, price, currency)
-  select (lpad(to_hex((extract(epoch from clock_timestamp()) * 1000)::bigint), 12, '0') || '7'
-      || substr(md5(random()::text), 1, 3) || to_hex(8 + floor(random() * 4)::int)
-      || substr(md5(random()::text), 1, 15))::uuid,
+  select uuidv7(),
     '${PREFIX}' || g, ((g * 37) % 100000) / 100.0, 'EUR'
   from generate_series(1, ${n}) as g;
 " >/dev/null

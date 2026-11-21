@@ -13,7 +13,7 @@ base docker.io/oryd/kratos:v26.2.0
 base docker.io/oryd/oathkeeper:v26.2.0
 base docker.io/traefik:v3.7.19
 base openfga/openfga:v1.14.2
-base postgres:17-alpine
+base postgres:19-alpine
 base quay.io/cilium/cilium-envoy:v1.39.6-1794557904-dee711ff0e84b106edd0abcdd71961af1b870359@sha256:bdef13043ebaa7b9dcd8e3a86be41080bb5369e017cd759a12daf89e2b8fafe7
 base quay.io/cilium/cilium:v1.20.5@sha256:aa72499f075ad729947ea91b026218aceba24f1a8e4534bf36b8368c7c561526
 base quay.io/cilium/hubble-relay:v1.20.5@sha256:d0b3f5b944adc4a79f82ac51bcdc2d723b734c2c97872d8551626ad48b3c5538
@@ -39,7 +39,7 @@ full docker.io/library/redis:8.6.4-alpine
 full ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2
 full ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.16.0
 full ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.16.0
-full ghcr.io/cloudnative-pg/postgresql:17.2
+full ghcr.io/cloudnative-pg/postgresql:19.0-standard-trixie
 full ghcr.io/dexidp/dex:v2.46.1
 full ghcr.io/headlamp-k8s/headlamp:v0.46.0
 full ghcr.io/kyverno/readiness-checker:v1.20.0

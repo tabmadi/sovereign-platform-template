@@ -21,7 +21,7 @@ cluster:
   # CRs do not race CRD registration. The GitOps path leaves it true and orders the CRs with sync-waves.
   create: true
   instances: 3
-  imageName: ghcr.io/cloudnative-pg/postgresql:17.2
+  imageName: ghcr.io/cloudnative-pg/postgresql:19.0-standard-trixie
   resources:
     requests: { cpu: "200m", memory: "512Mi" }
     limits: { memory: "1Gi" }

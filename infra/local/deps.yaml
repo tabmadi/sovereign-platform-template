@@ -36,7 +36,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: postgres
-          image: postgres:17-alpine
+          image: postgres:19-alpine
           env:
             - { name: POSTGRES_USER, value: dev }
             - { name: POSTGRES_PASSWORD, value: dev }
