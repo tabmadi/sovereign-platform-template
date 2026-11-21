@@ -252,6 +252,8 @@ The full walkthrough is [`docs/dev-loop.md`](docs/dev-loop.md).
 
 With Nix, run the first block above, then follow these steps:
 
+`nix flake new` prints a command that writes the exact template commit into `.template-version`. Run that command first.
+
 1. Run `just init`. It asks seven questions, renames the project, applies the setup modes, and removes the `A new copy` line of `AGENTS.md`.
 2. Run `just bootstrap`, then `just gen` and `just check`, and commit.
 3. Rewrite this README for the project.
@@ -270,7 +272,14 @@ With Nix, run the first block above, then follow these steps:
 The button copies every file, the `template/` folder included. Its first commit, `Initial commit`, is not a Conventional Commit, and it can start workflows while the copy still has the old names.
 
 1. Clone the new repository, and run `nix develop` in it.
-2. Run `just init`.
+2. Record the template commit of this copy, then run `just init`:
+
+   ```bash
+   created=$(TZ=UTC git log --max-parents=0 --format=%ad --date=format-local:%Y-%m-%dT%H:%M:%SZ HEAD)
+   gh api -X GET repos/tabmadi/sovereign-platform-template/commits -f sha=master -f until="$created" -f per_page=1 --jq '.[0].sha' >.template-version
+   just init
+   ```
+
 3. Replace the first commit of GitHub. This is safe before anyone else clones the repository:
 
    ```bash

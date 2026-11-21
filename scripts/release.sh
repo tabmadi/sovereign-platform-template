@@ -65,8 +65,7 @@ if [[ "$stamped_pkg" == true ]]; then
   detail "refreshed bun.lock"
 fi
 
-# The template's release stamp lives in the tree, not the tag, per ADR-0117.
-# A forge copy is squashed with no history, and `project-init` reads this to write `_commit`.
+# A copy has no tag history, so the stamp lives in the tree, per TPL-0000.
 echo "$version" >.template-version
 detail "stamped .template-version"
 

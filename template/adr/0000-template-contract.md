@@ -65,7 +65,7 @@ In both copies, `just init` asks seven questions: the product name, the slug, th
 
 ### Updating a project
 
-`.template-version` holds the release of the template that the project started from. A release of the template writes it.
+`.template-version` holds the release or commit of the template that the project started from. A release of the template writes the release into the tree. `master` can be ahead of that release, so each way of making a project records the exact commit. The welcome text of `nix flake new` prints the command with the commit of the copy. The steps for the template button find the commit from the date of the first commit.
 
 A coding agent updates a project with [UPDATE.md](../UPDATE.md). It diffs the template from that version to the new one. It applies each change with the names of the project and keeps every choice that the project made. It writes the new version into `.template-version`, and the update passes `just ci`.
 

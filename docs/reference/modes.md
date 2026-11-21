@@ -19,7 +19,7 @@ Each mode is an answer to a question of `just init`. `just init` removes the pat
 `just init` runs once, so a change of mode later is a change by hand, in one pull request:
 
 1. Set the new value in `infra/project.yaml`.
-2. For a new `provisioning` mode, take its folder from the release of `.template-version`, and remove the folder of the old mode.
+2. For a new `provisioning` mode, take its folder from the release or commit in `.template-version`, and remove the folder of the old mode.
 3. For `forgejo`, take `infra/forge-host/` and `infra/runner/` from the same release. Move `.github/workflows/` to `.forgejo/workflows/`, and remove each `permissions` block. Write `${PullRequestTitle} (${PullRequestReference})` to `.forgejo/default_merge_message/SQUASH_TEMPLATE.md`.
 4. For `github`, move the workflows back, add the `permissions` blocks of the release again, and remove `.forgejo/`.
 5. Run `just gen` and `just check`.

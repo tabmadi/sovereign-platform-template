@@ -14,7 +14,11 @@
     welcomeText = ''
       # A new project
 
-      Follow `Starting a project` in `README.md`.
+      Record the template commit of this copy:
+
+          cd <dir> && echo ${inputs.self.rev or inputs.self.dirtyRev or "unknown"} > .template-version
+
+      Then follow `Starting a project` in `README.md`.
     '';
   };
 }

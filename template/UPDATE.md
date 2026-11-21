@@ -5,7 +5,7 @@ A coding agent follows these steps to bring a project made from this template to
 ## Before you start
 
 - Work in a clean checkout of the project, on a new branch.
-- Read `.template-version` in the project. It holds the release that the project started from, or the release of its last update. Call it `OLD`.
+- Read `.template-version` in the project. It holds the release or commit of the template that the project started from, or the release of its last update. Call it `OLD`.
 - Choose the release to update to. Call it `NEW`. The releases are the tags of the template repository.
 - Read the `AGENTS.md` of the project, and ADR-0001 for the house style.
 
@@ -17,7 +17,7 @@ A coding agent follows these steps to bring a project made from this template to
    git clone https://github.com/tabmadi/sovereign-platform-template.git template-src
    ```
 
-2. List the files that changed between the two releases, outside `template/`.
+2. List the files that changed from `OLD` to `NEW`, outside `template/`.
 
    ```bash
    git -C template-src diff --stat OLD NEW -- . ':!template'
@@ -57,4 +57,4 @@ A coding agent follows these steps to bring a project made from this template to
 
 - An update never overwrites a change that the project made on purpose.
 - The update is one pull request, and `just ci` passes on it.
-- `.template-version` names the release that the project is on after the update.
+- `.template-version` names the release that the project is on after the update. Before the first update, it can name a commit.
