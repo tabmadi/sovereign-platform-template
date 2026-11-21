@@ -34,7 +34,7 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - if: env.RENOVATE_TOKEN != ''
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
       - if: env.RENOVATE_TOKEN != ''
         uses: ./.github/actions/setup
       - if: env.RENOVATE_TOKEN != ''

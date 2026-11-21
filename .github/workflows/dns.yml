@@ -30,7 +30,7 @@ jobs:
   drift:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - name: Compare the zone with the provider
         env:

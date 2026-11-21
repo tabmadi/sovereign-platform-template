@@ -8,6 +8,6 @@ description: |
   operator.
 type: application
 version: "2026.11.0"
-appVersion: "1.22.1"
+appVersion: "1.23.0"
 annotations:
   app-version-from: "yaml:infra/helm/platform/openfga/values.yaml:.image.tag"

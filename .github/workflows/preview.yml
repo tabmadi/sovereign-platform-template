@@ -35,7 +35,7 @@ jobs:
     env:
       PREVIEW_PR: ${{ github.event.pull_request.number }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -52,7 +52,7 @@ jobs:
         # Workaround for forgejo 17.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: playwright-report-preview
           path: |

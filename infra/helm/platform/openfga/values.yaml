@@ -3,7 +3,7 @@
 # per the OpenFGA release notes.
 image:
   repository: openfga/openfga
-  tag: "v1.22.1"
+  tag: "v1.23.0"
 
 replicas: 2
 logLevel: info

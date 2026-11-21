@@ -59,7 +59,7 @@ jobs:
     # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0116.
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -71,7 +71,7 @@ jobs:
       - name: Restore the registry mirror
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v6.1.0
         with:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
@@ -95,7 +95,7 @@ jobs:
         # Workaround for forgejo 17.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: perf-summary-load
           path: test/perf/results/
@@ -114,7 +114,7 @@ jobs:
     # Up to an hour of this can be a wait for another job's cluster on a shared runner, per ADR-0116.
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -123,7 +123,7 @@ jobs:
       - name: Restore the registry mirror
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v6.1.0
         with:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
@@ -146,7 +146,7 @@ jobs:
         # Workaround for forgejo 17.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: perf-summary-smoke
           path: test/perf/results/

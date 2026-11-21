@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - name: Make a project from every fixture and compare the two ways
         run: nix develop --command just test-template
@@ -48,7 +48,7 @@ jobs:
       group: acceptance-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -57,7 +57,7 @@ jobs:
         id: registry-cache
         # A self-hosted runner keeps the store in its home between jobs. Only a fresh hosted machine needs the cache.
         if: runner.environment == 'github-hosted'
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v6.1.0
         with:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
@@ -70,7 +70,7 @@ jobs:
       # Saved on a miss and on `always()`. The warm fails when upstream throttles, and a partial store still helps the next run.
       - name: Save the registry mirror
         if: always() && runner.environment == 'github-hosted' && steps.registry-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@v6.1.0
         with:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost

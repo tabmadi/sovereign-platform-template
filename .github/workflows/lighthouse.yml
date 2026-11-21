@@ -34,7 +34,7 @@ jobs:
       run: ${{ steps.check.outputs.run }}
     steps:
       # Full history: the affected manifest is a diff against the merge base.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -51,14 +51,14 @@ jobs:
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
 
       # The stack pulls Traefik and Prism from Docker Hub. Anonymous pulls have a limit for each source IP, and the whole forge shares this IP.
       - name: Log in to Docker Hub
         # Unset on a fork, where the secrets do not resolve.
         if: env.DOCKERHUB_USERNAME != ''
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -83,7 +83,7 @@ jobs:
         # Workaround for forgejo 17.0.2 in infra/helm/platform/forgejo/values.yaml: its artifact service refuses v4 and later.
         # A report is a diagnostic, so the refusal must not fail a passing run. Retest: remove this line and upload a report.
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: lighthouse-report
           path: test/e2e/.lighthouseci/

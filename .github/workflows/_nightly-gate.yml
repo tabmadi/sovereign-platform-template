@@ -38,7 +38,7 @@ jobs:
       run: ${{ steps.check.outputs.run }}
     steps:
       # Full history: --since needs commits, and a shallow clone has only one.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup

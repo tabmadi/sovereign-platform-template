@@ -45,8 +45,8 @@ full ghcr.io/headlamp-k8s/headlamp:v0.46.0
 full ghcr.io/kyverno/readiness-checker:v1.20.0
 full ghcr.io/project-zot/zot-linux-amd64:v2.1.23
 full grafana/alloy:v1.22.0
-full grafana/pyroscope:2.4.3
-full openfga/openfga:v1.22.1
+full grafana/pyroscope:2.4.4
+full openfga/openfga:v1.23.0
 full otel/opentelemetry-collector-contrib:0.165.0
 full prom/alertmanager:v0.35.0
 full prom/prometheus:v3.16.0

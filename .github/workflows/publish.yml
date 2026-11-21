@@ -32,7 +32,7 @@ jobs:
       apps: ${{ steps.affected.outputs.apps }}
       images: ${{ steps.affected.outputs.images }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with: { fetch-depth: 0 }
       - uses: ./.github/actions/setup
       - id: affected
@@ -46,14 +46,14 @@ jobs:
     if: ${{ needs.affected.outputs.images != '[]' }}
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       # The toolchain for the signing step. cosign, syft, sops, and yq are pinned in flake.nix, per ADR-0100.
       # So CI signs with the same binaries that a developer verifies with.
       - uses: ./.github/actions/setup
       # buildx in a run step finds the hosted cache service through these variables, and only an action can read them.
       - if: runner.environment == 'github-hosted'
-        uses: crazy-max/ghaction-github-runtime@v4
-      - uses: docker/login-action@v4
+        uses: crazy-max/ghaction-github-runtime@v4.0.0
+      - uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           # The forge's own token works for the forge's own registry, which is the default.
@@ -83,11 +83,11 @@ jobs:
     if: ${{ needs.affected.outputs.apps != '[]' }}
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       - if: runner.environment == 'github-hosted'
-        uses: crazy-max/ghaction-github-runtime@v4
-      - uses: docker/login-action@v4
+        uses: crazy-max/ghaction-github-runtime@v4.0.0
+      - uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
@@ -115,15 +115,15 @@ jobs:
       contents: write
     steps:
       # The machine user that branch protection lets push, in infra/forge/branch-protection.yaml.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with: {
           ref: "${{ github.ref_name }}",
           fetch-depth: 0,
           token: "${{ secrets.PROMOTE_TOKEN || secrets.GITHUB_TOKEN }}",
         }
       - uses: ./.github/actions/setup
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/login-action@v4
+      - uses: docker/setup-buildx-action@v4.4.1
+      - uses: docker/login-action@v4.8.0
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
@@ -158,12 +158,12 @@ jobs:
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
       # The stack pulls Traefik and Prism from Docker Hub. Unset on a fork, where the secrets do not resolve.
       - name: Log in to Docker Hub
         if: env.DOCKERHUB_USERNAME != ''
-        uses: docker/login-action@v4
+        uses: docker/login-action@v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
