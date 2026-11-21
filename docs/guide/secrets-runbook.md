@@ -42,7 +42,7 @@ The cosign key pair signs every first-party image. Kyverno verifies the signatur
 **The policy carries both public keys through the window.** Images signed with the old key are already running. Any reschedule admits them again. If you remove the old key before those images are gone, the cluster cannot restart its own workloads.
 
 1. **Generate the new pair.** Encrypt the private half with SOPS to the cluster age key. Commit both halves: the public one in plaintext, the private one encrypted.
-2. **Add the new public key to the `ClusterPolicy` as a second attestor**, and merge. The policy now accepts either key. Confirm that the Application is synced before you continue.
+2. **Add the new public key to the Kyverno image policies as a second attestor**, and merge. The policy now accepts either key. Confirm that the Application is synced before you continue.
 3. **Point CI at the new private key** and merge. Every image built after this point is signed with the new key.
 4. **Rebuild and roll every running image.** This step takes the most time. The window stays open until the cluster cannot schedule any image signed by the old key. This includes any image that a node replacement pulls.
 5. **Remove the old public key from the policy** and merge.

@@ -1,12 +1,12 @@
 {{- if .Values.policies.imagePrefix }}
 # Every first-party image reference is a digest, per ADR-0111 and ADR-0113.
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
 metadata:
   name: require-image-digest
   annotations:
     # After the CRDs. They are TEMPLATES of the subchart, not files in a `crds/` directory. So a single Helm
-    # pass renders this CR against an API server that does not know `kyverno.io/v1`.
+    # pass renders this CR against an API server that does not know `policies.kyverno.io/v1`.
     argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: First-party images are pinned by digest
     policies.kyverno.io/category: Supply chain
@@ -17,47 +17,35 @@ metadata:
       yesterday and the bytes that run today are the same only by convention
       (ADR-0111).
 spec:
-  validationFailureAction: {{ .Values.policies.validationFailureAction }}
+  validationActions: [{{ include "policies.action" . }}]
   # Background scanning is ON, unlike the signature policy. This check needs no registry round trip, so it is cheap to
-  # run again against everything that already runs. So a workload admitted before the policy existed shows in a
-  # report. It does not stay invisible until its next reschedule.
-  background: true
-  rules:
-    - name: digest-not-tag
-      match:
-        any:
-          - resources:
-              kinds: [Pod]
-      # A design Deployment names its commit tag, and `design-images.yaml` pins its pod to the verified digest, per ADR-0113.
-      exclude:
-        any:
-          - resources:
-              namespaces: ["design-pr-*"]
-      preconditions:
-        all:
-          - key: "{{ `{{ request.operation || 'BACKGROUND' }}` }}"
-            operator: NotEquals
-            value: DELETE
-      validate:
-        message: >-
-          A first-party image must use a digest, not a tag, per ADR-0111.
-          Promotion writes the digest into the values file. A tag there is the
-          defect that lint:floating-tags catches before it reaches a cluster.
-        foreach:
-          # Every container type, as one flat list. Each has `|| []`: a pod with no
-          # initContainers gives null. A null inside the multiselect makes the whole
-          # expression null, and not the shorter list that you want.
-          - list: "request.object.spec.[containers || `[]`, initContainers || `[]`, ephemeralContainers || `[]`][]"
-            deny:
-              conditions:
-                all:
-                  # BOTH conditions are in one `all`. The registry check is not a foreach precondition. A precondition that does not
-                  # match skips the element with no sign. A rule that skips everything with no sign looks the same as a rule that
-                  # passes.
-                  - key: "{{ `{{ element.image }}` }}"
-                    operator: Equals
-                    value: {{ .Values.policies.imagePrefix | quote }}
-                  - key: "{{ `{{ element.image }}` }}"
-                    operator: NotEquals
-                    value: "*@sha256:*"
+  # run again against everything that already runs. So a workload admitted before the policy existed shows in a report.
+  evaluation:
+    background:
+      enabled: true
+  autogen:
+    podControllers:
+      controllers: [deployments, statefulsets, daemonsets, jobs, cronjobs]
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  # A design Deployment names its commit tag, and `design-images.yaml` pins its pod to the verified digest, per ADR-0113.
+  matchConditions:
+    - name: outside-design-namespaces
+      expression: "!namespaceObject.metadata.name.startsWith('design-pr-')"
+  variables:
+    - name: images
+      expression: {{ include "policies.podImages" . | quote }}
+    - name: prefix
+      expression: {{ include "policies.prefix" . | quote }}
+  validations:
+    - expression: >-
+        variables.images.all(image, !image.startsWith(variables.prefix) || image.contains("@sha256:"))
+      message: >-
+        A first-party image must use a digest, not a tag, per ADR-0111.
+        Promotion writes the digest into the values file. A tag there is the
+        defect that lint-floating-tags catches before it reaches a cluster.
 {{- end }}

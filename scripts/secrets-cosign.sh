@@ -50,6 +50,6 @@ ok "private key and passphrase → ${PRIVATE}"
 echo
 echo "Next:"
 echo "  1. Commit both halves. The public one is plaintext by design."
-echo "  2. Kyverno's ClusterPolicy in infra/helm/platform/kyverno names ${PUB_KEY} as its attestor."
+echo "  2. The Kyverno image policies in infra/helm/platform/kyverno name ${PUB_KEY} as its attestor."
 echo "  3. Give CI an age recipient in .sops.yaml and its private half as a forge"
 echo "     secret, so ci-sign can decrypt this file. Nothing else ever decrypts it."

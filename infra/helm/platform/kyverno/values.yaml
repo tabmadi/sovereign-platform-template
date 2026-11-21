@@ -53,9 +53,22 @@ kyverno:
       limits: { memory: "128Mi" }
   reportsController:
     replicas: 1
+    # Kyverno 1.20 marks a policy ready only when this controller can read what it matches.
+    # `templates/restart-on-secret-change.yaml` matches Secrets.
+    rbac:
+      clusterRole:
+        extraResources:
+          - apiGroups: [""]
+            resources: [secrets]
+            verbs: [get, list, watch]
     resources:
       requests: { cpu: "25m", memory: "128Mi" }
       limits: { memory: "256Mi" }
+
+  # The upgrade hook stops when it finds a `kyverno.io` policy, which Kyverno 1.20 no longer runs. This chart holds
+  # only `policies.kyverno.io` policies, per ADR-0203. Argo CD prunes the old ones of an upgraded cluster after the hook.
+  upgrade:
+    acknowledgeLegacyPoliciesNotEnforced: true
 
 policies:
   # `Enforce` rejects. `Audit` records a PolicyReport and admits. Deployed environments enforce.
@@ -73,6 +86,6 @@ policies:
   # the file to every chart in the tier.
   allowedImageSources: []
 
-  # The committed public half of the platform signing key, per ADR-0113. It is inlined into the ClusterPolicy as a
-  # `keys` attestor.
+  # The committed public half of the platform signing key, per ADR-0113. It is inlined into both image policies as a
+  # cosign key attestor.
   publicKey: ""

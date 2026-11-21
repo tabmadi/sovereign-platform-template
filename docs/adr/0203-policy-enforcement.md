@@ -96,12 +96,11 @@ Review enforces an unannotated rule. This is a stated position, not an omission.
 
 - **Review enforces the layer assignment.** A rule can sit at the wrong layer, and nothing rejects it. The annotation makes the mistake visible in a diff, but it does not prevent it.
 - **The rule of earliest and unbypassable has a real conflict in it**, and unbypassable wins every time. This delays feedback for the image-provenance class: a violation shows at deploy, not at merge.
-- **Kyverno stays on the 1.19 line.** Kyverno 1.20 no longer executes the `kyverno.io` policy types, and every Kyverno policy here is a `ClusterPolicy`. A move to 1.20 first rewrites each policy as a `policies.kyverno.io` type, such as `ValidatingPolicy` or `ImageValidatingPolicy`. Renovate holds the chart below 3.10.0 until then.
 - **CI lints fail open by design.** Nothing here changes that. The class assigned to them is the class where failing open is acceptable, because the subject never reaches the cluster.
 
 ## Rules
 
-- The Kyverno chart stays below 3.10.0 while a policy of this repo is a `kyverno.io` type, because Kyverno 1.20 does not execute those types.
+- Every Kyverno policy is a `policies.kyverno.io` type, because Kyverno 1.20 does not execute the `kyverno.io` types.
 - Every invariant is enforced at exactly one layer, chosen by its class in the assignment table. A second copy at another layer is not added for feedback.
 - CI enforces repository properties. Pod Security Admission enforces workload privilege. Kyverno enforces image provenance. CiliumNetworkPolicy enforces reachability. In-tree API objects enforce resource governance.
 - Kyverno's scope is image provenance. An extension to a class that this ADR assigns elsewhere requires an amendment to this ADR. `(enforced: Kyverno)`

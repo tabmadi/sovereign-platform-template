@@ -69,7 +69,7 @@ These are the security controls that every instance of this platform holds. Each
 
 | Control | Enforced by |
 | --- | --- |
-| The Kyverno chart stays below 3.10.0 while a policy of this repo is a `kyverno.io` type, because Kyverno 1.20 does not execute those types. | review |
+| Every Kyverno policy is a `policies.kyverno.io` type, because Kyverno 1.20 does not execute the `kyverno.io` types. | review |
 | Every invariant is enforced at exactly one layer, chosen by its class in the assignment table. A second copy at another layer is not added for feedback. | review |
 | CI enforces repository properties. Pod Security Admission enforces workload privilege. Kyverno enforces image provenance. CiliumNetworkPolicy enforces reachability. In-tree API objects enforce resource governance. | review |
 | Kyverno's scope is image provenance. An extension to a class that this ADR assigns elsewhere requires an amendment to this ADR. | admission: Kyverno |

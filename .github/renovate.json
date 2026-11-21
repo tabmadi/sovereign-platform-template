@@ -27,12 +27,6 @@
       "groupName": "toolchain"
     },
     {
-      "description": "Kyverno 1.20, chart 3.10.0, no longer executes the kyverno.io policy types of this repo, per ADR-0203. The chart waits below 3.10.0 until every policy moves to a policies.kyverno.io type.",
-      "matchDatasources": ["helm"],
-      "matchPackageNames": ["kyverno"],
-      "allowedVersions": "<3.10.0"
-    },
-    {
       "description": "msw 3 no longer intercepts the fetch of Bun, and msw supports only Node.js. On 2026-11-21, msw 3.0.7 on Bun 1.4.5 still let a request reach the network. The frontend tests run on Bun, per ADR-0400. So msw waits below 3 until a release intercepts it again.",
       "matchDatasources": ["npm"],
       "matchPackageNames": ["msw"],
