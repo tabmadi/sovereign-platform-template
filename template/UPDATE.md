@@ -39,7 +39,7 @@ A coding agent follows these steps to bring a project made from this template to
    - A file that the project deleted stays deleted, unless the diff adds a feature that the project needs. Ask the owner when you cannot tell.
    - A new file of the template comes into the project with the names of the project.
    - Skip the files of a setup mode that the project did not choose: `infra/runner`, `infra/forge-host`, `infra/hypervisor`, and `infra/opentofu`. `docs/reference/modes.md` lists the modes.
-   - A forgejo project keeps its workflows in `.forgejo/workflows/` with no `permissions` blocks. Apply a workflow change there.
+   - A forgejo project keeps its workflows in `.forgejo/workflows/` with no `permissions` blocks. Apply a workflow change there. It also keeps `.forgejo/default_merge_message/SQUASH_TEMPLATE.md`, which the template has only after `just init`. Do not delete it.
    - The custom rules and generators are not files of the project. They arrive with the tabnix tag in `flake.nix`. Merge a change to `.config/tabrules.toml` like any other config.
 
 5. Apply the changes of the lock files by running the tools, never by a text merge.

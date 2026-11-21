@@ -70,6 +70,10 @@ mode_problems() { # <out> <fixture>
   if [ "$(yq -r '.forge // ""' "$fixture")" = forgejo ] && grep -lq '^ *permissions:' "$out"/.forgejo/workflows/*.yml; then
     echo "a workflow keeps a permissions block on forgejo"
   fi
+  if [ "$(yq -r '.forge // ""' "$fixture")" = forgejo ] &&
+    ! grep -qxF '${PullRequestTitle} (${PullRequestReference})' "$out/.forgejo/default_merge_message/SQUASH_TEMPLATE.md"; then
+    echo "the squash template is missing on forgejo"
+  fi
 }
 
 step "making a project from each valid fixture"

@@ -59,6 +59,15 @@ if [ -d .github/workflows ] && [ ! -d .forgejo/workflows ]; then
   sed -i 's|\./\.github/workflows/|./.forgejo/workflows/|g' .forgejo/workflows/*.yml
 fi
 
+# Forgejo reads this template only from its own folder, never from .github, per ADR-0116.
+squash=.forgejo/default_merge_message/SQUASH_TEMPLATE.md
+if [ ! -f "$squash" ]; then
+  mkdir -p "$(dirname "$squash")"
+  cat >"$squash" <<'EOF'
+${PullRequestTitle} (${PullRequestReference})
+EOF
+fi
+
 # Forgejo ignores `permissions` and warns on every run. Its token scope is fixed, per ADR-0116.
 # A block is the key line and every deeper line after it. A blank line that the removal doubles goes too.
 for f in .forgejo/workflows/*.yml; do
@@ -82,4 +91,4 @@ for f in .forgejo/workflows/*.yml; do
   ' "$f" >"$f.tmp"
   mv "$f.tmp" "$f"
 done
-ok "workflows fitted to forgejo: moved to .forgejo/workflows, no permissions blocks"
+ok "workflows fitted to forgejo: moved to .forgejo/workflows, no permissions blocks, squash template written"

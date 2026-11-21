@@ -262,7 +262,7 @@ With Nix, run the first block above, then follow these steps:
    gh api -X PATCH repos/OWNER/REPO -f squash_merge_commit_title=PR_TITLE -f squash_merge_commit_message=BLANK -F allow_merge_commit=false -F allow_rebase_merge=false
    ```
 
-   On Forgejo, `.forgejo/default_merge_message/SQUASH_TEMPLATE.md` sets the message.
+   On Forgejo, `just init` writes `.forgejo/default_merge_message/SQUASH_TEMPLATE.md`, which sets the message.
 6. Run Renovate from its workflow, per ADR-0117, and keep `.template-version` for the next update.
 
 #### With the GitHub template button
