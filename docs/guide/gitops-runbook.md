@@ -99,6 +99,7 @@ It deletes everything it creates.
 - Sync waves handle the order: CRD, then operator, then instance. The first platform sync is slow by design.
 - Every Application has a `retry` policy, so a transient error heals itself. When the retries run out, a manual `argocd app sync` is the break-glass. A cluster rebuild is never the fix.
 - If a node's containerd hangs on a large image pull, run `just cluster-heal`, per [dev-loop](../dev-loop.md). Do not restart the node.
+- If the kyverno app reports that the admission webhook denied a `ClusterPolicy`, the cluster still holds a policy type that Kyverno 1.20 refuses, per [ADR-0203](../adr/0203-policy-enforcement.md). Run `kubectl delete clusterpolicies.kyverno.io --all` once. Kyverno always allows a delete, and Argo CD then syncs the `policies.kyverno.io` policies.
 
 ## When the symptom names the wrong layer
 

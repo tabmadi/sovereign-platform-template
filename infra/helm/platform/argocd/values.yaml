@@ -74,16 +74,6 @@ argo-cd:
         {
           "jsonPointers": ["/metadata/labels", "/metadata/annotations"]
         }
-      # Kyverno's CRD schema gives defaults to four fields that the chart never sets: `spec.admission`, `spec.emitWarning`,
-      # and, per rule, `skipBackgroundRequests` and `validate.allowExistingViolations`.
-      resource.customizations.ignoreDifferences.kyverno.io_ClusterPolicy: |
-        {
-          "jsonPointers": ["/spec/admission", "/spec/emitWarning"],
-          "jqPathExpressions": [
-            ".spec.rules[].skipBackgroundRequests",
-            ".spec.rules[].validate.allowExistingViolations"
-          ]
-        }
     rbac:
       # The anonymous user is the operator that the edge authenticated. See `users.anonymous` above. It gets
       # admin, like Grafana's anonymous `org_role:Admin`. The edge already checked AAL2 and the
