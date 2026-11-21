@@ -7,7 +7,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 : "${RENOVATE_TOKEN:?RENOVATE_TOKEN is unset}" "${GITHUB_API_URL:?}" "${GITHUB_REPOSITORY:?}"
 
 platform=forgejo
-[[ "$GITHUB_API_URL" == "https://api.github.com" ]] && platform=github
+if [[ "$GITHUB_API_URL" == "https://api.github.com" ]]; then
+  platform=github
+  # The noreply address of the repository owner, so a copy of this repo signs with its own owner.
+  export RENOVATE_GIT_AUTHOR="Renovate <${GITHUB_REPOSITORY_OWNER_ID}+${GITHUB_REPOSITORY_OWNER}@users.noreply.github.com>"
+fi
 export RENOVATE_PLATFORM="$platform" RENOVATE_ENDPOINT="$GITHUB_API_URL" RENOVATE_REPOSITORIES="$GITHUB_REPOSITORY"
 # Lockfile updates run the tools of the dev shell, not a copy that Renovate downloads.
 export RENOVATE_CONFIG_FILE=.config/renovate.json
