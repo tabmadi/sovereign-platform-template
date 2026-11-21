@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 213 |
-| Review-enforced | 411 |
-| **Total** | **624** |
+| Review-enforced | 413 |
+| **Total** | **626** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -163,6 +163,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The git hooks are declared in `flake.nix`, through tabnix. | review |
 | Commit messages and pull request titles follow Conventional Commits with the types in `.config/cog.toml`. | standard: Conventional Commits 1.0.0 |
 | A commit message is a title only, with no body. The squash commit of a pull request is its title only. | review |
+| An issue title is plain language, with no Conventional Commits prefix. An issue filed through a CLI or an API uses the fields and labels of the matching form. | review |
+| A pull request states its verification, and uses `Closes #123` when it resolves an issue. | review |
 | `just ci` is the only gate step after setup. A push to the binary cache may follow it, and never fails the job. | `ci` in CI |
 | A binary cache is turned on by repository variables, never by a value in a committed file. | review |
 | A workflow never puts event text, such as a pull request title, directly into a `run` script. | `ci` in CI |
