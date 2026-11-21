@@ -1,0 +1,95 @@
+{{- if .Values.etcdMetrics.enabled }}
+{{- $image := index .Values "opentelemetry-collector" "image" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcd-metrics
+  namespace: {{ .Values.namespace }}
+  labels: { app.kubernetes.io/name: etcd-metrics, app.kubernetes.io/part-of: observability }
+data:
+  config.yaml: |
+    {{- include "otel-agent.etcdMetrics.config" . }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: etcd-metrics
+  namespace: {{ .Values.namespace }}
+  labels: { app.kubernetes.io/name: etcd-metrics, app.kubernetes.io/part-of: observability }
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/name: etcd-metrics }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: etcd-metrics, app.kubernetes.io/part-of: observability }
+      annotations:
+        checksum/config: {{ include "otel-agent.etcdMetrics.config" . | sha256sum }}
+    spec:
+      # etcd serves its metrics on the loopback of the node.
+      hostNetwork: true
+      automountServiceAccountToken: false
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
+      tolerations:
+        - { key: node-role.kubernetes.io/control-plane, operator: Exists, effect: NoSchedule }
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: collector
+          image: "{{ $image.repository }}:{{ $image.tag }}"
+          args: ["--config=/etc/otel/config.yaml"]
+          env:
+            - name: K8S_NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: K8S_NODE_IP
+              valueFrom: { fieldRef: { fieldPath: status.hostIP } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          resources: {{- toYaml .Values.etcdMetrics.resources | nindent 12 }}
+          volumeMounts:
+            - { name: config, mountPath: /etc/otel, readOnly: true }
+      volumes:
+        - name: config
+          configMap: { name: etcd-metrics }
+{{- end }}
+{{- define "otel-agent.etcdMetrics.config" }}
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: etcd
+              scrape_interval: 30s
+              static_configs:
+                - targets: ["127.0.0.1:2381"]
+              relabel_configs:
+                - target_label: instance
+                  replacement: ${env:K8S_NODE_NAME}
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: "etcd_disk_(wal_fsync|backend_commit)_duration_seconds_.*"
+                  action: keep
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+    exporters:
+      # The hostPort of the agent on this node. A host-network pod reaches it without a wider network policy.
+      otlphttp:
+        endpoint: http://${env:K8S_NODE_IP}:4318
+    service:
+      # This pod shares the network of the node, so it opens no port of its own.
+      telemetry:
+        metrics:
+          level: none
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp]
+{{- end }}

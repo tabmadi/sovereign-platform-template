@@ -69,6 +69,22 @@ spec:
             k8s:io.kubernetes.pod.namespace: kyverno
       toPorts:
         - ports: [{ port: "8000", protocol: TCP }]
+{{- if .Values.externalProbe.enabled }}
+---
+## otel-cluster to the blackbox exporter outside the cluster, per ADR-0500.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: otel-cluster-external-probe
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: otel-cluster
+  egress:
+    - toCIDR: [{{ required "externalProbe.cidr is required" .Values.externalProbe.cidr | quote }}]
+      toPorts:
+        - ports: [{ port: {{ .Values.externalProbe.port | quote }}, protocol: TCP }]
+{{- end }}
 ---
 ## Tempo: trace push on OTLP 4317 and 4318 from OTel, and queries on 3200 from Grafana.
 apiVersion: cilium.io/v2

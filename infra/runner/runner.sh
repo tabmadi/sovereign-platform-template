@@ -106,6 +106,29 @@ chown ${user}:${user} ${state}/config.yml
 EOF
 done
 
+if [ "${PROBE_ENABLED:-false}" = true ]; then
+  step "installing the registry probe on ${RUNNER_ADDRESS}:${PROBE_PORT}"
+  guest <<EOF
+set -euo pipefail
+apt-get install -y -qq prometheus-blackbox-exporter >/dev/null
+cat >/etc/prometheus/blackbox.yml <<'CFG'
+modules:
+  registry_https:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      fail_if_not_ssl: true
+      preferred_ip_protocol: ip4
+      # An authenticated registry answers 401 to a request with no credential.
+      valid_status_codes: [200, 401]
+CFG
+echo 'ARGS="--config.file=/etc/prometheus/blackbox.yml --web.listen-address=${RUNNER_ADDRESS}:${PROBE_PORT}"' >/etc/default/prometheus-blackbox-exporter
+systemctl enable prometheus-blackbox-exporter >/dev/null
+systemctl restart prometheus-blackbox-exporter
+EOF
+fi
+
 step "writing the units and starting ${INSTANCES} instances"
 guest <<EOF
 set -euo pipefail

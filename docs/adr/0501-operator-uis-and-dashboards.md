@@ -77,6 +77,7 @@ Dashboards form a funnel of three levels. Each level answers one question and li
 | L2 | **Service detail**, `service-detail.json` | Which symptom this service shows: SLO, RED, resources, logs, traces, profiles | |
 | L3 | **Platform components**, `platform-components.json` | Whether a stateful dependency is the cause | |
 | L3 | **Network: policy denials**, `hubble-drops.json` | Whether a NetworkPolicy blocks a flow | |
+| L3 | **Registry health**, `registry-health.json` | Whether the public registry path, its replicas, node readiness, or etcd latency is the cause | |
 
 **Overview's contract: every panel turns red or links down a level.** It has no deep-dive timeseries. The rows are in this order:
 

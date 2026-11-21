@@ -41,3 +41,6 @@ cluster:
     # etcd listens only on the private network. By default, it binds the first
     # address it finds. On a host with a public interface, that is the public one.
     advertisedSubnets: [10.0.0.0/8]
+    # These metrics have no authentication, and a node can have a public interface, so they stay on loopback.
+    extraArgs:
+      listen-metrics-urls: http://127.0.0.1:2381

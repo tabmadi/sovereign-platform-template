@@ -131,6 +131,10 @@ Service authors never touch the OTel SDK. Custom spans and counters go through `
 | Pyroscope | profiles | see below |
 | Grafana | one UI for all signals, with cross-signal navigation | none |
 
+**The registry has an external probe.** A blackbox exporter on a machine outside the workload cluster checks TLS and the expected response of the registry. `otel-cluster` scrapes the exporter and sends the result over OTLP, so Prometheus still scrapes nothing. A failed scrape is unknown, and it is not a failed probe. The probe is off until a project sets its exporter and targets. In a Forgejo project, `PROBE_ENABLED` in `infra/runner/runner.env` installs the exporter on the private address of the runner.
+
+**etcd latency stays on loopback.** etcd metrics have no authentication, and a control-plane node can have a public interface. A host-network collector on each control-plane node scrapes `127.0.0.1:2381` and sends WAL fsync and backend commit histograms to the agent on that node.
+
 Sizing: production runs Loki and Tempo at two replicas each, and Grafana at two. Prometheus runs single, because its HA path is the Mimir swap, not a replica count. Non-prod runs single replicas. There, failure tolerance for observability is not worth the resources.
 
 **Mimir is the metrics scale swap.** It beats Thanos and Cortex because its query API is Prometheus's, without a sidecar or a query layer in front. It beats a VictoriaMetrics cluster because that cluster changes the query dialect of the dashboards and alert rules.

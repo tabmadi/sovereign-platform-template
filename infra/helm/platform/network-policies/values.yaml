@@ -10,6 +10,13 @@ otelAgentNamespace: otel-agent
 # The cluster's pod CIDR: kind's kubeadm default, 10.244.0.0/16, per ADR-0206.
 podCIDR: "10.244.0.0/16"
 
+# The blackbox exporter that probes the registry from outside the cluster, per ADR-0500.
+externalProbe:
+  enabled: false
+  # The address of the exporter, as a CIDR such as `10.0.10.40/32`.
+  cidr: ""
+  port: 9115
+
 # The same gate as in the mailpit chart, `infra/helm/platform/mailpit`.
 mailpit:
   enabled: true

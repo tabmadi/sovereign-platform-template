@@ -7,6 +7,13 @@ namespace: otel-agent
 # agent. The network policies below use it.
 backendNamespace: platform
 
+# The etcd latency scrape on each control-plane node, per ADR-0500. etcd serves its metrics on loopback only.
+etcdMetrics:
+  enabled: true
+  resources:
+    requests: { cpu: "10m", memory: "48Mi" }
+    limits: { memory: "128Mi" }
+
 opentelemetry-collector:
   namespaceOverride: otel-agent
   # One tier: a DaemonSet on every node. Services send OTLP to the ClusterIP Service. The agent batches, adds k8s

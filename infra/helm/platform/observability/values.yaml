@@ -199,6 +199,15 @@ prometheus:
     requests: { cpu: "100m", memory: "384Mi" }
     limits: { memory: "1Gi" }
 
+# The HTTPS probe of the registry from outside the cluster, per ADR-0500. A blackbox exporter on another machine runs it.
+externalProbe:
+  enabled: false
+  # The exporter, as `host:port`. The network-policies chart holds the same address as a CIDR.
+  exporter: ""
+  module: registry_https
+  # The URLs to probe, such as `https://registry.example.com/v2/`.
+  targets: []
+
 # Pyroscope, the ADR-0501 POC for continuous profiling, the fourth signal. `templates/pyroscope.yaml` renders it as a
 # single-binary monolith with the v2 store on the filesystem of an emptyDir. That is the POC minimum.
 pyroscope:

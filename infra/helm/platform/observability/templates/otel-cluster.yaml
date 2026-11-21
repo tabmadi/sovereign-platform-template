@@ -139,6 +139,24 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: "metrics(-port)?"
+{{- if .Values.externalProbe.enabled }}
+            # The exporter runs outside the cluster, so a failure here includes the public path of the registry.
+            - job_name: registry-probe
+              scrape_interval: 30s
+              scrape_timeout: 15s
+              metrics_path: /probe
+              params:
+                module: [{{ .Values.externalProbe.module }}]
+              static_configs:
+                - targets: {{ required "externalProbe.targets is required" .Values.externalProbe.targets | toJson }}
+              relabel_configs:
+                - source_labels: [__address__]
+                  target_label: __param_target
+                - source_labels: [__param_target]
+                  target_label: instance
+                - target_label: __address__
+                  replacement: {{ required "externalProbe.exporter is required" .Values.externalProbe.exporter }}
+{{- end }}
     processors:
       # The same workload-identity mapping as the DaemonSet's kubernetesAttributes preset. It associates pod-scoped
       # resources by k8s.pod.uid, and derives service.name and service.namespace from the pod's app.kubernetes.io/*

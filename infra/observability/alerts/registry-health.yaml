@@ -1,0 +1,45 @@
+# Registry reachability and etcd latency, per ADR-0500. The etcd limits follow the upstream etcd alert rules.
+groups:
+  - name: registry.probe
+    rules:
+      - alert: RegistryProbeFailing
+        expr: |
+          probe_success{service_name="registry-probe"} == 0
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: "The registry at {{ $labels.instance }} fails its external HTTPS probe"
+          description: >-
+            The public path, TLS, or the response of the registry is wrong, even if
+            its replicas report ready. Compare the signals on the Registry health dashboard.
+      - alert: RegistryProbeMissing
+        expr: |
+          up{service_name="registry-probe"} == 0
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "The blackbox exporter does not answer, so the registry state is unknown"
+          description: >-
+            This alert does not show that the registry is down. Check the exporter
+            machine and the network path to it.
+  - name: etcd.latency
+    rules:
+      - alert: EtcdWalFsyncSlow
+        expr: |
+          histogram_quantile(0.99, sum by (instance, le) (rate(etcd_disk_wal_fsync_duration_seconds_bucket{service_name="etcd"}[5m]))) > 0.5
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          summary: "etcd member {{ $labels.instance }} has a p99 WAL fsync over 500ms"
+          description: >-
+            The disk of this member is slow, and leader elections can follow. Check
+            the disk and the load of the host.
+      - alert: EtcdBackendCommitSlow
+        expr: |
+          histogram_quantile(0.99, sum by (instance, le) (rate(etcd_disk_backend_commit_duration_seconds_bucket{service_name="etcd"}[5m]))) > 0.25
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          summary: "etcd member {{ $labels.instance }} has a p99 backend commit over 250ms"
+          description: >-
+            The disk of this member is slow. Check the disk and the load of the host.
