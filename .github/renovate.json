@@ -31,9 +31,41 @@
       "matchDatasources": ["npm"],
       "matchPackageNames": ["msw"],
       "allowedVersions": "<3"
+    },
+    {
+      "description": "Held at 3.x: postcss depends on nanoid ^3. The root override only lifts the 3.x line to a patched release. A major breaks postcss.",
+      "matchDatasources": ["npm"],
+      "matchPackageNames": ["nanoid"],
+      "allowedVersions": "<4"
+    },
+    {
+      "description": "Promotion writes the tags of first-party images, per ADR-0111. These images have no tag for Renovate to read.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/tabmadi/sovereign-platform-template/**"],
+      "enabled": false
+    },
+    {
+      "description": "The chart and the controller image share one registry path. Chart tags have no v prefix, and image tags have one. So the chart ignores every image tag.",
+      "matchManagers": ["helmv3"],
+      "matchPackageNames": ["temporal-worker-controller", "docker.io/temporalio/temporal-worker-controller"],
+      "allowedVersions": "/^[0-9]/"
+    },
+    {
+      "description": "The Codeberg registry refuses an anonymous tag list. data.forgejo.org serves the same images and digests, so Renovate reads the tags there.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["codeberg.org/forgejo/forgejo"],
+      "overridePackageName": "data.forgejo.org/forgejo/forgejo"
     }
   ],
   "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The forge and runner kits pin the release they install on a machine, per ADR-0116. A marker comment above each pin names its image.",
+      "managerFilePatterns": ["/^infra/(forge-host|runner)/[^/]+\\.env$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>\\S+)\\s+[A-Z_]+=(?<currentValue>\\S+)"
+      ]
+    },
     {
       "customType": "regex",
       "description": "An image that a script starts outside the cluster, such as the host registry, is a NAME_IMAGE variable in scripts/lib. No other manager reads a shell script.",

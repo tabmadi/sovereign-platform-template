@@ -115,16 +115,6 @@
       "groupName": null,
       "groupSlug": null,
       "dependencyDashboardApproval": true
-    },
-    {
-      "description": "Held at 3.x: postcss depends on nanoid ^3. The root override only lifts the 3.x line to a patched release. A major breaks postcss.",
-      "matchPackageNames": [
-        "nanoid"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "enabled": false
     }
   ],
   "postUpgradeTasks": {
@@ -134,18 +124,6 @@
     ],
     "executionMode": "branch"
   },
-  "customManagers": [
-    {
-      "description": "The forge and runner kits pin the release they install on a machine, per ADR-0116. A marker comment above each pin names its image, so the release moves with the same weekly batch as the chart that pins the same Forgejo.",
-      "customType": "regex",
-      "managerFilePatterns": [
-        "/^infra/(forge-host|runner)/[^/]+\\.env$/"
-      ],
-      "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>\\S+)\\s+[A-Z_]+=(?<currentValue>\\S+)"
-      ]
-    }
-  ],
   "vulnerabilityAlerts": {
     "description": "A CVE with a fixed version is proposed at once, outside the batch, and without dashboard approval even for a major. For this class only, the weekly slot is too slow, per ADR-0117 and ADR-0113.",
     "labels": [
