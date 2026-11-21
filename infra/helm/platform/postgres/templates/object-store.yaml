@@ -1,0 +1,23 @@
+{{- if and .Values.cluster.create (or .Values.cluster.backup.enabled .Values.cluster.recovery.fromServer) }}
+# The bucket that the Barman Cloud plugin archives to and restores from, per ADR-0207. The archive name of a cluster
+# is the serverName parameter in cluster.yaml, and the plugin requires this object to leave it empty.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: {{ .Values.cluster.name }}-backups
+  namespace: platform
+spec:
+  configuration:
+    destinationPath: {{ .Values.cluster.backup.s3.destinationPath | quote }}
+    {{- with .Values.cluster.backup.s3.endpointURL }}
+    endpointURL: {{ . | quote }}
+    {{- end }}
+    s3Credentials:
+      accessKeyId:     { name: postgres-backup-creds, key: ACCESS_KEY_ID }
+      secretAccessKey: { name: postgres-backup-creds, key: SECRET_ACCESS_KEY }
+    wal: { compression: gzip }
+    data: { compression: gzip }
+  retentionPolicy: {{ .Values.cluster.backup.retentionPolicy | quote }}
+  instanceSidecarConfiguration:
+    resources: {{- toYaml .Values.cluster.backup.sidecar.resources | nindent 6 }}
+{{- end }}

@@ -11,4 +11,7 @@ spec:
   schedule: {{ .Values.cluster.backup.schedule | quote }}
   immediate: true
   backupOwnerReference: self
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
 {{- end }}

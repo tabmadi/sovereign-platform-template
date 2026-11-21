@@ -18,12 +18,18 @@ import (
 const (
 	restoreCluster = "restore"
 	restoreCreds   = "restore-backup-creds"
+	restoreStore   = "restore-archive"
+	// barmanPlugin is the CNPG plugin that archives and restores, per ADR-0207.
+	barmanPlugin = "barman-cloud.cloudnative-pg.io"
 	// restoreReadyWait is how long one attempt waits for the restore. A large restore outlasts it, and the retry of
 	// the activity continues the wait on the same cluster.
 	restoreReadyWait = 9 * time.Minute
 	restorePoll      = 10 * time.Second
-	// fieldName is the `name` key of the manifests below.
-	fieldName = "name"
+	// The keys of the manifests below.
+	fieldName       = "name"
+	fieldAPIVersion = "apiVersion"
+	fieldKind       = "kind"
+	fieldMetadata   = "metadata"
 )
 
 type RestoreConfig struct {
@@ -56,14 +62,37 @@ type cnpgCluster struct {
 		Storage   struct {
 			Size string `json:"size"`
 		} `json:"storage"`
-		Backup *struct {
-			Store map[string]any `json:"barmanObjectStore"`
-		} `json:"backup"`
+		Plugins []struct {
+			Name          string            `json:"name"`
+			IsWALArchiver bool              `json:"isWALArchiver"`
+			Parameters    map[string]string `json:"parameters"`
+		} `json:"plugins"`
 	} `json:"spec"`
 	Status struct {
 		Phase          string `json:"phase"`
 		ReadyInstances int    `json:"readyInstances"`
 	} `json:"status"`
+}
+
+type objectStore struct {
+	Spec struct {
+		Configuration map[string]any `json:"configuration"`
+	} `json:"spec"`
+}
+
+// archive names the source's archive: the ObjectStore that holds its bucket, and the serverName in that bucket.
+func (c cnpgCluster) archive(sourceName string) (string, string, bool) {
+	for _, p := range c.Spec.Plugins {
+		if p.Name != barmanPlugin || !p.IsWALArchiver || p.Parameters["barmanObjectName"] == "" {
+			continue
+		}
+		server := p.Parameters["serverName"]
+		if server == "" {
+			server = sourceName
+		}
+		return p.Parameters["barmanObjectName"], server, true
+	}
+	return "", "", false
 }
 
 type kubeSecret struct {
@@ -79,6 +108,10 @@ func (a *Activities) needKube() error {
 
 func clusterPath(ns, name string) string {
 	return "/apis/postgresql.cnpg.io/v1/namespaces/" + url.PathEscape(ns) + "/clusters/" + url.PathEscape(name)
+}
+
+func objectStorePath(ns, name string) string {
+	return "/apis/barmancloud.cnpg.io/v1/namespaces/" + url.PathEscape(ns) + "/objectstores/" + url.PathEscape(name)
 }
 
 func secretPath(ns, name string) string {
@@ -106,8 +139,14 @@ func (a *Activities) RestoreToScratchActivity(ctx context.Context) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("read the source cluster: %w", err)
 	}
-	if source.Spec.Backup == nil || source.Spec.Backup.Store == nil {
+	storeName, server, ok := source.archive(cfg.SourceCluster)
+	if !ok {
 		return "", fmt.Errorf("cluster %s has no backup to verify", cfg.SourceCluster)
+	}
+	var store objectStore
+	err = a.kube.do(ctx, http.MethodGet, objectStorePath(cfg.SourceNamespace, storeName), nil, &store, http.StatusOK)
+	if err != nil {
+		return "", fmt.Errorf("read the source archive: %w", err)
 	}
 	err = a.copyBackupCreds(ctx)
 	if err != nil {
@@ -116,8 +155,20 @@ func (a *Activities) RestoreToScratchActivity(ctx context.Context) (string, erro
 	err = a.kube.do(
 		ctx,
 		http.MethodPost,
+		"/apis/barmancloud.cnpg.io/v1/namespaces/"+url.PathEscape(cfg.Namespace)+"/objectstores",
+		restoreStoreManifest(store),
+		nil,
+		http.StatusCreated,
+		http.StatusConflict,
+	)
+	if err != nil {
+		return "", fmt.Errorf("create the scratch archive: %w", err)
+	}
+	err = a.kube.do(
+		ctx,
+		http.MethodPost,
 		"/apis/postgresql.cnpg.io/v1/namespaces/"+url.PathEscape(cfg.Namespace)+"/clusters",
-		restoreManifest(source, cfg.SourceCluster),
+		restoreManifest(source, server),
 		nil,
 		http.StatusCreated,
 		http.StatusConflict,
@@ -147,10 +198,10 @@ func (a *Activities) copyBackupCreds(ctx context.Context) error {
 		http.MethodPost,
 		"/api/v1/namespaces/"+url.PathEscape(cfg.Namespace)+"/secrets",
 		map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Secret",
-			"metadata":   map[string]any{fieldName: restoreCreds},
-			"data":       creds.Data,
+			fieldAPIVersion: "v1",
+			fieldKind:       "Secret",
+			fieldMetadata:   map[string]any{fieldName: restoreCreds},
+			"data":          creds.Data,
 		},
 		nil,
 		http.StatusCreated,
@@ -192,28 +243,35 @@ func (a *Activities) waitRestored(ctx context.Context) error {
 	}
 }
 
-// restoreManifest is a one-instance cluster that bootstraps from the source's backup store. It reads the store as an
-// external cluster, so nothing that it does writes to the source's archive.
-func restoreManifest(source cnpgCluster, sourceName string) map[string]any {
-	store := map[string]any{}
-	for k, v := range source.Spec.Backup.Store {
-		// The data settings describe a backup to write. A recovery reads, and CNPG rejects them there.
+// restoreStoreManifest is the source's bucket, read with the scratch namespace's copy of the credential. A cluster
+// reads an ObjectStore only in its own namespace.
+func restoreStoreManifest(source objectStore) map[string]any {
+	conf := map[string]any{}
+	for k, v := range source.Spec.Configuration {
+		// The data settings describe a backup to write. A recovery reads, and it needs none of them.
 		if k != "data" {
-			store[k] = v
+			conf[k] = v
 		}
 	}
-	_, named := store["serverName"]
-	if !named {
-		store["serverName"] = sourceName
-	}
-	store["s3Credentials"] = map[string]any{
+	conf["s3Credentials"] = map[string]any{
 		"accessKeyId":     map[string]string{fieldName: restoreCreds, "key": "ACCESS_KEY_ID"},
 		"secretAccessKey": map[string]string{fieldName: restoreCreds, "key": "SECRET_ACCESS_KEY"},
 	}
 	return map[string]any{
-		"apiVersion": "postgresql.cnpg.io/v1",
-		"kind":       "Cluster",
-		"metadata":   map[string]any{fieldName: restoreCluster},
+		fieldAPIVersion: "barmancloud.cnpg.io/v1",
+		fieldKind:       "ObjectStore",
+		fieldMetadata:   map[string]any{fieldName: restoreStore},
+		"spec":          map[string]any{"configuration": conf},
+	}
+}
+
+// restoreManifest is a one-instance cluster that bootstraps from the source's archive. It reads the archive as an
+// external cluster and archives nothing, so nothing that it does writes to the source's archive.
+func restoreManifest(source cnpgCluster, server string) map[string]any {
+	return map[string]any{
+		fieldAPIVersion: "postgresql.cnpg.io/v1",
+		fieldKind:       "Cluster",
+		fieldMetadata:   map[string]any{fieldName: restoreCluster},
 		"spec": map[string]any{
 			"instances":             1,
 			"imageName":             source.Spec.ImageName,
@@ -223,8 +281,14 @@ func restoreManifest(source cnpgCluster, sourceName string) map[string]any {
 				"requests": map[string]string{"cpu": "50m", "memory": "256Mi"},
 				"limits":   map[string]string{"memory": "1Gi"},
 			},
-			"bootstrap":        map[string]any{"recovery": map[string]any{"source": "archive"}},
-			"externalClusters": []any{map[string]any{fieldName: "archive", "barmanObjectStore": store}},
+			"bootstrap": map[string]any{"recovery": map[string]any{"source": "archive"}},
+			"externalClusters": []any{map[string]any{
+				fieldName: "archive",
+				"plugin": map[string]any{
+					fieldName:    barmanPlugin,
+					"parameters": map[string]string{"barmanObjectName": restoreStore, "serverName": server},
+				},
+			}},
 		},
 	}
 }
@@ -360,7 +424,12 @@ func (a *Activities) TeardownScratchRestoreActivity(ctx context.Context, namespa
 	if err != nil {
 		return err
 	}
-	for _, path := range []string{clusterPath(namespace, restoreCluster), secretPath(namespace, restoreCreds)} {
+	paths := []string{
+		clusterPath(namespace, restoreCluster),
+		objectStorePath(namespace, restoreStore),
+		secretPath(namespace, restoreCreds),
+	}
+	for _, path := range paths {
 		err = a.kube.do(
 			ctx,
 			http.MethodDelete,

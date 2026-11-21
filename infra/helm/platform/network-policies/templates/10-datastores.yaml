@@ -105,3 +105,19 @@ spec:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: orgs }
       toPorts:
         - ports: [{ port: "8080", protocol: TCP }]
+---
+## The Barman Cloud plugin of CNPG, per ADR-0207. The operator calls it over gRPC with mutual TLS. Its sidecar in each
+## instance pod does the backup work, so the plugin itself serves only the operator.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: barman-cloud-plugin
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: plugin-barman-cloud
+  ingress:
+    - fromEndpoints:
+        - matchLabels: { k8s:io.kubernetes.pod.namespace: platform, app.kubernetes.io/name: cloudnative-pg }
+      toPorts:
+        - ports: [{ port: "9090", protocol: TCP }]

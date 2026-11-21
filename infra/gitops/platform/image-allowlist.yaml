@@ -20,6 +20,8 @@ policies:
     - docker.io/traefik
     - foxcpp/maddy
     - ghcr.io/cloudnative-pg/cloudnative-pg
+    - ghcr.io/cloudnative-pg/plugin-barman-cloud
+    - ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar
     - ghcr.io/cloudnative-pg/postgresql
     - ghcr.io/dexidp/dex
     - ghcr.io/headlamp-k8s/headlamp

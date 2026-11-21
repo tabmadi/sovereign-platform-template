@@ -117,20 +117,14 @@ The trigger is recovery time, not capacity. A local-path volume dies with its no
 
 | Data | Mechanism | Retention |
 | --- | --- | --- |
-| Postgres | CNPG `ScheduledBackup` to the external bucket, with WAL archiving for PITR | 30 days in prod, 7 days in non-prod |
+| Postgres | CNPG `ScheduledBackup` through the Barman Cloud plugin to the external bucket, with WAL archiving for PITR | 30 days in prod, 7 days in non-prod |
 | Temporal history | It lives on Postgres, so the row above covers it | the same as Postgres |
 | Long-term observability data | already in the bucket. The cluster volume holds hot cache only | per lifecycle policy |
 | Whole node | daily provider snapshots, as a fallback for catastrophic recovery | provider default |
 
 A Temporal `Schedule` rehearses the restore quarterly and opens a tracking issue, per [ADR-0302](0302-temporal.md). [ADR-0200](0200-cluster-topology.md) sets the recovery objectives for these backups.
 
-**The move to the Barman Cloud plugin is deferred.** CNPG's in-tree `barmanObjectStore` carries both backups and WAL archiving.
-
-| Field | Value |
-| --- | --- |
-| **Trigger** | A CloudNativePG upgrade to 1.30, which removes the in-tree `barmanObjectStore` |
-| **Seam** | ✓ One chart, `infra/helm/platform/postgres`, renders every backup and recovery setting. The bucket layout does not change |
-| **Cost if adopted late** | None before the upgrade. At the upgrade, the chart moves in the same change, or archiving stops |
+**The Barman Cloud plugin of CNPG carries backups and WAL archiving.** CNPG 1.32 removes the in-tree `barmanObjectStore`, so the plugin is the one path left. It runs as a subchart of `infra/helm/platform/postgres`, in the namespace of the operator, and cert-manager issues the TLS between them. An `ObjectStore` names the bucket, its credential, and the retention. The cluster names the `ObjectStore` and its archive name, the `serverName`. The bucket layout is the same as before, so a backup made in-tree restores through the plugin.
 
 ## Who provisions the production store
 

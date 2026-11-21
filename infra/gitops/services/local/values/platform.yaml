@@ -45,12 +45,23 @@ rbac:
             resources: [clusters],
             verbs: [get, create, delete],
           }
+        - {
+            apiGroups: [barmancloud.cnpg.io],
+            resources: [objectstores],
+            verbs: [get, create, delete],
+          }
     - namespace: platform
       rules:
         - {
             apiGroups: [postgresql.cnpg.io],
             resources: [clusters],
             resourceNames: [postgres],
+            verbs: [get],
+          }
+        - {
+            apiGroups: [barmancloud.cnpg.io],
+            resources: [objectstores],
+            resourceNames: [postgres-backups],
             verbs: [get],
           }
         - apiGroups: [""]

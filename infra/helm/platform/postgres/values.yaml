@@ -8,6 +8,13 @@ cloudnative-pg:
     # would reference a CRD that does not exist.
     podMonitorEnabled: false
 
+# The Barman Cloud plugin of CNPG, per ADR-0207. cert-manager issues the TLS between the operator and the plugin.
+plugin-barman-cloud:
+  priorityClassName: platform-critical
+  resources:
+    requests: { cpu: "10m", memory: "64Mi" }
+    limits: { memory: "128Mi" }
+
 cluster:
   name: postgres
   # Render the Cluster and Pooler CRs. The helm-direct local bring-up sets this to false on a first pass, so the
@@ -75,6 +82,11 @@ cluster:
     s3:
       destinationPath: "s3://platform-backups/postgres"
       endpointURL: "" # set per environment
-      retentionPolicy: "30d" # 7d in non-prod. See the per-environment values
+    retentionPolicy: "30d" # 7d in non-prod. See the per-environment values
+    # The plugin's sidecar in each instance pod, per ADR-0204. It runs barman-cloud for each WAL segment and backup.
+    sidecar:
+      resources:
+        requests: { cpu: "25m", memory: "64Mi" }
+        limits: { memory: "256Mi" }
   recovery:
     fromServer: "" # the serverName of an archive to bootstrap from. Empty creates an empty cluster

@@ -50,16 +50,11 @@ spec:
   {{- if .Values.cluster.recovery.fromServer }}
   externalClusters:
     - name: archive
-      barmanObjectStore:
-        destinationPath: {{ .Values.cluster.backup.s3.destinationPath | quote }}
-        {{- with .Values.cluster.backup.s3.endpointURL }}
-        endpointURL: {{ . | quote }}
-        {{- end }}
-        serverName: {{ .Values.cluster.recovery.fromServer | quote }}
-        s3Credentials:
-          accessKeyId:     { name: postgres-backup-creds, key: ACCESS_KEY_ID }
-          secretAccessKey: { name: postgres-backup-creds, key: SECRET_ACCESS_KEY }
-        wal: { compression: gzip }
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: {{ .Values.cluster.name }}-backups
+          serverName: {{ .Values.cluster.recovery.fromServer | quote }}
   {{- end }}
   {{- with .Values.cluster.managedRoles }}
   managed:
@@ -73,20 +68,14 @@ spec:
       {{- end }}
   {{- end }}
   {{- if .Values.cluster.backup.enabled }}
-  backup:
-    barmanObjectStore:
-      destinationPath: {{ .Values.cluster.backup.s3.destinationPath | quote }}
-      {{- with .Values.cluster.backup.s3.endpointURL }}
-      endpointURL: {{ . | quote }}
-      {{- end }}
-      # CNPG refuses to archive into a non-empty path of a server. So a restored cluster writes under a new name.
-      serverName: {{ .Values.cluster.backup.serverName | default .Values.cluster.name | quote }}
-      s3Credentials:
-        accessKeyId:     { name: postgres-backup-creds, key: ACCESS_KEY_ID }
-        secretAccessKey: { name: postgres-backup-creds, key: SECRET_ACCESS_KEY }
-      wal: { compression: gzip }
-      data: { compression: gzip }
-    retentionPolicy: {{ .Values.cluster.backup.retentionPolicy | quote }}
+  # Base backups and WAL archiving through the Barman Cloud plugin, per ADR-0207. `object-store.yaml` holds the bucket.
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ .Values.cluster.name }}-backups
+        # CNPG refuses to archive into a non-empty path of a server. So a restored cluster writes under a new name.
+        serverName: {{ .Values.cluster.backup.serverName | default .Values.cluster.name | quote }}
   {{- end }}
 ---
 apiVersion: postgresql.cnpg.io/v1

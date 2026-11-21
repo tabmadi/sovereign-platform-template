@@ -282,24 +282,48 @@ func TestCardinalityAndIssue(t *testing.T) {
 func TestRestoreManifest(t *testing.T) {
 	t.Parallel()
 	var source cnpgCluster
-	raw := `{"spec":{"imageName":"pg:17","storage":{"size":"5Gi"},"backup":{"barmanObjectStore":` +
-		`{"destinationPath":"s3://b/","data":{"compression":"gzip"},"wal":{"compression":"gzip"}}}}}`
+	raw := `{"spec":{"imageName":"pg:17","storage":{"size":"5Gi"},"plugins":[{"name":"barman-cloud.cloudnative-pg.io",` +
+		`"isWALArchiver":true,"parameters":{"barmanObjectName":"postgres-backups"}}]}}`
 	err := json.Unmarshal([]byte(raw), &source)
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifest, err := json.Marshal(restoreManifest(source, "postgres"))
+	storeName, server, ok := source.archive("postgres")
+	if !ok || storeName != "postgres-backups" || server != "postgres" {
+		t.Fatalf("archive = %q, %q, %v", storeName, server, ok)
+	}
+	manifest, err := json.Marshal(restoreManifest(source, server))
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := string(manifest)
 	wants := []string{
-		`"serverName":"postgres"`, `"source":"archive"`, `"name":"restore-backup-creds"`, `"imageName":"pg:17"`,
+		`"serverName":"postgres"`, `"source":"archive"`, `"barmanObjectName":"restore-archive"`, `"imageName":"pg:17"`,
 		`"size":"5Gi"`,
 	}
 	for _, want := range wants {
 		if !strings.Contains(got, want) {
 			t.Errorf("manifest misses %s: %s", want, got)
+		}
+	}
+	if strings.Contains(got, `"isWALArchiver"`) {
+		t.Errorf("a restore must not archive into the source's bucket: %s", got)
+	}
+	var store objectStore
+	rawStore := `{"spec":{"configuration":{"destinationPath":"s3://b/",` +
+		`"data":{"compression":"gzip"},"wal":{"compression":"gzip"}}}}`
+	err = json.Unmarshal([]byte(rawStore), &store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeManifest, err := json.Marshal(restoreStoreManifest(store))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = string(storeManifest)
+	for _, want := range []string{`"destinationPath":"s3://b/"`, `"name":"restore-backup-creds"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("store misses %s: %s", want, got)
 		}
 	}
 	if strings.Contains(got, `"data"`) {
