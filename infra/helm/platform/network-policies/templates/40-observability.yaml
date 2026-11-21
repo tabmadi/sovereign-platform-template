@@ -69,6 +69,56 @@ spec:
             k8s:io.kubernetes.pod.namespace: kyverno
       toPorts:
         - ports: [{ port: "8000", protocol: TCP }]
+{{- if .Values.etcdMetrics.addresses }}
+---
+## otel-cluster to the etcd metrics port of the nodes, per ADR-0500.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: otel-cluster-etcd-scrape
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: otel-cluster
+  egress:
+    - toEntities: [host, remote-node]
+      toPorts:
+        - ports: [{ port: {{ .Values.etcdMetrics.port | quote }}, protocol: TCP }]
+---
+## The baseline lets a pod reach the nodes, so a deny keeps the etcd metrics port for otel-cluster, per ADR-0500.
+## One selector cannot exclude a name and a namespace together, so each policy covers one half.
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: deny-etcd-metrics-other-names
+spec:
+  endpointSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: NotIn, values: [otel-cluster] }
+  # A deny rule otherwise turns every selected pod to egress default-deny, per `80-metadata-egress-deny.yaml`.
+  enableDefaultDeny:
+    egress: false
+  egressDeny:
+    - toEntities: [host, remote-node, kube-apiserver]
+      toPorts:
+        - ports: [{ port: {{ .Values.etcdMetrics.port | quote }}, protocol: TCP }]
+---
+apiVersion: cilium.io/v2
+kind: CiliumClusterwideNetworkPolicy
+metadata:
+  name: deny-etcd-metrics-other-namespaces
+spec:
+  endpointSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [otel-cluster] }
+      - { key: k8s:io.kubernetes.pod.namespace, operator: NotIn, values: [platform] }
+  enableDefaultDeny:
+    egress: false
+  egressDeny:
+    - toEntities: [host, remote-node, kube-apiserver]
+      toPorts:
+        - ports: [{ port: {{ .Values.etcdMetrics.port | quote }}, protocol: TCP }]
+{{- end }}
 {{- if .Values.externalProbe.enabled }}
 ---
 ## otel-cluster to the blackbox exporter outside the cluster, per ADR-0500.

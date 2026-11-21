@@ -133,7 +133,7 @@ Service authors never touch the OTel SDK. Custom spans and counters go through `
 
 **The registry has an external probe.** A blackbox exporter on a machine outside the workload cluster checks TLS and the expected response of the registry. `otel-cluster` scrapes the exporter and sends the result over OTLP, so Prometheus still scrapes nothing. A failed scrape is unknown, and it is not a failed probe. The probe is off until a project sets its exporter and targets. In a Forgejo project, `PROBE_ENABLED` in `infra/runner/runner.env` installs the exporter on the private address of the runner.
 
-**etcd latency stays on loopback.** etcd metrics have no authentication, and a control-plane node can have a public interface. A host-network collector on each control-plane node scrapes `127.0.0.1:2381` and sends WAL fsync and backend commit histograms to the agent on that node.
+**etcd latency stays on the private network.** etcd metrics have no authentication, and a control-plane node can have a public interface. So each member binds its metrics port to its own private address, through a per-node Talos patch. `otel-cluster` scrapes WAL fsync and backend commit histograms from the addresses in `etcdMetrics.addresses`, with no host network. The pod baseline allows traffic to the nodes, so a clusterwide Cilium deny keeps that port for `otel-cluster`. A machine on the private network is outside that rule.
 
 Sizing: production runs Loki and Tempo at two replicas each, and Grafana at two. Prometheus runs single, because its HA path is the Mimir swap, not a replica count. Non-prod runs single replicas. There, failure tolerance for observability is not worth the resources.
 

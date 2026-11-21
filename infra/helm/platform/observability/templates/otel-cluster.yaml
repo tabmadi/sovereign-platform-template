@@ -139,6 +139,24 @@ subjects:
                 - source_labels: [__meta_kubernetes_pod_container_port_name]
                   action: keep
                   regex: "metrics(-port)?"
+{{- if .Values.etcdMetrics.addresses }}
+            # etcd listens on the private address of each member, so this pod needs no host network, per ADR-0500.
+            - job_name: etcd
+              scrape_interval: 30s
+              static_configs:
+                - targets:
+{{- range .Values.etcdMetrics.addresses }}
+                    - {{ printf "%s:%v" . $.Values.etcdMetrics.port | quote }}
+{{- end }}
+              relabel_configs:
+                - source_labels: [__address__]
+                  regex: "([^:]+):.*"
+                  target_label: instance
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: "etcd_disk_(wal_fsync|backend_commit)_duration_seconds_.*"
+                  action: keep
+{{- end }}
 {{- if .Values.externalProbe.enabled }}
             # The exporter runs outside the cluster, so a failure here includes the public path of the registry.
             - job_name: registry-probe

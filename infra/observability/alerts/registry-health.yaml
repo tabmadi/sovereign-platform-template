@@ -24,6 +24,17 @@ groups:
             machine and the network path to it.
   - name: etcd.latency
     rules:
+      - alert: EtcdMetricsMissing
+        expr: |
+          up{service_name="etcd"} == 0
+        for: 15m
+        labels: { severity: ticket }
+        annotations:
+          summary: "The etcd metrics of {{ $labels.instance }} do not answer, so its latency is unknown"
+          description: >-
+            This alert does not show that etcd is down. Check that the node has the
+            per-node metrics patch of infra/talos/README.md, and that the address
+            in the environment values matches the inventory.
       - alert: EtcdWalFsyncSlow
         expr: |
           histogram_quantile(0.99, sum by (instance, le) (rate(etcd_disk_wal_fsync_duration_seconds_bucket{service_name="etcd"}[5m]))) > 0.5

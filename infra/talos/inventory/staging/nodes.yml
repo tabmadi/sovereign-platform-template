@@ -1,8 +1,20 @@
 # The committed inventory of pre-provided Talos nodes, per ADR-0200.
 nodes:
-  example-staging-cp-1: { address: 203.0.113.21, role: controlplane }
-  example-staging-cp-2: { address: 203.0.113.22, role: controlplane }
-  example-staging-cp-3: { address: 203.0.113.23, role: controlplane }
+  example-staging-cp-1: {
+    address: 203.0.113.21,
+    privateAddress: 10.0.2.11,
+    role: controlplane,
+  }
+  example-staging-cp-2: {
+    address: 203.0.113.22,
+    privateAddress: 10.0.2.12,
+    role: controlplane,
+  }
+  example-staging-cp-3: {
+    address: 203.0.113.23,
+    privateAddress: 10.0.2.13,
+    role: controlplane,
+  }
 
 # The address that `talosctl` and the Kubernetes clients dial. Use a load balancer over
 # all three, the virtual IP of `patches/vip.yaml`, or DNS round-robin. Never use the address of one member. That makes the

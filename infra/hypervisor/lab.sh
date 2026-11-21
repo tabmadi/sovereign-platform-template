@@ -68,7 +68,9 @@ version="$(nix eval --raw --file infra/hypervisor/settings.nix talos.url | cut -
 remote "cd /root/talos && printf 'machine:\n  install:\n    image: factory.talos.dev/metal-installer/%s:%s\n' $schematic $version > install.yaml &&
   talosctl gen config lab https://10.0.10.11:6443 --talos-version v1.13 --force \
     --config-patch @common.yaml --config-patch @install.yaml --config-patch-control-plane @controlplane.yaml >/dev/null"
-for a in "${nodes[@]}"; do remote "cd /root/talos && talosctl apply-config --insecure -n $a -e $a -f controlplane.yaml"; done
+for a in "${nodes[@]}"; do
+  remote "cd /root/talos && talosctl apply-config --insecure -n $a -e $a -f controlplane.yaml --config-patch '{\"cluster\":{\"etcd\":{\"extraArgs\":{\"listen-metrics-urls\":\"http://$a:2381\"}}}}'"
+done
 retry 120 remote "cd /root/talos && talosctl --talosconfig talosconfig -n 10.0.10.11 -e 10.0.10.11 bootstrap"
 retry 240 remote "cd /root/talos && talosctl --talosconfig talosconfig -n 10.0.10.11 -e 10.0.10.11 etcd members | grep -c lab-cp | grep -qx 3"
 pass "the nodes took the machine config of ADR-0200 and formed one etcd cluster of three"

@@ -12,7 +12,7 @@ The result is that **node configuration drift is not reduced here. It is impossi
 | `patches/controlplane.yaml` | the control-plane role, on top of `common.yaml` |
 | `patches/vip.yaml` | optional. A virtual IP for the control-plane endpoint, where no load balancer is in front of the API server |
 | `patches/worker.yaml` | the worker role, applied when the scaling trigger of [ADR-0200](../../docs/adr/0200-cluster-topology.md) fires |
-| `inventory/<env>/nodes.yml` | the addresses of pre-provided nodes, and the endpoint that clients dial |
+| `inventory/<env>/nodes.yml` | the public and private addresses of pre-provided nodes, and the endpoint that clients dial |
 | `schematic.yaml` | the [Image Factory](https://docs.siderolabs.com/talos/latest/learn-more/image-factory) recipe for the custom installer image |
 
 ## The two provisioning modes
@@ -37,9 +37,13 @@ talosctl gen config example https://kube.dev.example.com:6443 \
   --config-patch-control-plane @patches/controlplane.yaml \
   --config-patch-worker @patches/worker.yaml
 
-talosctl apply-config --insecure -n 203.0.113.11 -f controlplane.yaml   # per node
+# Per node. The patch binds the etcd metrics to the privateAddress of the node, never to a public address.
+talosctl apply-config --insecure -n 203.0.113.11 -f controlplane.yaml \
+  --config-patch '{"cluster":{"etcd":{"extraArgs":{"listen-metrics-urls":"http://10.0.1.11:2381"}}}}'
 talosctl bootstrap -n 203.0.113.11                                      # ONCE, one node
 ```
+
+etcd reads this setting when it starts, and Talos has no API to restart it. On a running cluster, apply the patch with `--mode=reboot`, one node at a time.
 
 `--talos-version v1.13` keeps the v1alpha1 form that the patches here use. From 1.14, `talosctl` writes the new multi-document config, and the patches conflict with it. A node of 1.14 accepts the v1.13 form, as the QEMU copy of ADR-0208 shows.
 

@@ -106,3 +106,7 @@ oathkeeper:
 policies:
   imagePrefix: "ghcr.io/tabmadi/sovereign-platform-template/*"
   registrySecret: registry-pull
+
+# The private address of each etcd member, from `infra/talos/inventory/staging/nodes.yml`, per ADR-0500.
+etcdMetrics:
+  addresses: ["10.0.2.11", "10.0.2.12", "10.0.2.13"]

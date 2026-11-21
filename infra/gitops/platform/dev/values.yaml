@@ -113,3 +113,7 @@ oauth2Proxy:
   provider: github
   org: tabmadi
   forgeUrl: ""
+
+# The private address of each etcd member, from `infra/talos/inventory/dev/nodes.yml`, per ADR-0500.
+etcdMetrics:
+  addresses: ["10.0.1.11", "10.0.1.12", "10.0.1.13"]

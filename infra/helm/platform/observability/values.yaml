@@ -208,6 +208,11 @@ externalProbe:
   # The URLs to probe, such as `https://registry.example.com/v2/`.
   targets: []
 
+# The private address of each etcd member, per ADR-0500. An empty list turns the scrape off.
+etcdMetrics:
+  addresses: []
+  port: 2381
+
 # Pyroscope, the ADR-0501 POC for continuous profiling, the fourth signal. `templates/pyroscope.yaml` renders it as a
 # single-binary monolith with the v2 store on the filesystem of an emptyDir. That is the POC minimum.
 pyroscope:

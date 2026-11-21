@@ -17,6 +17,11 @@ externalProbe:
   cidr: ""
   port: 9115
 
+# The private address of each etcd member, per ADR-0500. An empty list turns the scrape off.
+etcdMetrics:
+  addresses: []
+  port: 2381
+
 # The same gate as in the mailpit chart, `infra/helm/platform/mailpit`.
 mailpit:
   enabled: true
