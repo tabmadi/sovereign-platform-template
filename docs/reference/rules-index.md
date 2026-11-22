@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 213 |
-| Review-enforced | 413 |
-| **Total** | **626** |
+| Machine-enforced | 214 |
+| Review-enforced | 414 |
+| **Total** | **628** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -518,6 +518,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | The first deploy after `just hypervisor-install` changes nothing. | review |
 | A NixOS release upgrade of the host is `just hypervisor-deploy-boot`, never a live switch. | review |
 | `just hypervisor-test install` passes before a deploy that changes `vms.nix`, `host.nix`, or the images. | review |
+| Each lab run stays inside a memory cap, and stops before the workstation runs short of memory. | review |
 
 ## ADR-0300: Data and Migrations
 
@@ -788,6 +789,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | PII is never written to logs, metrics, traces, or profiles. | review |
 | Sampling is configured centrally. Service authors do not set sampling rates. | review |
 | Dashboards live as JSON and alerts as YAML under `infra/observability/`. UI-only edits are not made. Changes are PRs. | review |
+| Every alert has a test with simulated time that fires it. | `test-alerts` in CI |
 | The backend is the Grafana stack and a single-tier collector. Other backends require an ADR. | review |
 | Every service declares an availability SLI and a latency SLI in `slo.yaml`. Both come from the stable RED histogram over a 30-day rolling window. | `lint-service-contract` in CI |
 | A `5xx` spends the budget and a `4xx` does not. Health and admin endpoints are excluded from both SLIs. | review |

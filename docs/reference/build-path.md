@@ -144,6 +144,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `release` | Cut a CalVer release of the repo, per ADR-0112 | promote-on-release.yml |
 | `secrets-age` | Create your age key and write .sops.yaml, per ADR-0202. It runs again safely | e2e.yml, perf.yml, preview.yml |
 | `supply-chain-inventory` | Verify the SBOM of every pinned image and record its contents, per ADR-0113 | supply-chain.yml |
+| `test-alerts` | Every alert with simulated time, per ADR-0500 | flake.nix |
 | `test-frontend` | The frontend tests, with a coverage floor for each route group, per ADR-0400 | flake.nix |
 | `test-go` | Every Go test, per ADR-0601 | flake.nix |
 | `test-ts` | The tests of the shared TypeScript libraries | flake.nix |

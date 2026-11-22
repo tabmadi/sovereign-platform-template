@@ -103,7 +103,9 @@ The host runs no web UI. A person reads its state with SSH, `systemctl`, and the
 
 A VM cannot move to another host while it runs.
 
-The lab is the QEMU copy of the host. `just hypervisor-test install` tests it from an empty disk, and needs KVM, the internet, and about 14 GB of memory. It is not a step of `just ci`.
+The lab is the QEMU copy of the host. `just hypervisor-test install` tests it from an empty disk, and needs KVM and about 14 GB of memory. It is not a step of `just ci`.
+
+The lab reads a local cache: the Nix store of the workstation under GC roots, and a private zot that mirrors the node images. Only the lab nodes use this mirror, so a real cluster does not change. After one pass, `just hypervisor-test install --offline` runs with no internet and the same pins, per the [lab guide](../guide/hypervisor-lab.md).
 
 The `disko` input is in `flake.nix` in every mode. A project in another mode never fetches it.
 
@@ -114,3 +116,4 @@ The `disko` input is in `flake.nix` in every mode. A project in another mode nev
 - The first deploy after `just hypervisor-install` changes nothing.
 - A NixOS release upgrade of the host is `just hypervisor-deploy-boot`, never a live switch.
 - `just hypervisor-test install` passes before a deploy that changes `vms.nix`, `host.nix`, or the images.
+- Each lab run stays inside a memory cap, and stops before the workstation runs short of memory.

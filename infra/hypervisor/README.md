@@ -22,7 +22,8 @@ This directory exists in a project whose `provisioning` answer is `hypervisor`, 
 | `vms.nix` | The VMs as QEMU units, the private bridge, DHCP, and the NAT rules |
 | `disk.nix` | The disk layout that disko writes at the install |
 | `flake-module.nix` | The host, its deploy, and the QEMU copy, as outputs of `flake.nix` |
-| `lab.sh` | The QEMU copy of the host, which `just hypervisor-test install` runs |
+| `lab.sh` | The QEMU copy of the host, which `just hypervisor-test install` runs, per the [lab guide](../../docs/guide/hypervisor-lab.md) |
+| `lab-cache.sh` | The local cache of the lab: its Nix roots, its private zot, and its resource checks |
 
 ## Building the host
 

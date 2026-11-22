@@ -458,7 +458,11 @@ lint-api-breaking: in-shell
     bash scripts/lint-api-breaking.sh
 
 # Run every test
-test: test-go test-ts test-frontend
+test: test-go test-ts test-frontend test-alerts
+
+# Every alert with simulated time, per ADR-0500
+test-alerts: in-shell
+    bash scripts/test-alerts.sh
 
 # Every Go test, per ADR-0601
 test-go: in-shell

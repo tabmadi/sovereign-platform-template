@@ -277,6 +277,7 @@ Service code is the same locally and in production. The same `obs.Init` works ag
 - PII is never written to logs, metrics, traces, or profiles.
 - Sampling is configured centrally. Service authors do not set sampling rates.
 - Dashboards live as JSON and alerts as YAML under `infra/observability/`. UI-only edits are not made. Changes are PRs.
+- Every alert has a test with simulated time that fires it. `(CI: test-alerts)`
 - The backend is the Grafana stack and a single-tier collector. Other backends require an ADR.
 - Every service declares an availability SLI and a latency SLI in `slo.yaml`. Both come from the stable RED histogram over a 30-day rolling window. `(CI: lint-service-contract)`
 - A `5xx` spends the budget and a `4xx` does not. Health and admin endpoints are excluded from both SLIs.

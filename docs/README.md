@@ -55,6 +55,7 @@ The topic is in the filename, not in a directory. A directory with one file adds
 | [designing-a-screen](guide/designing-a-screen.md) | How to design a screen, and what promoting it requires |
 | [http-proxy](guide/http-proxy.md) | How to work behind a corporate proxy |
 | [forgejo-ci-offline](guide/forgejo-ci-offline.md) | How to run and time a Forgejo pipeline without public internet access |
+| [hypervisor-lab](guide/hypervisor-lab.md) | How to choose a lab test, fill its cache, and run it offline |
 | [performance-runbook](guide/performance-runbook.md) | How to run a load test and read the result |
 
 ## Reference: lookup

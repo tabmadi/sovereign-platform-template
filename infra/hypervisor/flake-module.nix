@@ -62,6 +62,8 @@ let
   };
   labExtra = {
     imports = [ "${inputs.nixpkgs}/nixos/modules/profiles/qemu-guest.nix" ];
+    # The host serves its own clock to the nodes, so the offline lab needs no public time server.
+    services.chrony.extraConfig = lib.mkAfter "local stratum 10";
   };
 in
 {
@@ -98,6 +100,8 @@ in
         inputs.tabnix.inputs.deploy-rs.packages.${system}.default
         pkgs.nixos-anywhere
         pkgs.qemu_kvm
+        pkgs.skopeo
+        pkgs.socat
       ];
       packages = lib.optionalAttrs (system == "x86_64-linux") {
         # The installer of the QEMU copy, and the private test key that logs in to it.

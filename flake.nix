@@ -167,6 +167,7 @@
             just
             gitMinimal
             nixfmt
+            prometheus.cli
             config.tabnix.tabrules.package
           ];
 
@@ -309,6 +310,7 @@
             build = gate "build" "build";
             test-go = gate "test-go" "test-go";
             test-ts = gate "test-ts" "test-ts test-frontend";
+            test-alerts = gate "test-alerts" "test-alerts";
             lint-go = gate "lint-go" "lint-go lint-gostyle lint-template-build lint-determinism";
             lint-ts = gate "lint-ts" "lint-ts";
             lint-platform = gate "lint-platform" "lint-platform";

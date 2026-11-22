@@ -1,6 +1,6 @@
 # The recipes of the hypervisor mode, per ADR-0208. The root justfile imports this file only when it exists.
 
-# Test the lab, the QEMU copy of the host. `install` starts from an empty disk: install, Talos bootstrap, rollback, and a deploy for the next boot. Needs KVM
+# Test the lab, the QEMU copy of the host, from an empty disk and the local cache. `install --offline` blocks the internet of the lab. Needs KVM
 hypervisor-test *args: in-shell
     bash infra/hypervisor/lab.sh "$@"
 

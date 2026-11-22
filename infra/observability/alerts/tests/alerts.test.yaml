@@ -1,0 +1,982 @@
+# Alert tests with simulated time, per ADR-0500. scripts/test-alerts.sh runs them against a copy of the rules without annotations.
+rule_files:
+  - rules/*.yaml
+evaluation_interval: 1m
+tests:
+  - name: KyvernoAdmissionControllerAbsent fires after its wait
+    interval: 1m
+    input_series:
+      - series: up{job="other"}
+        values: 1x20
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: KyvernoAdmissionControllerAbsent
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: KyvernoAdmissionControllerAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              service_name: kyverno
+  - name: KyvernoAdmissionControllerAbsent stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: kyverno_controller_reconcile_total{service_name="kyverno"}
+        values: 1x20
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: KyvernoAdmissionControllerAbsent
+        exp_alerts: []
+  - name: KyvernoAdmissionSlow fires after its wait
+    interval: 1m
+    input_series:
+      - series: kyverno_admission_review_duration_seconds_bucket{le="1"}
+        values: "0x35"
+      - series: kyverno_admission_review_duration_seconds_bucket{le="20"}
+        values: 0+60x35
+      - series: kyverno_admission_review_duration_seconds_bucket{le="+Inf"}
+        values: 0+60x35
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: KyvernoAdmissionSlow
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: KyvernoAdmissionSlow
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: KyvernoAdmissionSlow stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: kyverno_admission_review_duration_seconds_bucket{le="1"}
+        values: 0+60x35
+      - series: kyverno_admission_review_duration_seconds_bucket{le="20"}
+        values: 0+60x35
+      - series: kyverno_admission_review_duration_seconds_bucket{le="+Inf"}
+        values: 0+60x35
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: KyvernoAdmissionSlow
+        exp_alerts: []
+  - name: KyvernoRejectionsSustained fires after its wait
+    interval: 1m
+    input_series:
+      - series: kyverno_policy_results_total{rule_result="fail"}
+        values: 0+60x45
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: KyvernoRejectionsSustained
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: KyvernoRejectionsSustained
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: KyvernoRejectionsSustained stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: kyverno_policy_results_total{rule_result="fail"}
+        values: 0+1x45
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: KyvernoRejectionsSustained
+        exp_alerts: []
+  - name: NodeDiskSpaceLow fires after its wait
+    interval: 1m
+    input_series:
+      - series: k8s_node_filesystem_available_bytes{k8s_node_name="node-1"}
+        values: 10x25
+      - series: k8s_node_filesystem_capacity_bytes{k8s_node_name="node-1"}
+        values: 100x25
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: NodeDiskSpaceLow
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: NodeDiskSpaceLow
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              k8s_node_name: node-1
+  - name: NodeDiskSpaceLow stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k8s_node_filesystem_available_bytes{k8s_node_name="node-1"}
+        values: 50x25
+      - series: k8s_node_filesystem_capacity_bytes{k8s_node_name="node-1"}
+        values: 100x25
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: NodeDiskSpaceLow
+        exp_alerts: []
+  - name: NodeDiskSpaceFillingUp fires after its wait
+    interval: 1m
+    input_series:
+      - series: k8s_node_filesystem_available_bytes{k8s_node_name="node-1"}
+        values: 1000-1x95
+    alert_rule_test:
+      - eval_time: 59m
+        alertname: NodeDiskSpaceFillingUp
+        exp_alerts: []
+      - eval_time: 90m
+        alertname: NodeDiskSpaceFillingUp
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              k8s_node_name: node-1
+  - name: NodeDiskSpaceFillingUp stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k8s_node_filesystem_available_bytes{k8s_node_name="node-1"}
+        values: 1000x95
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: NodeDiskSpaceFillingUp
+        exp_alerts: []
+  - name: NodeMemoryPressure fires after its wait
+    interval: 1m
+    input_series:
+      - series: k8s_node_memory_available_bytes{k8s_node_name="node-1"}
+        values: 5x25
+      - series: k8s_node_memory_usage_bytes{k8s_node_name="node-1"}
+        values: 95x25
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: NodeMemoryPressure
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: NodeMemoryPressure
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              k8s_node_name: node-1
+  - name: NodeMemoryPressure stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k8s_node_memory_available_bytes{k8s_node_name="node-1"}
+        values: 50x25
+      - series: k8s_node_memory_usage_bytes{k8s_node_name="node-1"}
+        values: 50x25
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: NodeMemoryPressure
+        exp_alerts: []
+  - name: ClusterCPURequestsCommitted fires after its wait
+    interval: 1m
+    input_series:
+      - series: k8s_container_cpu_request
+        values: 90x40
+      - series: k8s_node_allocatable_cpu
+        values: 100x40
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: ClusterCPURequestsCommitted
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: ClusterCPURequestsCommitted
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: ClusterCPURequestsCommitted stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k8s_container_cpu_request
+        values: 50x40
+      - series: k8s_node_allocatable_cpu
+        values: 100x40
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: ClusterCPURequestsCommitted
+        exp_alerts: []
+  - name: ClusterMemoryRequestsCommitted fires after its wait
+    interval: 1m
+    input_series:
+      - series: k8s_container_memory_request_bytes
+        values: 90x40
+      - series: k8s_node_allocatable_memory_bytes
+        values: 100x40
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: ClusterMemoryRequestsCommitted
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: ClusterMemoryRequestsCommitted
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: ClusterMemoryRequestsCommitted stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k8s_container_memory_request_bytes
+        values: 50x40
+      - series: k8s_node_allocatable_memory_bytes
+        values: 100x40
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: ClusterMemoryRequestsCommitted
+        exp_alerts: []
+  - name: ActiveSeriesApproachingCeiling fires after its wait
+    interval: 1m
+    input_series:
+      - series: prometheus_tsdb_head_series{instance="prometheus-0"}
+        values: 200000x40
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: ActiveSeriesApproachingCeiling
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: ActiveSeriesApproachingCeiling
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              instance: prometheus-0
+  - name: ActiveSeriesApproachingCeiling stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: prometheus_tsdb_head_series{instance="prometheus-0"}
+        values: 100000x40
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: ActiveSeriesApproachingCeiling
+        exp_alerts: []
+  - name: ActiveSeriesNearCeiling fires after its wait
+    interval: 1m
+    input_series:
+      - series: prometheus_tsdb_head_series{instance="prometheus-0"}
+        values: 240000x25
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: ActiveSeriesNearCeiling
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ActiveSeriesNearCeiling
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              instance: prometheus-0
+  - name: ActiveSeriesNearCeiling stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: prometheus_tsdb_head_series{instance="prometheus-0"}
+        values: 200000x25
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: ActiveSeriesNearCeiling
+        exp_alerts: []
+  - name: PrometheusRuleEvaluationFailing fires after its wait
+    interval: 1m
+    input_series:
+      - series: prometheus_rule_evaluation_failures_total{instance="prometheus-0"}
+        values: 0+1x25
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: PrometheusRuleEvaluationFailing
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: PrometheusRuleEvaluationFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              instance: prometheus-0
+  - name: PrometheusRuleEvaluationFailing stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: prometheus_rule_evaluation_failures_total{instance="prometheus-0"}
+        values: "0x25"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: PrometheusRuleEvaluationFailing
+        exp_alerts: []
+  - name: PrometheusAlertmanagerNotificationsFailing fires after its wait
+    interval: 1m
+    input_series:
+      - series: prometheus_notifications_errors_total{instance="prometheus-0"}
+        values: 0+1x25
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: PrometheusAlertmanagerNotificationsFailing
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: PrometheusAlertmanagerNotificationsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              instance: prometheus-0
+  - name: PrometheusAlertmanagerNotificationsFailing stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: prometheus_notifications_errors_total{instance="prometheus-0"}
+        values: "0x25"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: PrometheusAlertmanagerNotificationsFailing
+        exp_alerts: []
+  - name: LoadGeneratorDroppingIterations fires after its wait
+    interval: 1m
+    input_series:
+      - series: k6_dropped_iterations_total{scenario="checkout"}
+        values: 0+1x15
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: LoadGeneratorDroppingIterations
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: LoadGeneratorDroppingIterations
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              scenario: checkout
+  - name: LoadGeneratorDroppingIterations stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k6_dropped_iterations_total{scenario="checkout"}
+        values: "0x15"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LoadGeneratorDroppingIterations
+        exp_alerts: []
+  - name: ImagePullsFailing fires after its wait
+    interval: 1m
+    input_series:
+      - series: kubelet_runtime_operations_errors_total{operation_type="pull_image",node="node-1"}
+        values: 0+1x25
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: ImagePullsFailing
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ImagePullsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              operation_type: pull_image
+              node: node-1
+  - name: ImagePullsFailing stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: kubelet_runtime_operations_errors_total{operation_type="create_container",node="node-1"}
+        values: 0+1x25
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: ImagePullsFailing
+        exp_alerts: []
+  - name: AnalyticsStorageGrowthTrigger fires after its wait
+    interval: 1m
+    input_series:
+      - series: analytics_events_rows_current_month
+        values: 20000000x1505
+    alert_rule_test:
+      - eval_time: 1439m
+        alertname: AnalyticsStorageGrowthTrigger
+        exp_alerts: []
+      - eval_time: 1500m
+        alertname: AnalyticsStorageGrowthTrigger
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: AnalyticsStorageGrowthTrigger stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: analytics_events_rows_current_month
+        values: 1000x1505
+    alert_rule_test:
+      - eval_time: 1500m
+        alertname: AnalyticsStorageGrowthTrigger
+        exp_alerts: []
+  - name: ServiceErrorRateHigh fires after its wait
+    interval: 1m
+    input_series:
+      - series: errors_total{service_name="orders",kind="internal"}
+        values: 0+30x20
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="200"}
+        values: 0+60x20
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: ServiceErrorRateHigh
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: ServiceErrorRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: orders
+  - name: ServiceErrorRateHigh stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: errors_total{service_name="orders",kind="internal"}
+        values: "0x20"
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="200"}
+        values: 0+60x20
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ServiceErrorRateHigh
+        exp_alerts: []
+  - name: ServiceErrorBurst fires after its wait
+    interval: 1m
+    input_series:
+      - series: errors_total{service_name="orders",kind="internal"}
+        values: 0+60x11
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: ServiceErrorBurst
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: ServiceErrorBurst
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: orders
+              kind: internal
+  - name: ServiceErrorBurst stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: errors_total{service_name="orders",kind="internal"}
+        values: 0+1x11
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ServiceErrorBurst
+        exp_alerts: []
+  - name: ServiceDependencyErrorsSustained fires after its wait
+    interval: 1m
+    input_series:
+      - series: errors_total{service_name="orders",kind="dependency"}
+        values: 0+60x25
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: ServiceDependencyErrorsSustained
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ServiceDependencyErrorsSustained
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: orders
+  - name: ServiceDependencyErrorsSustained stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: errors_total{service_name="orders",kind="internal"}
+        values: 0+60x25
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: ServiceDependencyErrorsSustained
+        exp_alerts: []
+  - name: MailSubmissionFailing fires after its wait
+    interval: 1m
+    input_series:
+      - series: errors_total{service_name="kratos",kind="dependency"}
+        values: 0+60x20
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: MailSubmissionFailing
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: MailSubmissionFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: MailSubmissionFailing stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: errors_total{service_name="kratos",kind="dependency"}
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: MailSubmissionFailing
+        exp_alerts: []
+  - name: MailTransactionsAborting fires after its wait
+    interval: 1m
+    input_series:
+      - series: maddy_smtp_aborted_transactions
+        values: 0+30x40
+      - series: maddy_smtp_started_transactions
+        values: 0+60x40
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: MailTransactionsAborting
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: MailTransactionsAborting
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: MailTransactionsAborting stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: maddy_smtp_aborted_transactions
+        values: "0x40"
+      - series: maddy_smtp_started_transactions
+        values: 0+60x40
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: MailTransactionsAborting
+        exp_alerts: []
+  - name: MailPermanentlyRejected fires after its wait
+    interval: 1m
+    input_series:
+      - series: maddy_smtp_failed_commands{smtp_code="550"}
+        values: 0+1x40
+    alert_rule_test:
+      - eval_time: 29m
+        alertname: MailPermanentlyRejected
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: MailPermanentlyRejected
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: MailPermanentlyRejected stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: maddy_smtp_failed_commands{smtp_code="450"}
+        values: 0+1x40
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: MailPermanentlyRejected
+        exp_alerts: []
+  - name: IdentityVerificationCompletionDropped fires after its wait
+    interval: 1m
+    input_series:
+      - series: http_server_request_duration_seconds_count{http_route="/self-service/registration",http_response_status_code="200"}
+        values: 0+10x95
+      - series: http_server_request_duration_seconds_count{http_route="/self-service/verification",http_response_status_code="200"}
+        values: 0+1x95
+    alert_rule_test:
+      - eval_time: 59m
+        alertname: IdentityVerificationCompletionDropped
+        exp_alerts: []
+      - eval_time: 90m
+        alertname: IdentityVerificationCompletionDropped
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: IdentityVerificationCompletionDropped stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: http_server_request_duration_seconds_count{http_route="/self-service/registration",http_response_status_code="200"}
+        values: 0+10x95
+      - series: http_server_request_duration_seconds_count{http_route="/self-service/verification",http_response_status_code="200"}
+        values: 0+10x95
+    alert_rule_test:
+      - eval_time: 90m
+        alertname: IdentityVerificationCompletionDropped
+        exp_alerts: []
+  - name: PolicyDropsDetected fires after its wait
+    interval: 1m
+    input_series:
+      - series: hubble_drop_total{source="a",destination="b",reason="POLICY_DENIED"}
+        values: 0+1x20
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: PolicyDropsDetected
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: PolicyDropsDetected
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              source: a
+              destination: b
+              reason: POLICY_DENIED
+  - name: PolicyDropsDetected stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: hubble_drop_total{source="a",destination="b",reason="CT_MAP_INSERTION_FAILED"}
+        values: 0+1x20
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: PolicyDropsDetected
+        exp_alerts: []
+  - name: ServiceHigh5xx fires after its wait
+    interval: 1m
+    input_series:
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="200"}
+        values: 0+60x20
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="500"}
+        values: 0+60x20
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: ServiceHigh5xx
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: ServiceHigh5xx
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              service_name: orders
+  - name: ServiceHigh5xx stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="200"}
+        values: 0+60x20
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="500"}
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: ServiceHigh5xx
+        exp_alerts: []
+  - name: SLOErrorBudgetFastBurn fires after its wait
+    interval: 1m
+    input_series:
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="200"}
+        values: 0+60x15
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="500"}
+        values: 0+60x15
+      - series: service:slo_availability_target:ratio{service_name="orders"}
+        values: 0.999x15
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: SLOErrorBudgetFastBurn
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: SLOErrorBudgetFastBurn
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: orders
+  - name: SLOErrorBudgetFastBurn stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="200"}
+        values: 0+60x15
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="500"}
+        values: "0x15"
+      - series: service:slo_availability_target:ratio{service_name="orders"}
+        values: 0.999x15
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: SLOErrorBudgetFastBurn
+        exp_alerts: []
+  - name: SLOErrorBudgetSlowBurn fires after its wait
+    interval: 1m
+    input_series:
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="200"}
+        values: 0+60x35
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="500"}
+        values: 0+60x35
+      - series: service:slo_availability_target:ratio{service_name="orders"}
+        values: 0.999x35
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: SLOErrorBudgetSlowBurn
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: SLOErrorBudgetSlowBurn
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: orders
+  - name: SLOErrorBudgetSlowBurn stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="200"}
+        values: 0+60x35
+      - series: http_server_request_duration_seconds_count{service_name="orders",http_response_status_code="500"}
+        values: "0x35"
+      - series: service:slo_availability_target:ratio{service_name="orders"}
+        values: 0.999x35
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: SLOErrorBudgetSlowBurn
+        exp_alerts: []
+  - name: SLOLatencyBudgetFastBurn fires after its wait
+    interval: 1m
+    input_series:
+      - series: service:slo_latency_target:ratio{service_name="orders"}
+        values: 0.99x15
+      - series: service:request_latency_errors:ratio_rate5m{service_name="orders"}
+        values: 0.5x15
+      - series: service:request_latency_errors:ratio_rate30m{service_name="orders"}
+        values: 0.5x15
+      - series: service:request_latency_errors:ratio_rate1h{service_name="orders"}
+        values: 0.5x15
+      - series: service:request_latency_errors:ratio_rate6h{service_name="orders"}
+        values: 0.5x15
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: SLOLatencyBudgetFastBurn
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: SLOLatencyBudgetFastBurn
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: orders
+  - name: SLOLatencyBudgetFastBurn stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: service:slo_latency_target:ratio{service_name="orders"}
+        values: 0.99x15
+      - series: service:request_latency_errors:ratio_rate5m{service_name="orders"}
+        values: 0.01x15
+      - series: service:request_latency_errors:ratio_rate30m{service_name="orders"}
+        values: 0.01x15
+      - series: service:request_latency_errors:ratio_rate1h{service_name="orders"}
+        values: 0.01x15
+      - series: service:request_latency_errors:ratio_rate6h{service_name="orders"}
+        values: 0.01x15
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: SLOLatencyBudgetFastBurn
+        exp_alerts: []
+  - name: SLOLatencyBudgetSlowBurn fires after its wait
+    interval: 1m
+    input_series:
+      - series: service:slo_latency_target:ratio{service_name="orders"}
+        values: 0.99x35
+      - series: service:request_latency_errors:ratio_rate5m{service_name="orders"}
+        values: 0.5x35
+      - series: service:request_latency_errors:ratio_rate30m{service_name="orders"}
+        values: 0.5x35
+      - series: service:request_latency_errors:ratio_rate1h{service_name="orders"}
+        values: 0.5x35
+      - series: service:request_latency_errors:ratio_rate6h{service_name="orders"}
+        values: 0.5x35
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: SLOLatencyBudgetSlowBurn
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: SLOLatencyBudgetSlowBurn
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: orders
+  - name: SLOLatencyBudgetSlowBurn stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: service:slo_latency_target:ratio{service_name="orders"}
+        values: 0.99x35
+      - series: service:request_latency_errors:ratio_rate5m{service_name="orders"}
+        values: 0.01x35
+      - series: service:request_latency_errors:ratio_rate30m{service_name="orders"}
+        values: 0.01x35
+      - series: service:request_latency_errors:ratio_rate1h{service_name="orders"}
+        values: 0.01x35
+      - series: service:request_latency_errors:ratio_rate6h{service_name="orders"}
+        values: 0.01x35
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: SLOLatencyBudgetSlowBurn
+        exp_alerts: []
+  - name: Watchdog fires after its wait
+    interval: 1m
+    input_series:
+      - series: up{job="other"}
+        values: 1x6
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: Watchdog
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: DeploymentReplicasUnavailable fires after its wait
+    interval: 1m
+    input_series:
+      - series: k8s_deployment_available{k8s_deployment_name="orders"}
+        values: 1x20
+      - series: k8s_deployment_desired{k8s_deployment_name="orders"}
+        values: 3x20
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: DeploymentReplicasUnavailable
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: DeploymentReplicasUnavailable
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              k8s_deployment_name: orders
+  - name: DeploymentReplicasUnavailable stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k8s_deployment_available{k8s_deployment_name="orders"}
+        values: 3x20
+      - series: k8s_deployment_desired{k8s_deployment_name="orders"}
+        values: 3x20
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: DeploymentReplicasUnavailable
+        exp_alerts: []
+  - name: ContainerRestartsSpiking fires after its wait
+    interval: 1m
+    input_series:
+      - series: k8s_container_restarts{k8s_pod_name="orders-0"}
+        values: 0+1x40
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: ContainerRestartsSpiking
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              k8s_pod_name: orders-0
+  - name: ContainerRestartsSpiking stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k8s_container_restarts{k8s_pod_name="orders-0"}
+        values: 2x40
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: ContainerRestartsSpiking
+        exp_alerts: []
+  - name: ClusterStateMetricsAbsent fires after its wait
+    interval: 1m
+    input_series:
+      - series: up{job="other"}
+        values: 1x25
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: ClusterStateMetricsAbsent
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ClusterStateMetricsAbsent
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+  - name: ClusterStateMetricsAbsent stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: k8s_deployment_desired{k8s_deployment_name="orders"}
+        values: 3x25
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: ClusterStateMetricsAbsent
+        exp_alerts: []
+  - name: RegistryProbeFailing fires after its wait
+    interval: 1m
+    input_series:
+      - series: probe_success{service_name="registry-probe",instance="registry"}
+        values: "0x15"
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: RegistryProbeFailing
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: RegistryProbeFailing
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              service_name: registry-probe
+              instance: registry
+  - name: RegistryProbeFailing stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: probe_success{service_name="registry-probe",instance="registry"}
+        values: 1x15
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: RegistryProbeFailing
+        exp_alerts: []
+  - name: RegistryProbeMissing fires after its wait
+    interval: 1m
+    input_series:
+      - series: up{service_name="registry-probe",instance="exporter"}
+        values: "0x25"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: RegistryProbeMissing
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: RegistryProbeMissing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: registry-probe
+              instance: exporter
+  - name: RegistryProbeMissing stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: up{service_name="registry-probe",instance="exporter"}
+        values: 1x25
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: RegistryProbeMissing
+        exp_alerts: []
+  - name: EtcdMetricsMissing fires after its wait
+    interval: 1m
+    input_series:
+      - series: up{service_name="etcd",instance="10.0.10.11:2381"}
+        values: "0x25"
+    alert_rule_test:
+      - eval_time: 14m
+        alertname: EtcdMetricsMissing
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: EtcdMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              service_name: etcd
+              instance: 10.0.10.11:2381
+  - name: EtcdMetricsMissing stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: up{service_name="etcd",instance="10.0.10.11:2381"}
+        values: 1x25
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: EtcdMetricsMissing
+        exp_alerts: []
+  - name: EtcdWalFsyncSlow fires after its wait
+    interval: 1m
+    input_series:
+      - series: etcd_disk_wal_fsync_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="0.1"}
+        values: "0x20"
+      - series: etcd_disk_wal_fsync_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="1"}
+        values: 0+60x20
+      - series: etcd_disk_wal_fsync_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="+Inf"}
+        values: 0+60x20
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: EtcdWalFsyncSlow
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: EtcdWalFsyncSlow
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              instance: 10.0.10.11:2381
+  - name: EtcdWalFsyncSlow stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: etcd_disk_wal_fsync_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="0.1"}
+        values: 0+60x20
+      - series: etcd_disk_wal_fsync_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="1"}
+        values: 0+60x20
+      - series: etcd_disk_wal_fsync_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="+Inf"}
+        values: 0+60x20
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: EtcdWalFsyncSlow
+        exp_alerts: []
+  - name: EtcdBackendCommitSlow fires after its wait
+    interval: 1m
+    input_series:
+      - series: etcd_disk_backend_commit_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="0.1"}
+        values: "0x20"
+      - series: etcd_disk_backend_commit_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="1"}
+        values: 0+60x20
+      - series: etcd_disk_backend_commit_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="+Inf"}
+        values: 0+60x20
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: EtcdBackendCommitSlow
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: EtcdBackendCommitSlow
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              instance: 10.0.10.11:2381
+  - name: EtcdBackendCommitSlow stays quiet on healthy input
+    interval: 1m
+    input_series:
+      - series: etcd_disk_backend_commit_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="0.1"}
+        values: 0+60x20
+      - series: etcd_disk_backend_commit_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="1"}
+        values: 0+60x20
+      - series: etcd_disk_backend_commit_duration_seconds_bucket{service_name="etcd",instance="10.0.10.11:2381",le="+Inf"}
+        values: 0+60x20
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: EtcdBackendCommitSlow
+        exp_alerts: []
