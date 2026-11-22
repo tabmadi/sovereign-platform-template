@@ -2,7 +2,7 @@
 # in the cluster locally. It runs on the host with `next dev`.
 ---
 # A Service with no selector, for the host `next dev`. There is no host-alias record for
-# the host. So `scripts/cluster.sh` attaches an EndpointSlice that points at the docker
+# the host. So `tabkit-ops cluster` attaches an EndpointSlice that points at the docker
 # bridge gateway, the host, on :3000. It is the only host IP that pods can route to.
 apiVersion: v1
 kind: Service

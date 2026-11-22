@@ -142,7 +142,7 @@ infra/
 └── observability/            # dashboards and alerts as code
 
 tools/                        # the module that pins the Go tools
-scripts/                      # shell entered through just recipes
+scripts/                      # the shell that belongs to this project
 
 test/                         # external harnesses driving an assembled system
 ├── e2e/                      # Playwright suites and fixtures (ADR-0601)
@@ -189,12 +189,12 @@ A service recipe brings up the root recipes it needs with `just --justfile ../..
 | `activity-target` | one activity fans out across many targets, with an umbrella recipe | `lint-go`, `lint-ts`, `lint-md` under `lint`. `format-*`. `gen-openapi`, `gen-sqlc` under `gen` |
 | `resource-operation` | a stateful thing has a lifecycle worth grouping | `cluster-up`, `cluster-stop`, `cluster-down`, `cluster-add`, `cluster-remove`, `db-migrate`, `ops-grant` |
 
-**A recipe name spells its script.** The two shapes map onto `scripts/`. So a developer finds the implementation of a recipe without reading `justfile`:
+**A recipe name spells its command.** The two shapes map onto the commands of `tabkit-ops`, or onto `scripts/` for the shell of this project. So a developer finds the implementation of a recipe without reading `justfile`:
 
-- `activity-target` is `scripts/activity-target.sh`. Examples are `gen-openapi`, `lint-ports`, and `promote-prod`.
-- `resource-operation` is `scripts/resource.sh operation`: one entrypoint that takes the verb as an argument. Examples are `cluster-up`, `argo-pause`, and `mock-start`.
+- `activity-target` is `tabkit-ops activity-target`. Examples are `gen-openapi`, `lint-ports`, and `promote-prod`.
+- `resource-operation` is `tabkit-ops resource operation`: one entrypoint that takes the verb as an argument. Examples are `cluster-up`, `argo-pause`, and `mock-start`.
 
-When all members of a family share one implementation, the script is named for the family, not for a member. `dep-*` and `svc-*` enter `dep-apply.sh` and `svc-apply.sh`.
+When all members of a family share one implementation, the script is named for the family, not for a member. `dep-*` and `svc-*` enter `dep-apply.sh` and `tabkit-ops svc-apply`.
 
 One shape for both cases scatters a family. `stop-cluster` and `delete-cluster` split the cluster lifecycle, and `ts-format` breaks the `format` umbrella. Use `activity-` only where a real umbrella exists. A recipe that exists only as a dependency is `[private]`.
 
@@ -363,7 +363,7 @@ Each step is its own ADR when its trigger fires.
 - Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. `(CI: ci-gen)`
 - The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR.
 - A task is a `just` recipe, per [ADR-0103](0103-tasks.md). Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, and `worker`. `(CI: lint-service-contract)`
-- A recipe name is `group-member`, grouped by the axis worth listing together, and it spells its script. `activity-target` is `scripts/activity-target.sh`, and `resource-operation` is `scripts/resource.sh operation`.
+- A recipe name is `group-member`, grouped by the axis worth listing together, and it spells its script. `activity-target` is `tabkit-ops activity-target`, and `resource-operation` is `tabkit-ops resource operation`.
 - What a recipe acts on is an argument, never an environment variable: `just cluster-down full`. Environment variables carry the environment of the machine. A variable that a script exports for its own subprocesses is not an interface. `(ref: clig.dev, POSIX Utility Conventions)`
 - A recipe validates its operand against a closed set and fails on an unknown operand. It never falls back to a default.
 - Every external tool is pinned. Developer and CI tools are pinned in `flake.lock`, Go code tools in `tools/go.mod`, and runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. `(CI: lint-floating-tags)`

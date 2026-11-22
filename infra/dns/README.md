@@ -17,7 +17,7 @@ This directory declares every record in every zone that this project owns. `just
 The template ships placeholders, because a project chooses its own provider and addresses.
 
 1. In `creds.json`, replace the `zone` entry with the project's provider. Each credential field names an environment variable, for example `"apitoken": "$DNS_API_TOKEN"`.
-2. Create `secrets.enc.yaml` with one `stringData` key per variable, and encrypt it with `sops --encrypt --in-place`. `scripts/dns.sh` decrypts it for the length of one command.
+2. Create `secrets.enc.yaml` with one `stringData` key per variable, and encrypt it with `sops --encrypt --in-place`. `tabkit-ops dns` decrypts it for the length of one command.
 3. Scope the credential to read and edit the project's zones, and nothing wider.
 4. In `dnsconfig.js`, replace each placeholder address with the environment's edge address and mail egress address.
 5. Run `just dns-check`, read the difference, then run `just dns-apply`.

@@ -37,7 +37,7 @@ Some files also fit one setup of a project and not another. The permissions bloc
 | --- | --- | --- | --- | --- |
 | The hosted Renovate app | GitHub, GitLab, and Bitbucket. Not Forgejo | Yes | No. The app runs no command of the repo | Rejected on drivers 1 and 4 |
 | Dependabot | GitHub only | Yes | No | Rejected on drivers 1 and 4 |
-| **Renovate from a scheduled workflow, as the `ci` machine user** | **Yes. Renovate has a Forgejo platform** | **Yes: `.github/renovate.json` and `.config/renovate.json`** | **Yes. `postUpgradeTasks` run `just bun-nix` and `scripts/nix-hashes.sh`** | **Chosen** |
+| **Renovate from a scheduled workflow, as the `ci` machine user** | **Yes. Renovate has a Forgejo platform** | **Yes: `.github/renovate.json` and `.config/renovate.json`** | **Yes. `postUpgradeTasks` run `just bun-nix` and `tabkit-ops nix-hashes`** | **Chosen** |
 
 Sources:
 

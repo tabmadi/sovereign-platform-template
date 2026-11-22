@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Print what the ops tier says after a failed e2e run, because a forge run keeps no cluster and no report, per ADR-0601.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 TIER="${TIER:-full}"
-# shellcheck source=lib/cluster.sh
 source "$LIB/cluster.sh"
 require_cluster
 

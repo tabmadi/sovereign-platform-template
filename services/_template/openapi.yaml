@@ -6,7 +6,7 @@ info:
   x-audience: cluster
   description: |
     Skeleton OpenAPI spec. Copy this file when you scaffold a new service with
-    scripts/new-service.sh, and replace `_template` with the new name.
+    tabkit-ops new-service, and replace `_template` with the new name.
 servers:
   # Flat resource namespace, per ADR-0306. The server prefix is the shared /api, and
   # paths are globally-unique resource nouns. Replace /items with this service's own

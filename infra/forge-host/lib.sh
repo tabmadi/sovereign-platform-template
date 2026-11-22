@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Shared by the forge-host and runner scripts, per ADR-0116. They reach a Debian machine over SSH, with an optional jump host.
-# shellcheck source=../../scripts/lib/bootstrap.sh
-source "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 
 # One value of infra/project.yaml. It names the project, so no script here repeats the slug or the apex.
 answer() { # <key>

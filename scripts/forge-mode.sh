@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fit the workflows to the forge that runs them, per ADR-0117 and ADR-0116. It runs at generation and at every update.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 
 forge="${1:-}"
 case "$forge" in

@@ -65,5 +65,5 @@ For these changes, prefer a new cluster to an in-place upgrade. Run `just cluste
 
 `cluster-stop` freezes cluster state. This includes any ArgoCD sync operation that is still `Running`. On resume, the controller attaches again to that operation. It reuses the task plan from the start of the operation, including sync waves. It ignores what the manifests say now. So a sync that started before a fix to a wave annotation never converges, and `argocd app wait` times out.
 
-- `cluster-up full` repairs this itself. After the first wait times out, `scripts/cluster.sh` terminates the stuck operation. It then forces a fresh sync, which computes the plan again against current git. Only after that does the task fail.
+- `cluster-up full` repairs this itself. After the first wait times out, `tabkit-ops cluster` terminates the stuck operation. It then forces a fresh sync, which computes the plan again against current git. Only after that does the task fail.
 - Outside that path, run `argocd --core app terminate-op <app>`, then `argocd --core app sync <app>`.

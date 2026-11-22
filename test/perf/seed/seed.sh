@@ -3,10 +3,10 @@
 set -euo pipefail
 # The repository root: this file is three levels under it, at test/perf/seed/.
 cd "$(cd "$(dirname "$0")/../../.." && pwd)"
-source scripts/lib/log.sh
+source "$(tabkit-ops lib)/log.sh"
 
 CLUSTER="${CLUSTER:-platform}"
-source scripts/lib/cluster.sh
+source "$(tabkit-ops lib)/cluster.sh"
 NS="platform"
 PREFIX="perf-"
 

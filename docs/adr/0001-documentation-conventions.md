@@ -301,7 +301,7 @@ Scripts use a fixed vocabulary of four symbols:
 
 Sub-detail under a step has a two-space indent.
 
-No written standard fixes these symbols. The checkmark and arrow style copies npm, cargo, and kubectl. clig.dev is cited for the principle, and this ADR fixes the vocabulary. `scripts/lib/log.sh` implements it with `step`, `ok`, `fail`, and `warn`. It only formats and never swallows an error.
+No written standard fixes these symbols. The checkmark and arrow style copies npm, cargo, and kubectl. clig.dev is cited for the principle, and this ADR fixes the vocabulary. `the `log` library of tabkit-ops` implements it with `step`, `ok`, `fail`, and `warn`. It only formats and never swallows an error.
 
 The text after a symbol follows the Simple English profile.
 

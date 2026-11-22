@@ -2,7 +2,7 @@
 # Makes a project from this working tree and proves that it reaches a serving cluster, per TPL-0000. This defines `ready to use`.
 # It needs Docker, so it runs in CI and never in `just check`.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 
 DATA_FILE="${ACCEPTANCE_DATA:-template/test/fixtures/valid/defaults.yml}"
 WORK="$(mktemp -d)"

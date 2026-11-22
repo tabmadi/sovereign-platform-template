@@ -1,6 +1,6 @@
 # `_template` service
 
-The starting skeleton for every backend service. **Do not edit this directory to add features.** Copy it to `services/<your-name>/` and strip the build tags. `scripts/new-service.sh <name>` does this for you.
+The starting skeleton for every backend service. **Do not edit this directory to add features.** Copy it to `services/<your-name>/` and strip the build tags. `tabkit-ops new-service <name>` does this for you.
 
 ## Contents
 
@@ -22,7 +22,7 @@ The starting skeleton for every backend service. **Do not edit this directory to
 
 ## Checklist for a new service
 
-`scripts/new-service.sh` copies the skeleton. It cannot decide the items below for you. The service contract in [ADR-0205](../../docs/adr/0205-environment-parity.md) gives the full reasons. `just lint-service-contract` fails on any item you miss.
+`tabkit-ops new-service` copies the skeleton. It cannot decide the items below for you. The service contract in [ADR-0205](../../docs/adr/0205-environment-parity.md) gives the full reasons. `just lint-service-contract` fails on any item you miss.
 
 1. **Register a local port** in `scripts/lib/ports.sh`. Set the same `PORT` in its `justfile`. The skeleton ships `80XX`, so the lint fails until you do. Ports must be unique, and `:8080` is reserved for the local edge mapping.
 2. **Trim `dep:*`** to what the service reads. Drop `dep-temporal` if there is no worker, and `dep-postgres` if there is no database.
@@ -47,4 +47,4 @@ just build      # go build
 
 ## Build tags
 
-Every `*.go` file in this directory has `//go:build _template`. This keeps the template out of the repo-wide `go build ./...`. When you scaffold a new service, `scripts/new-service.sh` strips these tags.
+Every `*.go` file in this directory has `//go:build _template`. This keeps the template out of the repo-wide `go build ./...`. When you scaffold a new service, `tabkit-ops new-service` strips these tags.

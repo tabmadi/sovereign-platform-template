@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # OpenFGA model and assertion validation, per ADR-0304. It runs the store tests against model.fga and checks that model.json matches it.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 
 DIR="infra/auth/openfga"
 

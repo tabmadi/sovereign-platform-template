@@ -10,7 +10,7 @@ export PORT := env("PORT", "8081")
 # Create .env from .env.example on a fresh clone
 [private]
 env:
-    bash ../../scripts/env-ensure.sh
+    tabkit-ops env-ensure
 
 # Run the HTTP server with the dependency components it needs in the cluster, per ADR-0205 and ADR-0600
 server: env in-shell
@@ -33,7 +33,7 @@ lint: in-shell
 # Generate the sqlc code and the OpenAPI server and client again
 generate: in-shell
     sqlc generate
-    bash ../../scripts/gen-openapi.sh
+    tabkit-ops gen-openapi
 
 # Compile this service
 build: in-shell

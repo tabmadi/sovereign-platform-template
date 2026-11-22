@@ -3,8 +3,6 @@
 if [[ -n "${__PORTS_SH_LOADED:-}" ]]; then return 0 2>/dev/null || true; fi
 __PORTS_SH_LOADED=1
 
-source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
-
 # service:port. This is the registry.
 __LOCAL_PORTS="
 analytics:8086

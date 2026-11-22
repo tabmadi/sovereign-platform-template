@@ -1,4 +1,4 @@
-# Alert tests with simulated time, per ADR-0500. scripts/test-alerts.sh runs them against a copy of the rules without annotations.
+# Alert tests with simulated time, per ADR-0500. tabkit-ops test-alerts runs them against a copy of the rules without annotations.
 rule_files:
   - rules/*.yaml
 evaluation_interval: 1m

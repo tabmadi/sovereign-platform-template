@@ -25,11 +25,11 @@ init *args:
 
 # Set up a fresh checkout: dependencies, .env, and the SOPS keys of a new project. It runs again safely
 bootstrap: setup-node
-    bash scripts/bootstrap.sh
+    tabkit-ops bootstrap
 
 # Create, resume, or repair a local tier. The argument `full` selects the full tier
 cluster-up *args: in-shell
-    bash scripts/cluster.sh up "$@"
+    tabkit-ops cluster up "$@"
 
 # Apply the PostgreSQL slice of infra/local/deps.yaml. A service lists its own dependencies
 dep-postgres: cluster-up
@@ -49,44 +49,44 @@ dep-db-secrets: cluster-up
 
 # Make the authz service answer on its registered local port
 svc-authz: cluster-up
-    bash scripts/svc-apply.sh authz
+    tabkit-ops svc-apply authz
 
 # Make the catalog service answer on its registered local port
 svc-catalog: cluster-up
-    bash scripts/svc-apply.sh catalog
+    tabkit-ops svc-apply catalog
 
 # Make the orders service answer on its registered local port
 svc-orders: cluster-up
-    bash scripts/svc-apply.sh orders
+    tabkit-ops svc-apply orders
 
 # Make the orgs service answer on its registered local port
 svc-orgs: cluster-up
-    bash scripts/svc-apply.sh orgs
+    tabkit-ops svc-apply orgs
 
 # Make the payment service answer on its registered local port
 svc-payment: cluster-up
-    bash scripts/svc-apply.sh payment
+    tabkit-ops svc-apply payment
 
 # Apply the host-only edge glue again: the catch-all route to the host next dev, and the EndpointSlice behind it
 [private]
 cluster-glue: in-shell
-    bash scripts/cluster.sh glue
+    tabkit-ops cluster glue
 
 # Stop the nodes of the tier and keep them, so the next cluster-up resumes with no new pull
 cluster-stop *args: in-shell
-    bash scripts/cluster.sh stop "$@"
+    tabkit-ops cluster stop "$@"
 
 # Delete the cluster of the tier and its image cache
 cluster-down *args: in-shell
-    bash scripts/cluster.sh down "$@"
+    tabkit-ops cluster down "$@"
 
 # Recover a cluster after a host reboot, when pods cannot reach the API
 cluster-heal *args: in-shell
-    bash scripts/cluster.sh heal "$@"
+    tabkit-ops cluster heal "$@"
 
 # Show what runs in the active tier and how to reach it
 cluster-status *args: in-shell
-    bash scripts/cluster.sh status "$@"
+    tabkit-ops cluster status "$@"
 
 # Check that a tier is up and serving, per ADR-0600. VERIFY_HOST=<apex> checks a deployed environment
 verify: in-shell
@@ -94,43 +94,43 @@ verify: in-shell
 
 # Copy the first-party images into the zot of the full tier, per ADR-0114
 cluster-populate-zot: in-shell
-    bash scripts/populate-zot.sh
+    tabkit-ops populate-zot
 
 # Set up this machine once for a network behind a proxy, before the first cluster-up
 proxy-setup *args: in-shell
-    bash scripts/proxy-setup.sh "$@"
+    tabkit-ops proxy-setup "$@"
 
 # Pause the Argo CD application controller for a live patch
 argo-pause: in-shell
-    bash scripts/argo.sh pause
+    tabkit-ops argo pause
 
 # Give the cluster back to GitOps after a live patch
 argo-resume: in-shell
-    bash scripts/argo.sh resume
+    tabkit-ops argo resume
 
 # Port-forward the dependencies of the inner loop, so a native service reaches them
 dev-forward *args: in-shell
-    bash scripts/dev-forward.sh "$@"
+    tabkit-ops dev-forward "$@"
 
 # Run next dev on the host, where the local edge routes `/`, per ADR-0400
 dev-frontend: in-shell
-    EDGE_PUBLIC_ORIGIN=https://dev.localtest.me:8443 bash scripts/dev-frontend.sh
+    EDGE_PUBLIC_ORIGIN=https://dev.localtest.me:8443 tabkit-ops dev-frontend
 
 # Serve the committed internal.json projection with Prism behind the real edge, per ADR-0600
 mock-start *args: in-shell
-    bash scripts/mock.sh start "$@"
+    tabkit-ops mock start "$@"
 
 # Stop the API mock
 mock-stop: in-shell
-    bash scripts/mock.sh stop
+    tabkit-ops mock stop
 
 # Show the requests that matched no operation and the bodies that failed the spec
 mock-logs: in-shell
-    bash scripts/mock.sh logs
+    tabkit-ops mock logs
 
 # Apply the pending migrations of every service
 db-migrate *args: in-shell
-    bash scripts/db-migrate.sh "$@"
+    tabkit-ops db-migrate "$@"
 
 # The release of Lowdefy, from the one place that pins it
 lowdefy := `sed -n 's/^ARG LOWDEFY_VERSION=//p' apps/admin/Dockerfile`
@@ -181,15 +181,15 @@ gen-shared-components: in-shell
 
 # Write the Go and TypeScript clients and servers from each OpenAPI spec, per ADR-0303
 gen-openapi: gen-shared-components
-    bash scripts/gen-openapi.sh
+    tabkit-ops gen-openapi
 
 # Write the Lowdefy admin pages from the OpenAPI specs, per ADR-0401
 gen-admin: gen-openapi
-    bash scripts/gen-admin.sh
+    tabkit-ops gen-admin
 
 # Write the filtered OpenAPI projections for the developer portals, per ADR-0303
 gen-openapi-public: in-shell
-    bash scripts/gen-openapi-public.sh
+    tabkit-ops gen-openapi-public
 
 # Write infra/auth/openfga/model.json from the model.fga DSL, per ADR-0304
 gen-authz-model: in-shell
@@ -197,7 +197,7 @@ gen-authz-model: in-shell
 
 # Write the typed Go database access from the queries of each service, per ADR-0300
 gen-sqlc: in-shell
-    bash scripts/gen-sqlc.sh
+    tabkit-ops gen-sqlc
 
 # Delete the generated SDKs and write them again, which removes orphans
 gen-clean: in-shell
@@ -206,7 +206,7 @@ gen-clean: in-shell
 
 # Write the image allow-list from the charts, per ADR-0113
 gen-image-allowlist: in-shell
-    bash scripts/gen-image-allowlist.sh
+    tabkit-ops gen-image-allowlist
 
 # Apply every formatter and every safe lint fix
 format: format-go format-ts format-md format-shell format-data
@@ -227,7 +227,7 @@ format-md: in-shell
 
 # Format shell with shfmt, over the files that lint-shell reads
 format-shell: in-shell
-    bash scripts/format-shell.sh
+    tabkit-ops format-shell
 
 # Format JSON, JSONC, TOML, YAML, and Nix, per ADR-0104
 format-data: in-shell
@@ -282,11 +282,11 @@ lint-just:
 
 # No committed file holds a plaintext secret, per ADR-0202
 lint-secrets: in-shell
-    bash scripts/lint-secrets.sh
+    tabkit-ops lint-secrets
 
 # The secret scan over the whole git history, per ADR-0202
 lint-secrets-history: in-shell
-    GITLEAKS_HISTORY=1 bash scripts/lint-secrets.sh
+    GITLEAKS_HISTORY=1 tabkit-ops lint-secrets
 
 # Helm dependency calls resolve from Chart.yaml alone, per ADR-0111
 lint-helm-deps: in-shell
@@ -298,11 +298,11 @@ lint-app-versions: in-shell
 
 # SQL with sqruff, and the pii class of each column with personal data, per ADR-0300 and ADR-0301
 lint-sql: in-shell
-    bash scripts/lint-sql.sh
+    tabkit-ops lint-sql
 
 # Every spec against the platform ruleset, and the owner of each resource prefix, per ADR-0303
 lint-openapi: in-shell
-    bash scripts/lint-openapi.sh
+    tabkit-ops lint-openapi
 
 # Every service provides the same artifacts, per ADR-0205
 lint-service-contract: in-shell
@@ -366,7 +366,7 @@ lint-parity: in-shell
 
 # The etcd metric addresses match the node inventory, per ADR-0500
 lint-etcd-addresses: in-shell
-    bash scripts/lint-etcd-addresses.sh
+    tabkit-ops lint-etcd-addresses
 
 # An image reference pins a digest or an exact version, per ADR-0111 and ADR-0113
 lint-floating-tags: in-shell
@@ -378,7 +378,7 @@ lint-project-identity: in-shell
 
 # Resolve a tag to the index digest that a pin uses, per ADR-0111 and ADR-0113
 image-digest *args: in-shell
-    bash scripts/image-digest.sh "$@"
+    tabkit-ops image-digest "$@"
 
 # The adoption documents and the deferral register agree with the ADRs, per ADR-0001
 lint-adr-xref: in-shell
@@ -390,7 +390,7 @@ lint-readme-drift: in-shell
 
 # The drift check of the image allow-list
 lint-image-allowlist: in-shell
-    bash scripts/gen-image-allowlist.sh --check
+    tabkit-ops gen-image-allowlist --check
 
 # The drift check of the data-class registry
 lint-data-classes: in-shell
@@ -402,7 +402,7 @@ lint-rules-index: in-shell
 
 # shellcheck over every shell file, per ADR-0111
 lint-shell: in-shell
-    bash scripts/lint-shell.sh
+    tabkit-ops lint-shell
 
 # Scripts use the log vocabulary of ADR-0001
 lint-log-vocab: in-shell
@@ -455,14 +455,14 @@ lint-commits: in-shell
 
 # Label the breaking contract changes for review, per ADR-0303
 lint-api-breaking: in-shell
-    bash scripts/lint-api-breaking.sh
+    tabkit-ops lint-api-breaking
 
 # Run every test
 test: test-go test-ts test-frontend test-alerts
 
 # Every alert with simulated time, per ADR-0500
 test-alerts: in-shell
-    bash scripts/test-alerts.sh
+    tabkit-ops test-alerts
 
 # Every Go test, per ADR-0601
 test-go: in-shell
@@ -503,157 +503,157 @@ ci-lint: lint-commits lint-secrets-history lint-api-breaking
 
 # The vulnerability gate, per ADR-0113
 ci-scan: in-shell
-    bash scripts/scan.sh
+    tabkit-ops scan
 
 # Every finding of every severity, for triage. It is not a gate
 scan-report: in-shell
-    bash scripts/scan.sh report
+    tabkit-ops scan report
 
 # The tests that CI runs
 ci-test: test
 
 # The affected manifest, split into the arrays of the image jobs, per ADR-0116
 ci-affected-matrix *args: in-shell
-    bash scripts/ci-affected-matrix.sh "$@"
+    tabkit-ops ci-affected-matrix "$@"
 
 # Delete the first-party image tags that nothing pins, per ADR-0114
 ci-prune-registry: in-shell
-    bash scripts/ci-prune-registry.sh
+    tabkit-ops ci-prune-registry
 
 # Commit the values of a promotion and push them, per ADR-0201
 ci-push-promotion *args: in-shell
-    bash scripts/ci-push-promotion.sh "$@"
+    tabkit-ops ci-push-promotion "$@"
 
 # Run Renovate over this repository, per ADR-0117
 ci-renovate: in-shell
-    bash scripts/ci-renovate.sh
+    tabkit-ops ci-renovate
 
 # Open the prod pin as a pull request, per ADR-0201
 ci-release-pr: in-shell
-    bash scripts/ci-release-pr.sh
+    tabkit-ops ci-release-pr
 
 # Publish the forge release for $VER, per ADR-0112
 ci-release-publish: in-shell
-    bash scripts/ci-release-publish.sh
+    tabkit-ops ci-release-publish
 
 # Sign an image and attach its SBOM and provenance, per ADR-0113
 ci-sign *args: in-shell
-    bash scripts/ci-sign.sh "$@"
+    tabkit-ops ci-sign "$@"
 
 # Verify the SBOM of every pinned image and record its contents, per ADR-0113
 supply-chain-inventory: in-shell
-    bash scripts/supply-chain-inventory.sh
+    tabkit-ops supply-chain-inventory
 
 # Break each service in a scratch worktree and check that affected detection names it
 ci-affected-adversarial: in-shell
-    bash scripts/ci-affected-adversarial.sh
+    tabkit-ops ci-affected-adversarial
 
 # Whether a pull request runs the smoke suite, per ADR-0601
 ci-e2e-gate: in-shell
-    bash scripts/ci-e2e-gate.sh
+    tabkit-ops ci-e2e-gate
 
 # Whether a pull request runs Lighthouse, per ADR-0400
 ci-lighthouse-gate: in-shell
-    bash scripts/ci-lighthouse-gate.sh
+    tabkit-ops ci-lighthouse-gate
 
 # Whether the nightly suite runs tonight, per ADR-0601
 ci-nightly-gate: in-shell
-    bash scripts/ci-nightly-gate.sh
+    tabkit-ops ci-nightly-gate
 
 # Build, push, and sign every affected image: services or apps
 ci-build-images *args: in-shell
-    bash scripts/ci-build-images.sh "$@"
+    tabkit-ops ci-build-images "$@"
 
 # The Docker build context of an app
 ci-build-context *args: in-shell
-    bash scripts/ci-build-context.sh "$@"
+    tabkit-ops ci-build-context "$@"
 
 # Cut a CalVer release of the repo, per ADR-0112
 release *args: in-shell
-    bash scripts/release.sh "$@"
+    tabkit-ops release "$@"
 
 # A release tag as a version and a commit, per ADR-0112
 ci-release-info *args: in-shell
-    bash scripts/ci-release-info.sh "$@"
+    tabkit-ops ci-release-info "$@"
 
 # Pin the dev and staging values of $SERVICES and $APPS to $SHA
 promote-dev-staging: in-shell
-    bash scripts/promote-dev-staging.sh
+    tabkit-ops promote-dev-staging
 
 # Pin every prod values file to $SHA, and label the images $VER
 promote-prod: in-shell
-    bash scripts/promote-prod.sh
+    tabkit-ops promote-prod
 
 # Wait until prod runs $SHA
 promote-verify: in-shell
-    bash scripts/promote-verify.sh
+    tabkit-ops promote-verify
 
 # Compile everything, as CI does
 ci-build: build
 
 # The preview environment of a pull request, per ADR-0205
 ci-preview *args: in-shell
-    bash scripts/ci-preview.sh "$@"
+    tabkit-ops ci-preview "$@"
 
 # The design preview of a pull request, per ADR-0701: build or comment
 ci-design-preview *args: in-shell
-    bash scripts/ci-design-preview.sh "$@"
+    tabkit-ops ci-design-preview "$@"
 
 # Apply the committed branch protection, checks, and team access to the forge, per ADR-0116
 forge-apply: in-shell
-    bash scripts/forge-apply.sh
+    tabkit-ops forge-apply
 
 # Start the sprint of today and move the open issues of ended sprints into it, per ADR-0115
 forge-sprint: in-shell
-    bash scripts/forge-sprint.sh
+    tabkit-ops forge-sprint
 
 # Create or refresh the ci machine user and its tokens, per ADR-0116
 forge-ci-user: in-shell
-    bash scripts/forge-ci-user.sh
+    tabkit-ops forge-ci-user
 
 # Generate and format everything, and fail on a change, per ADR-0111 and ADR-0303
 ci-gen: in-shell
-    bash scripts/ci-gen.sh
+    tabkit-ops ci-gen
 
 # Lay the bootstrap floor of an environment and apply its root Application, per ADR-0200
 argocd-bootstrap *args: in-shell
-    bash scripts/argocd-bootstrap.sh "$@"
+    tabkit-ops argocd-bootstrap "$@"
 
 # Put a service, an app, or a chart into the cluster, per ADR-0600
 cluster-add *args: in-shell
-    bash scripts/cluster.sh add "$@"
+    tabkit-ops cluster add "$@"
 
 # Take a service, an app, or a chart out of the cluster
 cluster-remove *args: in-shell
-    bash scripts/cluster.sh remove "$@"
+    tabkit-ops cluster remove "$@"
 
 # Run a service natively behind the real edge
 service-dev *args: in-shell
-    bash scripts/service-dev.sh "$@"
+    tabkit-ops service-dev "$@"
 
 # Create a Kratos session token for local calls. It needs the full tier
 auth-token *args: in-shell
-    bash scripts/auth-token.sh "$@"
+    tabkit-ops auth-token "$@"
 
 # Erase a subject in every store, per ADR-0301: just privacy-erase <identity-id>
 privacy-erase *args: in-shell
-    bash scripts/privacy.sh erase "$@"
+    tabkit-ops privacy erase "$@"
 
 # Export the data of a subject as JSON, per ADR-0301: just privacy-export <identity-id>
 privacy-export *args: in-shell
-    bash scripts/privacy.sh export "$@"
+    tabkit-ops privacy export "$@"
 
 # Grant an operator role while the admin console is down, per ADR-0304
 ops-grant *args: in-shell
-    bash scripts/ops-grant.sh "$@"
+    tabkit-ops ops-grant "$@"
 
 # Generate the key pair that signs images, per ADR-0113
 secrets-cosign: in-shell
-    bash scripts/secrets-cosign.sh
+    tabkit-ops secrets-cosign
 
 # Generate the commit signing keys of the forge and the ci user, per ADR-0116
 secrets-gpg: in-shell
-    bash scripts/secrets-gpg.sh
+    tabkit-ops secrets-gpg
 
 # Import the signing key of the forge into its Forgejo user, per ADR-0116
 forge-signing: in-shell
@@ -661,11 +661,11 @@ forge-signing: in-shell
 
 # Create your age key and write .sops.yaml, per ADR-0202. It runs again safely
 secrets-age: in-shell
-    bash scripts/secrets-age.sh
+    tabkit-ops secrets-age
 
 # Encrypt every SOPS file again to the recipients in .sops.yaml, per ADR-0202
 secrets-updatekeys: in-shell
-    bash scripts/secrets-updatekeys.sh
+    tabkit-ops secrets-updatekeys
 
 # The Node.js dependencies of the e2e island, per ADR-0601. The browsers come from nixpkgs
 e2e-install:
@@ -673,7 +673,7 @@ e2e-install:
 
 # The full browser suite against a running full tier, per ADR-0601
 e2e *args:
-    nix develop .#e2e --command bash scripts/e2e.sh test "$@"
+    nix develop .#e2e --command tabkit-ops e2e test "$@"
 
 # Print the errors of the workloads on the path of an ops route, after a failed e2e run
 e2e-diagnose: in-shell
@@ -681,27 +681,27 @@ e2e-diagnose: in-shell
 
 # The @smoke subset of the browser suite, per ADR-0601
 e2e-smoke *args:
-    nix develop .#e2e --command bash scripts/e2e.sh test:smoke "$@"
+    nix develop .#e2e --command tabkit-ops e2e test:smoke "$@"
 
 # Only the axe scan, per ADR-0400
 e2e-a11y *args:
-    nix develop .#e2e --command bash scripts/e2e.sh test:a11y "$@"
+    nix develop .#e2e --command tabkit-ops e2e test:a11y "$@"
 
 # Only the screenshot baselines, per ADR-0601. Add --update-snapshots to write them again
 e2e-visual *args:
-    nix develop .#e2e --command bash scripts/e2e.sh test:visual "$@"
+    nix develop .#e2e --command tabkit-ops e2e test:visual "$@"
 
 # Web vitals and the bundle budget of each route, per ADR-0400
 lighthouse *args:
-    nix develop .#e2e --command bash scripts/e2e.sh lighthouse "$@"
+    nix develop .#e2e --command tabkit-ops e2e lighthouse "$@"
 
 # The Lighthouse origin with no cluster, per ADR-0400
 lighthouse-up: in-shell
-    bash scripts/lighthouse-stack.sh up
+    tabkit-ops lighthouse-stack up
 
 # Remove the containers and the network of lighthouse-up
 lighthouse-down: in-shell
-    bash scripts/lighthouse-stack.sh down
+    tabkit-ops lighthouse-stack down
 
 # The steady load baseline, per ADR-0601. It needs the full tier
 perf: in-shell
@@ -728,27 +728,27 @@ perf-seed *args: in-shell
 
 # Compute again the measured numbers that the ADRs state, per ADR-0001
 perf-re-derive: in-shell
-    bash scripts/perf-rederive.sh
+    tabkit-ops perf-rederive
 
 # Collect the browser source maps of a release build, per ADR-0503
 frontend-sourcemaps *args: in-shell
-    bash scripts/frontend-sourcemaps.sh "$@"
+    tabkit-ops frontend-sourcemaps "$@"
 
 # Run a workflow locally with act
 act-local *args: in-shell
-    bash scripts/act-local.sh "$@"
+    tabkit-ops act-local "$@"
 
 # Report how the zones of the provider differ from infra/dns/dnsconfig.js, per ADR-0206
 dns-check: in-shell
-    bash scripts/dns.sh check
+    tabkit-ops dns check
 
 # Make the zones of the provider match infra/dns/dnsconfig.js, per ADR-0206
 dns-apply: in-shell
-    bash scripts/dns.sh apply
+    tabkit-ops dns apply
 
 # Write the hashes of the Go modules and the subcharts into flake.nix again, after a change to go.sum or a Chart.lock
 nix-hashes: in-shell
-    bash scripts/nix-hashes.sh
+    tabkit-ops nix-hashes
 
 # Write the files that follow a dependency change, per ADR-0117
 deps-sync: bun-nix nix-hashes

@@ -25,7 +25,7 @@ The ladder fits a small platform team. It has no separate operator IdP or PKI. T
    kubectl -n argocd   port-forward svc/argocd-server 8081:80
    ```
 
-   The `scripts/cluster.sh` banner prints this procedure as the diagnose path. It is the approved break-glass path.
+   The `tabkit-ops cluster` banner prints this procedure as the diagnose path. It is the approved break-glass path.
 
 ## The first operator
 

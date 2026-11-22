@@ -239,7 +239,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Generated API clients live at `libs/{go,ts}/sdks/<service>/` and are committed. | `ci-gen` in CI |
 | The frontend is one application at `apps/frontend/`. A new frontend or a new entry under `apps/` requires an ADR. | review |
 | A task is a `just` recipe, per [ADR-0103](../adr/0103-tasks.md). Every service exposes `build`, `test`, `lint`, `generate`, `migrate`, `server`, and `worker`. | `lint-service-contract` in CI |
-| A recipe name is `group-member`, grouped by the axis worth listing together, and it spells its script. `activity-target` is `scripts/activity-target.sh`, and `resource-operation` is `scripts/resource.sh operation`. | review |
+| A recipe name is `group-member`, grouped by the axis worth listing together, and it spells its script. `activity-target` is `tabkit-ops activity-target`, and `resource-operation` is `tabkit-ops resource operation`. | review |
 | What a recipe acts on is an argument, never an environment variable: `just cluster-down full`. Environment variables carry the environment of the machine. A variable that a script exports for its own subprocesses is not an interface. | standard: clig.dev, POSIX Utility Conventions |
 | A recipe validates its operand against a closed set and fails on an unknown operand. It never falls back to a default. | review |
 | Every external tool is pinned. Developer and CI tools are pinned in `flake.lock`, Go code tools in `tools/go.mod`, and runtime services as an explicit `image.tag` in Helm values. Floating tags are not used anywhere. | `lint-floating-tags` in CI |
@@ -847,7 +847,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | --- | --- |
 | Local development runs two tiers: the `cluster-up` inner loop and `cluster-up full`. There are no named profiles. | review |
 | Both local tiers run on kind, as two clusters with two contexts. The bring-up of one tier never changes the other, and no local tier shares a cluster with another. | review |
-| `scripts/cluster.sh` is the only script that names a tier, and it takes the tier as an argument. Every other script resolves the tier from the running cluster. A tier hardcoded as a consumer's default is a defect. | review |
+| `tabkit-ops cluster` is the only script that names a tier, and it takes the tier as an argument. Every other script resolves the tier from the running cluster. A tier hardcoded as a consumer's default is a defect. | review |
 | Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built. A difference introduced between them is a defect. | review |
 | No local tier exercises the datapath between nodes. Service routing between nodes and the WireGuard encryption that [ADR-0206](../adr/0206-cluster-networking.md) enables are first exercised in a deployed environment. | review |
 | Every local cluster is created without a CNI and without kube-proxy. A distribution that bundles either is not used. | review |

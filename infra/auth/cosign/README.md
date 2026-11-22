@@ -20,7 +20,7 @@ The file is committed **empty** and not absent. The reason is that the `filePara
 
 The private half is at `signing-key.enc.yaml`. SOPS encrypts it to the engineers, to ops-recovery, and to the CI identity. It is not encrypted to any cluster key. Kyverno verifies with the public half, so no cluster needs the private one. A secret delivered to a cluster is a secret that someone can make that cluster read.
 
-CI decrypts it with an age key held as a forge secret, `SOPS_AGE_KEY_CI`, and then signs. The key exists as a file only inside a directory that `scripts/ci-sign.sh` removes when it exits.
+CI decrypts it with an age key held as a forge secret, `SOPS_AGE_KEY_CI`, and then signs. The key exists as a file only inside a directory that `tabkit-ops ci-sign` removes when it exits.
 
 ## Rotation is not this command
 

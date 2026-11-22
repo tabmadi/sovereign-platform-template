@@ -6,7 +6,7 @@ set dotenv-load
 # Create .env from .env.example on a fresh clone
 [private]
 env:
-    bash ../../scripts/env-ensure.sh
+    tabkit-ops env-ensure
 
 # Run the Temporal worker with the dependency components it needs in the cluster
 worker: env in-shell

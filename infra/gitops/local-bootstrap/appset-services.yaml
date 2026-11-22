@@ -32,7 +32,7 @@ spec:
     metadata:
       # The file extension is trimmed on purpose. Every local script forms the app name from the service name, such as
       # `local-service-orders`. `filenameNormalized` alone leaves `orders.yaml` there, and no caller guesses that name.
-      # The pause-auto-sync step in `service-deploy.sh` then missed it without an error, and Argo CD reverted the deploy.
+      # The pause-auto-sync step in `tabkit-ops service-deploy` then missed it without an error, and Argo CD reverted the deploy.
       name: "{{ .env }}-service-{{ trimSuffix \".yaml\" .path.filename }}"
       labels:
         env: "{{ .env }}"

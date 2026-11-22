@@ -198,7 +198,7 @@ The full platform runs the same charts on the same distribution as a deployed en
 
 **The two tiers are two clusters, not two states of one cluster.** The inner loop survives a full-tier teardown, and neither bring-up disturbs the other. Each has its own `kubectl` context. A service's local port is the same in both, per `scripts/lib/ports.sh`.
 
-**Only the entrypoint names a tier.** `scripts/cluster.sh` takes the tier as an argument, because it creates the tier, per [ADR-0111](0111-monorepo.md). Every other script acts on a cluster that it did not create, and reads the tier from the machine. The tiers share the edge's host ports, so at most one tier serves at a time, and the answer is always clear. The argument exists to remove a hardcoded default. A tool that assumes the inner loop while the full tier serves resolves to a context that does not exist. Every call inside it then fails as if the platform were down.
+**Only the entrypoint names a tier.** `tabkit-ops cluster` takes the tier as an argument, because it creates the tier, per [ADR-0111](0111-monorepo.md). Every other script acts on a cluster that it did not create, and reads the tier from the machine. The tiers share the edge's host ports, so at most one tier serves at a time, and the answer is always clear. The argument exists to remove a hardcoded default. A tool that assumes the inner loop while the full tier serves resolves to a context that does not exist. Every call inside it then fails as if the platform were down.
 
 Images reach the full tier through a local registry. A deployed environment uses the same path: Argo CD pulls a tag from a registry, and does not find the image already on the node. The inner loop keeps the direct import, because nothing there reconciles from git.
 
@@ -262,13 +262,13 @@ worker: env in-shell
 | Layer | Owns |
 | --- | --- |
 | `just` | the dependency graph and the recipe vocabulary. Declarations only, with no logic in a `justfile` |
-| bash | one small idempotent installer for each component, `dep-apply.sh`, or each sibling, `svc-apply.sh` |
+| bash | one small idempotent installer for each component, `dep-apply.sh`, or each sibling, `tabkit-ops svc-apply` |
 | Helm | the component units: the same charts in every tier |
 | Argo CD | `cluster-up full` only |
 
 **One property is not free.** Garden checks status and skips work that is already done. `just` does not, and the readiness of Temporal is not a file. Without a guard, every `just server` pays again for a full apply and a rollout wait.
 
-So the guard is **central**, in `dep-apply.sh` and `svc-apply.sh`, and not written by hand for each component. One shared readiness check of about twenty lines covers everything. A component that forgot its own guard would slow the inner loop with no warning. For this reason, the guard does not live in the components.
+So the guard is **central**, in `dep-apply.sh` and `tabkit-ops svc-apply`, and not written by hand for each component. One shared readiness check of about twenty lines covers everything. A component that forgot its own guard would slow the inner loop with no warning. For this reason, the guard does not live in the components.
 
 ### The service contract
 
@@ -345,7 +345,7 @@ The application's authentication path is **byte-identical to production**. It ha
 
 ### Identity comes from a seeded real login
 
-`cluster-up` seeds the committed deterministic test identities that [ADR-0601](0601-testing-strategy.md) defines. It does not invent a second, development-only identity. `scripts/auth-token.sh` logs in through the real native flow. Kratos sessions last **7 days**, so a human logs in about once a week. The bootstrap exists so that a fresh cluster is usable at once, and CI never types a password.
+`cluster-up` seeds the committed deterministic test identities that [ADR-0601](0601-testing-strategy.md) defines. It does not invent a second, development-only identity. `tabkit-ops auth-token` logs in through the real native flow. Kratos sessions last **7 days**, so a human logs in about once a week. The bootstrap exists so that a fresh cluster is usable at once, and CI never types a password.
 
 ### The mock is local tooling only
 
@@ -368,7 +368,7 @@ A short, listed set of manifests has no production equivalent:
 | `infra/local/deps.yaml` | the dependency stand-ins of the inner loop. The full tier does not use it |
 | `infra/local/edge-auth.yaml` | routes `/auth` and the landing page to a `next dev` on the host |
 | `infra/local/mock.yaml` | the mock Deployment, Service, and `/api` IngressRoute, with the real edge middleware chain. Every run stamps the spec ConfigMap from the committed projection |
-| The CoreDNS rewrite: the `coredns` stage in `scripts/lib/cluster.sh` | resolves the env host to Traefik from inside the cluster, because `127.0.0.1` in a pod is the pod's own loopback. It is a stage, not a manifest, because kind runs stock CoreDNS without a custom-record mechanism. The stage patches the Corefile and restarts CoreDNS |
+| The CoreDNS rewrite: the `coredns` stage in `the `cluster` library of tabkit-ops` | resolves the env host to Traefik from inside the cluster, because `127.0.0.1` in a pod is the pod's own loopback. It is a stage, not a manifest, because kind runs stock CoreDNS without a custom-record mechanism. The stage patches the Corefile and restarts CoreDNS |
 | A local CA that issues the wildcard | the same cert-manager mechanism with a local ClusterIssuer. It is a **CA**, not a self-signed leaf. A leaf cannot be a trust anchor. That would force `NODE_TLS_REJECT_UNAUTHORIZED=0` and stop the frontend from running as its production image locally |
 
 ## Consequences
@@ -390,7 +390,7 @@ A short, listed set of manifests has no production equivalent:
 ### Negative and Risks
 
 - **We own the dependency resolution that Garden gives for free.** The graph is small, and the trade is fair. But it must not grow into a general-purpose engine by accident. The discipline: each `justfile` stays declarations, and each bash script installs exactly one component. Shell logic that grows in task definitions rebuilds Garden badly.
-- **`svc-*` owns the one long-lived process that the dev loop runs.** A recipe must return for the next one to start, but the callee's port-forward must outlive the recipe. So `svc-apply.sh` detaches the port-forward and tracks it by pidfile, and `cluster-remove` reaps it. This is the least elegant part of the design and the price of not adopting a process manager. It is limited to one script. If it becomes a source of bugs, mirrord replaces it.
+- **`svc-*` owns the one long-lived process that the dev loop runs.** A recipe must return for the next one to start, but the callee's port-forward must outlive the recipe. So `tabkit-ops svc-apply` detaches the port-forward and tracks it by pidfile, and `cluster-remove` reaps it. This is the least elegant part of the design and the price of not adopting a process manager. It is limited to one script. If it becomes a source of bugs, mirrord replaces it.
 - **A service's callee list carries weight.** Nothing detects a missing `svc-*` edge. The call fails at runtime.
 - **A third vendored Node tool.** Prism's image is third-party Node software that the repo runs but does not write. The Playwright runner and the Lowdefy console are the other two. Its scope is strict: a local-only container, no Node in any dev shell, no `package.json`, no lockfile, and never in an image built from our source.
 - **The mock is stateless.** A read after a create does not show the write. A `WorkflowHandle`'s `result_url` polls nothing. This is the true limit of the tier.
@@ -407,7 +407,7 @@ A short, listed set of manifests has no production equivalent:
 
 - Local development runs two tiers: the `cluster-up` inner loop and `cluster-up full`. There are no named profiles.
 - Both local tiers run on kind, as two clusters with two contexts. The bring-up of one tier never changes the other, and no local tier shares a cluster with another.
-- `scripts/cluster.sh` is the only script that names a tier, and it takes the tier as an argument. Every other script resolves the tier from the running cluster. A tier hardcoded as a consumer's default is a defect.
+- `tabkit-ops cluster` is the only script that names a tier, and it takes the tier as an argument. Every other script resolves the tier from the running cluster. A tier hardcoded as a consumer's default is a defect.
 - Both local tiers are a single node. They differ in which workloads run, never in how the cluster is built. A difference introduced between them is a defect.
 - No local tier exercises the datapath between nodes. Service routing between nodes and the WireGuard encryption that [ADR-0206](0206-cluster-networking.md) enables are first exercised in a deployed environment.
 - Every local cluster is created without a CNI and without kube-proxy. A distribution that bundles either is not used.

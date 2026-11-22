@@ -11,7 +11,7 @@
     };
     # A new version is a new tag here.
     tabkit = {
-      url = "github:tabmadi/tabkit/v0.16.0";
+      url = "github:tabmadi/tabkit/v0.17.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
@@ -168,6 +168,7 @@
             gitMinimal
             nixfmt
             prometheus.cli
+            inputs.tabkit.packages.${system}.tabkit-platform
             config.tabkit.rules.package
           ];
 
@@ -266,6 +267,8 @@
               packages = [
                 pkgs.nodejs_26
                 pkgs.just
+                pkgs.git
+                inputs.tabkit.packages.${system}.tabkit-platform
               ];
               env = {
                 PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
@@ -277,6 +280,8 @@
             # takes longer on a cold runner, so a gate gets only the tools that its script calls.
             gate = pkgs.mkShellNoCC {
               packages = [
+                inputs.tabkit.packages.${system}.default
+                inputs.tabkit.packages.${system}.tabkit-platform
                 pkgs.just
                 pkgs.go
                 pkgs.git
@@ -295,7 +300,7 @@
             };
           };
 
-          # The two fixed-output derivations, so scripts/nix-hashes.sh can build each one alone.
+          # The two fixed-output derivations, so tabkit-ops nix-hashes can build each one alone.
           packages = {
             go-modules = goProxy;
             helm-charts = helmCharts;

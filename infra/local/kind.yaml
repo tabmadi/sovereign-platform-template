@@ -23,7 +23,7 @@ networking:
   disableDefaultCNI: true
   kubeProxyMode: none
 # The local registry, for ADR-0205 parity: a zot container on the kind docker network that
-# `scripts/cluster.sh` creates.
+# `tabkit-ops cluster` creates.
 containerdConfigPatches:
   - |-
     [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.localhost:5000"]

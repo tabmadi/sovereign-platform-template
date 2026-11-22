@@ -2,7 +2,7 @@
 # Turns a copy into a project, per ADR-0117: seven questions, the rename, and the modes. Then it removes itself.
 # `just init` asks each question. `--answers <file.yml>` reads them from a file, and `--defaults` takes every default.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 
 answers_file=""
 interactive=1

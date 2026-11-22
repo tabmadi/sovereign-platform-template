@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Renames a new project, per ADR-0117 and ADR-0003. `just init` runs it once.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 
 [ "$#" -eq 4 ] || fail "usage: project-rename.sh <project-slug> <module-path> <apex-host> <image-registry>"
 slug="$1" module="$2" apex="$3" registry="$4"

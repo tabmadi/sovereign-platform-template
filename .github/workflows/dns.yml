@@ -7,7 +7,7 @@ on:
     - cron: "0 6 * * *" # after the nightly suites
   push:
     branches: [master]
-    paths: ["infra/dns/**", "scripts/dns.sh"]
+    paths: ["infra/dns/**", "flake.lock"]
   workflow_dispatch:
 
 concurrency:

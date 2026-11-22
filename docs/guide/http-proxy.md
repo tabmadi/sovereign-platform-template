@@ -91,7 +91,7 @@ The restart is the durable fix. The `/etc/hosts` entry lasts only until the node
 
 ## Step 3: The environment that `cluster-up` runs kind in
 
-`just proxy-setup` writes `infra/local/proxy.local.env`, and `scripts/lib/cluster.sh` loads it. So every cluster command runs with this machine's egress, and no cluster script names a proxy. The file is local to the machine and gitignored. You export nothing by hand:
+`just proxy-setup` writes `infra/local/proxy.local.env`, and `the `cluster` library of tabkit-ops` loads it. So every cluster command runs with this machine's egress, and no cluster script names a proxy. The file is local to the machine and gitignored. You export nothing by hand:
 
 ```sh
 just cluster-up full
@@ -181,7 +181,7 @@ The symptom suggests a DNS fix. A chart repo on GitHub Pages resolves to four an
 
 **When the proxy is set, the pod never connects to those addresses itself.** The proxy resolves the name and connects for the pod. So the address that the cluster resolves no longer matters. A test removed both stanzas and verified this. The repo-server then resolved the chart host to IPv6 only. The AAAA stanza existed to prevent exactly that condition. `helm repo add` still returned in 1 to 3s.
 
-Keep in CoreDNS only what the platform put there. For the inner loop, that is the `dev.localtest.me` `rewrite stop` blocks from `scripts/lib/cluster.sh`. Argo cannot see live Corefile edits. They do not survive a rebuild, and they stay after the problem is gone. If you already made such edits, remove them and verify again. A workaround that nobody can explain is worse than the fault it hid.
+Keep in CoreDNS only what the platform put there. For the inner loop, that is the `dev.localtest.me` `rewrite stop` blocks from `the `cluster` library of tabkit-ops`. Argo cannot see live Corefile edits. They do not survive a rebuild, and they stay after the problem is gone. If you already made such edits, remove them and verify again. A workaround that nobody can explain is worse than the fault it hid.
 
 The removal has one side effect. A CoreDNS rollout kills lookups in progress. So unrelated apps briefly go `Unknown` with `failed to list refs: ... EOF` against GitHub. The rollout causes this, not the removal. Confirm it with `git ls-remote` from inside the repo-server. Then clear it with `--hard-refresh`, for the same caching reason as above.
 

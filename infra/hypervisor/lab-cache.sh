@@ -7,7 +7,7 @@ registry_name="hypervisor-lab-zot"
 registry_port="${LAB_REGISTRY_PORT:-5010}"
 # The address that the nodes use for the workstation. QEMU forwards it, also when the VM has no internet.
 registry_guest="10.0.2.100:5000"
-registry_image="$(sed -n 's/^ZOT_IMAGE="\(.*\)"/\1/p' scripts/lib/cluster.sh)"
+registry_image="$(sed -n 's/^ZOT_IMAGE="\(.*\)"/\1/p' "$(tabkit-ops lib)/cluster.sh")"
 registry_upstreams=(docker.io factory.talos.dev gcr.io ghcr.io quay.io registry.k8s.io)
 min_free_gb="${LAB_MIN_FREE_GB:-20}"
 min_memory_mb="${LAB_MIN_MEMORY_MB:-16384}"

@@ -3,8 +3,7 @@
 # Without VERIFY_HOST it checks the active local tier. With it, it checks the deployed environment at that host through the current kubectl context.
 # There it also runs what the e2e suite cannot run: a purchase, the escalation probe, and mail.
 set -uo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-# shellcheck source=lib/cluster.sh
+source "$(tabkit-ops lib)/bootstrap.sh"
 source "$LIB/cluster.sh"
 
 HOST="${VERIFY_HOST:-}"

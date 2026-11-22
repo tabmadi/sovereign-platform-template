@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The frontend unit and component tests, with a line coverage floor for each route group, per ADR-0400.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 
 # Each route group under src/app/[locale]/ has a row, and `shared` is the code under src/ outside src/app/.
 # A floor only rises. Bun reports only the files that a test loads, so a group that no test loads is not measured.

@@ -1,5 +1,5 @@
 # Local root App-of-Apps, per ADR-0201 and ADR-0205. `just cluster-up full` applies it ONCE by hand.
-# That task replaces `scripts/cluster.sh`.
+# That task replaces `tabkit-ops cluster`.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

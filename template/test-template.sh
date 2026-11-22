@@ -2,7 +2,7 @@
 # Tests the making of a project, per TPL-0000: each fixture through `just init`, the refusals of its validator,
 # and the equality of the two ways to make a project. It needs no network and no cluster.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/../scripts/lib/bootstrap.sh"
+source "$(tabkit-ops lib)/bootstrap.sh"
 
 FIXTURES="template/test/fixtures"
 WORK="$(mktemp -d)"

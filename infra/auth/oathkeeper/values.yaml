@@ -1,5 +1,5 @@
 # The canonical Oathkeeper config, per ADR-0305. It is the single source of truth. It goes into the Ory umbrella
-# chart as a Helm values overlay: `-f` in `scripts/cluster.sh` locally, and Argo CD `valueFiles` per environment.
+# chart as a Helm values overlay: `-f` in `tabkit-ops cluster` locally, and Argo CD `valueFiles` per environment.
 oathkeeper:
   oathkeeper:
     config:

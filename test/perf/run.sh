@@ -4,7 +4,7 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 cd "$here"
 # ../../ because this file is at test/perf/, two levels under the repo root.
-source ../../scripts/lib/log.sh
+source "$(tabkit-ops lib)/log.sh"
 
 scenario="${1:-}"
 profile="${2:-smoke}"
@@ -14,7 +14,7 @@ script="scenarios/${scenario}.js"
 [ -f "$script" ] || fail "no such scenario: ${script}"
 
 CLUSTER="${CLUSTER:-platform}"
-source ../../scripts/lib/cluster.sh
+source "$(tabkit-ops lib)/cluster.sh"
 # The library works from the repository root. The scenario and result paths below are relative to this directory.
 cd "$here"
 # The tier comes from the cluster that is up. So a load run with no cluster reports `no cluster`,

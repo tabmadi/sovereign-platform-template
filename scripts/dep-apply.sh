@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Add one opt-in local dependency component on top of `cluster-up`. It backs the `dep:*` tasks that services declare, per ADR-0205 and ADR-0600.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
-# shellcheck source=lib/cluster.sh
+source "$(tabkit-ops lib)/bootstrap.sh"
 source "$LIB/cluster.sh"
 
 CLUSTER="${CLUSTER:-platform}"

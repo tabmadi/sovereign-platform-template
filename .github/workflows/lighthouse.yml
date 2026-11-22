@@ -1,5 +1,5 @@
 # Web vitals and bundle budgets are measured on every PR that changes what the frontend serves, not behind a label, per ADR-0400.
-# The origin is the production frontend image with the API mock and a Kratos stub, from scripts/lighthouse-stack.sh. No cluster starts.
+# The origin is the production frontend image with the API mock and a Kratos stub, from tabkit-ops lighthouse-stack. No cluster starts.
 # `/devportal` is not measured: proxy.ts redirects an unauthenticated request to login, so it measures login twice.
 name: lighthouse
 
