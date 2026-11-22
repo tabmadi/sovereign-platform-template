@@ -192,8 +192,8 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 | Backend language | Go | [0110](docs/adr/0110-language-and-runtime.md) |
 | Frontend | Next.js and TypeScript on Bun, one app with route groups | [0110](docs/adr/0110-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) |
 | Design system | `shadcn/ui`, vendored as source, on Tailwind, with the brand in one token file | [0400](docs/adr/0400-frontend.md), [0701](docs/adr/0701-product-design-and-discovery.md) |
-| Toolchain | Nix with flakes, through the tabnix module | [0100](docs/adr/0100-toolchain.md) |
-| Custom rules and generators | tabrules, configured in `.config/tabrules.toml` | [0104](docs/adr/0104-formatters-and-linters.md) |
+| Toolchain | Nix with flakes, through the tabkit module | [0100](docs/adr/0100-toolchain.md) |
+| Custom rules and generators | tabkit, configured in `.config/tabkit.toml` | [0104](docs/adr/0104-formatters-and-linters.md) |
 | Task runner | `just` | [0103](docs/adr/0103-tasks.md), [0111](docs/adr/0111-monorepo.md) |
 | Machines | Talos Linux, configured by machine config | [0200](docs/adr/0200-cluster-topology.md) |
 | Cloud resources | OpenTofu, for each project. Skipped where the infrastructure is provided | [0200](docs/adr/0200-cluster-topology.md) |

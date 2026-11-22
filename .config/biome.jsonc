@@ -23,7 +23,7 @@
       "!**/dist",
       "!**/build",
       "!**/libs/ts/sdks",
-      // `tabrules gen zod` writes these, and ci-gen drift-checks the raw output. A rewrite here makes every commit drift.
+      // `tabkit gen zod` writes these, and ci-gen drift-checks the raw output. A rewrite here makes every commit drift.
       "!**/libs/ts/schemas/*.ts",
       "**/libs/ts/schemas/index.test.ts",
       "!**/apps/admin/_generated",

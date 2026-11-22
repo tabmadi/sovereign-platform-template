@@ -90,7 +90,7 @@ There is one tool per language. Each is a single binary from the dev shell of [A
 | Shell | **shellcheck and shfmt** | **Yes, two binaries** | **No single binary both lints and formats shell** | **Chosen** |
 | SQL | **sqruff** | **Yes** | **The sqlfluff rules, in Rust** | **Chosen** |
 | SQL | sqlfluff | No. Python | The reference rule set | Rejected on driver 7 |
-| Prose, comments, and the ADR set | **tabrules** | **Yes** | **The profile of [ADR-0001](0001-documentation-conventions.md) and the requirement trace of [ADR-0602](0602-behaviour-requirements.md)** | **Chosen** |
+| Prose, comments, and the ADR set | **tabkit** | **Yes** | **The profile of [ADR-0001](0001-documentation-conventions.md) and the requirement trace of [ADR-0602](0602-behaviour-requirements.md)** | **Chosen** |
 | Prose, comments, and the ADR set | Vale with Conftest | Yes, two binaries | Two rule languages to write the same rules | Rejected. It matched the old Go linters only with two rule languages *(measured)* |
 
 Sources:
@@ -162,7 +162,7 @@ docs/                         # genre decides the directory (ADR-0001)
 | `services/` and `apps/` are siblings | Services are headless, horizontally-scaled, internally-addressed backends. `apps/` holds first-party deployable applications. The slot stays open for partner portals, CLIs, or mobile apps with no layout migration. A new entry under `apps/` requires its own ADR |
 | `services/` stays spelled out | `svc` already means a Kubernetes Service here. It is also the per-service metavariable in docs. A directory name is short only when the short form is not ambiguous |
 | `infra/` holds both IaC and the configuration of what it deploys | One top-level directory removes the recurring question of `infra` or `ops` |
-| `tools/` holds only the module that pins Go tools | It holds no program. The own module of `tools/` keeps `ogen`, `workflowcheck`, and the ruleguard DSL out of the graph that every service image builds from. Custom rules and generators come from tabrules, per [ADR-0104](0104-formatters-and-linters.md) |
+| `tools/` holds only the module that pins Go tools | It holds no program. The own module of `tools/` keeps `ogen`, `workflowcheck`, and the ruleguard DSL out of the graph that every service image builds from. Custom rules and generators come from tabkit, per [ADR-0104](0104-formatters-and-linters.md) |
 | `scripts/` holds shell, and shell only | This is the other side of the row above, so the split is a language boundary, not a habit. When the work of a script is a program, it is not a script: the recipe calls the program directly. A wrapper that only changes directory and shells out puts one name in two trees |
 | `test/` holds external harnesses, and is singular for that reason | Each suite drives an assembled, running system from outside it, so no suite belongs to one service, per [ADR-0601](0601-testing-strategy.md). It is not where the tests live. A Go test of an `internal/` package **cannot** move here. Only the subtree under the parent of `internal/` can import it, so the compiler rejects the import. Unit tests sit beside their code. This also lets `ci-affected` map a changed package to the tests that cover it |
 | Each Node island has its own dev shell | `test/e2e/` runs in `nix develop .#e2e`, and `apps/admin/` runs in `nix develop .#admin`. `test/` has no `package.json`, no lockfile, and no tool pin of its own. `(CI: lint-node-scope)` |
@@ -270,7 +270,7 @@ Every workflow but the shared gate takes its toolchain from the `./.github/actio
 
 ### Affected detection
 
-`tabrules affected` reads `git diff --name-only origin/master...HEAD` and maps changes to scopes:
+`tabkit affected` reads `git diff --name-only origin/master...HEAD` and maps changes to scopes:
 
 | Change under | Affects |
 | --- | --- |
@@ -280,7 +280,7 @@ Every workflow but the shared gate takes its toolchain from the `./.github/actio
 | `apps/frontend/` | the frontend |
 | `infra/`, `tools/`, `go.mod`, `go.sum`, `package.json` | **global**: everything runs |
 
-`just ci-affected` produces a JSON manifest that the workflows consume. As the fleet grows, this is the most load-bearing part of the tooling, and tabrules tests it.
+`just ci-affected` produces a JSON manifest that the workflows consume. As the fleet grows, this is the most load-bearing part of the tooling, and tabkit tests it.
 
 ### Codegen is committed and drift-checked
 

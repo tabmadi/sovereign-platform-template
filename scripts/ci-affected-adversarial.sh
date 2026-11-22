@@ -37,7 +37,7 @@ for dir in services/*/; do
   git -C "$work/tree" -c user.email=ci@local -c user.name=ci \
     commit --quiet --no-verify -m "chore: perturb ${svc}"
 
-  manifest="$(cd "$work/tree" && tabrules affected --base "$base_sha")"
+  manifest="$(cd "$work/tree" && tabkit affected --base "$base_sha")"
   named="$(printf '%s' "$manifest" | jq -r --arg s "$svc" '(.services // []) | index($s) != null')"
   global="$(printf '%s' "$manifest" | jq -r '.global')"
 

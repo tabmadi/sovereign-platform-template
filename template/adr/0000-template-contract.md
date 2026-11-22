@@ -26,7 +26,7 @@ A project also changes after the copy. The template keeps changing too, so a pro
 | --- | --- | --- | --- | --- |
 | Copier, with a `copier.yml` of questions | Yes, through its exclusions | Two ways that a test keeps equal | Needs Python and a pinned Copier | Rejected on driver 3. ADR-0100 allows one tool manager, and Copier is a second one |
 | Cookiecutter | Yes | No update at all | Needs Python | Rejected on drivers 3 and 4 |
-| **`nix flake new -t`, then `just init`** | **Yes. The template module of tabnix leaves `template/` out** | **Yes. `just init` removes `template/` in a clone too, and `test-template` compares the two** | **Yes. Nix and `just` are already there** | **Chosen** |
+| **`nix flake new -t`, then `just init`** | **Yes. The template module of tabkit leaves `template/` out** | **Yes. `just init` removes `template/` in a clone too, and `test-template` compares the two** | **Yes. Nix and `just` are already there** | **Chosen** |
 
 Sources:
 
@@ -55,7 +55,7 @@ Sources:
 | Project | Every file outside `template/`, written in the voice of the project | Copied |
 | Template | The `template/` folder: this ADR, the agent hints, the update guide, the fixtures, and the template checks | Not copied |
 
-`flake.nix` loads `template/scope.nix` when it exists. That file imports the template module of tabnix and sets its description and welcome text. The module adds the `lint-scope` check and the `templates` output. A project has no `template/` folder, so it adds nothing.
+`flake.nix` loads `template/scope.nix` when it exists. That file imports the template module of tabkit and sets its description and welcome text. The module adds the `lint-scope` check and the `templates` output. A project has no `template/` folder, so it adds nothing.
 
 ### Making a project
 

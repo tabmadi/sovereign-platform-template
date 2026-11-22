@@ -4,4 +4,4 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/bootstrap.sh"
 
 step "Lowdefy admin pages from services/*/openapi.yaml"
-tabrules gen admin
+tabkit gen admin

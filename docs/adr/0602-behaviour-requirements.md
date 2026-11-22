@@ -49,13 +49,13 @@ Sources:
 | Option | 1 Checked trace | 4 No new tool | Covers | Verdict |
 | --- | --- | --- | --- | --- |
 | `tools/lint-requirements`, a Go program in this repo | Yes | Yes | The prefix, the row form, EARS, and the trace both ways | Rejected. It is a second copy of the rules that tablint holds, and this repo maintains it alone |
-| **The `requirement` rules of tabrules** | **Yes, with the line of each citation** | **Yes. tabrules already checks the prose, per [ADR-0001](0001-documentation-conventions.md)** | **The same checks, with the `TPL` placeholder of `services/_template/` built in** | **Chosen** |
+| **The `requirement` rules of tabkit** | **Yes, with the line of each citation** | **Yes. tabkit already checks the prose, per [ADR-0001](0001-documentation-conventions.md)** | **The same checks, with the `TPL` placeholder of `services/_template/` built in** | **Chosen** |
 
 Both ran on the same four faults: an opener that is not EARS, a malformed row, an untested requirement, and a citation of an unknown ID. Both gave the same four findings *(measured)*.
 
 Sources:
 
-- The `requirement` rules: `tabrules rules` in the dev shell lists them, and the measurement above ran both checkers.
+- The `requirement` rules: `tabkit rules` in the dev shell lists them, and the measurement above ran both checkers.
 
 ## Decision
 
@@ -112,7 +112,7 @@ A test cites a requirement by putting its ID in the test's name. Then the runner
 
 A Go test function that has no subtest cites the ID in its doc comment. A test can cite several IDs, and several tests can cite one ID.
 
-tabrules checks the trace in both directions, through `just lint-prose`. Every requirement has at least one citing test. Every ID that a test cites exists. A requirement with no test is a claim with no proof, so the build is red until the test exists.
+tabkit checks the trace in both directions, through `just lint-prose`. Every requirement has at least one citing test. Every ID that a test cites exists. A requirement with no test is a claim with no proof, so the build is red until the test exists.
 
 ### How behaviour changes
 

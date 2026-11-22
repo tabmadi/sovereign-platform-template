@@ -76,7 +76,7 @@ in
     "kvm-amd"
   ];
 
-  tabnix.server = {
+  tabkit.server = {
     enable = true;
     inherit (settings) adminKeys;
   };

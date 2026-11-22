@@ -40,7 +40,7 @@ The shared toolchain is 0100 to 0109, with the same number for the same topic in
 
 | ADR | Title | Decides |
 | --- | --- | --- |
-| [0100](0100-toolchain.md) | Toolchain | Nix with flakes pins every tool and runs every check, through tabnix |
+| [0100](0100-toolchain.md) | Toolchain | Nix with flakes pins every tool and runs every check, through tabkit |
 | [0101](0101-source-control-and-ci.md) | Source Control and CI | The git hooks, the commit convention, the secret scan, and the CI gate |
 | [0102](0102-dependency-updates.md) | Dependency Updates | Renovate proposes every update, and the CI gate decides |
 | [0103](0103-tasks.md) | Tasks | `just` runs every task, and the six recipe names are a contract |

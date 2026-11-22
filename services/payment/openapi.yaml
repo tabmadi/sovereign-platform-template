@@ -8,7 +8,7 @@ info: {
 servers: [
   { url: /api },
 ] # flat resource namespace, per ADR-0306. Paths are globally unique
-# `x-admin: crud` marks the resource group for the admin generator of tabrules, per
+# `x-admin: crud` marks the resource group for the admin generator of tabkit, per
 # ADR-0401. A workflow creates charges, and they are immutable. So the generator makes only
 # the list and detail read pages and the `refund` action below, with no edit or delete.
 tags: [{ name: charges, x-admin: crud }]

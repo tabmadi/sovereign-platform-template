@@ -42,7 +42,7 @@ linters:
         - ruleguard
       settings:
         ruleguard:
-          rules: "@tabnix-go-rules@"
+          rules: "@tabkit-go-rules@"
     depguard:
       rules:
         no-deep-imports:

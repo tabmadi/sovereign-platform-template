@@ -38,7 +38,7 @@
       "groupSlug": "bun"
     },
     {
-      "description": "The flake inputs: one PR for nixpkgs, tabnix, and flake-parts, so the toolchain moves as one, per ADR-0100.",
+      "description": "The flake inputs: one PR for nixpkgs, tabkit, and flake-parts, so the toolchain moves as one, per ADR-0100.",
       "matchManagers": [
         "nix"
       ],

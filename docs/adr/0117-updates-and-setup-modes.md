@@ -62,7 +62,7 @@ The weekly `renovate` workflow runs `just ci-renovate` as the `ci` machine user,
 
 | Class | Grouping | Schedule |
 | --- | --- | --- |
-| The flake inputs: nixpkgs, tabnix, and flake-parts | one PR | weekly, with the lock file maintenance of [ADR-0102](0102-dependency-updates.md) |
+| The flake inputs: nixpkgs, tabkit, and flake-parts | one PR | weekly, with the lock file maintenance of [ADR-0102](0102-dependency-updates.md) |
 | Go modules and Bun packages | one PR per ecosystem, minor and patch together | weekly |
 | Major versions, any ecosystem | one PR each, alone | when a person ticks it on the dashboard, because a major is a decision |
 | Container base images and platform chart images | one PR for the images and one PR for the charts, minor and patch together, tag and digest together | weekly |

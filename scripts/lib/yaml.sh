@@ -48,7 +48,7 @@ yaml_set_scalar() {
     {
       key = $0; sub(/:.*/, ":", key)
       rest = substr($0, length(key) + 1)
-      comment = (match(rest, /#/)) ? substr(rest, RSTART) : "" # tabrules:allow
+      comment = (match(rest, /#/)) ? substr(rest, RSTART) : "" # tabkit:allow
       printf "%s \"%s\"%s%s\n", key, v, (comment == "" ? "" : "   "), comment
     }
   ' "$file" >"$tmp"

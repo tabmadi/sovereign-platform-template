@@ -17,7 +17,7 @@ let
       inherit system;
       specialArgs = { inherit settings; };
       modules = [
-        inputs.tabnix.nixosModules.server
+        inputs.tabkit.nixosModules.server
         inputs.disko.nixosModules.disko
         ./disk.nix
         ./host.nix
@@ -67,7 +67,7 @@ let
   };
 in
 {
-  imports = [ inputs.tabnix.flakeModules.deploy ];
+  imports = [ inputs.tabkit.flakeModules.deploy ];
 
   flake.nixosConfigurations = {
     hypervisor = host settings { };
@@ -85,7 +85,7 @@ in
   };
 
   # A deploy that loses SSH rolls back by itself, per ADR-0208.
-  tabnix.deploy.nodes = {
+  tabkit.deploy.nodes = {
     hypervisor.hostname = settings.address;
   }
   // lib.genAttrs [ "hypervisor-lab" "hypervisor-lab-broken" "hypervisor-lab-next" ] (_: {
@@ -96,8 +96,8 @@ in
   perSystem =
     { pkgs, system, ... }:
     {
-      tabnix.packages = [
-        inputs.tabnix.inputs.deploy-rs.packages.${system}.default
+      tabkit.packages = [
+        inputs.tabkit.inputs.deploy-rs.packages.${system}.default
         pkgs.nixos-anywhere
         pkgs.qemu_kvm
         pkgs.skopeo

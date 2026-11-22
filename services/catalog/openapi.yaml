@@ -8,7 +8,7 @@ info: {
 servers: [
   { url: /api },
 ] # flat resource namespace, per ADR-0306. Paths are globally unique
-# `x-admin: crud` marks the resource group for the admin generator of tabrules, per ADR-0401. It
+# `x-admin: crud` marks the resource group for the admin generator of tabkit, per ADR-0401. It
 # scaffolds list, detail, create, and edit pages from the operations below.
 tags: [{ name: products, x-admin: crud }]
 paths:

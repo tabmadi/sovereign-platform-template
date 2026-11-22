@@ -1,5 +1,5 @@
 # The toolchain, the git hooks, the island shells, and the checks, per ADR-0100 and ADR-0111.
-# The tabnix module holds every shared part, and this file adds the parts of the platform.
+# The tabkit module holds every shared part, and this file adds the parts of the platform.
 {
   description = "A self-hosted platform monorepo, with every reusable decision recorded as an ADR and enforced in CI";
 
@@ -10,8 +10,8 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
     # A new version is a new tag here.
-    tabnix = {
-      url = "github:tabmadi/tabnix/v0.15.0";
+    tabkit = {
+      url = "github:tabmadi/tabkit/v0.16.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
     };
@@ -23,15 +23,15 @@
   };
 
   outputs =
-    inputs@{ flake-parts, tabnix, ... }:
+    inputs@{ flake-parts, tabkit, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       # The template scope adds its own checks and outputs. A copy has no template/ folder, so it adds nothing.
-      # The bun module of tabnix holds Bun, bun2nix, the hook for bun.nix, and the install and check helpers.
+      # The bun module of tabkit holds Bun, bun2nix, the hook for bun.nix, and the install and check helpers.
       imports = [
-        tabnix.flakeModules.default
-        tabnix.flakeModules.bun
-        tabnix.flakeModules.go
-        tabnix.flakeModules.shell
+        tabkit.flakeModules.default
+        tabkit.flakeModules.bun
+        tabkit.flakeModules.go
+        tabkit.flakeModules.shell
       ]
       ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./template/scope.nix) ./template/scope.nix
       # The hypervisor mode of ADR-0208 adds the host, its deploy, and its QEMU copy.
@@ -47,7 +47,7 @@
         let
           pkgs = inputs.nixpkgs.legacyPackages.${system};
 
-          inherit (config.tabnix.bun) check;
+          inherit (config.tabkit.bun) check;
 
           # cosign stays on 2.x, per ADR-0113: cosign 3 writes only the Sigstore bundle format,
           # and Kyverno verifies that format through the public TUF root, which ADR-0113 rejects.
@@ -147,7 +147,7 @@
           gateTools = with pkgs; [
             bashInteractive
             go
-            config.tabnix.go.golangci
+            config.tabkit.go.golangci
             ast-grep
             sqlc
             sqruff
@@ -168,7 +168,7 @@
             gitMinimal
             nixfmt
             prometheus.cli
-            config.tabnix.tabrules.package
+            config.tabkit.rules.package
           ];
 
           # A gate runs its just recipes on the tracked files, with the locked node_modules, Go modules, and subcharts.
@@ -183,7 +183,7 @@
               git init -q . && git add -A
               just ${recipes}
             '';
-          # The dprint wrapper of tabnix, which passes the shared config and the plugins.
+          # The dprint wrapper of tabkit, which passes the shared config and the plugins.
           dprint = lib.findFirst (
             p: lib.getName p == "dprint"
           ) (throw "no dprint in the dev shell") config.devShells.default.nativeBuildInputs;
@@ -193,7 +193,7 @@
         {
           _module.args.pkgs = pkgs;
 
-          tabnix.packages = gateTools ++ [
+          tabkit.packages = gateTools ++ [
             # The frontend dev server and the Next.js build run on Node.js, per ADR-0110.
             pkgs.nodejs_26
             pkgs.gopls
@@ -218,21 +218,21 @@
             pkgs.curl
           ];
 
-          tabnix.env = {
+          tabkit.env = {
             GOFLAGS = "-mod=readonly";
             CGO_ENABLED = "0";
             GOTOOLCHAIN = "local";
           };
 
           # Next.js needs the hoisted layout of a plain `bun install`.
-          tabnix.bun = {
+          tabkit.bun = {
             tools = [ pkgs.nodejs_26 ];
             installFlags = [ "--linker=hoisted" ];
             env.NEXT_TELEMETRY_DISABLED = "1";
           };
 
           # A fix stops the commit, so the engineer reviews the change and stages it.
-          tabnix.hooks = {
+          tabkit.hooks = {
             data = {
               name = "dprint";
               entry = "${dprint}/bin/dprint check ${dprintExcludes}";
@@ -251,7 +251,7 @@
               entry = toString (
                 pkgs.writeShellScript "golangci-lint-fmt" ''
                   export PATH=${go}/bin:$PATH GOTOOLCHAIN=local
-                  exec ${config.tabnix.go.golangci}/bin/golangci-lint fmt --config .config/golangci.yml
+                  exec ${config.tabkit.go.golangci}/bin/golangci-lint fmt --config .config/golangci.yml
                 ''
               );
               files = "\\.go$";
@@ -303,7 +303,7 @@
 
           checks = {
             lint-data = lib.mkForce (
-              config.tabnix.check "lint-data" [
+              config.tabkit.check "lint-data" [
                 dprint
               ] "DPRINT_CACHE_DIR=$TMPDIR/dprint dprint check ${dprintExcludes}"
             );

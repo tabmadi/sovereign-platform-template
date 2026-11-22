@@ -54,13 +54,13 @@ The four questions of the spike:
 | Can a NixOS host run the Talos nodes as VMs | Yes, as QEMU units with KVM. libvirt is not needed |
 | Can nixos-anywhere with disko install the host | Yes, from any system that accepts the admin key over SSH |
 | Can the forge host and the runner host move to NixOS too | They run as Debian VMs on the NixOS host, with cloud-init. Their own kits set them up over SSH, as before |
-| Which parts become NixOS modules in tabnix | The server base and the deploy, which the host imports. The VM units stay here, because only this repo runs Talos |
+| Which parts become NixOS modules in tabkit | The server base and the deploy, which the host imports. The VM units stay here, because only this repo runs Talos |
 
 ## Decision
 
 ### The host
 
-`infra/hypervisor/host.nix` is the host. It imports the tabnix module `server`, so SSH takes keys only. The flake deploys it through the tabnix module `deploy`, so a deploy rolls back by itself. `infra/hypervisor/settings.nix` holds every fact of the machine: its address, its disk, its uplink, the public addresses, the private network, the sizes, and the images.
+`infra/hypervisor/host.nix` is the host. It imports the tabkit module `server`, so SSH takes keys only. The flake deploys it through the tabkit module `deploy`, so a deploy rolls back by itself. `infra/hypervisor/settings.nix` holds every fact of the machine: its address, its disk, its uplink, the public addresses, the private network, the sizes, and the images.
 
 `infra/hypervisor/vms.nix` runs each VM as a systemd unit of QEMU:
 

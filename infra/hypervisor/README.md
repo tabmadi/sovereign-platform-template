@@ -18,7 +18,7 @@ This directory exists in a project whose `provisioning` answer is `hypervisor`, 
 
 | File | Holds |
 | --- | --- |
-| `host.nix` | The host: the server base of tabnix, the uplink, and the VMs from the inventory and the kits |
+| `host.nix` | The host: the server base of tabkit, the uplink, and the VMs from the inventory and the kits |
 | `vms.nix` | The VMs as QEMU units, the private bridge, DHCP, and the NAT rules |
 | `disk.nix` | The disk layout that disko writes at the install |
 | `flake-module.nix` | The host, its deploy, and the QEMU copy, as outputs of `flake.nix` |

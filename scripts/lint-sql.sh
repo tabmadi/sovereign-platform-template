@@ -21,4 +21,4 @@ sqruff lint --config .config/sqruff.cfg "${targets[@]}"
 # PII tagging, per ADR-0301: a column with personal data has its pii:<class> comment in the DDL.
 # So erasure, export, and redaction find their targets by query, not by memory.
 step "checking personal-data columns are tagged"
-tabrules check --only sql/pii-tag
+tabkit check --only sql/pii-tag

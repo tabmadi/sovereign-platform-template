@@ -49,11 +49,11 @@ connections:
       headers: { X-User-Id: admin-console }
 
 # The nav is generated: _generated/menu.yaml is one `default` menu that groups every resource and action page by service.
-# The PageSiderMenu left sider shows it on every console page, per `tabrules gen admin` and ADR-0401.
+# The PageSiderMenu left sider shows it on every console page, per `tabkit gen admin` and ADR-0401.
 menus:
   _ref: _generated/menu.yaml
 
 # The page index is generated: _generated/pages.yaml lists the hand-written pages in pages/ and custom/ first,
-# then every page that `tabrules gen admin` makes from the specs.
+# then every page that `tabkit gen admin` makes from the specs.
 pages:
   _ref: _generated/pages.yaml

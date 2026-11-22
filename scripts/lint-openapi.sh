@@ -22,9 +22,9 @@ vacuum lint --ruleset .config/openapi-ruleset.yaml --fail-severity error "${spec
 # Resource-prefix ownership is the one rule vacuum cannot express, per ADR-0303.
 # It is a property of the set of specs, and vacuum lints one document at a time.
 step "checking resource-prefix ownership across the /api namespace"
-tabrules check --only api/prefixes
+tabkit check --only api/prefixes
 
 # The shared components are copied into each spec, not $ref'd across files, so each document stays self-contained for ogen and vacuum, per ADR-0303.
 # This check makes `identical across specs` a fact and not a habit.
 step "checking the shared components have not diverged"
-tabrules gen shared-components --check
+tabkit gen shared-components --check
