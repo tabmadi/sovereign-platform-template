@@ -29,6 +29,7 @@ let
   # laptop, so the test key reaches nothing else.
   lab = settings // {
     hostName = "hypervisor-lab";
+    hostMetrics.enable = true;
     disk = "/dev/vda";
     adminKeys = [ keys.snakeOilEd25519PublicKey ];
     uplink = {
@@ -44,7 +45,7 @@ let
     sizes = {
       node = {
         cores = 2;
-        memory = 2048;
+        memory = 3072;
         disk = 10;
       };
       forge = {

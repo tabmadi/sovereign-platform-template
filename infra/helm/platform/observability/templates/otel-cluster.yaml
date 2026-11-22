@@ -163,6 +163,9 @@ subjects:
               scrape_interval: 30s
               scrape_timeout: 15s
               metrics_path: /probe
+              basic_auth:
+                username: {{ .Values.externalProbe.basicAuth.username }}
+                password_file: /etc/otelcol-probe/{{ .Values.externalProbe.basicAuth.secretKey }}
               params:
                 module: [{{ .Values.externalProbe.module }}]
               static_configs:
@@ -174,6 +177,17 @@ subjects:
                   target_label: instance
                 - target_label: __address__
                   replacement: {{ required "externalProbe.exporter is required" .Values.externalProbe.exporter }}
+{{- end }}
+{{- if .Values.hostMetrics.address }}
+            # The hypervisor host, per ADR-0208. Its exporter listens only on the private bridge.
+            - job_name: hypervisor-host
+              scrape_interval: 30s
+              static_configs:
+                - targets: [{{ printf "%s:%v" .Values.hostMetrics.address .Values.hostMetrics.port | quote }}]
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: "node_pressure_(cpu|memory|io)_waiting_seconds_total|node_disk_(read|write)_time_seconds_total|node_disk_(reads|writes)_completed_total"
+                  action: keep
 {{- end }}
     processors:
       # The same workload-identity mapping as the DaemonSet's kubernetesAttributes preset. It associates pod-scoped
@@ -281,6 +295,9 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
+{{- if .Values.externalProbe.enabled }}
+        fsGroup: 10001
+{{- end }}
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: otel-collector
@@ -295,6 +312,15 @@ spec:
           resources: {{- toYaml $oc.resources | nindent 12 }}
           volumeMounts:
             - { name: config, mountPath: /etc/otelcol }
+{{- if .Values.externalProbe.enabled }}
+            - { name: probe-auth, mountPath: /etc/otelcol-probe, readOnly: true }
+{{- end }}
       volumes:
         - name: config
           configMap: { name: otel-cluster }
+{{- if .Values.externalProbe.enabled }}
+        - name: probe-auth
+          secret:
+            secretName: {{ .Values.externalProbe.basicAuth.secretName }}
+            defaultMode: 0440
+{{- end }}

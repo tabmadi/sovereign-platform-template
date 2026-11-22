@@ -7,7 +7,7 @@
     "registry",
     "etcd"
   ],
-  "description": "Compare the external registry probe, registry replicas, node readiness, and etcd disk latency over one time range, per ADR-0500.",
+  "description": "Compare the external registry probe, registry replicas, node readiness, etcd disk latency, and hypervisor host pressure over one time range, per ADR-0500. The host panels stay empty without a managed hypervisor.",
   "links": [
     {
       "title": "Back to Overview",
@@ -201,6 +201,121 @@
           "refId": "A",
           "expr": "histogram_quantile(0.99, sum by (instance, le) (rate(etcd_disk_backend_commit_duration_seconds_bucket{service_name=\"etcd\"}[5m])))",
           "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Host CPU pressure",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_pressure_cpu_waiting_seconds_total{service_name=\"hypervisor-host\"}[5m])",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Host memory pressure",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_pressure_memory_waiting_seconds_total{service_name=\"hypervisor-host\"}[5m])",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Host I/O pressure",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_pressure_io_waiting_seconds_total{service_name=\"hypervisor-host\"}[5m])",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Host disk write latency",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_disk_write_time_seconds_total{service_name=\"hypervisor-host\"}[5m]) / rate(node_disk_writes_completed_total{service_name=\"hypervisor-host\"}[5m])",
+          "legendFormat": "{{device}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Host disk read latency",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(node_disk_read_time_seconds_total{service_name=\"hypervisor-host\"}[5m]) / rate(node_disk_reads_completed_total{service_name=\"hypervisor-host\"}[5m])",
+          "legendFormat": "{{device}}"
         }
       ]
     }

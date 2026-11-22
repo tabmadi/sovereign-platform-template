@@ -26,6 +26,7 @@ The second row is empty for a project that provisions its infrastructure through
 | --- | --- | --- |
 | Per-environment platform secrets | `infra/gitops/platform/<env>/secrets/` | engineers, that cluster, ops-recovery |
 | The first operator's login of [ADR-0304](../adr/0304-identity-and-authorization.md) | the `first-operator` entry of `infra/gitops/platform/<env>/secrets/` | engineers, that cluster, ops-recovery |
+| The login of the registry probe exporter, per [ADR-0500](../adr/0500-observability.md) | the `external-probe-auth` entry of `infra/gitops/platform/<env>/secrets/`. The runner holds only its bcrypt hash | engineers, that cluster, ops-recovery |
 | Local-tier values | `infra/gitops/platform/local/secrets/` | the committed throwaway key |
 | The image-signing key of [ADR-0113](../adr/0113-supply-chain-security.md) | `infra/auth/cosign/` | engineers, CI, ops-recovery |
 | The forge's commit-signing private key, per [ADR-0116](../adr/0116-forge-and-pipelines.md) | `infra/forge-host/signing-key.enc.yaml` | engineers, ops-recovery |

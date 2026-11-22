@@ -50,6 +50,7 @@ The topic is in the filename, not in a directory. A directory with one file adds
 | [secrets-runbook](guide/secrets-runbook.md) | How to onboard, offboard, or rotate a key |
 | [gateway-runbook](guide/gateway-runbook.md) | How to change an edge rule or a rate limit |
 | [break-glass](guide/break-glass.md) | How to reach the dashboards when auth is down |
+| [registry-health](guide/registry-health.md) | How to set up the registry probe and compare the signals during an incident |
 | [incident-management](guide/incident-management.md) | What counts as an incident, who does what, and what is owed after it |
 | [designing-a-screen](guide/designing-a-screen.md) | How to design a screen, and what promoting it requires |
 | [http-proxy](guide/http-proxy.md) | How to work behind a corporate proxy |

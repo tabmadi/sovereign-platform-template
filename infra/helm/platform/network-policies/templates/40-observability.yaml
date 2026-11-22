@@ -119,6 +119,22 @@ spec:
       toPorts:
         - ports: [{ port: {{ .Values.etcdMetrics.port | quote }}, protocol: TCP }]
 {{- end }}
+{{- if .Values.hostMetrics.address }}
+---
+## otel-cluster to the node exporter of the hypervisor host, per ADR-0208.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: otel-cluster-host-metrics
+spec:
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: otel-cluster
+  egress:
+    - toCIDR: [{{ printf "%s/32" .Values.hostMetrics.address | quote }}]
+      toPorts:
+        - ports: [{ port: {{ .Values.hostMetrics.port | quote }}, protocol: TCP }]
+{{- end }}
 {{- if .Values.externalProbe.enabled }}
 ---
 ## otel-cluster to the blackbox exporter outside the cluster, per ADR-0500.

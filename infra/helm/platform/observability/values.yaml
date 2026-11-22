@@ -207,6 +207,16 @@ externalProbe:
   module: registry_https
   # The URLs to probe, such as `https://registry.example.com/v2/`.
   targets: []
+  # The exporter takes this login. The Secret comes from the SOPS files of the environment, per ADR-0202.
+  basicAuth:
+    username: otel-cluster
+    secretName: external-probe-auth
+    secretKey: password
+
+# The node exporter of the NixOS hypervisor host, per ADR-0208. An empty address turns the scrape off.
+hostMetrics:
+  address: ""
+  port: 9100
 
 # The private address of each etcd member, per ADR-0500. An empty list turns the scrape off.
 etcdMetrics:

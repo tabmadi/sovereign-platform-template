@@ -26,7 +26,7 @@ This directory exists in a project whose `provisioning` answer is `hypervisor`, 
 
 ## Building the host
 
-1. Set the values in `settings.nix`, and the private addresses of the nodes in the inventory. On this host, `address` and `privateAddress` hold the same value.
+1. Set the values in `settings.nix`, and the private addresses of the nodes in the inventory. On this host, `address` and `privateAddress` hold the same value. Set `hostMetrics.enable` to run a node exporter on the private bridge, and set `hostMetrics.address` in the environment values to the bridge address.
 2. Run `just hypervisor-lab` on a workstation with KVM. It installs a QEMU copy of the host and tests it.
 3. Boot the machine into a rescue system that accepts your SSH key as root.
 4. Run `just hypervisor-install`. It erases the disk of `settings.nix` and installs the host.

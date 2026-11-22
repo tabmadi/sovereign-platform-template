@@ -103,6 +103,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint-data-classes` | The drift check of the data-class registry | flake.nix |
 | `lint-determinism` | Temporal workflow determinism, per ADR-0302 | flake.nix |
 | `lint-dns` | infra/dns/dnsconfig.js is a valid zone, per ADR-0206 | flake.nix |
+| `lint-etcd-addresses` | The etcd metric addresses match the node inventory, per ADR-0500 | flake.nix |
 | `lint-fixtures` | Every fixture is typed against a generated SDK, per ADR-0701 | flake.nix |
 | `lint-floating-tags` | An image reference pins a digest or an exact version, per ADR-0111 and ADR-0113 | flake.nix |
 | `lint-gitops-env-scope` | An environment's bootstrap folder names only that environment, per ADR-0201 | flake.nix |

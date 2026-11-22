@@ -31,6 +31,9 @@
     https = 30443;
   };
 
+  # Run a node exporter on the private bridge for the Registry health dashboard, per ADR-0208.
+  hostMetrics.enable = false;
+
   # The private network of every node and VM. It reaches the internet through NAT on the host.
   private = {
     gateway = "10.0.10.1";

@@ -75,6 +75,8 @@ The tool is a bounded swap behind a stable interface. The owning ADR has a short
 | PgBouncer | connection pooling | [0300](adr/0300-data.md) | ISC | PostgreSQL community | pgcat, Odyssey, application-side pooling only |
 | Grafana | signal UI | [0500](adr/0500-observability.md), [0501](adr/0501-operator-uis-and-dashboards.md) | AGPL-3.0 | Grafana Labs, single-vendor | Perses, SigNoz, OpenObserve, Coroot, Kibana |
 | Prometheus | metrics store | [0500](adr/0500-observability.md) | Apache-2.0 | CNCF, graduated | VictoriaMetrics, Mimir on day one, InfluxDB |
+| Prometheus blackbox exporter | external registry probe | [0500](adr/0500-observability.md) | Apache-2.0 | Prometheus and CNCF | curl in a scheduled job, a hosted uptime service |
+| Prometheus node exporter | hypervisor host metrics | [0208](adr/0208-hypervisor-host.md) | Apache-2.0 | Prometheus and CNCF | Alloy host metrics, the OTel hostmetrics receiver |
 | Loki | log store | [0500](adr/0500-observability.md) | AGPL-3.0 | Grafana Labs | Elasticsearch or OpenSearch, VictoriaLogs, ClickHouse |
 | Tempo | trace store | [0500](adr/0500-observability.md) | AGPL-3.0 | Grafana Labs | Jaeger, SigNoz, Zipkin |
 | Pyroscope | profile store | [0500](adr/0500-observability.md) | AGPL-3.0 | Grafana Labs | Parca, Polar Signals, no continuous profiling |

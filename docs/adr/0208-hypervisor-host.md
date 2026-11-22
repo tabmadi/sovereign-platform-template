@@ -95,6 +95,8 @@ deploy-rs can report a deploy as confirmed after the host has rolled back, once 
 
 `talosctl` 1.14 writes the new config documents, and the v1alpha1 patches of `infra/talos/` conflict with them. So `talosctl gen config` takes `--talos-version v1.13`, per `infra/talos/README.md`. The nodes of the QEMU copy run Talos 1.14.6 and accept that form.
 
+**The host can report its own pressure.** With `hostMetrics.enable`, a Prometheus node exporter binds the private bridge address and serves CPU, memory, and I/O pressure, and disk latency. It beats `Alloy host metrics` and `the OTel hostmetrics receiver` because it adds one small service to the host and no collector pipeline.
+
 ## Consequences
 
 The host runs no web UI. A person reads its state with SSH, `systemctl`, and the console log of each VM in `/var/lib/vms/`.

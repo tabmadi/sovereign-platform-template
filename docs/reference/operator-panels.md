@@ -12,7 +12,7 @@ One gate covers every panel in this table: an operator session at AAL2, per [ADR
 
 | Panel | URL | Use it to | Runs in |
 | --- | --- | --- | --- |
-| Grafana | `https://grafana.ops.<host>/` | see whether anything is wrong, and where. The Registry health dashboard compares the external probe, replicas, node readiness, and etcd latency | every environment |
+| Grafana | `https://grafana.ops.<host>/` | see whether anything is wrong, and where. The [Registry health](../guide/registry-health.md) dashboard compares the external probe, replicas, node readiness, etcd latency, and host pressure | every environment |
 | Argo CD | `https://argocd.ops.<host>/` | see what is deployed, and whether it synced | every environment |
 | Hubble UI | `https://hubble.ops.<host>/` | see what talks to what, and which flow the network denies | every environment |
 | Headlamp | `https://headlamp.ops.<host>/` | read pods, their descriptions, and their logs | every environment |

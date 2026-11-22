@@ -125,4 +125,19 @@ in
   };
 
   environment.systemPackages = [ pkgs.talosctl ];
+
+  # Host pressure and disk latency, per ADR-0208. The exporter binds the bridge address, so the uplink never serves it.
+  services.prometheus.exporters.node = lib.mkIf (settings.hostMetrics.enable or false) {
+    enable = true;
+    listenAddress = settings.private.gateway;
+    port = 9100;
+    enabledCollectors = [ "pressure" ];
+  };
+  systemd.services.prometheus-node-exporter = lib.mkIf (settings.hostMetrics.enable or false) {
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+  };
+  networking.firewall.interfaces.private0.allowedTCPPorts = lib.mkIf (settings.hostMetrics.enable
+    or false
+  ) [ 9100 ];
 }

@@ -107,6 +107,7 @@ EOF
 done
 
 if [ "${PROBE_ENABLED:-false}" = true ]; then
+  [ -n "${PROBE_PASSWORD_HASH:-}" ] || fail "set PROBE_PASSWORD_HASH to the bcrypt hash of the probe password"
   step "installing the registry probe on ${RUNNER_ADDRESS}:${PROBE_PORT}"
   guest <<EOF
 set -euo pipefail
@@ -123,7 +124,12 @@ modules:
       # An authenticated registry answers 401 to a request with no credential.
       valid_status_codes: [200, 401]
 CFG
-echo 'ARGS="--config.file=/etc/prometheus/blackbox.yml --web.listen-address=${RUNNER_ADDRESS}:${PROBE_PORT}"' >/etc/default/prometheus-blackbox-exporter
+install -m 0640 -o root -g prometheus /dev/null /etc/prometheus/blackbox-web.yml
+cat >/etc/prometheus/blackbox-web.yml <<'CFG'
+basic_auth_users:
+  otel-cluster: '${PROBE_PASSWORD_HASH}'
+CFG
+echo 'ARGS="--config.file=/etc/prometheus/blackbox.yml --web.config.file=/etc/prometheus/blackbox-web.yml --web.listen-address=${RUNNER_ADDRESS}:${PROBE_PORT}"' >/etc/default/prometheus-blackbox-exporter
 systemctl enable prometheus-blackbox-exporter >/dev/null
 systemctl restart prometheus-blackbox-exporter
 EOF

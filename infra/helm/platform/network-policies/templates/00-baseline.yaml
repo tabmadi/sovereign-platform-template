@@ -31,3 +31,5 @@ spec:
         - kube-apiserver
         - host
         - remote-node
+      toPorts:
+        - ports: [{ port: "6443", protocol: TCP }]

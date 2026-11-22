@@ -22,6 +22,11 @@ etcdMetrics:
   addresses: []
   port: 2381
 
+# The node exporter of the NixOS hypervisor host, per ADR-0208. An empty address turns the rule off.
+hostMetrics:
+  address: ""
+  port: 9100
+
 # The same gate as in the mailpit chart, `infra/helm/platform/mailpit`.
 mailpit:
   enabled: true
