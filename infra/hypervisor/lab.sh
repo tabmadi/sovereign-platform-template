@@ -69,7 +69,16 @@ cleanup() {
   local status=$?
   end_step
   [ -z "${guard:-}" ] || kill "$guard" 2>/dev/null || true
-  [ ! -f "$work/qemu.pid" ] || kill "$(cat "$work/qemu.pid")" 2>/dev/null || true
+  if [ -f "$work/qemu.pid" ]; then
+    local pid
+    pid="$(cat "$work/qemu.pid")"
+    kill "$pid" 2>/dev/null || true
+    # The next run reuses the port and the disk path, so this run ends only after QEMU has gone.
+    for _ in $(seq 50); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.2
+    done
+  fi
   rm -f "$work/qemu.pid"
   # Each run starts from an empty disk, so the old one only holds space. LAB_KEEP_DISK keeps it to debug a failure.
   [ -n "${LAB_KEEP_DISK:-}" ] || rm -f "$work/disk.qcow2"
@@ -85,7 +94,7 @@ nodes=(10.0.10.11 10.0.10.12 10.0.10.13)
 
 rm -f "$work/disk.qcow2"
 check_resources
-memory_guard "$$" &
+memory_guard "$$" 9>&- &
 guard=$!
 
 registry_start
@@ -112,7 +121,7 @@ netdev="user,id=n0,hostfwd=tcp:127.0.0.1:$port-:22,guestfwd=tcp:${registry_guest
 qemu-system-x86_64 -enable-kvm -cpu host -smp 8 -m 14336 -display none -daemonize \
   -pidfile "$work/qemu.pid" -serial "file:$work/serial.log" \
   -drive "file=$work/disk.qcow2,if=virtio,format=qcow2,discard=unmap,detect-zeroes=unmap" -cdrom "$iso" -boot once=d \
-  -netdev "$netdev" -device virtio-net-pci,netdev=n0
+  -netdev "$netdev" -device virtio-net-pci,netdev=n0 9>&-
 retry 120 remote true
 
 step "installing the host with nixos-anywhere and disko"
