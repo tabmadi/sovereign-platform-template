@@ -47,6 +47,7 @@ The offline run skips the fill step and blocks the internet of the lab VM. The n
 | Free disk that a run needs | 20 GB | `LAB_MIN_FREE_GB` |
 | Free memory that a run needs | 16 GiB | `LAB_MIN_MEMORY_MB` |
 | Memory cap of the run | 18 GiB | `LAB_MEMORY_MAX` |
+| Memory of the lab VM | 14 GiB | `LAB_VM_MEMORY_MB` |
 | Free memory at which the lab stops | 2 GiB | `LAB_MEMORY_FLOOR_MB` |
 
 The lab VM needs about 14 GB. On a workstation with 32 GB of memory, stop `platform-full` before a run.

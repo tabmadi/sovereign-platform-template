@@ -118,7 +118,7 @@ qemu-img create -q -f qcow2 "$work/disk.qcow2" 80G
 # Each connection of a node to the mirror starts its own socat. A chardev target would serve only one.
 netdev="user,id=n0,hostfwd=tcp:127.0.0.1:$port-:22,guestfwd=tcp:${registry_guest}-cmd:socat - TCP:127.0.0.1:${registry_port}"
 [ "$mode" = online ] || netdev+=",restrict=on"
-qemu-system-x86_64 -enable-kvm -cpu host -smp 8 -m 14336 -display none -daemonize \
+qemu-system-x86_64 -enable-kvm -cpu host -smp 8 -m "${LAB_VM_MEMORY_MB:-14336}" -display none -daemonize \
   -pidfile "$work/qemu.pid" -serial "file:$work/serial.log" \
   -drive "file=$work/disk.qcow2,if=virtio,format=qcow2,discard=unmap,detect-zeroes=unmap" -cdrom "$iso" -boot once=d \
   -netdev "$netdev" -device virtio-net-pci,netdev=n0 9>&-
