@@ -26,7 +26,7 @@ The decision drivers:
 | Incus on Debian | Partly. The VMs are declared, the host is not | No | No | Yes | Partly | Yes | Rejected on drivers 1 and 2 |
 | NixOS with libvirt | Yes | Yes, with deploy-rs | Yes, with nixos-anywhere | Yes | Yes | No. libvirt is a daemon with its own XML and its own state beside NixOS | Rejected on driver 6. It is the next candidate when a VM needs live migration |
 | NixOS with microvm.nix | Yes | Yes | Yes | No. microvm.nix builds NixOS guests, and a Talos node is not one | Yes | Yes | Rejected on driver 4 |
-| **NixOS, with each VM a QEMU unit of systemd** | **Yes. `flake.lock` pins the host, its QEMU, and its images** | **Yes. deploy-rs rolls back a deploy that cuts SSH** | **Yes. nixos-anywhere with disko installs from the rescue system** | **Yes. Each node boots the image of the Image Factory schematic** | **Yes. `just hypervisor-lab` runs the copy** | **Yes. QEMU, dnsmasq, and nftables, as NixOS options** | **Chosen** |
+| **NixOS, with each VM a QEMU unit of systemd** | **Yes. `flake.lock` pins the host, its QEMU, and its images** | **Yes. deploy-rs rolls back a deploy that cuts SSH** | **Yes. nixos-anywhere with disko installs from the rescue system** | **Yes. Each node boots the image of the Image Factory schematic** | **Yes. `just hypervisor-test install` runs the copy** | **Yes. QEMU, dnsmasq, and nftables, as NixOS options** | **Chosen** |
 
 Sources:
 
@@ -37,7 +37,7 @@ Sources:
 
 ### The result of the spike
 
-The spike ran the QEMU copy of `just hypervisor-lab` on a laptop with nested KVM. No run on real hardware exists.
+The spike ran the QEMU copy of `just hypervisor-test install` on a laptop with nested KVM. No run on real hardware exists.
 
 | Criterion | Result |
 | --- | --- |
@@ -103,7 +103,7 @@ The host runs no web UI. A person reads its state with SSH, `systemctl`, and the
 
 A VM cannot move to another host while it runs.
 
-`just hypervisor-lab` needs KVM, the internet, and about 14 GB of memory. It is not a step of `just ci`.
+The lab is the QEMU copy of the host. `just hypervisor-test install` tests it from an empty disk, and needs KVM, the internet, and about 14 GB of memory. It is not a step of `just ci`.
 
 The `disko` input is in `flake.nix` in every mode. A project in another mode never fetches it.
 
@@ -113,4 +113,4 @@ The `disko` input is in `flake.nix` in every mode. A project in another mode nev
 - Every VM of the host is an entry of `hypervisor.vms`, and its address comes from the inventory or from the kit of its role.
 - The first deploy after `just hypervisor-install` changes nothing.
 - A NixOS release upgrade of the host is `just hypervisor-deploy-boot`, never a live switch.
-- `just hypervisor-lab` passes before a deploy that changes `vms.nix`, `host.nix`, or the images.
+- `just hypervisor-test install` passes before a deploy that changes `vms.nix`, `host.nix`, or the images.

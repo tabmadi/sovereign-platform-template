@@ -22,12 +22,12 @@ This directory exists in a project whose `provisioning` answer is `hypervisor`, 
 | `vms.nix` | The VMs as QEMU units, the private bridge, DHCP, and the NAT rules |
 | `disk.nix` | The disk layout that disko writes at the install |
 | `flake-module.nix` | The host, its deploy, and the QEMU copy, as outputs of `flake.nix` |
-| `lab.sh` | The QEMU copy of the host, which `just hypervisor-lab` runs |
+| `lab.sh` | The QEMU copy of the host, which `just hypervisor-test install` runs |
 
 ## Building the host
 
 1. Set the values in `settings.nix`, and the private addresses of the nodes in the inventory. On this host, `address` and `privateAddress` hold the same value. Set `hostMetrics.enable` to run a node exporter on the private bridge, and set `hostMetrics.address` in the environment values to the bridge address.
-2. Run `just hypervisor-lab` on a workstation with KVM. It installs a QEMU copy of the host and tests it.
+2. Run `just hypervisor-test install` on a workstation with KVM. It installs a QEMU copy of the host and tests it.
 3. Boot the machine into a rescue system that accepts your SSH key as root.
 4. Run `just hypervisor-install`. It erases the disk of `settings.nix` and installs the host.
 5. Run `just hypervisor-deploy` once. It changes nothing, but a later rollback needs a generation that deploy-rs made.

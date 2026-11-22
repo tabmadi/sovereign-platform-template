@@ -4,6 +4,10 @@
 # itself, and that a deploy for the next boot takes effect on reboot. It needs KVM, the internet, and 14 GB of memory.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
+[ "${1:-}" = install ] || {
+  echo "usage: just hypervisor-test install" >&2
+  exit 2
+}
 
 work="${LAB_DIR:-$HOME/.cache/hypervisor-lab}"
 port="${LAB_PORT:-2222}"

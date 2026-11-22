@@ -351,7 +351,7 @@ Principle 7 applies to standards as it applies to tools: a standard with no reco
 
 All ADRs use these terms consistently. If a term is ambiguous in a later ADR, this glossary wins.
 
-**Five words carry a second, unrelated sense elsewhere in the repository.** Both senses are correct, and the subject shows which sense is meant.
+**These words carry a second, unrelated sense elsewhere in the repository.** Both senses are correct, and the subject shows which sense is meant.
 
 | Word | Glossary sense | The other sense |
 | --- | --- | --- |
@@ -360,6 +360,8 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 | **trigger** | the observable condition that makes a deferred capability due | a *threshold* is a number whose doubling would change the decision, per [ADR-0001](0001-documentation-conventions.md). A trigger often tests a threshold, and the two are not interchangeable. One is a number, and the other is a condition |
 | **first-class** | served by the default path, not by a special case beside it | *native execution* is a service that runs as a host process and not in a container, per [ADR-0600](0600-local-development-loop.md) |
 | **requirement** | one row with an ID in a requirements file, per [ADR-0602](0602-behaviour-requirements.md) | the general need that a decision meets, as in *a stated requirement* or *a failure-response requirement* |
+| **tier** | a *local tier*: the inner loop or the full tier, per [ADR-0600](0600-local-development-loop.md) | a *trust tier* of URLs, per [ADR-0306](0306-trust-tiers-and-urls.md), and a *component tier*, per [`docs/operational-surface.md`](../operational-surface.md) |
+| **gate** | a *CI gate*: a check that a change must pass, per [ADR-0116](0116-forge-and-pipelines.md) | an *access gate*, such as the sign-in gate or the ops gate, per [ADR-0305](0305-edge-auth-and-traffic-policy.md) |
 
 - **Axis position**: this platform's load-bearing assumption, set in *Thesis* above: **A high, B maximal, C high**. An ADR cites the axis position and does not restate a service count or a headcount. So the assumption changes in one place.
 - **Seam**: a pre-built slot that a deferred capability drops into without restructuring. A deferral with a seam is additive. A deferral without one is a bet.
@@ -385,7 +387,7 @@ All ADRs use these terms consistently. If a term is ambiguous in a later ADR, th
 - **Workflow** and **Activity**: Temporal terms, per ADR-0302.
 - **Authz-relevant mutation**: a state change that affects who can see or modify a resource, per ADR-0304.
 - **Affected**: in CI, the set of services and apps that the diff of a PR influences, per ADR-0111.
-- **Environment**: one of `dev`, `staging`, or `prod`. Each one is a single cluster on day one, per ADR-0200.
+- **Environment**: the shared term of [ADR-0001](0001-documentation-conventions.md). The deployed environments are `dev`, `staging`, and `prod`. Each one is a single cluster on day one, per ADR-0200.
 
 ## Consequences
 

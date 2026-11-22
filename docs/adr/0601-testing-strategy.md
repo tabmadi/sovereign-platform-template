@@ -112,7 +112,7 @@ So Node is permitted as a **test-only escape hatch**. Its scope is the e2e and v
 
 ### Correctness layers
 
-| Layer | Tool | Environment | Role |
+| Layer | Tool | Runs on | Role |
 | --- | --- | --- | --- |
 | Unit and component | `go test`, `bun test` | none, or `happy-dom` | logic and component shape in isolation |
 | Service integration | `go test` with generated SDK clients, per [ADR-0303](0303-api-contracts-and-lifecycle.md) | `cluster-up` plus the service's declared components | one service against real Postgres, Temporal, and OpenFGA |

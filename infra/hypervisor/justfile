@@ -1,8 +1,8 @@
 # The recipes of the hypervisor mode, per ADR-0208. The root justfile imports this file only when it exists.
 
-# Run the QEMU copy of the host: install, Talos bootstrap, rollback, and a deploy for the next boot. Needs KVM
-hypervisor-lab: in-shell
-    bash infra/hypervisor/lab.sh
+# Test the lab, the QEMU copy of the host. `install` starts from an empty disk: install, Talos bootstrap, rollback, and a deploy for the next boot. Needs KVM
+hypervisor-test *args: in-shell
+    bash infra/hypervisor/lab.sh "$@"
 
 # Install NixOS on the host from its rescue system. It erases the disk of infra/hypervisor/settings.nix
 hypervisor-install: in-shell

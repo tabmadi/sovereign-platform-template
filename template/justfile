@@ -9,5 +9,5 @@ test-template: in-shell
     bash template/test-template.sh
 
 # Make a project from the working tree and prove that it reaches a serving cluster. It needs Docker
-acceptance: in-shell
+template-acceptance: in-shell
     bash template/acceptance.sh

@@ -482,7 +482,7 @@ pre-commit: format lint
 # The fast gate: run it before you finish a change
 check: lint test build
 
-# Run exactly what CI runs: every check of flake.nix in the Nix sandbox
+# Run every check of flake.nix in the Nix sandbox. CI runs it on each push, beside its slower jobs
 ci:
     nix flake check --print-build-logs
 

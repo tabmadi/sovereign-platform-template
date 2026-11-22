@@ -517,7 +517,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Every VM of the host is an entry of `hypervisor.vms`, and its address comes from the inventory or from the kit of its role. | review |
 | The first deploy after `just hypervisor-install` changes nothing. | review |
 | A NixOS release upgrade of the host is `just hypervisor-deploy-boot`, never a live switch. | review |
-| `just hypervisor-lab` passes before a deploy that changes `vms.nix`, `host.nix`, or the images. | review |
+| `just hypervisor-test install` passes before a deploy that changes `vms.nix`, `host.nix`, or the images. | review |
 
 ## ADR-0300: Data and Migrations
 

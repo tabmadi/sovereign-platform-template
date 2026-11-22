@@ -61,7 +61,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | --- | --- | --- |
 | `build` | Compile the Go module, per ADR-0111 | flake.nix |
 | `cache-push` | Push what CI built to the binary cache, per ADR-0101. Without NIX_CACHE_URL it does nothing | check.yml |
-| `ci` | Run exactly what CI runs: every check of flake.nix in the Nix sandbox | check.yml, git hooks |
+| `ci` | Run every check of flake.nix in the Nix sandbox. CI runs it on each push, beside its slower jobs | check.yml, git hooks |
 | `ci-affected-adversarial` | Break each service in a scratch worktree and check that affected detection names it | history.yml |
 | `ci-affected-matrix` | The affected manifest, split into the arrays of the image jobs, per ADR-0116 | publish.yml |
 | `ci-build-images` | Build, push, and sign every affected image: services or apps | publish.yml |
