@@ -223,3 +223,13 @@ metadata:
 stringData: {
   DATABASE_URL: "postgres://dev:dev@postgres:5432/payment?sslmode=disable",
 }
+---
+# The key that the OpenFGA stand-in above accepts. A service in the cluster reads it through `envFrom`.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: openfga-creds
+  namespace: platform
+  labels: { local.platform/component: db-secrets }
+stringData:
+  preshared_key: dev
