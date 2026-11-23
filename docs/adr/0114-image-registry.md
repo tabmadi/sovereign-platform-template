@@ -159,6 +159,7 @@ This reduces the number of layers that need a proxy. It does not remove the prox
 - A first-party image tag is deleted once no environment's values pin it and it is outside the rollback window of the last ten commits. `(CI: ci-prune-registry)`
 - The registry console is served at `zot.ops.<host>` behind the ops forward-auth. The own credentials of the registry gate the distribution API at `registry.<host>`, never an operator session, per [ADR-0306](0306-trust-tiers-and-urls.md).
 - The registry of every environment is zot, including the local tiers. There it runs as a host container beside the cluster, per [ADR-0600](0600-local-development-loop.md). Anonymous access and directory storage are permitted there and nowhere else.
+- The local registry mirrors only repository paths with a namespace, so a first-party name never reaches an upstream.
 - The local nodes pull from that registry and from nowhere else. No upstream is configured as a fallback endpoint, and `cluster-up` warms the registry before it creates the cluster.
 - The warm set is generated from the charts together with the allow-list of Kyverno, never written by hand. `(CI: lint-image-allowlist)`
 - Signatures, SBOMs, and provenance are OCI referrers on the image they describe, per [ADR-0113](0113-supply-chain-security.md). `(ref: OCI 1.1)`

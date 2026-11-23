@@ -41,27 +41,41 @@ extensions:
     # Docker Hub rate-limits ANONYMOUS pulls per source IP. CI runners share their IP with every other project on the
     # forge. So a warm that pulls 50 images can use up a limit that it did not spend itself.
     credentialsFile: /etc/zot/sync-creds.json
+    # Only a path with a namespace is mirrored. A first-party name such as `frontend` has none.
+    # An upstream lookup for that name makes zot answer 503, and that stops a `docker push`.
     registries:
       # Hub first, then mirror.gcr.io, Google's unthrottled cache of Hub. zot tries the next URL when Hub answers 429.
       # Workaround for mirror.gcr.io, checked 2026-09: from some networks it stalls for minutes before it fails, so it cannot
       # come first. Retest: put it first and time a cold warm of the mirror.
       - urls: ["https://registry-1.docker.io", "https://mirror.gcr.io"]
         onDemand: true
+        content:
+          - prefix: "*/*/**"
         tlsVerify: true
       - urls: ["https://quay.io"]
         onDemand: true
+        content:
+          - prefix: "*/*/**"
         tlsVerify: true
       - urls: ["https://ghcr.io"]
         onDemand: true
+        content:
+          - prefix: "*/*/**"
         tlsVerify: true
       - urls: ["https://registry.k8s.io"]
         onDemand: true
+        content:
+          - prefix: "*/*/**"
         tlsVerify: true
       # The charts pull from six hosts, not four. A host with no mirror falls through to a direct pull. The node's
       # inherited proxy points at 127.0.0.1, which inside a node is the node itself.
       - urls: ["https://public.ecr.aws"]
         onDemand: true
+        content:
+          - prefix: "*/*/**"
         tlsVerify: true
       - urls: ["https://reg.kyverno.io"]
         onDemand: true
+        content:
+          - prefix: "*/*/**"
         tlsVerify: true

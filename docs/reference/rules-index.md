@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 214 |
-| Review-enforced | 414 |
-| **Total** | **628** |
+| Review-enforced | 415 |
+| **Total** | **629** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -298,6 +298,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A first-party image tag is deleted once no environment's values pin it and it is outside the rollback window of the last ten commits. | `ci-prune-registry` in CI |
 | The registry console is served at `zot.ops.<host>` behind the ops forward-auth. The own credentials of the registry gate the distribution API at `registry.<host>`, never an operator session, per [ADR-0306](../adr/0306-trust-tiers-and-urls.md). | review |
 | The registry of every environment is zot, including the local tiers. There it runs as a host container beside the cluster, per [ADR-0600](../adr/0600-local-development-loop.md). Anonymous access and directory storage are permitted there and nowhere else. | review |
+| The local registry mirrors only repository paths with a namespace, so a first-party name never reaches an upstream. | review |
 | The local nodes pull from that registry and from nowhere else. No upstream is configured as a fallback endpoint, and `cluster-up` warms the registry before it creates the cluster. | review |
 | The warm set is generated from the charts together with the allow-list of Kyverno, never written by hand. | `lint-image-allowlist` in CI |
 | Signatures, SBOMs, and provenance are OCI referrers on the image they describe, per [ADR-0113](../adr/0113-supply-chain-security.md). | standard: OCI 1.1 |
