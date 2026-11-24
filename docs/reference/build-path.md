@@ -116,7 +116,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint-log-vocab` | Scripts use the log vocabulary of ADR-0001 | flake.nix |
 | `lint-money` | A money value is the shared Money component and never a float, per ADR-0110 and ADR-0300 | flake.nix |
 | `lint-naming` | The resource name grammar of ADR-0003 | flake.nix |
-| `lint-node-scope` | Node.js and npm stay in their islands, per ADR-0110 and ADR-0601 | flake.nix |
+| `lint-node-scope` | npm stays in the e2e island, and Bun installs every other workspace, per ADR-0110 and ADR-0601 | flake.nix |
 | `lint-openapi` | Every spec against the platform ruleset, and the owner of each resource prefix, per ADR-0303 | flake.nix |
 | `lint-parity` | Every key of a deployed environment exists in the local overlay, per ADR-0205 | flake.nix |
 | `lint-ports` | The local ports are unique and registered, per ADR-0205 | flake.nix |
@@ -147,7 +147,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `test-alerts` | Every alert with simulated time, per ADR-0500 | flake.nix |
 | `test-frontend` | The frontend tests, with a coverage floor for each route group, per ADR-0400 | flake.nix |
 | `test-go` | Every Go test, per ADR-0601 | flake.nix |
-| `test-ts` | The tests of the shared TypeScript libraries | flake.nix |
+| `test-ts` | The tests of the shared TypeScript libraries, on Vitest, per ADR-0110 | flake.nix |
 
 <!-- machinery:end -->
 
