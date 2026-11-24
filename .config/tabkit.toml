@@ -1,5 +1,8 @@
 # The settings of tabkit, per ADR-0001 and ADR-0104.
 
+# The description of each alert is its runbook, per ADR-0502, so no alert names a runbook file.
+disable = ["alert/runbook"]
+
 [prose]
 status-exempt = ["docs/operational-surface.md", "README.md"]
 slash-terms = ["ci/cd", "i/o", "tcp/ip", "shadcn/ui"]

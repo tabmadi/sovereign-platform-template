@@ -64,7 +64,7 @@ Sources:
 
 ### JavaScript workspace orchestration
 
-[ADR-0110](0110-language-and-runtime.md) settles the runtime and package manager: Bun alone, for install and workspaces. This section decides whether a separate orchestrator sits above it.
+[ADR-0110](0110-language-and-runtime.md) settles the runtime and package manager: Node.js runs, and Bun installs the workspaces. This section decides whether a separate orchestrator sits above it.
 
 | Option | 1 One entry point | 5 Bought with measured need | Verdict |
 | --- | --- | --- | --- |
@@ -165,7 +165,7 @@ docs/                         # genre decides the directory (ADR-0001)
 | `tools/` holds only the module that pins Go tools | It holds no program. The own module of `tools/` keeps `ogen`, `workflowcheck`, and the ruleguard DSL out of the graph that every service image builds from. Custom rules and generators come from tabkit, per [ADR-0104](0104-formatters-and-linters.md) |
 | `scripts/` holds shell, and shell only | This is the other side of the row above, so the split is a language boundary, not a habit. When the work of a script is a program, it is not a script: the recipe calls the program directly. A wrapper that only changes directory and shells out puts one name in two trees |
 | `test/` holds external harnesses, and is singular for that reason | Each suite drives an assembled, running system from outside it, so no suite belongs to one service, per [ADR-0601](0601-testing-strategy.md). It is not where the tests live. A Go test of an `internal/` package **cannot** move here. Only the subtree under the parent of `internal/` can import it, so the compiler rejects the import. Unit tests sit beside their code. This also lets `ci-affected` map a changed package to the tests that cover it |
-| Each Node island has its own dev shell | `test/e2e/` runs in `nix develop .#e2e`, and `apps/admin/` runs in `nix develop .#admin`. `test/` has no `package.json`, no lockfile, and no tool pin of its own. `(CI: lint-node-scope)` |
+| Each workspace outside the Bun workspaces has its own dev shell | `test/e2e/` runs in `nix develop .#e2e`, and `apps/admin/` runs in `nix develop .#admin`. `test/` has no `package.json`, no lockfile, and no tool pin of its own. `(CI: lint-node-scope)` |
 
 ### Recipe names
 
@@ -375,5 +375,5 @@ Each step is its own ADR when its trigger fires.
 - Route groups inside `apps/frontend/` do not import from each other. `(CI: lint-ts)`
 - `tools/` holds only the module that pins Go tools. `scripts/` holds shell. A recipe calls a program directly. A shell script that only shells out to one is not written.
 - `test/` holds the external harnesses that drive an assembled system: `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package.
-- Each Node island runs in its own dev shell of `flake.nix`. `test/` itself has no package manifest or lockfile. `(CI: lint-node-scope)`
+- Each workspace outside the Bun workspaces runs in its own dev shell of `flake.nix`. `test/` itself has no package manifest or lockfile. `(CI: lint-node-scope)`
 - Build-graph tools are not used on day one. These are Nx, moon, Pants, and Bazel. Adoption requires its own ADR.

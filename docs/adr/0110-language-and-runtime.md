@@ -34,7 +34,7 @@ This ADR picks three things:
 | Rust | no | the strongest on offer: exhaustive matching, and no data races by construction. [`sqlx`](https://github.com/launchbadge/sqlx) checks every query against the live schema at compile time. `sqlc` infers it | **fails it.** Temporal is [first-party at public preview](https://temporal.io/changelog/rust-sdk-public-preview), not GA. [OTel Rust](https://opentelemetry.io/docs/languages/) is beta on all three signals | Best correctness in the field. Driver 4 is unmet, and each service pays the velocity cost. **Kept as an escape hatch** |
 | .NET with C# | no. Its cloud-native segment is shaped by Azure: managed Kubernetes and hosted CI. That is axis B *low* | native 128-bit `decimal`, records, and pattern matching. This is stronger than Go | passes it. [OTel .NET](https://opentelemetry.io/docs/languages/) is stable across all three signals | **The strongest alternative. It loses on driver 1 alone.** It is better than Go on driver 3, as a section below admits. An engineer who writes C# services *and* has operated self-hosted Kubernetes on hardware is rare. The Azure-native engineer is common, and belongs to a different axis position |
 | JVM with Java or Kotlin | no | `BigDecimal`. Kotlin adds sealed hierarchies and null tracking | passes it, on the most mature durable-execution SDK in the field | The same as .NET. It also needs a build tool and an application framework that this ADR must choose. Native compilation is a second build mode under its own licence |
-| TypeScript on Bun | no | discriminated unions have the best ergonomics here. Types are erased at runtime, and numbers are IEEE-754 doubles | passes it | The appeal is one language across the stack. A single-threaded event loop and erased runtime types are the wrong default at axis C high. **Kept for the frontend**, where it is unavoidable |
+| TypeScript on Node.js | no | discriminated unions have the best ergonomics here. Types are erased at runtime, and numbers are IEEE-754 doubles | passes it | The appeal is one language across the stack. A single-threaded event loop and erased runtime types are the wrong default at axis C high. **Kept for the frontend**, where it is unavoidable |
 | Python | no | native `decimal`. Annotations are not enforced at runtime | passes it | **Kept as an escape hatch** where the library ecosystem is the reason the service exists |
 | Elixir on BEAM | no | supervision trees and true process isolation. Dynamically typed | **fails it:** no first-party durable-execution SDK | Temporal and Kubernetes already give most of its fault-tolerance model here. The platform then pays for that property twice |
 | Polyglot by team choice | mixed | mixed | mixed | The honest baseline. At axis A high, the per-language cost multiplies by the number of teams, not by services. Every shared library is written once per language |
@@ -69,7 +69,7 @@ Sources:
 | --- | --- |
 | Primary backend language | **Go**, latest stable major |
 | Frontend language | **TypeScript** |
-| JS runtime for code we author | **Bun**, alone: install, workspaces, test, build, and the production server |
+| JS runtime for code we author | **Node.js 26** for the build, the tests, and the production server. **Bun** only installs the workspaces |
 | Escape hatch: Rust | a measured CPU or latency requirement that Go does not meet, or a domain whose canonical implementation exists only in Rust |
 | Escape hatch: Python | the library ecosystem is the reason the service exists, and the service is a thin wrapper over it |
 | A second general-purpose backend language | not adopted |
@@ -129,27 +129,34 @@ Driver 1 rests on a stack that this ADR does not choose, and on a labour market 
 
 The orchestration and controller layer makes driver 1 robust, not incidental. Identity could have been a JVM product, and so could the telemetry stores. Those substitutions leave the decision intact.
 
-At axis B maximal, no orchestrator outside Go is a real option. The custom controllers and the patches are written in that layer. That layer fixes where the operators are, not a count of projects.
-
-### The JS runtime
+At axis B maximal, no orchestrator outside Go is a real option. The custom controllers and the patches are written in that layer. That layer fixes where the operators ar### The JS runtime
 
 | Option | Node API compatibility | Toolchain components | Verdict |
 | --- | --- | --- | --- |
-| **Bun** | **the highest of the three** | **one binary:** runtime, package manager, workspaces, test runner, and bundler | **Chosen.** Driver 2 applied to the toolchain itself *(reasoned)* |
-| Node.js | the definition of it | a package manager, a test runner, and a bundler, each selected, pinned, cached, and upgraded separately | Loses on driver 2. Each addition is a version to pin and a supply-chain edge, per [ADR-0113](0113-supply-chain-security.md) |
+| Bun, alone | high, with gaps that reach our code | one binary: runtime, package manager, workspaces, test runner, and bundler | Rejected. The gaps below fail tests or need a second runtime anyway |
 | Deno | lowest, reached through an `npm:` specifier | comparable to Bun | A second permissions model and a second registry, for no capability this platform needs |
+| **Node.js 26 for every run, and Bun as the installer** | **the definition of it** | **two: Node.js runs, Bun installs. Vitest is a pinned dev dependency** | **Chosen.** The frontend framework and its test tools target Node.js |
 
-The vendor of the frontend framework ships first-party Bun support. The self-hosting documentation of the framework does not cover the runtime, as [vercel/next.js#55272](https://github.com/vercel/next.js/discussions/55272) shows. End-to-end tests against the built image cover that gap, per [ADR-0601](0601-testing-strategy.md). Upstream documentation does not.
+The gaps of Bun that reach this repo:
 
-### The three Node islands
+- msw 3 does not intercept the fetch of Bun, so a test can reach the network. Node.js has no such gap.
+- A Bun HTTPS server does not expose the client certificate of a request, so a service cannot log the mTLS peer.
+- Playwright needs extra-fd pipe transport and worker IPC, which Bun does not match. The [support patch](https://github.com/microsoft/playwright/pull/28875) and the [feature request](https://github.com/microsoft/playwright/issues/38095) are both unmerged.
+- The standalone output of the frontend framework targets Node.js, as [vercel/next.js#55272](https://github.com/vercel/next.js/discussions/55272) shows.
 
-Node runs vendored third-party tools. It never runs code we author, and it is never a backend runtime. `flake.nix` pins every Node, per [ADR-0100](0100-toolchain.md). The default dev shell holds Node only for the CLI of the frontend framework, whose `next` and Turbopack workers are `#!/usr/bin/env node` binaries that Bun starts. The islands below are the price of the Bun decision, listed here so that nobody has to find them.
+Bun stays the installer, because its install is fast and its lock gives `bun.nix` through bun2nix, per [ADR-0111](0111-monorepo.md).
 
-| Island | Why Node is unavoidable | Containment |
+### The workspaces with their own dev shell
+
+Two workspaces keep their own dev shell and their own package manager, because upstream chooses their tools. The default dev shell holds no browser and no `pnpm`.
+
+| Workspace | Why it has its own shell | Containment |
 | --- | --- | --- |
-| Playwright e2e and visual runner, per [ADR-0601](0601-testing-strategy.md) | browser-process control needs extra-fd pipe transport and worker IPC. Bun does not match these. The gap is upstream, not in our usage. The [support patch](https://github.com/microsoft/playwright/pull/28875) by Bun's own author and the [feature request](https://github.com/microsoft/playwright/issues/38095) are both unmerged | the `.#e2e` dev shell, with the browsers of nixpkgs, runner and CI only |
-| Lowdefy admin console, per [ADR-0401](0401-internal-admin.md) | installed and run, not built, so upstream chooses the runtime. Its CLI stops without `pnpm` on `PATH`, and its build is a `next build` whose bin is `#!/usr/bin/env node`. The image runs the standalone server of that build, which upstream targets at Node | the `.#admin` dev shell and the image of that app |
-| API mock, per [ADR-0600](0600-local-development-loop.md) | the only contract mock that is complete for OpenAPI 3.1 is a Node program | used as a pinned upstream container. It installs no Node anywhere and adds no `package.json` |
+| Playwright e2e and visual runner, per [ADR-0601](0601-testing-strategy.md) | it needs the browsers of nixpkgs, and `@playwright/test` must match their release | the `.#e2e` dev shell, runner and CI only |
+| Lowdefy admin console, per [ADR-0401](0401-internal-admin.md) | installed and run, not built. Its CLI stops without `pnpm` on `PATH` | the `.#admin` dev shell and the image of that app |
+| API mock, per [ADR-0600](0600-local-development-loop.md) | the only contract mock that is complete for OpenAPI 3.1 is a Node program | used as a pinned upstream container. It adds no `package.json` |
+
+nd adds no `package.json` |
 
 ### What makes a language an escape hatch
 
@@ -176,7 +183,7 @@ Every escape-hatch service has its own ADR that records the measured need. A Rus
 - **Driver 1 has the weakest evidence here.** A labour market cannot be measured like a language feature. So the driver carries a re-derivation test, not a figure. A project in a different market re-runs the test before it inherits the answer.
 - Verbose error handling is accepted. There are no custom error-handling DSLs.
 - **The money type is first-party code on a correctness-critical path.** A bug in it is a bug in every price, total, and ledger entry at once. A language with a native decimal inherits a vetted implementation instead. The money type has no third-party dependency, so we test the exposure ourselves and do not trust others with it.
-- **Bun is a single-vendor runtime with one implementation.** The exit is affordable only because its Node API compatibility is high enough to run the same code on Node. The islands already show that Node is installable.
+- **Two JS tools instead of one.** Node.js and Bun each have a version to pin. A Bun release that changes the lock format also changes `bun.nix`.
 - Every escape-hatch service is a permanent tax. It adds a toolchain, codegen pipeline, CI cache, base image, and review pool that exist for one service.
 
 ## Rules
@@ -186,8 +193,9 @@ Every escape-hatch service has its own ADR that records the measured need. A Rus
 - A monetary amount is the shared money type, never a floating-point number. It is `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. `(CI: lint-money)`
 - A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. `(CI: lint-money)`
 - The frontend is TypeScript.
-- Bun is the only JS runtime for code we author. No Go service image, no frontend image, and no artifact built from our own source installs Node. `(CI: lint-node-scope)`
-- Node comes only from `flake.nix`: the default dev shell for the frontend CLI, and one dev shell for each island. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. `(CI: lint-node-scope)`
+- Node.js runs every JS program we author: the build, the tests, and the frontend server. Bun only installs.
+- Bun installs every workspace except the two with their own dev shell. No npm lockfile exists outside `test/e2e/`. `(CI: lint-node-scope)`
+- The Node.js version of `flake.nix` and the base image of the frontend are the same release.
 - A Rust service requires its own ADR. It records the measured inadequacy of Go or a Rust-native canonical ecosystem, and how the service meets [ADR-0500](0500-observability.md).
 - A Python service requires its own ADR, and is admitted only where the library ecosystem is the reason the service exists.
 - JVM, .NET, and JavaScript backends are not permitted, with or without an ADR.

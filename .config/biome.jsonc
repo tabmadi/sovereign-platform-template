@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.6.5/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -31,7 +31,7 @@
       "!**/infra/dns/dnsconfig.js",
       // tabkit-ops gen-openapi-public generates the merged devportal spec projections. ci-gen drift-checks them.
       "!**/apps/frontend/public/devportal",
-      // The test/e2e/ Playwright workspace is the approved Node island with its own toolchain, per ADR-0601.
+      // The test/e2e/ Playwright workspace has its own dev shell and toolchain, per ADR-0601.
       // The frontend React preset does not apply to it. Its own tsconfig and the Playwright compile type-check it.
       "!**/test/e2e",
     ],

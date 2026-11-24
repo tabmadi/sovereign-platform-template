@@ -104,10 +104,10 @@ Sources:
 | Styling | **Tailwind, wired CSS-first** | CSS Modules and CSS-in-JS work, but the design contract is in Tailwind tokens. Mixing systems doubles the design-system surface |
 | Primitives | **shadcn/ui**, vendored as source by its CLI, built on Radix | Untitled UI is the displaced choice, with the same shape: copied source over headless primitives. It won driver 3 only while design came from a Figma kit. Radix and Tailwind by hand is the same thing without the components. Mantine and Park UI ship their own design language, and this driver keeps that contract for the brand |
 | Lint and format | **Biome only** | Biome with a minimal ESLint for the Next plugin is second-best. One tool wins. `next build`, Lighthouse CI, and the typed `next/image` and `next/font` APIs catch the Next-specific rules that matter |
-| Unit test runner | **`bun test`** | Vitest and Jest duplicate a Jest-compatible runner that the only JS runtime already ships |
+| Unit test runner | **Vitest on Node.js** | `bun test` runs on another runtime than the frontend server, and msw 3 does not intercept its fetch. Jest needs a transform setup that Vitest does not |
 | Spec renderer | **Scalar** | Redoc's request console is behind a paywall. That breaks the same-origin try-it console that the URL layout was built for. A docs platform, such as Fern or Mintlify, is a separate stateful service that duplicates the SDK codegen. **Stoplight Elements** is the alternative with equal capability. The two are interchangeable, because both render the same committed spec |
 | Access-denial UI | **the framework's `unauthorized.js` and `forbidden.js` interrupts** | An error boundary carries no status, misses the return path of a Server Action, and shows every denial as a crash. A per-page check is the same branch written once per route, and the forgotten one fails silently |
-| Feature flags | **OpenFeature SDK, noop provider** | Vercel `flags` is specific to a runtime and wrong for an in-cluster Bun runtime |
+| Feature flags | **OpenFeature SDK, noop provider** | Vercel `flags` is specific to a hosting platform and wrong for an in-cluster server |
 | Component catalogue | **an in-repo kitchen-sink route**, which also shows the brand | Storybook is useful, but it is not load-bearing with one app. Design is authored in the repository, so there is no second place to see a primitive. So the route is the catalogue, not a copy of one. The deferral below holds the condition |
 | i18n | **`next-intl`, from day one, enforced** | A retrofit of localisation means finding every string already shipped, and an extraction pass misses exactly the interpolated ones. Before the first screen, adoption costs a library and a message file. After it, adoption costs a sweep of the whole surface. The comparison is above |
 | Server-state fetching | **TanStack Query** for client-side reads | With RSC only, every interactive refetch becomes a route transition. SWR is lighter, but it lacks the mutation and invalidation model that the panel uses |
@@ -288,7 +288,7 @@ CSRF protection applies to state changes authenticated by a cookie. The browser 
 | Concern | Decision |
 | --- | --- |
 | Lint and format | **Biome only**, configured at the repo root. `recommended` and `correctness` are at error level. Strict additions include `noExplicitAny`, `noNonNullAssertion`, `useExhaustiveDependencies`, `noFloatingPromises`, and `noConsole`. ESLint is not installed |
-| Unit and component tests | `bun test` with Testing Library and `happy-dom`, with coverage thresholds per route group |
+| Unit and component tests | Vitest on Node.js with Testing Library and `happy-dom`, two workers, and coverage thresholds per route group |
 | Mocking in tests | MSW, an in-process double scoped to the test runner |
 | End-to-end and visual | owned by [ADR-0601](0601-testing-strategy.md), and driven by Playwright from the repo-root workspace. MSW and the development API mock are both forbidden there |
 | Bundle size | budgets per route group fail the build on regression |
@@ -372,7 +372,7 @@ Locally, the dev server runs against `cluster-up`, and the edge is how a develop
 - CSP is set in the proxy with a per-request nonce. Inline scripts are not used, and `connect-src` allowlists the telemetry ingest origin. `(ref: CSP Level 3)`
 - CSRF protection rests on the SameSite cookie, Kratos's built-in protection, and the Origin check of Server Actions. Hand-written CSRF tokens are not added.
 - Biome is the only lint and format tool. ESLint is not installed. `(CI: ci-lint)`
-- `bun test` covers unit and component tests. Vitest and Jest are not used.
+- Vitest on Node.js covers unit and component tests, with at most two workers. Jest and `bun test` are not used.
 - The frontend contains no development-only authentication code. `(CI: lint-auth-inline)`
 - Browser observability is OpenTelemetry web and Faro, exporting through the edge to the collector. Faro's session id is in memory and per page. The ops path writes nothing to client-side storage, per [ADR-0700](0700-analytics.md).
 - Server logs are structured JSON to stdout. `(CI: ci-lint)`

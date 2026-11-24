@@ -178,7 +178,7 @@ So the weakest dependency on the floor is a **deferral, not a bet**. The alterna
 - **No compile-time type safety between a spec change and a page.** The generator and the drift check keep generated pages in step. Only review and runtime errors on first load catch problems in hand-written pages.
 - **Read-only Postgres connections are a discipline risk**, because an engineer could try to add a mutation behind them. Enforcement at the database-role level mitigates this, not convention.
 - **The generated directory makes PR diffs larger** on spec changes. The same committed and drift-checked convention as every other generated artifact mitigates this. Generated pages are plain by design. Anything richer is a custom page.
-- **It is a Node island**, per [ADR-0110](0110-language-and-runtime.md). It is installed and run, not built, so upstream chooses the runtime. It stays inside this app's image and its optional local tasks.
+- **It has its own dev shell and package manager**, per [ADR-0110](0110-language-and-runtime.md). It is installed and run, not built, so upstream chooses its tools. It stays inside this app's image and its optional local tasks.
 
 ## Rules
 

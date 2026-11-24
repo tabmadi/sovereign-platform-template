@@ -1,5 +1,5 @@
 // These tests pin the consent gate's rules, per ADR-0700.
-import { describe, expect, test as it } from "bun:test";
+import { describe, expect, test as it } from "vitest";
 
 import { type ConsentDecision, gpcDecision, mayEmitMarketing, shouldPrompt } from "./consent";
 

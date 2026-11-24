@@ -92,7 +92,7 @@ jobs:
           # A literal path: this string versions the cache, and runner.temp differs for each job on a self-hosted runner.
           path: ~/.cache/zot/registry.localhost
           key: ${{ steps.registry-cache.outputs.cache-primary-key }}
-      - name: Install Playwright in the Node island
+      - name: Install Playwright in its own workspace
         run: nix develop --command just e2e-install
       - name: Run the full e2e and visual suite
         run: nix develop --command just e2e
@@ -173,7 +173,7 @@ jobs:
           ARGOCD_REPO_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Install Playwright in the Node island
+      - name: Install Playwright in its own workspace
         run: nix develop --command just e2e-install
       - name: Run smoke suite
         run: nix develop --command just e2e-smoke

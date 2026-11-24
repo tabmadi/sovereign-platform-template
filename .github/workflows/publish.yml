@@ -171,7 +171,7 @@ jobs:
         run: nix develop --command just lighthouse-up
         env:
           GIT_SHA: ${{ github.sha }}
-      - name: Install the Node island
+      - name: Install the e2e workspace
         run: nix develop --command just e2e-install
       # Advisory, as in lighthouse.yml.
       - name: Web vitals and bundle budgets

@@ -1,4 +1,4 @@
-import { describe, expect, test as it } from "bun:test";
+import { describe, expect, test as it } from "vitest";
 import { formatId, InvalidIdError, isId, isValidPrefix, parseId, prefixOf } from "./index";
 
 // The published TypeID vectors, the same ones that libs/go/id asserts. Both sides check against the standard,

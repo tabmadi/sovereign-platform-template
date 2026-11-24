@@ -1,6 +1,6 @@
-import { describe, expect, test as it } from "bun:test";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, test as it } from "vitest";
 import { ordersApi, server } from "@/test/msw";
 import { renderWithProviders } from "@/test/render";
 import Checkout from "./page";

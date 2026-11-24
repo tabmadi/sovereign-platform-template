@@ -69,7 +69,7 @@ jobs:
         env:
           GIT_SHA: ${{ github.sha }}
 
-      - name: Install the Node island
+      - name: Install the e2e workspace
         run: nix develop --command just e2e-install
 
       # Advisory, per ADR-0400: the app misses the LCP budget, and a PR author cannot fix that.

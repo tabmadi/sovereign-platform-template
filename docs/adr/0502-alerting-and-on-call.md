@@ -103,6 +103,10 @@ This is a **deferral, not a bet**. The seam exists, and it is the receiver inter
 | Alert volume makes the split between `page` and `ticket` unreliable | **None on the mechanism**, and decisive on the rules. It is a symptom of rules at the wrong severity. The answer is to demote rules, not to change where they route |
 | A second team needs its own routing tree | **Decisive.** One tree with one owner keeps silences and inhibitions reviewable. Two teams make a routing hierarchy, which is a different design |
 
+### The runbook of an alert
+
+The `description` of each alert is its runbook. It says what fired and the first steps that fix it. The engineer who reads the alert reads the steps in the same message, and a review of the rule file reviews them too. So no separate runbook file repeats the steps, and none can drift from the rule.
+
 ## Consequences
 
 ### Positive
@@ -122,6 +126,7 @@ This is a **deferral, not a bet**. The seam exists, and it is the receiver inter
 
 - Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used.
 - Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state, per principle 1 of [ADR-0000](0000-platform-foundations.md).
+- The `description` of every alert says what fired and the first steps that fix it. No separate runbook file repeats them.
 - Every alert rule carries `severity: page` or `severity: ticket`. `page` claims that a human must act within minutes. `(CI: lint-alert-severity)`
 - Error-budget burn rules are authored against the SLIs in [ADR-0500](0500-observability.md). They carry `severity: ticket` while no paging receiver is attached.
 - Maintenance silences are committed, time-bounded, and expire on their own.

@@ -1,4 +1,4 @@
-import { describe, expect, test as it } from "bun:test";
+import { describe, expect, test as it } from "vitest";
 import { formatMoney, InvalidMoneyError, parseMoney } from "./index";
 
 const JSON_NUMBER_MESSAGE = /JSON number/u;

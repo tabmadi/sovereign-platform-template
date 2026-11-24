@@ -1,9 +1,12 @@
 # syntax=docker/dockerfile:1.29
-# Bun is the only JS runtime in this image: install, build, and the production server.js all run under Bun.
-# Next's standalone output officially targets Node, but Bun runs it, and without Node the platform has one runtime, per ADR-0000 §"one way to do things".
+# Node.js builds and runs the app, and Bun only installs the dependencies, per ADR-0110.
+ARG NODE_VERSION=26.13.1
 ARG BUN_VERSION=1.4.5
 
-FROM oven/bun:${BUN_VERSION}-alpine AS build
+FROM oven/bun:${BUN_VERSION}-alpine AS bun
+
+FROM node:${NODE_VERSION}-alpine AS build
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY package.json bun.lock ./
 # Every workspace member's manifest, because `bun install` resolves the workspace list before it installs anything.
@@ -39,9 +42,9 @@ ARG NEXT_PUBLIC_FIXTURES=
 ARG NEXT_PUBLIC_DESIGN_BUILD=
 ENV NEXT_PUBLIC_FIXTURES=$NEXT_PUBLIC_FIXTURES NEXT_PUBLIC_DESIGN_BUILD=$NEXT_PUBLIC_DESIGN_BUILD
 # Turbopack keeps its build cache in .next/cache. The mount keeps it in the builder between builds, so a small change compiles only what it touched.
-RUN --mount=type=cache,target=/app/apps/frontend/.next/cache cd apps/frontend && bun run build
+RUN --mount=type=cache,target=/app/apps/frontend/.next/cache cd apps/frontend && node ../../node_modules/next/dist/bin/next build
 
-FROM oven/bun:${BUN_VERSION}-alpine AS runtime
+FROM node:${NODE_VERSION}-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/apps/frontend/.next/standalone ./
@@ -49,7 +52,7 @@ COPY --from=build /app/apps/frontend/.next/static    ./apps/frontend/.next/stati
 COPY --from=build /app/apps/frontend/public          ./apps/frontend/public
 # The image declares its own non-root user, and does not leave it to the chart. The service chart sets runAsUser 65532, so runtime does not change.
 # But an image that depends only on its manifest is one `docker run` away from root, and the scanner reports it, per ci-scan misconfig DS-0002.
-# `bun` is the user of the oven/bun image, uid 1000. The server serves prebuilt output and writes nothing under /app.
-USER bun
+# `node` is the user of the node image, uid 1000. The server serves prebuilt output and writes nothing under /app.
+USER node
 EXPOSE 3000
-CMD ["bun", "apps/frontend/server.js"]
+CMD ["node", "apps/frontend/server.js"]

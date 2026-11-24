@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.29
 # The build context is this directory, apps/admin. It does not use the repo-root .dockerignore of the Go service images, which excludes apps/.
 
-# Lowdefy 5 needs Node and pnpm to build, so this image is Node-based, unlike the Go and bun runtime images. It is one of the two Node exceptions that ADR-0110 allows, and the only one that ships as an image.
-# No repo runtime code is Node. Lowdefy is a third-party app, so upstream chooses the runtime. bun cannot replace it at build: the CLI stops unless pnpm is on PATH.
+# Lowdefy 5 needs pnpm to build, so this image installs with pnpm, unlike the Bun workspaces. It is one of the two workspaces with their own dev shell, per ADR-0110.
+# Lowdefy is a third-party app, so upstream chooses its tools. Bun cannot replace pnpm at build: the CLI stops unless pnpm is on PATH.
 # The last stage runs the standalone server of Lowdefy's Next build, which upstream targets at Node.
 ARG NODE_VERSION=26.13.1
 ARG LOWDEFY_VERSION=5.4.0

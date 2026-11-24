@@ -1,5 +1,5 @@
 // These tests pin the browser fingerprint's rules, per ADR-0503.
-import { describe, expect, test as it } from "bun:test";
+import { describe, expect, test as it } from "vitest";
 
 import { appFrames, fingerprint, normalise } from "./index";
 

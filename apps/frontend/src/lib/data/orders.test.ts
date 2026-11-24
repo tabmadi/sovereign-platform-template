@@ -1,4 +1,4 @@
-import { describe, expect, test as it } from "bun:test";
+import { describe, expect, test as it } from "vitest";
 import { ordersApi, server } from "@/test/msw";
 import { awaitOrder, startOrder } from "./orders";
 

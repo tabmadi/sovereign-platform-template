@@ -43,7 +43,7 @@ jobs:
         run: nix develop --command just secrets-age
       - name: Bring up the preview
         run: nix develop --command just ci-preview up
-      - name: Install Playwright in the Node island
+      - name: Install Playwright in its own workspace
         run: nix develop --command just e2e-install
       - name: Smoke the preview
         run: nix develop --command just e2e-smoke

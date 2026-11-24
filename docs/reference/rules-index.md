@@ -8,9 +8,9 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 
 | Enforcement | Rules |
 | --- | --- |
-| Machine-enforced | 214 |
-| Review-enforced | 415 |
-| **Total** | **629** |
+| Machine-enforced | 213 |
+| Review-enforced | 419 |
+| **Total** | **632** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -153,6 +153,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | `flake.lock` is committed. Renovate updates it, and the CI gate decides. | review |
 | Every check is a derivation under `checks` in `flake.nix`. | `ci` in CI |
 | The shared Nix code comes from the tabkit module at a tag, never from a copy. | review |
+| A NixOS machine builds from the current stable NixOS release, never from `nixpkgs-unstable`. | review |
 
 ## ADR-0101: Source control and CI
 
@@ -219,8 +220,9 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A monetary amount is the shared money type, never a floating-point number. It is `numeric` in the database, a string in the OpenAPI schema, and a string on the wire. | `lint-money` in CI |
 | A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. | `lint-money` in CI |
 | The frontend is TypeScript. | review |
-| Bun is the only JS runtime for code we author. No Go service image, no frontend image, and no artifact built from our own source installs Node. | `lint-node-scope` in CI |
-| Node comes only from `flake.nix`: the default dev shell for the frontend CLI, and one dev shell for each island. An island that ships as a container pins no Node at all. A fourth Node island requires an amendment to this ADR. | `lint-node-scope` in CI |
+| Node.js runs every JS program we author: the build, the tests, and the frontend server. Bun only installs. | review |
+| Bun installs every workspace except the two with their own dev shell. No npm lockfile exists outside `test/e2e/`. | `lint-node-scope` in CI |
+| The Node.js version of `flake.nix` and the base image of the frontend are the same release. | review |
 | A Rust service requires its own ADR. It records the measured inadequacy of Go or a Rust-native canonical ecosystem, and how the service meets [ADR-0500](../adr/0500-observability.md). | review |
 | A Python service requires its own ADR, and is admitted only where the library ecosystem is the reason the service exists. | review |
 | JVM, .NET, and JavaScript backends are not permitted, with or without an ADR. | review |
@@ -251,7 +253,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Route groups inside `apps/frontend/` do not import from each other. | `lint-ts` in CI |
 | `tools/` holds only the module that pins Go tools. `scripts/` holds shell. A recipe calls a program directly. A shell script that only shells out to one is not written. | review |
 | `test/` holds the external harnesses that drive an assembled system: `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package. | review |
-| Each Node island runs in its own dev shell of `flake.nix`. `test/` itself has no package manifest or lockfile. | `lint-node-scope` in CI |
+| Each workspace outside the Bun workspaces runs in its own dev shell of `flake.nix`. `test/` itself has no package manifest or lockfile. | `lint-node-scope` in CI |
 | Build-graph tools are not used on day one. These are Nx, moon, Pants, and Bazel. Adoption requires its own ADR. | review |
 
 ## ADR-0112: Release, Tagging and Versioning
@@ -737,7 +739,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | CSP is set in the proxy with a per-request nonce. Inline scripts are not used, and `connect-src` allowlists the telemetry ingest origin. | standard: CSP Level 3 |
 | CSRF protection rests on the SameSite cookie, Kratos's built-in protection, and the Origin check of Server Actions. Hand-written CSRF tokens are not added. | review |
 | Biome is the only lint and format tool. ESLint is not installed. | `ci-lint` in CI |
-| `bun test` covers unit and component tests. Vitest and Jest are not used. | review |
+| Vitest on Node.js covers unit and component tests, with at most two workers. Jest and `bun test` are not used. | review |
 | The frontend contains no development-only authentication code. | `lint-auth-inline` in CI |
 | Browser observability is OpenTelemetry web and Faro, exporting through the edge to the collector. Faro's session id is in memory and per page. The ops path writes nothing to client-side storage, per [ADR-0700](../adr/0700-analytics.md). | review |
 | Server logs are structured JSON to stdout. | `ci-lint` in CI |
@@ -821,6 +823,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | --- | --- |
 | Alerts evaluate in Prometheus from committed rule files. Grafana-managed alert rules are not used. | review |
 | Alertmanager routes every alert. Its routing tree, receivers, and silences are committed files, never UI state, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
+| The `description` of every alert says what fired and the first steps that fix it. No separate runbook file repeats them. | review |
 | Every alert rule carries `severity: page` or `severity: ticket`. `page` claims that a human must act within minutes. | `lint-alert-severity` in CI |
 | Error-budget burn rules are authored against the SLIs in [ADR-0500](../adr/0500-observability.md). They carry `severity: ticket` while no paging receiver is attached. | review |
 | Maintenance silences are committed, time-bounded, and expire on their own. | review |

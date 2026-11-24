@@ -149,7 +149,7 @@ admin-lint:
 
 # Build the frontend for production, per ADR-0400
 frontend-build: in-shell
-    cd apps/frontend && bun run build
+    cd apps/frontend && node ../../node_modules/next/dist/bin/next build
 
 # Seed the committed test identities into a running Kratos, per ADR-0601
 auth-seed: in-shell
@@ -408,7 +408,7 @@ lint-shell: in-shell
 lint-log-vocab: in-shell
     tabkit check --only script/log-vocabulary
 
-# Node.js and npm stay in their islands, per ADR-0110 and ADR-0601
+# npm stays in the e2e island, and Bun installs every other workspace, per ADR-0110 and ADR-0601
 lint-node-scope: in-shell
     tabkit check --only service/node-scope
 
@@ -468,9 +468,9 @@ test-alerts: in-shell
 test-go: in-shell
     go test ./...
 
-# The tests of the shared TypeScript libraries
+# The tests of the shared TypeScript libraries, on Vitest, per ADR-0110
 test-ts: in-shell
-    bun test libs/ts/
+    node node_modules/vitest/vitest.mjs run
 
 # The frontend tests, with a coverage floor for each route group, per ADR-0400
 test-frontend: in-shell

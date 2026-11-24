@@ -190,7 +190,7 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 | Concern | Current decision | ADR |
 | --- | --- | --- |
 | Backend language | Go | [0110](docs/adr/0110-language-and-runtime.md) |
-| Frontend | Next.js and TypeScript on Bun, one app with route groups | [0110](docs/adr/0110-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) |
+| Frontend | Next.js and TypeScript on Node.js, one app with route groups | [0110](docs/adr/0110-language-and-runtime.md), [0400](docs/adr/0400-frontend.md) |
 | Design system | `shadcn/ui`, vendored as source, on Tailwind, with the brand in one token file | [0400](docs/adr/0400-frontend.md), [0701](docs/adr/0701-product-design-and-discovery.md) |
 | Toolchain | Nix with flakes, through the tabkit module | [0100](docs/adr/0100-toolchain.md) |
 | Custom rules and generators | tabkit, configured in `.config/tabkit.toml` | [0104](docs/adr/0104-formatters-and-linters.md) |
@@ -218,7 +218,7 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 | Source control and CI | Forgejo and Forgejo Actions, entered through `just ci:*`. A provider-hosted forge is the bootstrap path | [0116](docs/adr/0116-forge-and-pipelines.md) |
 | Supply chain | cosign with a key pair held in SOPS, syft SBOM, SLSA provenance, Trivy as a merge gate | [0113](docs/adr/0113-supply-chain-security.md) |
 | Registry | zot, one instance for each environment, backed by object storage | [0114](docs/adr/0114-image-registry.md) |
-| Testing | Playwright, k6, `go test`, `bun test` | [0601](docs/adr/0601-testing-strategy.md) |
+| Testing | Playwright, k6, `go test`, Vitest | [0601](docs/adr/0601-testing-strategy.md) |
 | Internal admin | Lowdefy over the service APIs. pgweb, read-only | [0401](docs/adr/0401-internal-admin.md) |
 | Analytics | Faro events into a first-party service | [0700](docs/adr/0700-analytics.md) |
 | Dependency updates | Renovate, grouped, with digest pinning | [0117](docs/adr/0117-updates-and-setup-modes.md) |

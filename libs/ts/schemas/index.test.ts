@@ -1,7 +1,7 @@
 // These tests check the generator, not zod, per ADR-0400 and ADR-0601. Each one asserts a property that a
 // weaker generator loses without an error. The form then accepts what the API refuses, and nothing else in
 // the pipeline sees that defect.
-import { describe, expect, test as it } from "bun:test";
+import { describe, expect, test as it } from "vitest";
 
 import { createProductSchema, moneySchema } from "./catalog";
 import { checkoutSchema, productIdSchema } from "./orders";

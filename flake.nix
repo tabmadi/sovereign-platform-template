@@ -5,15 +5,18 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # The machines of the hypervisor mode build from the stable release, per ADR-0100.
+    nixos.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
     # A new version is a new tag here.
     tabkit = {
-      url = "github:tabmadi/tabkit/v0.19.0";
+      url = "github:tabmadi/tabkit/v0.20.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
+      inputs.nixos-stable.follows = "nixos";
     };
     # The disk layout of the hypervisor mode, per ADR-0208. A project in another mode never fetches it.
     disko = {
@@ -260,7 +263,7 @@
             };
           };
 
-          # One shell per Node island, per ADR-0601 and ADR-0401. The default shell stays free of browsers.
+          # One shell for each workspace with its own tools, per ADR-0601 and ADR-0401. The default shell stays free of browsers.
           devShells = {
             # Playwright drives the browsers of nixpkgs, so @playwright/test in test/e2e matches playwright-driver.
             e2e = pkgs.mkShellNoCC {

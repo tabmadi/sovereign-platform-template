@@ -102,11 +102,11 @@ Sources:
 
 ### Runtime for the Playwright runner
 
-Bun is the only JS runtime, per [ADR-0110](0110-language-and-runtime.md). It **cannot run a browser test runner reliably**.
+Node.js runs the Playwright runner, per [ADR-0110](0110-language-and-runtime.md). Bun **cannot run a browser test runner reliably**.
 
 Playwright, like every Node browser runner, starts the browser with extra file descriptors, fd 3 and fd 4, as a pipe transport. It also forks workers over Node IPC. These are rarely used corners of `child_process`, and Bun does not match them. The browser launch hangs or crashes with a segfault, and the runner produces no output. The gap covers the whole Node ecosystem. It is not a Playwright bug. It is also not a temporary state to build on, per [ADR-0000](0000-platform-foundations.md).
 
-So Node is permitted as a **test-only escape hatch**. Its scope is the e2e and visual runner alone.
+So the runner never runs on Bun. It has its own workspace and dev shell, so its browsers stay out of the default shell.
 
 ## Decision
 
@@ -114,7 +114,7 @@ So Node is permitted as a **test-only escape hatch**. Its scope is the e2e and v
 
 | Layer | Tool | Runs on | Role |
 | --- | --- | --- | --- |
-| Unit and component | `go test`, `bun test` | none, or `happy-dom` | logic and component shape in isolation |
+| Unit and component | `go test`, Vitest | none, or `happy-dom` | logic and component shape in isolation |
 | Service integration | `go test` with generated SDK clients, per [ADR-0303](0303-api-contracts-and-lifecycle.md) | `cluster-up` plus the service's declared components | one service against real Postgres, Temporal, and OpenFGA |
 | Preflight readiness | Go or shell | `cluster-up full` | failure **localiser**: pods ready, ports open, Postgres and Oathkeeper reachable |
 | **Browser acceptance** | **Playwright** | `cluster-up full` | **the gauge**: product journeys and operator dashboards behind a real AAL2 session |
@@ -189,7 +189,7 @@ The default runner is k6 on the developer or CI machine, aimed at the edge. It a
 
 | Suite | Trigger | Contents |
 | --- | --- | --- |
-| Unit, component, and integration | each PR, scoped to affected services, per [ADR-0111](0111-monorepo.md) | `go test`, `bun test`, integration with dependencies only |
+| Unit, component, and integration | each PR, scoped to affected services, per [ADR-0111](0111-monorepo.md) | `go test`, Vitest, integration with dependencies only |
 | `e2e-smoke` | each PR, **behind a label** | one golden product path plus the render of a key dashboard |
 | `perf-smoke` | each PR, behind a label, together with `e2e-smoke` | a check that the scenarios still run, about 30s |
 | `e2e` | nightly when there was activity, and before a release, per [ADR-0112](0112-release-and-versioning.md) | every journey, every operator dashboard, all visual baselines |
@@ -227,7 +227,7 @@ The CI gate diffs committed, accepted snapshots against the baselines in `test/e
 
 ### Negative and Risks
 
-- **Node returns as an approved runtime.** It is limited to the `test/e2e/` runner and CI. It is never in a service, in app or library code, or in an image built from our own source. [ADR-0110](0110-language-and-runtime.md) approves one other Node island for the same vendored-tool reason: the Lowdefy admin console of [ADR-0401](0401-internal-admin.md).
+- **The e2e runner has its own workspace.** It installs with npm in `.#e2e`, apart from the Bun workspaces. [ADR-0110](0110-language-and-runtime.md) gives one other workspace its own shell for the same vendored-tool reason: the Lowdefy admin console of [ADR-0401](0401-internal-admin.md).
 - **With label-gated smoke, a PR without the label gets no full-platform signal until the nightly run.** So a cross-service break can stay in `master` for up to about 24h. This is the accepted cost of not paying for a full bring-up on each PR.
 - **Operator-dashboard e2e runs only in the nightly suite.** So platform-contract regressions appear within 24h.
 - **The gauge is also the bottleneck.** The verdict sits at the slowest layer, which has the most flaky results. A broken top layer blocks the signal completely. Preflight finds the cause, but it does not make the layer faster or more stable.

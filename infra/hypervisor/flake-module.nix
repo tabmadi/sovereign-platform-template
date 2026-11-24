@@ -7,13 +7,13 @@
 }:
 let
   system = "x86_64-linux";
-  pkgs = inputs.nixpkgs.legacyPackages.${system};
+  pkgs = inputs.nixos.legacyPackages.${system};
   settings = import ./settings.nix;
   keys = import "${pkgs.path}/nixos/tests/ssh-keys.nix" pkgs;
 
   host =
     settings: extra:
-    inputs.nixpkgs.lib.nixosSystem {
+    inputs.nixos.lib.nixosSystem {
       inherit system;
       specialArgs = { inherit settings; };
       modules = [
@@ -61,7 +61,7 @@ let
     };
   };
   labExtra = {
-    imports = [ "${inputs.nixpkgs}/nixos/modules/profiles/qemu-guest.nix" ];
+    imports = [ "${inputs.nixos}/nixos/modules/profiles/qemu-guest.nix" ];
     # The host serves its own clock to the nodes, so the offline lab needs no public time server.
     services.chrony.extraConfig = lib.mkAfter "local stratum 10";
   };
@@ -106,10 +106,10 @@ in
       packages = lib.optionalAttrs (system == "x86_64-linux") {
         # The installer of the QEMU copy, and the private test key that logs in to it.
         hypervisor-lab-installer =
-          (inputs.nixpkgs.lib.nixosSystem {
+          (inputs.nixos.lib.nixosSystem {
             inherit system;
             modules = [
-              "${inputs.nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+              "${inputs.nixos}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
               {
                 users.users.root.openssh.authorizedKeys.keys = [ keys.snakeOilEd25519PublicKey ];
                 isoImage.squashfsCompression = "zstd -Xcompression-level 3";

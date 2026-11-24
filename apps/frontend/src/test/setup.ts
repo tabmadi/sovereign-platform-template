@@ -1,11 +1,24 @@
-// The `bun test` preload of apps/frontend/bunfig.toml: a happy-dom window and the MSW server around every test, per ADR-0400.
+// The Vitest setup file of apps/frontend/vitest.config.ts: a happy-dom window and the MSW server around every test, per ADR-0400.
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
-// happy-dom's fetch opens its own sockets, which MSW does not see. So the tests keep Bun's fetch and its classes.
-const { fetch, Request, Response, Headers } = globalThis;
+// happy-dom's fetch opens its own sockets, which MSW does not see. So the tests keep the fetch of Node.js and its classes.
+// The fetch of Node.js pipes bodies through the stream classes of Node.js, so the tests keep those too.
+const {
+  fetch,
+  Request,
+  Response,
+  Headers,
+  FormData,
+  Blob,
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+  AbortController,
+  AbortSignal,
+} = globalThis;
 GlobalRegistrator.register({ url: "http://localhost/" });
 
-// A browser resolves a relative URL such as `/api/orders` against the page. Bun's Request has no page, and openapi-fetch builds one.
+// A browser resolves a relative URL such as `/api/orders` against the page. The Request of Node.js has no page, and openapi-fetch builds one.
 class PageRequest extends Request {
   constructor(input: RequestInfo | URL, init?: RequestInit) {
     const relative = typeof input === "string" && !URL.canParse(input);
@@ -13,9 +26,21 @@ class PageRequest extends Request {
   }
 }
 
-Object.assign(globalThis, { fetch, Request: PageRequest, Response, Headers });
+Object.assign(globalThis, {
+  fetch,
+  Request: PageRequest,
+  Response,
+  Headers,
+  FormData,
+  Blob,
+  ReadableStream,
+  WritableStream,
+  TransformStream,
+  AbortController,
+  AbortSignal,
+});
 
-const { afterAll, afterEach, beforeAll } = await import("bun:test");
+const { afterAll, afterEach, beforeAll } = await import("vitest");
 const { cleanup } = await import("@testing-library/react");
 const { server } = await import("./msw");
 
