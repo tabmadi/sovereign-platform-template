@@ -69,19 +69,11 @@ cleanup() {
   local status=$?
   end_step
   [ -z "${guard:-}" ] || kill "$guard" 2>/dev/null || true
-  if [ -f "$work/qemu.pid" ]; then
-    local pid
-    pid="$(cat "$work/qemu.pid")"
-    kill "$pid" 2>/dev/null || true
-    # The next run reuses the port and the disk path, so this run ends only after QEMU has gone.
-    for _ in $(seq 50); do
-      kill -0 "$pid" 2>/dev/null || break
-      sleep 0.2
-    done
-  fi
-  rm -f "$work/qemu.pid"
+  # The next run reuses the port and the disk path, so this run ends only after QEMU has gone.
   # Each run starts from an empty disk, so the old one only holds space. LAB_KEEP_DISK keeps it to debug a failure.
-  [ -n "${LAB_KEEP_DISK:-}" ] || rm -f "$work/disk.qcow2"
+  if [ -n "${tier:-}" ]; then
+    if [ -n "${LAB_KEEP_DISK:-}" ]; then "$tier" stop; else "$tier" destroy; fi
+  fi
   registry_stop
   [ "${#timings[@]}" -eq 0 ] || printf '\nStep times:\n%s\n%6ss  total\n' "$(printf '%s\n' "${timings[@]}")" "$SECONDS"
   exit "$status"
@@ -92,7 +84,6 @@ deploy_opts=(--skip-checks --fast-connection true
   --ssh-opts "-p $port -i $key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null")
 nodes=(10.0.10.11 10.0.10.12 10.0.10.13)
 
-rm -f "$work/disk.qcow2"
 check_resources
 memory_guard "$$" 9>&- &
 guard=$!
@@ -108,27 +99,16 @@ fi
 step "checking the local cache"
 verify_cache
 install -m 0600 "$(nix build --no-link --print-out-paths .#hypervisor-lab-key)" "$key"
-iso="$(echo "$(nix build --no-link --print-out-paths .#hypervisor-lab-installer)"/iso/*.iso)"
-system="$(nix build --no-link --print-out-paths .#nixosConfigurations.hypervisor-lab.config.system.build.toplevel)"
-disko="$(nix build --no-link --print-out-paths .#nixosConfigurations.hypervisor-lab.config.system.build.diskoScript)"
-
-step "booting the installer with an empty disk"
-rm -f "$work/disk.qcow2"
-qemu-img create -q -f qcow2 "$work/disk.qcow2" 80G
+tier="$(nix build --no-link --print-out-paths .#full-tier-lab)/bin/full-tier-lab"
+# The tier of the full-tier module boots the installer, installs the host, and boots it from its disk.
 # Each connection of a node to the mirror starts its own socat. A chardev target would serve only one.
-netdev="user,id=n0,hostfwd=tcp:127.0.0.1:$port-:22,guestfwd=tcp:${registry_guest}-cmd:socat - TCP:127.0.0.1:${registry_port}"
-[ "$mode" = online ] || netdev+=",restrict=on"
-qemu-system-x86_64 -enable-kvm -cpu host -smp 8 -m "${LAB_VM_MEMORY_MB:-14336}" -display none -daemonize \
-  -pidfile "$work/qemu.pid" -serial "file:$work/serial.log" \
-  -drive "file=$work/disk.qcow2,if=virtio,format=qcow2,discard=unmap,detect-zeroes=unmap" -cdrom "$iso" -boot once=d \
-  -netdev "$netdev" -device virtio-net-pci,netdev=n0 9>&-
-retry 120 remote true
+export FULL_TIER_STATE="$work/tier" FULL_TIER_SSH_KEY="$key"
+export FULL_TIER_NETDEV_EXTRA="guestfwd=tcp:${registry_guest}-cmd:socat - TCP:127.0.0.1:${registry_port}"
+[ "$mode" = online ] || FULL_TIER_NETDEV_EXTRA+=",restrict=on"
+export FULL_TIER_INSTALL_FLAGS="--no-substitute-on-destination"
 
-step "installing the host with nixos-anywhere and disko"
-nixos-anywhere --store-paths "$disko" "$system" --no-substitute-on-destination \
-  --target-host root@127.0.0.1 -p "$port" -i "$key" \
-  --ssh-option StrictHostKeyChecking=no --ssh-option UserKnownHostsFile=/dev/null
-sleep 30
+step "installing the host from an empty disk with nixos-anywhere and disko"
+"$tier" install 9>&-
 retry 120 remote true
 [ "$(remote hostname)" = hypervisor-lab ]
 pass "nixos-anywhere installed the host, and it booted from its own disk"

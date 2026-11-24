@@ -67,7 +67,24 @@ let
   };
 in
 {
-  imports = [ inputs.tabkit.flakeModules.deploy ];
+  imports = [
+    inputs.tabkit.flakeModules.deploy
+    inputs.tabkit.flakeModules.full-tier
+  ];
+
+  # The QEMU copy on one disk. lab.sh adds the registry forward and the offline network at run time.
+  tabkit.fullTier.lab = {
+    configuration = "hypervisor-lab";
+    node = "hypervisor-lab";
+    cpus = 8;
+    memory = 14336;
+    diskSize = 80;
+    disks = 1;
+    minFreeMemory = 16;
+    minFreeDisk = 20;
+    sshPort = 2222;
+    adminKeys = [ keys.snakeOilEd25519PublicKey ];
+  };
 
   flake.nixosConfigurations = {
     hypervisor = host settings { };
@@ -104,18 +121,7 @@ in
         pkgs.socat
       ];
       packages = lib.optionalAttrs (system == "x86_64-linux") {
-        # The installer of the QEMU copy, and the private test key that logs in to it.
-        hypervisor-lab-installer =
-          (inputs.nixos.lib.nixosSystem {
-            inherit system;
-            modules = [
-              "${inputs.nixos}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
-              {
-                users.users.root.openssh.authorizedKeys.keys = [ keys.snakeOilEd25519PublicKey ];
-                isoImage.squashfsCompression = "zstd -Xcompression-level 3";
-              }
-            ];
-          }).config.system.build.isoImage;
+        # The private test key that logs in to the QEMU copy.
         hypervisor-lab-key = keys.snakeOilEd25519PrivateKey;
       };
     };

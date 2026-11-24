@@ -15,7 +15,8 @@ memory_floor_mb="${LAB_MEMORY_FLOOR_MB:-2048}"
 
 lab_nodes=(hypervisor-lab hypervisor-lab-broken hypervisor-lab-next)
 lab_targets=(
-  .#hypervisor-lab-installer
+  .#full-tier-lab
+  .#full-tier-lab-installer
   .#hypervisor-lab-key
   .#nixosConfigurations.hypervisor-lab.config.system.build.diskoScript
 )
