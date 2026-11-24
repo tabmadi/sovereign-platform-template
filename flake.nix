@@ -192,7 +192,8 @@
             p: lib.getName p == "dprint"
           ) (throw "no dprint in the dev shell") config.devShells.default.nativeBuildInputs;
           # Helm and Alertmanager templates are Go templates in a YAML file, and no YAML formatter parses them.
-          dprintExcludes = "--excludes '**/templates/**'";
+          # A SOPS file is signed over its exact text, so a formatter run would break its MAC.
+          dprintExcludes = "--excludes '**/templates/**' '**/*.enc.yaml'";
         in
         {
           _module.args.pkgs = pkgs;
@@ -239,9 +240,12 @@
           tabkit.hooks = {
             data = {
               name = "dprint";
-              entry = "${dprint}/bin/dprint check ${dprintExcludes}";
+              entry = "${dprint}/bin/dprint check --allow-no-files ${dprintExcludes} --";
               files = "\\.(jsonc?|toml|ya?ml)$";
-              excludes = [ "(^|/)templates/" ];
+              excludes = [
+                "(^|/)templates/"
+                "\\.enc\\.yaml$"
+              ];
             };
             biome = {
               name = "biome";

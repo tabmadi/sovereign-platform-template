@@ -157,7 +157,7 @@ auth-seed: in-shell
 
 # Run every generator, then format the data files they write. The edge reads no OpenAPI spec, so it has no generator, per ADR-0305
 gen: gen-shared-components gen-openapi gen-openapi-public gen-zod gen-sqlc gen-admin gen-adr-rules gen-data-classes gen-image-allowlist gen-build-path
-    dprint fmt --excludes '**/templates/**' >/dev/null
+    dprint fmt --excludes '**/templates/**' '**/*.enc.yaml' >/dev/null
 
 # Write the rules index and the security baseline from the Rules sections, per ADR-0203
 gen-adr-rules: in-shell
@@ -231,7 +231,7 @@ format-shell: in-shell
 
 # Format JSON, JSONC, TOML, YAML, and Nix, per ADR-0104
 format-data: in-shell
-    dprint fmt --excludes '**/templates/**'
+    dprint fmt --excludes '**/templates/**' '**/*.enc.yaml'
     nixfmt $(git ls-files --cached --others --exclude-standard '*.nix')
 
 # Run every linter
@@ -270,7 +270,7 @@ lint-md: in-shell
 
 # JSON, JSONC, TOML, and YAML format, per ADR-0104
 lint-data: in-shell
-    dprint check --excludes '**/templates/**'
+    dprint check --excludes '**/templates/**' '**/*.enc.yaml'
 
 # Nix format, per ADR-0104
 lint-nix: in-shell
