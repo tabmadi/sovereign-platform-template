@@ -42,7 +42,7 @@ ARG NEXT_PUBLIC_FIXTURES=
 ARG NEXT_PUBLIC_DESIGN_BUILD=
 ENV NEXT_PUBLIC_FIXTURES=$NEXT_PUBLIC_FIXTURES NEXT_PUBLIC_DESIGN_BUILD=$NEXT_PUBLIC_DESIGN_BUILD
 # Turbopack keeps its build cache in .next/cache. The mount keeps it in the builder between builds, so a small change compiles only what it touched.
-RUN --mount=type=cache,target=/app/apps/frontend/.next/cache cd apps/frontend && node ../../node_modules/next/dist/bin/next build
+RUN --mount=type=cache,target=/app/apps/frontend/.next/cache cd apps/frontend && node --run build
 
 FROM node:${NODE_VERSION}-alpine AS runtime
 WORKDIR /app

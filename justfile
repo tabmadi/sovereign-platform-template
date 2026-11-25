@@ -149,7 +149,7 @@ admin-lint:
 
 # Build the frontend for production, per ADR-0400
 frontend-build: in-shell
-    cd apps/frontend && node ../../node_modules/next/dist/bin/next build
+    cd apps/frontend && node --run build
 
 # Seed the committed test identities into a running Kratos, per ADR-0601
 auth-seed: in-shell
