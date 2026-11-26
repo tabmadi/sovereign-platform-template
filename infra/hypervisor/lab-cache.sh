@@ -51,8 +51,6 @@ memory_guard() { # <pid>
   done
 }
 
-root_name() { printf '%s' "$1" | tr -c 'A-Za-z0-9-' '-'; }
-
 lab_images() {
   talosctl image k8s-bundle
   printf 'factory.talos.dev/metal-installer/%s:%s\n' "$schematic" "$version"
@@ -83,12 +81,14 @@ registry_stop() { docker rm -f "$registry_name" >/dev/null 2>&1 || true; }
 
 # Each item is skipped when the cache holds it, so a run after a network failure continues from there.
 prepare_cache() {
-  local target path index=0 image
+  local path index=0 image
   mkdir -p "$roots"
-  for target in "${lab_targets[@]}"; do
-    nix build --out-link "$roots/$(root_name "$target")" "$target"
-  done
+  # One build evaluates the flake once. A build for each target would evaluate the same machines again each time.
+  rm -f "$roots"/target*
+  nix build --max-jobs auto --out-link "$roots/target" "${lab_targets[@]}"
   nix develop --profile "$roots/dev-shell" --command true
+  # Each run adds a generation of the profile, and an old one only holds an old dev shell.
+  nix profile wipe-history --profile "$roots/dev-shell"
   rm -f "$roots"/input-*
   while read -r path; do
     index=$((index + 1))

@@ -67,10 +67,10 @@ The four questions of the spike:
 | VM | Image | Address from |
 | --- | --- | --- |
 | Each Talos node | The raw Talos image of the Image Factory schematic of `infra/talos/` | `infra/talos/inventory/<environment>/nodes.yml` |
-| The forge, where `infra/forge-host/` exists | The disk image of the `forge` configuration, with the admin keys of this host | `address` in `infra/forge-host/settings.nix` |
-| The runner, where `infra/runner/` exists | The disk image of the `runner` configuration, with the admin keys of this host | `address` in `infra/runner/settings.nix` |
+| The forge, where `infra/forge-host/` exists | The disk image of the `forge` configuration as compressed qcow2, with the admin keys of this host | `address` in `infra/forge-host/settings.nix` |
+| The runner, where `infra/runner/` exists | The disk image of the `runner` configuration as compressed qcow2, with the admin keys of this host | `address` in `infra/runner/settings.nix` |
 
-A VM writes its disk from its image on its first start only. A later start, and a deploy of the host, keep the disk. The MAC of a VM holds its address in hex, so dnsmasq gives a rebuilt VM the same address.
+A VM writes its disk from its image on its first start only. A raw image stores its empty space. So the host carries each NixOS image as compressed qcow2, and the first start writes a raw disk from it. A later start, and a deploy of the host, keep the disk. The MAC of a VM holds its address in hex, so dnsmasq gives a rebuilt VM the same address.
 
 ### The network
 
@@ -113,6 +113,7 @@ The `disko` input is in `flake.nix` in every mode. A project in another mode nev
 
 - The hypervisor host is the NixOS configuration `hypervisor` of `infra/hypervisor/`. No step on the host is by hand.
 - Every VM of the host is an entry of `hypervisor.vms`, and its address comes from the inventory or from the kit of its role.
+- The host carries each NixOS image of a VM as compressed qcow2, never as raw.
 - The first deploy after `just hypervisor-install` changes nothing.
 - A NixOS release upgrade of the host is `just hypervisor-deploy-boot`, never a live switch.
 - `just hypervisor-test install` passes before a deploy that changes `vms.nix`, `host.nix`, or the images.

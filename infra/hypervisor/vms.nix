@@ -35,8 +35,7 @@ let
         qemu-img resize -q -f raw "$disk.new" ${toString vm.disk}G
       '';
       nixos = ''
-        cp --sparse=always ${vm.image} "$disk.new"
-        chmod u+w "$disk.new"
+        qemu-img convert -f qcow2 -O raw ${vm.image} "$disk.new"
         qemu-img resize -q -f raw "$disk.new" ${toString vm.disk}G
       '';
     }

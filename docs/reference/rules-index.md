@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 213 |
-| Review-enforced | 423 |
-| **Total** | **636** |
+| Review-enforced | 424 |
+| **Total** | **637** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -523,6 +523,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | --- | --- |
 | The hypervisor host is the NixOS configuration `hypervisor` of `infra/hypervisor/`. No step on the host is by hand. | review |
 | Every VM of the host is an entry of `hypervisor.vms`, and its address comes from the inventory or from the kit of its role. | review |
+| The host carries each NixOS image of a VM as compressed qcow2, never as raw. | review |
 | The first deploy after `just hypervisor-install` changes nothing. | review |
 | A NixOS release upgrade of the host is `just hypervisor-deploy-boot`, never a live switch. | review |
 | `just hypervisor-test install` passes before a deploy that changes `vms.nix`, `host.nix`, or the images. | review |

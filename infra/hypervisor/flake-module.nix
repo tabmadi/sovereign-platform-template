@@ -21,7 +21,7 @@ let
         inherit settings;
         # The forge and the runner boot from their own NixOS image, with the admin keys of this host.
         guestImages = lib.genAttrs [ "forge" "runner" ] (
-          name: guest.image name { tabkit.server.adminKeys = lib.mkForce settings.adminKeys; }
+          name: guest.compressedImage name { tabkit.server.adminKeys = lib.mkForce settings.adminKeys; }
         );
       };
       modules = [
