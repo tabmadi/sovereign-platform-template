@@ -41,7 +41,7 @@ jobs:
     if: >-
       github.repository == 'tabmadi/sovereign-platform-template' &&
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && github.event.label.name == 'template-acceptance'))
+      (github.event_name == 'pull_request' && github.event.label.name == 'run/template-acceptance'))
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     concurrency:

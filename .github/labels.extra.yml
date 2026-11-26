@@ -1,0 +1,17 @@
+# The labels of this repo alone, per ADR-0101. `just labels` adds them to the shared set in .github/labels.yml.
+# A `run/` label starts a costly job on a pull request. A maintainer adds it after reading the code.
+- name: run/preview
+  color: "5319e7"
+  description: Start the full platform preview of this pull request, per ADR-0205
+- name: run/design-preview
+  color: "5319e7"
+  description: Start the design preview of this pull request, per ADR-0701
+- name: run/e2e-smoke
+  color: "5319e7"
+  description: Run the e2e smoke test on this pull request, per ADR-0601
+- name: run/perf-smoke
+  color: "5319e7"
+  description: Run the performance smoke test on this pull request, per ADR-0601
+- name: run/template-acceptance
+  color: "5319e7"
+  description: Run the template acceptance test on this pull request

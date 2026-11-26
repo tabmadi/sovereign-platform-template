@@ -492,6 +492,10 @@ ci:
 cache-push: in-shell
     nix-cache-push
 
+# Make the labels of the forge match .github/labels.yml, per ADR-0101. It deletes every other label
+labels: in-shell
+    tabkit-labels --prune
+
 # The services and apps that a change affects, as JSON, per ADR-0111
 ci-affected *args: in-shell
     tabkit affected "$@"

@@ -125,7 +125,7 @@
   "vulnerabilityAlerts": {
     "description": "A CVE with a fixed version is proposed at once, outside the batch, and without dashboard approval even for a major. For this class only, the weekly slot is too slow, per ADR-0117 and ADR-0113.",
     "labels": [
-      "dependencies"
+      "kind/dependencies"
     ],
     "schedule": [
       "at any time"
