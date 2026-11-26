@@ -246,7 +246,7 @@ cd services/catalog
 just server
 ```
 
-The full walkthrough is [`docs/dev-loop.md`](docs/dev-loop.md).
+The full walkthrough is [`docs/dev-loop.md`](docs/dev-loop.md). Follow the [proxy guide](docs/guide/http-proxy.md) for a restricted network.
 
 ### Starting a project
 

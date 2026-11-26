@@ -39,14 +39,19 @@ in
         HTTP_PORT = 443;
         REDIRECT_OTHER_PORT = true;
         PORT_TO_REDIRECT = 80;
-        ENABLE_ACME = true;
+        ENABLE_ACME = settings.enableAcme;
         ACME_ACCEPTTOS = true;
         ACME_DIRECTORY = "/var/lib/forgejo/acme";
         ACME_EMAIL = settings.acmeEmail;
         START_SSH_SERVER = true;
         SSH_PORT = 2222;
         SSH_LISTEN_PORT = 2222;
+      }
+      // lib.optionalAttrs (!settings.enableAcme) {
+        CERT_FILE = "/etc/forgejo/tls/fullchain.pem";
+        KEY_FILE = "/etc/forgejo/tls/key.pem";
       };
+      proxy.PROXY_ENABLED = true;
       service.DISABLE_REGISTRATION = true;
       repository.DEFAULT_BRANCH = "master";
       # The forge signs the squash commit of every merge. MERGES = always is needed, because the default also asks
@@ -65,7 +70,10 @@ in
     };
   };
   # `just forge-signing` imports the key here. It never enters the Nix store.
-  systemd.services.forgejo.environment.GNUPGHOME = "${config.services.forgejo.stateDir}/.gnupg";
+  systemd.services.forgejo = {
+    environment.GNUPGHOME = "${config.services.forgejo.stateDir}/.gnupg";
+    serviceConfig.EnvironmentFile = "-/etc/platform/proxy.env";
+  };
 
   # Forgejo binds 80 and 443 itself. The sandbox of the unit drops every capability, so the kernel allows the ports.
   boot.kernel.sysctl."net.ipv4.ip_unprivileged_port_start" = 80;

@@ -26,5 +26,10 @@ on() { # <target> [jump]
     fi
     opts+=(-o "ProxyCommand=ssh ${hop[*]} -W %h:%p ${jump}")
   fi
-  ssh "${opts[@]}" "$target" 'bash -s'
+  ssh "${opts[@]}" "$target" 'if [ -r /etc/platform/proxy.env ]; then
+    set -a
+    . /etc/platform/proxy.env
+    set +a
+  fi
+  exec bash -s'
 }

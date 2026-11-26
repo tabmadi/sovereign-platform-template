@@ -15,6 +15,7 @@
   domain = "forge.example.com";
   # The address that receives the ACME account mail.
   acmeEmail = "ops@example.com";
+  enableAcme = true;
   # The organisation that owns the repository, so the repository URL names no person.
   org = "platform";
   # A push mirror of the repository, such as `ssh://git@github.com/acme/acmeplat.git`. Null means no mirror.

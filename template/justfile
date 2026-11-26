@@ -8,6 +8,6 @@ lint-scope:
 test-template: in-shell
     bash template/test-template.sh
 
-# Make a project from the working tree and prove that it reaches a serving cluster. It needs Docker
+# Prove that a generated project serves. Set ACCEPTANCE_PROXY_ONLY=1 on a runner with direct public egress blocked
 template-acceptance: in-shell
     bash template/acceptance.sh

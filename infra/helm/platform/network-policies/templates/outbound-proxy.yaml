@@ -1,0 +1,19 @@
+{{- range .Values.outboundProxyRules }}
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: {{ required "outbound proxy rule needs a name" .name | quote }}
+  namespace: {{ required "outbound proxy rule needs a namespace" .namespace | quote }}
+spec:
+  endpointSelector:
+    matchLabels: {{- required "outbound proxy rule needs pod labels" .matchLabels | toYaml | nindent 6 }}
+  enableDefaultDeny:
+    egress: false
+  egress:
+    - toCIDR: {{- required "outbound proxy rule needs CIDRs" .cidrs | toYaml | nindent 8 }}
+      toPorts:
+        - ports:
+            - port: {{ required "outbound proxy rule needs a port" .port | quote }}
+              protocol: TCP
+{{- end }}

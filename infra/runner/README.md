@@ -1,5 +1,7 @@
 # The CI runner
 
+Follow the [proxy guide](../../docs/guide/http-proxy.md#forgejo-runner-and-hypervisor) for a restricted network.
+
 The machine that runs Forgejo Actions jobs, per [ADR-0116](../../docs/adr/0116-forge-and-pipelines.md). It is a dedicated NixOS machine. It is never the forge and never a cluster node, because a job controls this machine's Docker, and that is root on it.
 
 This directory exists in a project whose `forge` answer is `forgejo`, per [modes.md](../../docs/reference/modes.md).

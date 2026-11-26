@@ -53,5 +53,15 @@ in
     # A job runs Docker directly.
     runner.succeed("systemctl show gitea-runner-1 -p SupplementaryGroups | grep -q docker")
     runner.succeed("systemctl list-timers runner-gc.timer | grep -q runner-gc")
+
+    runner.succeed("install -d -m 0700 /etc/platform")
+    runner.succeed("printf 'NO_PROXY=forge,internal.example\n' > /etc/platform/proxy.env")
+    runner.succeed("systemctl restart gitea-runner-1 docker")
+    runner.wait_for_unit("gitea-runner-1.service")
+    runner.succeed("docker info --format '{{.NoProxy}}' | grep -qx forge,internal.example")
+    runner.succeed(
+        "pid=$(systemctl show gitea-runner-1 -p MainPID --value); "
+        "tr '\\0' '\\n' < /proc/$pid/environ | grep -qx NO_PROXY=forge,internal.example"
+    )
   '';
 }

@@ -1,5 +1,7 @@
 # The forge host
 
+Follow the [proxy guide](../../docs/guide/http-proxy.md#forgejo-runner-and-hypervisor) for a restricted network.
+
 The machine that runs Forgejo, per [ADR-0116](../../docs/adr/0116-forge-and-pipelines.md). It is a NixOS machine beside the workload cluster, never a chart inside it. Argo CD reconciles the cluster from this forge, so a forge in the cluster could not recover a lost cluster.
 
 This directory exists in a project whose `forge` answer is `forgejo`, per [modes.md](../../docs/reference/modes.md).

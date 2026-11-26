@@ -61,13 +61,7 @@ The second factor is enrolled at run time, not imported, because Kratos cannot i
 
 ## HTTP proxies
 
-No cluster command handles the proxy. `just cluster-up` is the same command on a direct network and on a network behind a firewall. Behind a proxy, run `just proxy-setup` once, first. It sets up what the cluster commands then expect:
-
-- the proxy of the Docker daemon. Through it, the local zot reaches upstream registries for every node, per ADR-0114.
-- the proxy of the build container.
-- a `NO_PROXY` that covers `.localtest.me`, `localhost`, and `127.0.0.1`. Without it, every local request goes to a proxy that cannot resolve it. The symptom is then a timeout, not a refusal.
-
-Images need nothing more than this first step. `cluster-up` fills the local registry before it creates the cluster, and the nodes pull only from there. So a pull that fails for lack of egress fails during the warm-up, and the error names the image. It does not fail as an `ImagePullBackOff` twenty minutes later. [guide/http-proxy.md](guide/http-proxy.md) has the full setup, with the values for the environment of the Docker daemon.
+Follow the [proxy guide](guide/http-proxy.md#set-up-a-developer-workstation) before the first `nix develop` on a restricted network.
 
 ## After a reboot
 

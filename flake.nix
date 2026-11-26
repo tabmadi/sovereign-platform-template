@@ -87,11 +87,15 @@
               } $out/bin/cosign
             '';
           go = pkgs.go;
+          tabkitPlatform = inputs.tabkit.packages.${system}.tabkit-platform.overrideAttrs (old: {
+            patches = (old.patches or [ ]) ++ [ ./infra/patches/tabkit-proxy.patch ];
+          });
 
           # Every Go module that the workspace and its tools need, as a module proxy. The hash pins the download.
           # A change to a go.mod or go.sum changes the hash: run `just nix-hashes`.
           goProxy = pkgs.stdenvNoCC.mkDerivation {
             name = "go-modules";
+            impureEnvVars = lib.fetchers.proxyImpureEnvVars;
             src = lib.fileset.toSource {
               root = ./.;
               fileset = lib.fileset.unions [
@@ -128,6 +132,7 @@
           # A change to a Chart.lock changes the hash: run `just nix-hashes`.
           helmCharts = pkgs.stdenvNoCC.mkDerivation {
             name = "helm-charts";
+            impureEnvVars = lib.fetchers.proxyImpureEnvVars;
             src = lib.fileset.toSource {
               root = ./.;
               fileset = lib.fileset.fileFilter (f: f.name == "Chart.yaml" || f.name == "Chart.lock") ./infra/helm;
@@ -178,7 +183,7 @@
             gitMinimal
             nixfmt
             prometheus.cli
-            inputs.tabkit.packages.${system}.tabkit-platform
+            tabkitPlatform
             config.tabkit.rules.package
           ];
 
@@ -292,7 +297,7 @@
                 pkgs.nodejs_26
                 pkgs.just
                 pkgs.git
-                inputs.tabkit.packages.${system}.tabkit-platform
+                tabkitPlatform
               ];
               env = {
                 PLAYWRIGHT_BROWSERS_PATH = "${pkgs.playwright-driver.browsers}";
@@ -305,7 +310,7 @@
             gate = pkgs.mkShellNoCC {
               packages = [
                 inputs.tabkit.packages.${system}.default
-                inputs.tabkit.packages.${system}.tabkit-platform
+                tabkitPlatform
                 pkgs.just
                 pkgs.go
                 pkgs.git

@@ -143,6 +143,10 @@ in
         value = {
           unitConfig.ConditionPathExists = tokenFile;
           serviceConfig = {
+            EnvironmentFile = lib.mkForce [
+              tokenFile
+              "-/etc/platform/proxy.env"
+            ];
             SupplementaryGroups = lib.mkForce [ "docker" ];
             ExecStartPre = lib.mkAfter [
               "${pkgs.coreutils}/bin/mkdir -p ${home n}/run ${home n}/tmp ${home n}/work"
@@ -152,6 +156,7 @@ in
       }) names
     )
     // {
+      docker.serviceConfig.EnvironmentFile = "-/etc/platform/proxy.env";
       runner-gc = {
         description = "Reclaim what finished CI jobs left behind";
         serviceConfig = {

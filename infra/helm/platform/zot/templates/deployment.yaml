@@ -44,6 +44,11 @@ spec:
         - name: zot
           image: "{{ .Values.zot.image.repository }}:{{ .Values.zot.image.tag }}"
           imagePullPolicy: {{ .Values.zot.image.pullPolicy }}
+          {{- with .Values.zot.proxySecretName }}
+          envFrom:
+            - secretRef:
+                name: {{ . | quote }}
+          {{- end }}
           env:
             # The store credential. zot reads it the same way as every AWS SDK, so
             # nothing about this pair is specific to the registry.

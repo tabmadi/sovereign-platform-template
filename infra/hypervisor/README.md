@@ -1,5 +1,7 @@
 # The hypervisor
 
+Follow the [proxy guide](../../docs/guide/http-proxy.md#forgejo-runner-and-hypervisor) for a restricted network.
+
 The machine that the nodes run on, where the project runs its own hardware. This is the third provisioning mode of [ADR-0200](../../docs/adr/0200-cluster-topology.md). The host runs NixOS, and this directory is its whole configuration, per [ADR-0208](../../docs/adr/0208-hypervisor-host.md).
 
 This directory exists in a project whose `provisioning` answer is `hypervisor`, per [modes.md](../../docs/reference/modes.md).

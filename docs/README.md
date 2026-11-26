@@ -53,8 +53,7 @@ The topic is in the filename, not in a directory. A directory with one file adds
 | [registry-health](guide/registry-health.md) | How to set up the registry probe and compare the signals during an incident |
 | [incident-management](guide/incident-management.md) | What counts as an incident, who does what, and what is owed after it |
 | [designing-a-screen](guide/designing-a-screen.md) | How to design a screen, and what promoting it requires |
-| [http-proxy](guide/http-proxy.md) | How to work behind a corporate proxy |
-| [forgejo-ci-offline](guide/forgejo-ci-offline.md) | How to run and time a Forgejo pipeline without public internet access |
+| [http-proxy](guide/http-proxy.md) | Set up a workstation, a server, and CI with a proxy or internal sources |
 | [hypervisor-lab](guide/hypervisor-lab.md) | How to choose a lab test, fill its cache, and run it offline |
 | [performance-runbook](guide/performance-runbook.md) | How to run a load test and read the result |
 

@@ -13,6 +13,17 @@ git_pid=""
 export GOLANGCI_LINT_CACHE="$WORK/golangci-lint"
 trap '[ -z "$git_pid" ] || kill "$git_pid" 2>/dev/null; rm -rf "$WORK"' EXIT
 
+if [ "${ACCEPTANCE_PROXY_ONLY:-0}" = 1 ]; then
+  step "checking that the runner needs the proxy"
+  probe=https://cache.nixos.org/nix-cache-info
+  [ -n "${HTTPS_PROXY:-${https_proxy:-}}" ] || fail "set HTTPS_PROXY before running the proxy acceptance test"
+  if curl --noproxy '*' --max-time 5 --silent --output /dev/null "$probe"; then
+    fail "block direct public egress before running the proxy acceptance test"
+  fi
+  curl --noproxy '' --max-time 20 --fail --silent --show-error --output /dev/null "$probe"
+  export BUN_INSTALL_CACHE_DIR="$WORK/bun"
+fi
+
 # From the working tree, never the published tag. This job exists to catch a release that moves while the template does not.
 step "snapshotting the working tree"
 SRC="$WORK/template"
@@ -28,8 +39,20 @@ PROJECT="$WORK/project"
 mkdir -p "$PROJECT"
 (cd "$SRC" && tar --exclude=./template --exclude=./.github/workflows/template.yml --exclude=./.git -cf - .) | tar -x -C "$PROJECT"
 cd "$PROJECT"
-git init -q .
+git init -q --initial-branch=master .
 bash scripts/project-init.sh --answers "$ROOT/$DATA_FILE"
+
+if [ "${ACCEPTANCE_PROXY_ONLY:-0}" = 1 ]; then
+  step "rebuilding the Go module and Helm chart downloads"
+  for output in go-modules helm-charts; do
+    installable="path:$PROJECT#$output"
+    if nix path-info --offline "$installable" >/dev/null 2>&1; then
+      nix build --rebuild --no-link "$installable"
+    else
+      nix build --option substitute false --no-link "$installable"
+    fi
+  done
+fi
 
 step "first run: bootstrap"
 just bootstrap
@@ -65,6 +88,10 @@ git daemon --export-all --reuseaddr --base-path="$SERVE" --listen="$gateway" --p
 git_pid=$!
 detail "Argo CD reads git://${gateway}:${GIT_PORT}/project.git"
 
+if [ "${ACCEPTANCE_PROXY_ONLY:-0}" = 1 ]; then
+  just proxy-setup
+  just proxy-setup --check
+fi
 step "bringing the full tier up"
 just cluster-up full
 

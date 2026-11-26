@@ -52,6 +52,8 @@ in
   ];
 
   system.stateVersion = "26.05";
+
+  systemd.services.nix-daemon.serviceConfig.EnvironmentFile = "-/etc/platform/proxy.env";
   networking.hostName = settings.hostName;
   time.timeZone = "UTC";
 

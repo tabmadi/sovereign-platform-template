@@ -60,3 +60,5 @@ registryMirror: true
 # CA and the DNS provider.
 publicTls:
   enabled: false
+
+outboundProxyRules: []

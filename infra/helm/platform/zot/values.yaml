@@ -50,6 +50,7 @@ zot:
   # Credentials for both halves come from one SOPS-encrypted Secret, per ADR-0114 and ADR-0202: htpasswd bcrypt lines
   # for the two identities below, and the store credential `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` that zot
   # uses for S3. It must be bcrypt: zot loads an apr1 file with no error, and then refuses every password.
+  proxySecretName: ""
   credentialsSecret: zot-credentials
 
   # The two identities that ADR-0114 names. Anonymous gets nothing: there is no policy. So a request

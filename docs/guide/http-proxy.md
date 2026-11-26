@@ -1,222 +1,206 @@
-# Working behind an HTTP proxy
+# Install and run behind an HTTP proxy
 
-Proxy configuration belongs to **your machine**, not to this repo. The repo carries no proxy values and no proxy logic. After the one-time steps below, the `cluster-*` recipes work with no change. On a network without a proxy, none of this applies.
+Use this guide for a developer workstation, a Forgejo host and runner, or a deployed cluster. One HTTP proxy can serve all three.
 
-**Most of the image-pull steps below are optional.** zot mirrors docker.io, quay.io, ghcr.io, and registry.k8s.io as a pull-through cache, per [ADR-0114](../adr/0114-image-registry.md). When zot is up, the cluster nodes fetch images from it, not from the internet. So one component needs egress, not every node.
+## Plan the network
 
-The **build** path still needs a proxy: base images, Go modules, and bun. Traffic that is not an image, such as ACME, also needs it. So steps 1 and 2 concern your host and your builds. Step 3 matters only before the mirror exists.
+- Use a proxy that accepts HTTPS CONNECT. Use a stable address that the host, Docker networks, Talos nodes, and pods can reach.
+- Give those systems a direct route to their internal DNS resolver. The proxy resolves public names for proxied HTTP requests.
+- Keep internal services direct. Add their hostnames and network ranges to `NO_PROXY`. Include the Kubernetes API, node addresses, pod and service ranges, and local domains.
+- Allow direct access to internal Git, Zot, the Nix cache, and object storage. Include their full names even when their addresses fall inside an exempt range.
+- Allow separate routes for protocols such as SSH, Talos management, NTP, and SMTP. Use an approved jump host or relay where needed.
+- If the proxy inspects TLS, install its CA in each client that uses it. Include the host, Nix, Docker, BuildKit, images that fetch dependencies, nodes, and pods.
 
-The steps expect a **loopback** proxy on your host, for example `http://127.0.0.1:8118`. Each step is read from a different place: the host, a build container, the cluster node, or a cluster pod. So the address differs in each step. This is the only difficult part. A **routable** proxy address works from everywhere. Use it unchanged in every step, and ignore the address notes of each step.
+The proxy must allow the hosts in the lockfiles, the image references, and any redirects they use. Confirm the list for the roles you run.
 
-## Start here
+| Role | Public destinations through the proxy |
+| --- | --- |
+| Workstation and runner | Nix installer and caches, flake sources, Forgejo or GitHub, package registries, chart repositories, and browser downloads |
+| Docker daemon and BuildKit | Image registries, token endpoints, and registry blob hosts. Build steps also use Go, Bun, and npm sources. |
+| Server provisioning | Nix caches and flake sources, Talos Image Factory, and any OpenTofu providers |
+| Talos and Zot | Installer and Kubernetes images, the upstream image registries, and registry redirects |
+| Argo CD | Git repositories and Helm chart sources |
+| Enabled features | Model providers, external object storage, ACME and DNS provider APIs, and scanner databases |
+
+Use an internal service when a firewall rule blocks a required public destination. If the proxy has no public route, follow [Run with internal sources](#run-with-internal-sources).
+
+## Configure the host before the first download
+
+On a systemd host, store proxy settings in a host file such as `/etc/platform/proxy.env`. Set its owner to root and its mode to `0600` on servers. Use a file readable by your own user for your interactive shell. Keep both out of Git.
+
+Use the same proxy URL in the four variables. Replace the example bypass entries with the names and ranges at your site. Keep `.localtest.me` for local development.
 
 ```sh
-just proxy-setup              # apply everything that does not need root
-just proxy-setup --check   # what is configured, what is missing, and the exact fix
+HTTP_PROXY='http://proxy.example.net:3128'
+HTTPS_PROXY='http://proxy.example.net:3128'
+http_proxy='http://proxy.example.net:3128'
+https_proxy='http://proxy.example.net:3128'
+NO_PROXY='localhost,127.0.0.1,::1,.localtest.me,.svc,.cluster.local,10.96.0.0/12,10.244.0.0/16,forge.internal,registry.internal,kube.internal'
+no_proxy='localhost,127.0.0.1,::1,.localtest.me,.svc,.cluster.local,10.96.0.0/12,10.244.0.0/16,forge.internal,registry.internal,kube.internal'
 ```
 
-The task reads the live state, not the intent. It checks these points:
+If the proxy needs credentials, percent encode special characters in its URL. Keep credentials in the host file or a Kubernetes Secret. Limit access to Docker because users can inspect container environment variables.
 
-- what the docker daemon reports
-- what is in your `~/.docker/config.json`
-- whether the cluster node can resolve names
-- whether the repo-server carries the proxy
+1. Load the settings in the shell that installs Nix and runs Git or package managers.
+2. Add the drop-in below for `nix-daemon.service` and `docker.service`. Create the files before installing the daemons if needed.
+3. Add `extra-experimental-features = nix-command flakes` to `/etc/nix/nix.conf`. On NixOS, use `nix.settings.experimental-features`.
+4. Reload systemd and restart the installed services. Configure them before the first `nix develop` or image pull.
 
-It computes the address for each step for you and names the step that is wrong. On a direct network, it exits 0 and reports that none of this applies.
-
-Only step 1 needs root, because it edits a systemd unit. `--fix` writes that file for you and prints the two `sudo` lines to paste. The task applies everything else itself.
-
-Read the rest of this page to learn *why* a step exists. Also read it when the doctor reports a problem that it cannot fix. The steps below are the reference. The command above is the path.
-
-## Step 1: Proxy the Docker daemon, for image pulls
-
-The daemon runs on your host, so a loopback proxy stays `127.0.0.1`. Create `/etc/systemd/system/docker.service.d/http-proxy.conf`:
+```sh
+set -a
+. "$HOME/.config/platform/proxy.env"
+set +a
+```
 
 ```ini
 [Service]
-Environment="HTTP_PROXY=http://127.0.0.1:8118"
-Environment="HTTPS_PROXY=http://127.0.0.1:8118"
-Environment="NO_PROXY=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
+EnvironmentFile=/etc/platform/proxy.env
 ```
 
-Then run `sudo systemctl daemon-reload && sudo systemctl restart docker`.
+Save the drop-ins under `/etc/systemd/system/<unit>.d/platform-proxy.conf`. For rootless Docker, use the user unit and a proxy file the service user can read.
 
-## Step 2: Proxy Docker builds
+Docker proxy settings in `daemon.json` take precedence. If that file sets a proxy, update it as well. On NixOS, set the service drop-ins in your host module with `systemd.services.<unit>.serviceConfig.EnvironmentFile`. Provide the file before the first build on the host. Load the same settings in the rescue system shell for a NixOS install.
 
-Docker injects `proxies.default` from `~/.docker/config.json` into the RUN steps of `docker build`. There the reader is **inside a container**. In a container, `127.0.0.1` is the container itself. So use the **IP of the docker-bridge gateway**. Find it with:
+## Set up a developer workstation
+
+1. Clone the repository over HTTPS if your firewall allows Git through the proxy.
+2. Enter the development shell and run bootstrap. Run the proxy setup before you start kind.
+3. Start the full cluster. Use the local test hosts in your browser.
 
 ```sh
-docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}'    # usually 172.17.0.1
-```
-
-```json
-{
-  "proxies": {
-    "default": {
-      "httpProxy": "http://172.17.0.1:8118",
-      "httpsProxy": "http://172.17.0.1:8118",
-      "noProxy": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,127.0.0.1,localhost,.localtest.me"
-    }
-  }
-}
-```
-
-Keep the package and image registries **out** of `noProxy`, so they route through the proxy. A loopback value here is the typical build failure. The package manager inside the build cannot see the proxy and connects directly. The firewall then blocks it.
-
-## Step 2b: DNS for the daemon's embedded resolver
-
-At start, the Docker daemon caches the nameservers from the host's `/etc/resolv.conf`. The embedded DNS of every container forwards external names to that cached set. Then the host's resolver can change, for example through a new gateway or an `nmcli` switch. After that, every container loses external resolution with no warning, and this includes the kind node. `docker exec <node> getent hosts github.com` returns nothing, while the host resolves the name. Docker's embedded DNS still answers container names, such as `registry.localhost` and the node's own hostname. So the failure looks like a cluster problem, but it is not.
-
-The fix is of the same kind as step 1: restart the daemon once, so it reads the current resolver again. Before you blame anything else, verify that the embedded DNS forwards to the expected place:
-
-```sh
-docker exec <node> getent hosts github.com    # empty while the host resolves → stale upstream
-sudo systemctl restart docker
-```
-
-Until the daemon restarts, you can unblock a running cluster node by node. Point the node at a working resolver. Write the registry container names into its `/etc/hosts`. Docker does not rewrite an edited resolv.conf:
-
-```sh
-node=$(kubectl --context kind-${CLUSTER:-platform} config view --minify -o jsonpath='{.clusters[0].cluster.server}')
-docker exec "${CLUSTER:-platform}-control-plane" sh -c \
-  'printf "nameserver 1.1.1.1\n" > /etc/resolv.conf'
-reg_ip=$(docker inspect registry.localhost \
-  --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' | cut -d' ' -f1)
-docker exec "${CLUSTER:-platform}-control-plane" sh -c \
-  "echo '$reg_ip registry.localhost' >> /etc/hosts"
-kubectl --context kind-${CLUSTER:-platform} -n kube-system rollout restart deploy/coredns
-```
-
-The restart is the durable fix. The `/etc/hosts` entry lasts only until the node is recreated.
-
-## Step 3: The environment that `cluster-up` runs kind in
-
-`just proxy-setup` writes `infra/local/proxy.local.env`, and `the `cluster` library of tabkit-ops` loads it. So every cluster command runs with this machine's egress, and no cluster script names a proxy. The file is local to the machine and gitignored. You export nothing by hand:
-
-```sh
+nix develop
+just bootstrap
+just proxy-setup
+just proxy-setup --check
 just cluster-up full
 ```
 
-**The file exists because kind reads the proxy variables from its own environment.** The node's kubeadm calls the API server *by name*: `https://<cluster>-control-plane:6443`. No CIDR in a `NO_PROXY` list exempts a hostname. So that call goes to the proxy and fails. Only kind can prevent this. When kind sees the variables, it takes them over and appends what the node needs, including the node's own name.
+`just proxy-setup` writes Docker CLI proxy settings and two ignored files in `infra/local`. The first file gives kind the proxy and lets it add its API names to the bypass list. The second gives the Argo CD repo-server the pod-facing address. Protect these files when the proxy URL includes credentials.
 
-```text
-no_proxy=fc00:f853:ccd:e793::/64,172.19.0.0/16,localhost,127.0.0.1,10.96.0.0/16,
-         10.244.0.0/16,<cluster>-control-plane,.svc,.svc.cluster,.svc.cluster.local
-```
+Use an address reachable from inside Docker and Kubernetes. If the proxy runs on your workstation, bind it to a reachable interface and limit access to that network. `127.0.0.1` inside a container points to the container.
 
-Without the variables, the node still gets a proxy. The docker CLI injects `proxies.default` from `~/.docker/config.json`, from step 2, into every container it creates. But that value has no node name, and `kind create` stops partway through:
+The cluster warms local Zot before it starts pulling images. Release, design preview, and Lighthouse builds use Docker CLI settings for BuildKit and its build steps. Keep `proxies.default` in the Docker config of the user or CI job that runs each build.
 
-```text
-✗ Starting control-plane 🕹️
-ERROR: failed to create cluster: failed to remove control plane taint: ...
-Get "https://<cluster>-control-plane:6443/api?timeout=32s": EOF
-```
+Run `just proxy-setup` again after a proxy address or bypass change. Run `just cluster-up full` to apply the local values.
 
-The address in this file is the **host's** address, because everything that reads the file runs on the host. Images are not affected either way. `cluster-up` fills the local zot before it creates the cluster, and the nodes pull only from there, per [ADR-0114](../adr/0114-image-registry.md). So a proxy that cannot reach an upstream fails during warming and names the image. It does not fail as an `ImagePullBackOff` twenty minutes into a sync.
+## Set up servers
 
-## Step 4: Proxy Argo CD's repo-server, for git and chart repositories
+### Forgejo, runner, and hypervisor
 
-`just proxy-setup` writes this setting to `infra/local/proxy.local.yaml`. Every `cluster-up -- full` applies it when it installs Argo CD. The setting is a file, not a `kubectl patch`, for this reason: the repo-server does not exist until the first full tier starts. A fix that only patches a running Deployment fixes the *second* start and hangs the first. The file is local to the machine and gitignored. The address is your host's docker gateway.
+Use these steps with the Forgejo or hypervisor modes. See [Setup modes](../reference/modes.md).
 
-Steps 1 to 3 get **images** into the cluster. They do nothing for a workload that opens its own connection to the internet. Argo CD's repo-server is such a workload. To render a chart with `dependencies:`, it runs `helm repo add` against each upstream repository from inside the pod. Preloaded images do not help, because no image pull is involved.
+1. Set up the operator shell and the server daemons before provisioning.
+2. Install `/etc/platform/proxy.env` on the Forgejo host, each runner, and the hypervisor. The NixOS units load it.
+3. Follow `infra/forge-host/README.md` and `infra/runner/README.md`. Restart the services after a proxy change.
+4. For container builds, set the Docker CLI proxy in each runner user's Docker config. Give it the address BuildKit can reach.
+5. Give runner jobs the proxy environment. In CI, `just cluster-up` prepares proxy files on the first run in each checkout.
 
-The failure is quiet and easy to blame on the wrong cause:
+Use a proxy URL without embedded credentials for runners that build pull request Dockerfiles. Build instructions can read proxy arguments. Use a restricted relay if the upstream proxy requires authentication.
 
-- The app reports `Unknown` with a `ComparisonError`. Its running workloads stay `Healthy`.
-- The repo-server also clones the git remote. So on a network that blocks the remote, the root app never renders. The tier stops before any application appears.
-- If the app is a wave gate, the root app-of-apps waits behind it. The whole tier then looks stuck, for a reason far from the tier.
+For an internal Forgejo, set `enableAcme = false` in `infra/forge-host/settings.nix` before you deploy. Install the certificate chain and key at `/etc/forgejo/tls/fullchain.pem` and `/etc/forgejo/tls/key.pem`. Make them readable by the `forgejo` user and restrict access to the key. Install the site CA on Git clients, runners, and Argo CD.
 
-```text
-ComparisonError  Failed to load target state: ... error building helm chart dependencies:
-                 failed to add helm repository https://k8s.ory.sh/helm/charts: ...
-                 failed running helm: `helm repo add ...` failed timeout after 1m30s
-```
+Use the host steps on the machine that runs the install in `infra/hypervisor/README.md`. The NixOS host needs the proxy or an internal cache for updates. Give each VM that fetches artifacts its own proxy settings.
 
-The sign that the proxy is the cause and not the chart: the **same command succeeds on your host**. Your shell exports the proxy, and the pod does not. Do not conclude that the repository is down or that the URL moved. Compare like with like, and run the command in the pod:
+### Talos nodes
 
-```sh
-pod=$(kubectl -n argocd get pod -l app.kubernetes.io/name=argocd-repo-server \
-  -o jsonpath='{.items[0].metadata.name}')
-kubectl -n argocd exec "$pod" -- helm repo add probe <repo-url>   # hangs, then times out
-```
-
-Here the reader is **a pod**. So a loopback proxy needs the **gateway of the kind network**:
-
-```sh
-docker network inspect kind -f '{{range .IPAM.Config}}{{.Gateway}} {{end}}'   # take the IPv4
-```
-
-Set the proxy through the chart's `repoServer.env`. `infra/helm/platform/argocd` wraps the upstream `argo-cd` chart. So the key sits under the subchart alias. Helm ignores a bare `repoServer.env` with no warning and renders no env. This is machine config, so keep it out of the committed values file. Pass it at upgrade time, or from an untracked overlay. Quote every `--set`. Otherwise the shell globs the `[0]`.
-
-```sh
-helm upgrade argocd infra/helm/platform/argocd -n argocd --timeout 8m \
-  --set 'argo-cd.repoServer.env[0].name=HTTPS_PROXY' \
-  --set 'argo-cd.repoServer.env[0].value=http://172.19.0.1:8118' \
-  --set 'argo-cd.repoServer.env[1].name=HTTP_PROXY' \
-  --set 'argo-cd.repoServer.env[1].value=http://172.19.0.1:8118' \
-  --set 'argo-cd.repoServer.env[2].name=NO_PROXY' \
-  --set-string 'argo-cd.repoServer.env[2].value=localhost\,127.0.0.1\,.svc\,.svc.cluster.local\,.cluster.local\,10.0.0.0/8\,.localtest.me'
-```
-
-Confirm that helm rendered the setting. Do not read the live Deployment for this. A manual `kubectl set env` survives the 3-way merge, so the Deployment shows your own patch in both cases:
-
-```sh
-helm get manifest argocd -n argocd | grep -A1 'name: HTTPS_PROXY'
-```
-
-`NO_PROXY` must keep traffic inside the cluster direct. Without it, the repo-server calls the API server and its own services through the proxy. Verify with the same `helm repo add` in the pod. It returns in about one second. Then force Argo to discard what it cached while the network was broken:
-
-```sh
-argocd app get <app> --core --hard-refresh
-```
-
-A plain `--refresh` is not enough. Argo caches the generation error with the manifests. So the app reports the old `ComparisonError` word for word long after the fix. This looks like a failed fix.
-
-### Do not change CoreDNS
-
-The symptom suggests a DNS fix. A chart repo on GitHub Pages resolves to four anycast addresses. A network that drops traffic to some of them fails about half the time. Two DNS changes seem to help, but neither is the fix:
-
-- pinning the good addresses in a CoreDNS `hosts` block
-- suppressing AAAA with a `template ANY AAAA { rcode NOERROR }` stanza
-
-**When the proxy is set, the pod never connects to those addresses itself.** The proxy resolves the name and connects for the pod. So the address that the cluster resolves no longer matters. A test removed both stanzas and verified this. The repo-server then resolved the chart host to IPv6 only. The AAAA stanza existed to prevent exactly that condition. `helm repo add` still returned in 1 to 3s.
-
-Keep in CoreDNS only what the platform put there. For the inner loop, that is the `dev.localtest.me` `rewrite stop` blocks from `the `cluster` library of tabkit-ops`. Argo cannot see live Corefile edits. They do not survive a rebuild, and they stay after the problem is gone. If you already made such edits, remove them and verify again. A workaround that nobody can explain is worse than the fault it hid.
-
-The removal has one side effect. A CoreDNS rollout kills lookups in progress. So unrelated apps briefly go `Unknown` with `failed to list refs: ... EOF` against GitHub. The rollout causes this, not the removal. Confirm it with `git ls-remote` from inside the repo-server. Then clear it with `--hard-refresh`, for the same caching reason as above.
-
-All the steps above read a local kind node. Both local tiers use kind, per [ADR-0600](../adr/0600-local-development-loop.md). So only the node name differs between them.
-
-## Talos nodes: the machine config, not the shell
-
-This section covers **deployed** environments, per [ADR-0200](../adr/0200-cluster-topology.md). No local tier applies a machine config.
-
-The steps above configure a kind node, which gets much of its setup from the host docker daemon. A Talos node gets nothing from the host. It has no shell, no daemon configuration, and no environment to export into. The proxy is part of the machine config, or it does not exist.
+Put the proxy in a protected machine config patch. Pass it as a common `--config-patch` when you generate the [Talos machine configs](../../infra/talos/README.md). Apply it to every node before installation or bootstrap.
 
 ```yaml
 machine:
   env:
-    http_proxy: http://10.5.0.1:8118
-    https_proxy: http://10.5.0.1:8118
-    no_proxy: localhost,127.0.0.1,10.96.0.0/12,10.244.0.0/16,.svc,.cluster.local
+    http_proxy: http://proxy.example.net:3128
+    https_proxy: http://proxy.example.net:3128
+    no_proxy: localhost,127.0.0.1,10.96.0.0/12,10.244.0.0/16,.svc,.cluster.local,kube.internal,registry.internal
 ```
 
-Three points often cause errors. All three come from a measurement, not a guess:
+Add the actual API endpoint, node addresses, and internal registries. Use an internal registry mirror for image pulls when the upstream registries need one. Stage the installer, Kubernetes images, and Cilium images before bootstrap if their sources are unavailable.
 
-**`127.0.0.1` is the node.** A node cannot reach a proxy on your host's loopback by that address. Use an address that the node can route to. On real hardware, that is a routable address.
+### Argo CD and workloads
 
-**`no_proxy` must carry the pod and service CIDRs.** Without them, the kubelet, the API server, and every call between pods go out through the proxy. That fails later than a missing proxy, and in a different way.
+Create a proxy Secret with the three uppercase keys from the host example. Include their lowercase forms for tools that use them. Use the protected secret flow from the [secrets runbook](secrets-runbook.md).
 
-**The failure never mentions the proxy.** Without the proxy config, a node reports `403 Forbidden` on the fetch of `registry.k8s.io/etcd`. etcd never leaves `Preparing`. The bootstrap times out on `waiting for etcd to be healthy`. This looks like a broken cluster, not a blocked network. A measurement found this, at a high cost in time.
+Create the Argo CD Secret in `argocd` before bootstrap. Pass a site values file to Argo CD with the following settings.
 
-## Stalled image pulls
+```yaml
+argo-cd:
+  repoServer:
+    envFrom:
+      - secretRef:
+          name: outbound-proxy
+```
 
-A slow proxy makes a cold registry slow. zot copies a whole image before it answers the request that triggered the copy. If the cluster starts the pulls, this is fatal. Every pod asks at the same time, zot saturates, and each pull goes past containerd's deadline. A warm-up before the cluster starts prevents this. The warm-up always runs: `cluster-up` does it on every network.
+```sh
+ARGOCD_VALUES_FILE=/path/to/argocd-values.yaml \
+  just argocd-bootstrap dev
+```
 
-If a warm-up fails, it names the images that it could not cache. It stops before it creates a cluster. Run it again. It skips cached images in microseconds, so a retry only fetches what is still missing.
+Use the same values file for later runs of the bootstrap task. Use an internal Git origin for the bootstrap repository when one is available.
+If the ApplicationSet controller calls a forge through the proxy, add the same Secret to `argo-cd.applicationSet.extraEnvFrom`.
+For an internal Git server with a site CA, put its CA certificate under its hostname in `argo-cd.configs.tls.certificates`.
+Follow the [GitOps bootstrap steps](gitops-runbook.md#bootstrap-a-deployed-environment) for the cluster age key.
 
-## Restricted registries
+| Workload | Setting in the environment values |
+| --- | --- |
+| Zot with upstream mirrors | Set `zot.proxySecretName` to the Secret in `platform`. |
+| cert-manager with public TLS | Add the proxy keys from the Secret to `cert-manager.extraEnv` with `valueFrom.secretKeyRef`. |
+| Other workloads with external dependencies | Set the chart's proxy or endpoint settings. Choose an internal endpoint if the client cannot use an HTTP proxy. |
 
-Some networks have a registry that blocks **digest** pulls, so only tags resolve. On such a network, pre-pull the platform images by tag, and load them with `kind load docker-image`. The upstream charts pin images by digest, per [ADR-0113](../adr/0113-supply-chain-security.md), and that is what fails.
+Use site values for network policies. Add one rule for each workload that needs the proxy. The example permits Zot to reach one proxy address on TCP port `3128`. Match the real pod labels and update the IP when the proxy changes. Use an address from your own network.
 
-`kind load` works on both tiers, so this recovery is the same everywhere. Pass `--name` to reach the cluster of the full tier.
+```yaml
+outboundProxyRules:
+  - name: zot-outbound-proxy
+    namespace: platform
+    matchLabels:
+      app: zot
+    cidrs:
+      - 192.0.2.10/32
+    port: 3128
+```
+
+Apply the needed policy before first use if the namespace already has egress restrictions. For Argo CD, use `app.kubernetes.io/name: argocd-repo-server` in `argocd`.
+
+Keep object storage, mail, and other internal dependencies on direct routes. Verify backups and restores with the chosen object storage. Restart affected pods after a proxy Secret change.
+
+For public TLS, give cert-manager access to the CA and the DNS provider API through the proxy. Set `cert-manager.extraArgs` to use an internal recursive resolver for [DNS-01 checks](https://cert-manager.io/docs/configuration/acme/dns01/).
+
+For site TLS, set `publicTls.enabled` to `false`. Use the site's issuer or provide the TLS Secrets `wildcard-tls` and `wildcard-ops-tls` in `platform`. Give clients the site CA.
+
+## Run with internal sources
+
+Use this path if the proxy cannot reach upstream sources. Use an import job with upstream access to stage the inputs. Mirror every pinned revision and image digest used by a job. Use the Nix installed on a self hosted runner.
+
+1. Stage the OS packages and installers if provisioning also runs on the closed network.
+2. Mirror the pinned Actions and point Forgejo and the workflows at the internal copies.
+3. Configure the runner's Nix to trust the internal binary cache. Set internal endpoints for Actions cache and artifacts.
+4. Set the Forgejo registry variables and credentials for internal Zot. Point Argo CD at internal Forgejo.
+
+| Job | Inputs to import |
+| --- | --- |
+| PR checks | Locked flake sources, the dev shells, and Go, Bun, and Helm dependencies. Give Go commands outside Nix an internal module proxy. |
+| Release and design preview | BuildKit, the Dockerfile frontend, base and copy stage images, Go modules, and Bun packages for the frontend and admin console. |
+| Cluster, E2E, and Lighthouse | The image references in `infra/local/image-refs.txt`, kind, Zot, and Lighthouse images. Serve Helm subcharts and import the E2E shell with its Playwright browsers. Mirror the E2E packages in the root Bun lockfile. |
+| Trivy scan | The vulnerability database and checks bundle. Refresh both on a schedule. Set `TRIVY_SKIP_DB_UPDATE`, `TRIVY_SKIP_CHECK_UPDATE`, and `TRIVY_OFFLINE_SCAN` to `true` for `just ci-scan`. |
+| Scheduled jobs | Give `tabkit-ops ci-nightly-gate` a Forgejo endpoint. Run upstream discovery and public DNS checks on a network with access. |
+
+Seed runner-local Zot from the internal registry before `cluster-up full`. Keep fonts in the frontend and load them with `next/font/local`. Record the source revision, lockfiles, image digests, and scanner snapshot for each import. Import new pins before jobs use them. A cache that fetches on a miss needs upstream access during the job. Test cache reads with public substituters disabled.
+
+When measuring job time, use the same commit and equivalent runners. Record setup, dependency preparation, builds, cluster startup, and tests. Measure the import job and warm runs as well.
+
+## Verify the path through the firewall
+
+1. Start with a fresh worker or VM. Block direct public egress and keep the proxy and internal services reachable.
+2. Run `just check` or `just ci`. Include a cold Nix build so cached dependency outputs cannot hide network failures.
+3. Build and push a service, the frontend, and the admin image. Verify the image signatures and attestations.
+4. Run `just cluster-up full`, `just verify`, `just e2e-install`, and `just e2e-smoke`. Run the full test and Lighthouse jobs for the roles you use.
+5. Verify Argo CD sync, image pulls, and each enabled external service on the deployed cluster. Run the Trivy scan.
+6. Check proxy and firewall logs. Confirm the public requests use the proxy and internal requests take their direct routes.
+
+| Symptom | Check |
+| --- | --- |
+| Go or Helm fails inside Nix | Check the Nix daemon environment and repeat with the required output absent from the store. |
+| Docker pulls work and BuildKit fails | Check the runner Docker CLI config and the proxy address reachable from the builder. |
+| kind reports EOF while calling its API | Check the kind proxy environment and the API bypass. |
+| A pod cannot resolve a public name | Check proxy reachability and test the HTTP request from the affected pod. Public DNS can be blocked when the proxy resolves the name. |
+| Argo CD still shows a prior fetch failure | Check the repository from the repo-server. Run `argocd app get <app> --core --hard-refresh` after fixing access. |
+| Talos waits for etcd during bootstrap | Check that the node can pull its installer and Kubernetes images. |

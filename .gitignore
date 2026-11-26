@@ -112,5 +112,4 @@ core.*
 .rumdl_cache
 
 # proxy-setup writes these. They hold this machine's egress route into the cluster.
-infra/local/proxy.local.yaml
-infra/local/proxy.local.env
+infra/local/proxy.local.*

@@ -107,24 +107,7 @@ Talos writes that correctly into the node's containerd configuration, but **cont
 
 ## Behind a proxy
 
-A Talos node inherits nothing from anyone's shell. On a proxied network, the node cannot pull, and **the failure never mentions the proxy**. The node reports `403 Forbidden` when it fetches `registry.k8s.io/etcd`, and etcd never leaves `Preparing`. Any process that waits on the cluster times out on `waiting for etcd to be healthy`. That looks like a broken cluster, and not like a blocked network. It is the most expensive way to learn this.
-
-The proxy goes in the machine config, and only there:
-
-```yaml
-machine:
-  env:
-    http_proxy: http://proxy.example.com:8118
-    https_proxy: http://proxy.example.com:8118
-    # Without the CIDRs, the nodes send their own east-west traffic through the
-    # proxy. That fails in a different way, and later.
-    no_proxy: localhost,127.0.0.1,10.96.0.0/12,10.244.0.0/16,.svc,.cluster.local
-```
-
-Two details often cause problems:
-
-- `127.0.0.1` is the NODE inside a node. A proxy on the operator's loopback must have an address that the node can route to.
-- `no_proxy` must include the pod and service CIDRs. If not, the API server, the kubelet, and every pod-to-pod call go out through the proxy.
+Apply the machine config patch from the [proxy guide](../../docs/guide/http-proxy.md#talos-nodes) before Talos boots.
 
 ## Secrets
 
