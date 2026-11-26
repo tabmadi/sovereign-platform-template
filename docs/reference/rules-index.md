@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 213 |
-| Review-enforced | 422 |
-| **Total** | **635** |
+| Review-enforced | 423 |
+| **Total** | **636** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -152,6 +152,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Every tool comes from the dev shell of `flake.nix`, never from a second version manager. | review |
 | `flake.lock` is committed. Renovate updates it, and the CI gate decides. | review |
 | Every check is a derivation under `checks` in `flake.nix`. | `ci` in CI |
+| `just ci` builds the checks in parallel with `--max-jobs auto`. | review |
 | The shared Nix code comes from the tabkit module at a tag, never from a copy. | review |
 | A NixOS machine builds from the current stable NixOS release, never from `nixpkgs-unstable`. | review |
 

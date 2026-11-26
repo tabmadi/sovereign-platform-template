@@ -110,9 +110,11 @@ in
   tabkit.deploy.nodes = {
     hypervisor.hostname = settings.address;
   }
+  # The QEMU copies deploy only in `just hypervisor-test`. The real host proves the same modules in the checks.
   // lib.genAttrs [ "hypervisor-lab" "hypervisor-lab-broken" "hypervisor-lab-next" ] (_: {
     hostname = "127.0.0.1";
     confirmTimeout = 60;
+    check = false;
   });
 
   perSystem =
