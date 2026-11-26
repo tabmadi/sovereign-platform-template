@@ -212,6 +212,7 @@
             pkgs.typescript-language-server
             pkgs.kubectl
             pkgs.argocd
+            pkgs.kustomize
             pkgs.cilium-cli
             pkgs.opentofu
             pkgs.kind
