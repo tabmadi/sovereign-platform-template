@@ -50,8 +50,8 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Admin console, per ADR-0401. Oathkeeper injects `X-User-Email`,
-# and the console shows it. See the `ops-admin` access rule.
+# Admin console, per ADR-0401. Oathkeeper admits an operator at AAL2.
+# See the `ops-admin` access rule.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:

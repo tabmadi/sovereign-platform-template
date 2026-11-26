@@ -19,5 +19,5 @@ admin:
   service:
     port: 3000
 
-  # The console reads the operator from the x-user-email header that the edge forwards, per ADR-0401.
+  # The console needs no setting of its own. ADMIN_SERVICE_URL overrides the in-cluster service address, per ADR-0401.
   env: {}

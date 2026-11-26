@@ -88,7 +88,7 @@ The invariant applies to both tools:
 | Datastore | **none** |
 | Origin | `admin.ops.<host>`, per [ADR-0306](0306-trust-tiers-and-urls.md). It is its own ops-tier origin behind the forward-auth, never a product path |
 | Coarse gate | the `operator` claim and AAL2, with **no authz call**, per [ADR-0304](0304-identity-and-authorization.md). So the console does not fail when the product authorization plane fails |
-| Identity | Oathkeeper forwards the authenticated identity as a header, and the console shows it |
+| Identity | the edge authenticates the operator. The console calls each service as the fixed subject `admin-console`, which the OpenFGA seed grants `group:operator` |
 | Service calls | from the console server to each service, east-west on its server port. The browser never calls a service |
 | Fine-grained authorization | `Checker` calls inside **the service APIs that the pages call** enforce it. The console owns no RBAC of its own |
 

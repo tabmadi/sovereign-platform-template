@@ -1,6 +1,5 @@
-// The frame of every console page: the navigation from the manifest and the operator that the edge forwarded.
+// The frame of every console page: the navigation from the manifest.
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { manifest } from "@/lib/manifest";
@@ -8,12 +7,10 @@ import { text } from "@/lib/text";
 import "./styles.css";
 
 export const metadata: Metadata = { title: text.brand };
-// Every page reads the identity header and live service data, so nothing renders at build time.
+// Every page reads live service data, so nothing renders at build time.
 export const dynamic = "force-dynamic";
 
-export default async function Layout({ children }: { children: ReactNode }) {
-  // Oathkeeper sets this header after the edge checks the operator claim and AAL2, per ADR-0401.
-  const operator = (await headers()).get("x-user-email") ?? "";
+export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
@@ -21,7 +18,6 @@ export default async function Layout({ children }: { children: ReactNode }) {
           <p className="brand">
             <Link href="/">{text.brand}</Link>
           </p>
-          {operator ? <p className="operator">{operator}</p> : null}
           <ul>
             <li>
               <Link href="/">{text.dashboard}</Link>

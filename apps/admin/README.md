@@ -17,7 +17,7 @@ The internal admin tool, per [ADR-0401](../../docs/adr/0401-internal-admin.md). 
 
 Run `just gen-admin` to regenerate. `just gen` includes it, and CI checks the output for drift.
 
-The edge enforces auth. The console shows the identity from the `X-User-Email` header that Oathkeeper forwards, per ADR-0305. The console server calls each service in-cluster with `X-User-Id: admin-console`, which the OpenFGA seed grants `group:operator`.
+The edge enforces auth, per ADR-0305. The console server calls each service in-cluster with `X-User-Id: admin-console`, which the OpenFGA seed grants `group:operator`.
 
 ## Standard tasks
 

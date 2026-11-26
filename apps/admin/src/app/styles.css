@@ -35,11 +35,6 @@ nav ul {
   font-weight: 600;
 }
 
-.operator {
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-
 main {
   max-width: 64rem;
   padding: 1rem 2rem;
