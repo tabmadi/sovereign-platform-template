@@ -13,7 +13,7 @@
     };
     # A new version is a new tag here.
     tabkit = {
-      url = "github:tabmadi/tabkit/v0.27.0";
+      url = "github:tabmadi/tabkit/v0.28.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
       inputs.nixos-stable.follows = "nixos";

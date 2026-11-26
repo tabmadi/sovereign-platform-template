@@ -79,7 +79,7 @@ in
 
   # The QEMU copy on one disk. lab.sh adds the registry forward and the offline network at run time.
   tabkit.fullTier.lab = {
-    configuration = "hypervisor-lab";
+    machine = "labConfigurations.hypervisor-lab";
     node = "hypervisor-lab";
     cpus = 8;
     memory = 14336;
@@ -91,8 +91,11 @@ in
     adminKeys = [ keys.snakeOilEd25519PublicKey ];
   };
 
-  flake.nixosConfigurations = {
-    hypervisor = host settings { };
+  flake.nixosConfigurations.hypervisor = host settings { };
+
+  # The QEMU copies run only in `just hypervisor-test`. `nix flake check` evaluates every machine under
+  # nixosConfigurations, and the real host already proves the same modules, so the copies live in their own output.
+  flake.labConfigurations = {
     hypervisor-lab = host lab labExtra;
     # The firewall closes SSH, so a deploy of it must roll back by itself.
     hypervisor-lab-broken = host lab {
@@ -111,7 +114,8 @@ in
     hypervisor.hostname = settings.address;
   }
   # The QEMU copies deploy only in `just hypervisor-test`. The real host proves the same modules in the checks.
-  // lib.genAttrs [ "hypervisor-lab" "hypervisor-lab-broken" "hypervisor-lab-next" ] (_: {
+  // lib.genAttrs [ "hypervisor-lab" "hypervisor-lab-broken" "hypervisor-lab-next" ] (name: {
+    machine = "labConfigurations.${name}";
     hostname = "127.0.0.1";
     confirmTimeout = 60;
     check = false;

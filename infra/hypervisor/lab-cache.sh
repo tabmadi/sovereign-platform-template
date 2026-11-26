@@ -18,10 +18,10 @@ lab_targets=(
   .#full-tier-lab
   .#full-tier-lab-installer
   .#hypervisor-lab-key
-  .#nixosConfigurations.hypervisor-lab.config.system.build.diskoScript
+  .#labConfigurations.hypervisor-lab.config.system.build.diskoScript
 )
 for node in "${lab_nodes[@]}"; do
-  lab_targets+=(".#nixosConfigurations.${node}.config.system.build.toplevel" ".#deploy.nodes.${node}.profiles.system.path")
+  lab_targets+=(".#labConfigurations.${node}.config.system.build.toplevel" ".#deploy.nodes.${node}.profiles.system.path")
 done
 
 available_memory_mb() { awk '/^MemAvailable:/ { print int($2 / 1024) }' /proc/meminfo; }
