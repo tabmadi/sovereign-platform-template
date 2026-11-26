@@ -23,7 +23,7 @@ seed:
   image: alpine/k8s:1.37.2
   # Each ops dashboard, per ADR-0306, granted to the members of `group:operator`.
   dashboards: [
-    lowdefy,
+    admin,
     hubble,
     grafana,
     argocd,
@@ -35,7 +35,7 @@ seed:
     zot,
     design,
   ]
-  # Service-account identities granted `group:operator#member`. The Lowdefy admin
+  # Service-account identities granted `group:operator#member`. The admin
   # console, per ADR-0401, calls services east-west with `X-User-Id: admin-console`.
   # This grant lets that identity pass the operator write-gate of the services.
   serviceOperators: [admin-console]

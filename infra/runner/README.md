@@ -1,27 +1,26 @@
 # The CI runner
 
-The machine that runs Forgejo Actions jobs, per [ADR-0116](../../docs/adr/0116-forge-and-pipelines.md). It is a dedicated Debian machine. It is never the forge and never a cluster node, because a job controls this machine's Docker, and that is root on it.
+The machine that runs Forgejo Actions jobs, per [ADR-0116](../../docs/adr/0116-forge-and-pipelines.md). It is a dedicated NixOS machine. It is never the forge and never a cluster node, because a job controls this machine's Docker, and that is root on it.
 
 This directory exists in a project whose `forge` answer is `forgejo`, per [modes.md](../../docs/reference/modes.md).
 
-## What `runner.sh install` sets up
+## What `runner.nix` sets up
 
 | Part | Why |
 | --- | --- |
-| Docker, buildx, Node, pipx, chromium, and the build tools | what a provider-hosted `ubuntu-24.04` image carries and a job assumes |
-| higher inotify limits | each kind node runs a kubelet, and the Debian default runs out |
-| one user, home, and temp directory for each instance | one job's cache restore or registry logout otherwise lands in another running job |
+| Docker, Nix, Node, git, and the build tools | what a provider-hosted `ubuntu-24.04` image carries and a job assumes |
+| higher inotify limits | each kind node runs a kubelet, and the default runs out |
+| one home, temp directory, and Actions cache for each instance | one job's cache restore or registry logout otherwise lands in another running job |
 | the `ubuntu-24.04:host` label, with `ubuntu-latest:host` beside it | a job runs on the machine, so kind can publish on loopback and bind-mount the checkout |
-| one Actions cache, served by instance 1 | separate caches would each warm the registry mirror against one Docker Hub limit |
 | an hourly `runner-gc` timer | a job that dies early leaves BuildKit builders, kind clusters, and images that nothing else removes |
+| the blackbox exporter, when `probe.enable` is set | the registry probe of [ADR-0500](../../docs/adr/0500-observability.md) |
 
-`INSTANCES` is 1 by default. A machine has one registry port and one set of edge ports, so a second job that starts a cluster waits for the first one.
+`instances` in `settings.nix` is 1 by default. A machine has one registry port and one set of edge ports, so a second job that starts a cluster waits for the first one.
 
 ## Building the runner
 
-1. Create a Debian machine. On the project's own hypervisor, the host runs it as the VM `runner`, per `infra/hypervisor/`.
-2. Set `RUNNER_SSH`, `RUNNER_JUMP`, and `RUNNER_ADDRESS` in `runner.env`.
-3. Export `MISE_GITHUB_TOKEN`, so jobs do not hit the anonymous limit of the GitHub API.
-4. Run `bash infra/runner/runner.sh install`.
+1. Start the VM. On the project's own hypervisor, the host boots it from its disk image, per `infra/hypervisor/`. Elsewhere, run `just runner-image` and start a VM from `runner.img`.
+2. Set `address` and `jump` in `settings.nix`, then run `just runner-deploy`.
+3. Run `just runner-token`. It mints a registration token on the forge, writes it on the runner, and starts every instance.
 
-The script mints a registration token on the forge over `FORGE_SSH`. Where the forge is not reachable that way, it reads `RUNNER_TOKEN` instead.
+Where the forge is not reachable over SSH, `runner-token` reads `RUNNER_TOKEN` instead.

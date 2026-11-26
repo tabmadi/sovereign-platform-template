@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# Shared by the forge-host and runner scripts, per ADR-0116. They reach a Debian machine over SSH, with an optional jump host.
+# Shared by the forge-host and runner scripts, per ADR-0116. They reach a NixOS machine over SSH, with an optional jump host.
 source "$(tabkit-ops lib)/bootstrap.sh"
 
 # One value of infra/project.yaml. It names the project, so no script here repeats the slug or the apex.
 answer() { # <key>
   awk -v k="$1:" '$1 == k {print $2; exit}' infra/project.yaml 2>/dev/null
+}
+
+# One fact of a settings.nix file. A null fact prints nothing.
+setting() { # <file> <name>
+  nix eval --json --file "$1" "$2" | jq -r '. // empty'
 }
 
 # Runs stdin as a bash script on <target>, as `user@host`. <jump> is a host that the target is reachable only from.

@@ -132,6 +132,19 @@ The cost is real, and it is a host. Someone patches it, backs it up, and monitor
 
 ### Negative and Risks
 
+### The forge and the runner machines
+
+Both machines are NixOS configurations of this flake, on the server base of tabkit, per [ADR-0100](0100-toolchain.md). `infra/forge-host/forge.nix` runs Forgejo and its Postgres. `infra/runner/runner.nix` runs Docker and one forgejo-runner unit for each instance. `flake.lock` pins every version on both, so no machine downloads a release of its own.
+
+| Step | How it runs |
+| --- | --- |
+| A new machine | a VM boots from the disk image of its configuration. The hypervisor of [ADR-0208](0208-hypervisor-host.md) runs both images |
+| A change | `just forge-deploy` or `just runner-deploy`. A deploy that loses SSH rolls back by itself |
+| Data that no configuration holds | `forge.sh` imports the signing key and seeds the users, the tokens, and the repository. `runner.sh` writes the registration token |
+| Proof | the `forge-runner` check boots both machines, and the runner registers with the forge |
+
+A secret of either machine never enters the Nix store. The signing key and the tokens are files that a data step writes on the machine.
+
 - **The forge joins Core.** A forge outage blocks merges and builds. Argo CD keeps reconciling from the last synced commit, so a forge outage does not stop the running system.
 - **Self-hosted runners are compute that the platform team owns**, including their cache and their isolation. Execution of untrusted PRs is a policy question. A public repository must answer it before it enables such execution.
 - **The pipeline feature set of Forgejo is behind the provider it imitates.** The thin-YAML rule limits the exposure: the surface in use is checkout, setup, and a task call.
@@ -142,6 +155,8 @@ The cost is real, and it is a host. Someone patches it, backs it up, and monitor
 - **The forge runs outside the workload cluster it serves.** *Where the forge runs* gives the reason.
 - Pipelines run on Forgejo Actions, with runners on controlled infrastructure. No second CI engine is introduced, per principle 5 of [ADR-0000](0000-platform-foundations.md).
 - A runner executes `ubuntu-24.04` jobs on a dedicated machine. It never runs them inside a job container or on a workload-cluster node.
+- The forge and the runner are NixOS machines, built from `infra/forge-host/forge.nix` and `infra/runner/runner.nix`. A deploy applies every change. `(CI: ci)`
+- A secret of the forge or the runner never enters the Nix store. A data step writes it on the machine.
 - The repository lives at `forge.<apex>/platform/<project>`. An organisation owns it, never a person, and Argo CD reconciles from that URL.
 - Workflow YAML checks out, sets up the toolchain, and calls a `just` recipe. Pipeline logic is not written in YAML. `(CI: lint-thin-workflows)`
 - Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](0000-platform-foundations.md).

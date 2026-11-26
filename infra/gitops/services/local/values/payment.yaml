@@ -14,10 +14,10 @@ server: { replicas: 1 }
 ingress: { enabled: true, host: dev.localtest.me, resources: [charges] }
 # Keep every trace that the service starts. Per ADR-0500, local keeps 100% of healthy traces.
 otel: { deployEnv: local, sampling: "parentbased_traceidratio=1.0" }
-# The Lowdefy admin console in `apps/admin` calls payment from its server, east-west on
+# The admin console in `apps/admin` calls payment from its server, east-west on
 # the server port, not through the `/api` edge, per ADR-0401. `orders` covers the checkout
 # saga: the orders worker's ChargeActivity dials payment east-west, per ADR-0302.
-networkPolicy: { allowFrom: [lowdefy, orders] }
+networkPolicy: { allowFrom: [admin, orders] }
 secrets: { envFrom: [payment-db, openfga-creds] }
 env:
   # Write authz, per ADR-0304: the server gates the operator-only refund through the shared

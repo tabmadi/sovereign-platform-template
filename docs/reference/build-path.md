@@ -59,6 +59,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 
 | Recipe | Owns | Reached from |
 | --- | --- | --- |
+| `admin-lint` | Type-check the admin console, per ADR-0401 | flake.nix |
 | `build` | Compile the Go module, per ADR-0111 | flake.nix |
 | `cache-push` | Push what CI built to the binary cache, per ADR-0101. Without NIX_CACHE_URL it does nothing | check.yml |
 | `ci` | Run every check of flake.nix in the Nix sandbox. CI runs it on each push, beside its slower jobs | check.yml, git hooks |
@@ -84,7 +85,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `dns-check` | Report how the zones of the provider differ from infra/dns/dnsconfig.js, per ADR-0206 | dns.yml |
 | `e2e` | The full browser suite against a running full tier, per ADR-0601 | e2e.yml |
 | `e2e-diagnose` | Print the errors of the workloads on the path of an ops route, after a failed e2e run | e2e.yml |
-| `e2e-install` | The Node.js dependencies of the e2e island, per ADR-0601. The browsers come from nixpkgs | e2e.yml, lighthouse.yml, preview.yml, publish.yml |
+| `e2e-install` | The dependencies of the e2e suite from the root Bun lockfile, per ADR-0601. The browsers come from nixpkgs | e2e.yml, lighthouse.yml, preview.yml, publish.yml |
 | `e2e-smoke` | The @smoke subset of the browser suite, per ADR-0601 | e2e.yml, preview.yml |
 | `lighthouse` | Web vitals and the bundle budget of each route, per ADR-0400 | lighthouse.yml, publish.yml |
 | `lighthouse-down` | Remove the containers and the network of lighthouse-up | lighthouse.yml, publish.yml |
@@ -116,7 +117,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `lint-log-vocab` | Scripts use the log vocabulary of ADR-0001 | flake.nix |
 | `lint-money` | A money value is the shared Money component and never a float, per ADR-0110 and ADR-0300 | flake.nix |
 | `lint-naming` | The resource name grammar of ADR-0003 | flake.nix |
-| `lint-node-scope` | npm stays in the e2e island, and Bun installs every other workspace, per ADR-0110 and ADR-0601 | flake.nix |
+| `lint-node-scope` | Bun installs every workspace, and no other package manager leaves a lockfile, per ADR-0110 | flake.nix |
 | `lint-openapi` | Every spec against the platform ruleset, and the owner of each resource prefix, per ADR-0303 | flake.nix |
 | `lint-parity` | Every key of a deployed environment exists in the local overlay, per ADR-0205 | flake.nix |
 | `lint-ports` | The local ports are unique and registered, per ADR-0205 | flake.nix |
@@ -147,7 +148,7 @@ This table lists every task that a workflow or a git hook reaches, and the failu
 | `test-alerts` | Every alert with simulated time, per ADR-0500 | flake.nix |
 | `test-frontend` | The frontend tests, with a coverage floor for each route group, per ADR-0400 | flake.nix |
 | `test-go` | Every Go test, per ADR-0601 | flake.nix |
-| `test-ts` | The tests of the shared TypeScript libraries, on Vitest, per ADR-0110 | flake.nix |
+| `test-ts` | The tests of the shared TypeScript libraries and the admin console, on Vitest, per ADR-0110 | flake.nix |
 
 <!-- machinery:end -->
 

@@ -144,10 +144,10 @@ grafana:
     server:
       root_url: "https://grafana.ops.dev.localtest.me:8443/"
 
-# Lowdefy admin console, per ADR-0401. The image is built in this repo and pulled from the local registry, the CI
+# Admin console, per ADR-0401. The image is built in this repo and pulled from the local registry, the CI
 # stand-in, at the stable `local` tag. `Always` makes a `cluster-up full` run pick up a
 # rebuild.
-lowdefy:
+admin:
   replicas: 1
   image:
     repository: registry.localhost:5000/admin

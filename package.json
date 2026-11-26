@@ -2,12 +2,14 @@
   "name": "platform-monorepo",
   "private": true,
   "workspaces": [
+    "apps/admin",
     "apps/frontend",
     "libs/ts/id",
     "libs/ts/money",
     "libs/ts/observability",
     "libs/ts/schemas",
-    "libs/ts/sdks/*"
+    "libs/ts/sdks/*",
+    "test/e2e"
   ],
   "devDependencies": {
     "@typescript/typescript6": "6.0.2",

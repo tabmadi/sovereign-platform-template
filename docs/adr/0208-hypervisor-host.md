@@ -53,7 +53,7 @@ The four questions of the spike:
 | --- | --- |
 | Can a NixOS host run the Talos nodes as VMs | Yes, as QEMU units with KVM. libvirt is not needed |
 | Can nixos-anywhere with disko install the host | Yes, from any system that accepts the admin key over SSH |
-| Can the forge host and the runner host move to NixOS too | They run as Debian VMs on the NixOS host, with cloud-init. Their own kits set them up over SSH, as before |
+| Can the forge host and the runner host move to NixOS too | Yes. Each is a NixOS configuration of this flake, and the host boots it from the disk image of that configuration |
 | Which parts become NixOS modules in tabkit | The server base and the deploy, which the host imports. The VM units stay here, because only this repo runs Talos |
 
 ## Decision
@@ -67,8 +67,8 @@ The four questions of the spike:
 | VM | Image | Address from |
 | --- | --- | --- |
 | Each Talos node | The raw Talos image of the Image Factory schematic of `infra/talos/` | `infra/talos/inventory/<environment>/nodes.yml` |
-| The forge, where `infra/forge-host/` exists | The Debian cloud image, with the admin keys from cloud-init | `FORGE_SSH` in `infra/forge-host/forge.env` |
-| The runner, where `infra/runner/` exists | The Debian cloud image | `RUNNER_ADDRESS` in `infra/runner/runner.env` |
+| The forge, where `infra/forge-host/` exists | The disk image of the `forge` configuration, with the admin keys of this host | `address` in `infra/forge-host/settings.nix` |
+| The runner, where `infra/runner/` exists | The disk image of the `runner` configuration, with the admin keys of this host | `address` in `infra/runner/settings.nix` |
 
 A VM writes its disk from its image on its first start only. A later start, and a deploy of the host, keep the disk. The MAC of a VM holds its address in hex, so dnsmasq gives a rebuilt VM the same address.
 

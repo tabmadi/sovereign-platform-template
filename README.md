@@ -219,7 +219,7 @@ Every tool here also has a row in [`docs/tool-register.md`](docs/tool-register.m
 | Supply chain | cosign with a key pair held in SOPS, syft SBOM, SLSA provenance, Trivy as a merge gate | [0113](docs/adr/0113-supply-chain-security.md) |
 | Registry | zot, one instance for each environment, backed by object storage | [0114](docs/adr/0114-image-registry.md) |
 | Testing | Playwright, k6, `go test`, Vitest | [0601](docs/adr/0601-testing-strategy.md) |
-| Internal admin | Lowdefy over the service APIs. pgweb, read-only | [0401](docs/adr/0401-internal-admin.md) |
+| Internal admin | a first-party console over the service APIs. pgweb, read-only | [0401](docs/adr/0401-internal-admin.md) |
 | Analytics | Faro events into a first-party service | [0700](docs/adr/0700-analytics.md) |
 | Dependency updates | Renovate, grouped, with digest pinning | [0117](docs/adr/0117-updates-and-setup-modes.md) |
 | Making and updating a project | `nix flake new -t` and `just init`. A coding agent applies a later release with `template/UPDATE.md` | [0117](docs/adr/0117-updates-and-setup-modes.md) |
@@ -297,7 +297,7 @@ The button copies every file, the `template/` folder included. Its first commit,
 ```text
 services/<name>/     Go service: OpenAPI contract, server, worker, sqlc, migrations
 apps/frontend/       one Next.js app, with the route groups landing, panel, analytics, and devportal
-apps/admin/          Lowdefy YAML for internal admin
+apps/admin/          the admin console, rendered from the specs
 libs/go/<name>/      shared Go packages: observability, middleware, errors
 libs/{go,ts}/sdks/   generated OpenAPI clients, committed and drift-checked in CI
 infra/helm/          the shared service chart, and the platform component charts

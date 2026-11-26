@@ -87,7 +87,7 @@ The shared toolchain is 0100 to 0109, with the same number for the same topic in
 | ADR | Title | Decides |
 | --- | --- | --- |
 | [0400](0400-frontend.md) | Frontend Stack and Conventions | Next.js, rendering, styling, forms, CSP, portals |
-| [0401](0401-internal-admin.md) | Internal Admin Tool | Lowdefy over the API, and the write-path invariant |
+| [0401](0401-internal-admin.md) | Internal Admin Tool | a first-party console over the API, and the write-path invariant |
 
 ### 05xx: Observability
 

@@ -23,30 +23,8 @@ let
   prefixOf = address: lib.concatStringsSep "." (lib.take 3 (lib.splitString "." address));
   tap = name: "vm-${builtins.substring 0 12 (builtins.hashString "sha256" name)}";
 
-  # A Debian VM takes its host name and the admin keys from a cloud-init drive on its first boot.
-  seed =
-    vm:
-    pkgs.runCommand "seed-${vm.name}.iso" { nativeBuildInputs = [ pkgs.cloud-utils ]; } ''
-      cat > user-data <<'EOF'
-      #cloud-config
-      hostname: ${vm.name}
-      disable_root: false
-      ssh_pwauth: false
-      users:
-        - name: root
-          ssh_authorized_keys: ${builtins.toJSON cfg.adminKeys}
-      EOF
-      printf 'instance-id: %s\nlocal-hostname: %s\n' ${vm.name} ${vm.name} > meta-data
-      cloud-localds $out user-data meta-data
-    '';
-
-  # The cloud-init drive of a Debian VM. A Talos VM gets an entropy device in its place, so the command line stays whole.
-  seedDrive =
-    vm:
-    if vm.kind == "debian" then
-      "-drive file=${seed vm},if=virtio,format=raw,readonly=on"
-    else
-      "-device virtio-rng-pci";
+  # A Talos node gets an entropy device. A NixOS machine needs no seed drive, because its image holds its configuration.
+  seedDrive = _vm: "-device virtio-rng-pci";
 
   # The disk of a VM is written once, from its image. A later start keeps the disk and the state on it.
   firstDisk =
@@ -56,8 +34,9 @@ let
         zstd -q -d -o "$disk.new" ${cfg.images.talos}
         qemu-img resize -q -f raw "$disk.new" ${toString vm.disk}G
       '';
-      debian = ''
-        qemu-img convert -q -O raw ${cfg.images.debian} "$disk.new"
+      nixos = ''
+        cp --sparse=always ${vm.image} "$disk.new"
+        chmod u+w "$disk.new"
         qemu-img resize -q -f raw "$disk.new" ${toString vm.disk}G
       '';
     }
@@ -75,9 +54,14 @@ let
         kind = mkOption {
           type = types.enum [
             "talos"
-            "debian"
+            "nixos"
           ];
-          description = "The image that the VM starts from: a Talos node, or a Debian machine such as the forge.";
+          description = "The image that the VM starts from: a Talos node, or a NixOS machine such as the forge.";
+        };
+        image = mkOption {
+          type = types.nullOr types.path;
+          default = null;
+          description = "The raw disk image of a NixOS machine. A Talos node starts from the shared Talos image.";
         };
         address = mkOption {
           type = types.str;
@@ -105,19 +89,9 @@ in
       default = { };
       description = "The VMs that the host runs, by name.";
     };
-    images = {
-      talos = mkOption {
-        type = types.path;
-        description = "The compressed raw Talos image that a new node starts from.";
-      };
-      debian = mkOption {
-        type = types.path;
-        description = "The Debian cloud image that a new forge or runner starts from.";
-      };
-    };
-    adminKeys = mkOption {
-      type = types.listOf types.str;
-      description = "The SSH keys that a Debian VM accepts for root.";
+    images.talos = mkOption {
+      type = types.path;
+      description = "The compressed raw Talos image that a new node starts from.";
     };
     uplink = mkOption {
       type = types.str;

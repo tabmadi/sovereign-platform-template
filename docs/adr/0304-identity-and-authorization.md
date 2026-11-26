@@ -333,7 +333,7 @@ The version is pinned, so an upstream revision is a reviewed bump and not a goal
 | Configuration and secrets | [ADR-0202](0202-secrets.md) |
 | Malicious-code and supply chain | [ADR-0113](0113-supply-chain-security.md) |
 
-**The bar covers first-party surfaces.** Vendored operator tooling is outside it: Lowdefy, Grafana, and pgweb, per [ADR-0401](0401-internal-admin.md) and [ADR-0501](0501-operator-uis-and-dashboards.md). [ADR-0400](0400-frontend.md) draws the same boundary for accessibility, for the same reason. A claim over software we do not write is a claim we cannot keep.
+**The bar covers first-party surfaces**, and the admin console of [ADR-0401](0401-internal-admin.md) is one. Vendored operator tooling is outside it: Grafana and pgweb, per [ADR-0501](0501-operator-uis-and-dashboards.md). [ADR-0400](0400-frontend.md) draws the same boundary for accessibility, for the same reason. A claim over software we do not write is a claim we cannot keep.
 
 **A named holder verifies the claim on a cadence.** L2 is a design claim, not a test result. A claim that nobody examines becomes false over time. So the examination is scheduled, not only intended:
 

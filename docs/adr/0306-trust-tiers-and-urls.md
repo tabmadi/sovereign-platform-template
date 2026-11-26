@@ -13,7 +13,8 @@ Every environment exposes two kinds of HTTP surface behind one Traefik edge:
 | Surface | Contents | Code ownership |
 | --- | --- | --- |
 | **Product** | the Next.js app, the service APIs, browser telemetry ingest | first-party |
-| **Operations tooling** | Hubble UI, Grafana, the Lowdefy console, Argo CD, the Temporal UI, Headlamp, pgweb, the Mailpit viewer, the SeaweedFS admin UI | **third-party: deployed, not authored** |
+| **Operations console** | the admin console of [ADR-0401](0401-internal-admin.md) | first-party, on its own ops origin |
+| **Operations tooling** | Hubble UI, Grafana, Argo CD, the Temporal UI, Headlamp, pgweb, the Mailpit viewer, the SeaweedFS admin UI | **third-party: deployed, not authored** |
 
 This ADR fixes three things:
 
@@ -99,7 +100,7 @@ The grammar is `{tool}.{tier}.{env-host}`. The product tier carries no tier labe
 | Grafana | `grafana.ops.<host>` | sub-path serving off |
 | Argo CD | `argocd.ops.<host>` | replaces port-forward access |
 | Temporal UI | `temporal.ops.<host>` | replaces port-forward access |
-| Lowdefy admin | `lowdefy.ops.<host>` | the only admin surface, per [ADR-0401](0401-internal-admin.md) |
+| Admin console | `admin.ops.<host>` | the only admin surface, per [ADR-0401](0401-internal-admin.md) |
 | Headlamp | `headlamp.ops.<host>` | read-only by default, per [ADR-0501](0501-operator-uis-and-dashboards.md) |
 | pgweb | `pgweb.ops.<host>` | read-only break-glass |
 | Mailpit | `mailpit.ops.<host>` | **non-prod only**. The viewer of the mail sink, per [ADR-0307](0307-outbound-email.md) |

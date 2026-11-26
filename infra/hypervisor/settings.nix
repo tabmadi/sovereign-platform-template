@@ -1,5 +1,5 @@
 # The facts of the hypervisor host, per ADR-0208. None is a secret. The node names and addresses are in
-# infra/talos/inventory/<environment>/nodes.yml, and the forge and runner addresses are in their own .env files.
+# infra/talos/inventory/<environment>/nodes.yml, and the forge and runner addresses are in their own settings.nix.
 {
   hostName = "hypervisor";
   # The inventory whose nodes run here.
@@ -8,7 +8,7 @@
   address = "198.51.100.2";
   # The disk that the install erases, by its stable name in /dev/disk/by-id.
   disk = "/dev/disk/by-id/REPLACE-WITH-THE-DISK-ID";
-  # The SSH public keys that log in as root.
+  # The SSH public keys that log in as root. The forge and the runner VMs of this host take the same keys.
   adminKeys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIReplaceWithTheKeyOfTheOwner owner" ];
 
   # The uplink. A null address takes DHCP, which suits most rented servers that announce one.
@@ -64,13 +64,11 @@
     };
   };
 
-  # The images that a new VM starts from. The Talos image comes from the Image Factory schematic of infra/talos/.
+  # The image that a new node starts from. It comes from the Image Factory schematic of infra/talos/. The forge and the
+  # runner start from the disk image of their own NixOS configuration.
   talos = {
     url = "https://factory.talos.dev/image/613e1592b2da41ae5e265e8789429f22e121aab91cb4deb6bc3c0b6262961245/v1.14.6/metal-amd64.raw.zst";
     hash = "sha256-aNdZSxPFPpoi9Dvr1Obkk3jELRFH/Mq1cfeuwLM2IQA=";
   };
-  debian = {
-    url = "https://cloud.debian.org/images/cloud/trixie/20261116-2664/debian-13-genericcloud-amd64-20261116-2664.qcow2";
-    hash = "sha256-7dKz+53ovFGyn/hCVxYYDI9jHyP2sH+eKIpXvRhwERY=";
-  };
+
 }

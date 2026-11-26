@@ -24,7 +24,7 @@ opentelemetry-collector:
   image: { repository: otel/opentelemetry-collector-contrib, tag: "0.165.0" }
   # logsCollection is the ADR-0500 filelog path. The agent tails `/var/log/pods` with the chart's filelog receiver,
   # using the container parser and excluding the collector's own logs. So PLATFORM workloads that write only to
-  # stdout also land in Loki. Examples are postgres, temporal, grafana, and lowdefy.
+  # stdout also land in Loki. Examples are postgres, temporal, grafana, and admin.
   presets:
     kubernetesAttributes: { enabled: true }
     logsCollection: { enabled: true }

@@ -138,7 +138,7 @@ Each environment has five ApplicationSets, ordered by sync wave on the root app-
 | `4` | `platform-core` | zot, otel-agent, ory, edge-errors, mailpit, maddy, temporal, openfga, public-tls | everything that a service resolves by name |
 | `5` | gateway | Traefik middlewares and cross-cutting IngressRoutes | Its `problem-json-errors` middleware names `edge-errors` |
 | `6` | services | one Application per service, from a git-directory generator over the values files | nothing comes after it |
-| `7` | `platform-consoles` | pgweb, headlamp, lowdefy | Nothing resolves a console |
+| `7` | `platform-consoles` | pgweb, headlamp, admin | Nothing resolves a console |
 
 **The rule alone does not predict two placements:**
 

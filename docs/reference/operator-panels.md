@@ -17,7 +17,7 @@ One gate covers every panel in this table: an operator session at AAL2, per [ADR
 | Hubble UI | `https://hubble.ops.<host>/` | see what talks to what, and which flow the network denies | every environment |
 | Headlamp | `https://headlamp.ops.<host>/` | read pods, their descriptions, and their logs | every environment |
 | Temporal UI | `https://temporal.ops.<host>/` | read workflow histories and schedules | every environment |
-| Admin console | `https://lowdefy.ops.<host>/` | manage users, operators, and product data, per [ADR-0401](../adr/0401-internal-admin.md) | every environment |
+| Admin console | `https://admin.ops.<host>/` | manage users, operators, and product data, per [ADR-0401](../adr/0401-internal-admin.md) | every environment |
 | pgweb | `https://pgweb.ops.<host>/` | read the databases. It is read-only | every environment |
 | zot console | `https://zot.ops.<host>/` | browse the image catalogue and its tags | every environment |
 | SeaweedFS admin | `https://seaweedfs.ops.<host>/` | inspect object storage | non-production |

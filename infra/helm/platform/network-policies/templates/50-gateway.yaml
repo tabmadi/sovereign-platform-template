@@ -19,11 +19,11 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: lowdefy
+  name: admin
 spec:
   endpointSelector:
     matchLabels:
-      app.kubernetes.io/name: lowdefy
+      app.kubernetes.io/name: admin
   ingress:
     - fromEndpoints:
         - matchLabels: { k8s:io.kubernetes.pod.namespace: kube-system }

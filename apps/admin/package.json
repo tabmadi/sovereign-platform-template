@@ -1,0 +1,25 @@
+{
+  "name": "admin",
+  "version": "2026.11.0",
+  "private": true,
+  "description": "The admin console, per ADR-0401. It renders the page manifest that tabkit gen admin writes from the service specs.",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "node server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "vitest": "5.1.1"
+  }
+}

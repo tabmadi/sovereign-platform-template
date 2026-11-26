@@ -27,9 +27,9 @@ tempo:
           endpoint: seaweedfs.platform.svc.cluster.local:8333
           insecure: true
 
-# Lowdefy admin console, per ADR-0401. It is the one platform image built in this repo. `publish.yml` promotes
+# Admin console, per ADR-0401. It is the one platform image built in this repo. `publish.yml` promotes
 # it like the services and the frontend. Local uses the local registry.
-lowdefy:
+admin:
   # The registry that this environment pulls from authenticates every pull, per ADR-0114.
   imagePullSecrets:
     - name: registry-pull

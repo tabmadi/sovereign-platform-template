@@ -38,7 +38,7 @@ deploy_ready platform openfga
 deploy_ready platform grafana
 deploy_ready platform alertmanager
 deploy_ready platform temporal-web
-deploy_ready platform lowdefy
+deploy_ready platform admin
 deploy_ready platform headlamp
 deploy_ready platform pgweb
 deploy_ready platform mailpit
@@ -48,7 +48,7 @@ deploy_ready kube-system hubble-ui
 edge_gates grafana
 edge_gates temporal
 edge_gates hubble
-edge_gates lowdefy
+edge_gates admin
 edge_gates headlamp
 edge_gates pgweb
 edge_gates mailpit

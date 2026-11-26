@@ -186,7 +186,7 @@ None of these is a soft exit from principle 3. Each one is a dependency at a lay
 
 - *Anchor:* McKinley, [*Choose Boring Technology*](https://mcfunley.com/choose-boring-technology), which treats innovation tokens as a budget and not as a preference. The budget is *about three*, and this platform holds more young components than that.
 - *Rejected:* Garage, which is too young for the data plane and single-vendor, and Encore, a data-plane-shaped lock-in that looks like a control-plane tool.
-- *Accepted on the same rule:* Talos, Kyverno, zot, Prism, and Lowdefy, all young and all cheap to leave.
+- *Accepted on the same rule:* Talos, Kyverno, zot, and Prism, all young and all cheap to leave.
 - Licence, governing body, and project maturity are **recorded** per tool, and they do **not** veto. Project maturity is the CNCF tier and the Thoughtworks Radar ring. Provenance is evidence about exit cost, not a rule of its own.
 
 **The exit-cost rule makes the count affordable, not the count itself.** McKinley's budget is a proxy for recovery cost. This principle measures recovery cost directly. The proxy loses that measure when it counts a cheap exit and an expensive exit as equal tokens.
@@ -197,7 +197,6 @@ None of these is a soft exit from principle 3. Each one is a dependency at a lay
 | --- | --- | --- | --- |
 | Cilium | Calico in its eBPF dataplane | a committed traffic-splitting delivery requirement. Traffic splitting is the one capability that Cilium lacks | [ADR-0206](0206-cluster-networking.md) |
 | OpenFGA | SpiceDB, equal on capability | a governance change at the vendor. The `Checker` seam makes the swap a library, model, and chart change | [ADR-0304](0304-identity-and-authorization.md) |
-| Lowdefy | the `(admin)` route group in the existing frontend | upstream releases stop for two quarters, or a runtime security advisory has no answer for one quarter | [ADR-0401](0401-internal-admin.md) |
 | Prism | `muonsoft/openapi-mock` | the vendored container proves unacceptable. The swap is gated on proof of OpenAPI 3.1 support | [ADR-0600](0600-local-development-loop.md) |
 | zot | CNCF Distribution | the registry conformance of zot regresses, or its object-storage backend stops tracking the OCI referrers API | [ADR-0114](0114-image-registry.md) |
 | Talos | Debian stable converged by provisioning, with Kubernetes installed separately | the immutable-node model blocks a workload that the platform commits to run | [ADR-0200](0200-cluster-topology.md) |

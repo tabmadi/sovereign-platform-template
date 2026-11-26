@@ -13,7 +13,7 @@
     };
     # A new version is a new tag here.
     tabkit = {
-      url = "github:tabmadi/tabkit/v0.22.0";
+      url = "github:tabmadi/tabkit/v0.25.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
       inputs.nixos-stable.follows = "nixos";
@@ -37,8 +37,15 @@
         tabkit.flakeModules.shell
       ]
       ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./template/scope.nix) ./template/scope.nix
-      # The hypervisor mode of ADR-0208 adds the host, its deploy, and its QEMU copy.
-      ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./infra/hypervisor/flake-module.nix) ./infra/hypervisor/flake-module.nix;
+      # The machines of the hypervisor mode and of the forge mode deploy with deploy-rs, per ADR-0208 and ADR-0116.
+      ++ inputs.nixpkgs.lib.optional (
+        builtins.pathExists ./infra/hypervisor/flake-module.nix
+        || builtins.pathExists ./infra/forge-host/flake-module.nix
+      ) tabkit.flakeModules.deploy
+      # The hypervisor mode of ADR-0208 adds the host and its QEMU copy.
+      ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./infra/hypervisor/flake-module.nix) ./infra/hypervisor/flake-module.nix
+      # The forge mode of ADR-0116 adds the forge, the runner, their images, and their test.
+      ++ inputs.nixpkgs.lib.optional (builtins.pathExists ./infra/forge-host/flake-module.nix) ./infra/forge-host/flake-module.nix;
 
       perSystem =
         {
@@ -229,7 +236,14 @@
             GOTOOLCHAIN = "local";
           };
 
-          # Next.js needs the hoisted layout of a plain `bun install`.
+          # Every image builds with the toolchain of the dev shell, so CI tests what ships.
+          tabkit.imageVersions = {
+            GO_VERSION = go.version;
+            NODE_VERSION = pkgs.nodejs_26.version;
+            BUN_VERSION = config.tabkit.bun.package.version;
+          };
+
+          # Next.js needs the hoisted layout, which bunfig.toml also sets for each local and image install.
           tabkit.bun = {
             tools = [ pkgs.nodejs_26 ];
             installFlags = [ "--linker=hoisted" ];
@@ -270,8 +284,10 @@
           # One shell for each workspace with its own tools, per ADR-0601 and ADR-0401. The default shell stays free of browsers.
           devShells = {
             # Playwright drives the browsers of nixpkgs, so @playwright/test in test/e2e matches playwright-driver.
+            # Bun installs the suite from the root lockfile, and Node.js runs it, per ADR-0110.
             e2e = pkgs.mkShellNoCC {
               packages = [
+                config.tabkit.bun.package
                 pkgs.nodejs_26
                 pkgs.just
                 pkgs.git
@@ -297,14 +313,6 @@
                 pkgs.curl
               ];
             };
-            # Lowdefy's CLI needs pnpm and Node.js, per ADR-0401.
-            admin = pkgs.mkShellNoCC {
-              packages = [
-                pkgs.nodejs_26
-                pkgs.pnpm
-                pkgs.just
-              ];
-            };
           };
 
           # The two fixed-output derivations, so tabkit-ops nix-hashes can build each one alone.
@@ -324,7 +332,7 @@
             test-ts = gate "test-ts" "test-ts test-frontend";
             test-alerts = gate "test-alerts" "test-alerts";
             lint-go = gate "lint-go" "lint-go lint-gostyle lint-template-build lint-determinism";
-            lint-ts = gate "lint-ts" "lint-ts";
+            lint-ts = gate "lint-ts" "lint-ts admin-lint";
             lint-platform = gate "lint-platform" "lint-platform";
             gen = gate "gen" "ci-gen";
             # The e2e shell runs the browsers of nixpkgs, so the test runner must be the same release, per ADR-0601.

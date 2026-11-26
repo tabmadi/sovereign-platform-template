@@ -9,8 +9,8 @@ Review enforces a rule with no annotation. That rule binds in the same way as an
 | Enforcement | Rules |
 | --- | --- |
 | Machine-enforced | 213 |
-| Review-enforced | 419 |
-| **Total** | **632** |
+| Review-enforced | 421 |
+| **Total** | **634** |
 
 The ratio is a fact about the set, not a target. A rule moves into the first row when someone writes a check for it. A count that moves the wrong way is the signal to read.
 
@@ -221,8 +221,9 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. | `lint-money` in CI |
 | The frontend is TypeScript. | review |
 | Node.js runs every JS program we author: the build, the tests, and the frontend server. Bun only installs. | review |
-| Bun installs every workspace except the two with their own dev shell. No npm lockfile exists outside `test/e2e/`. | `lint-node-scope` in CI |
-| The Node.js version of `flake.nix` and the base image of the frontend are the same release. | review |
+| Bun installs every workspace from the root `bun.lock`. No lockfile of another package manager exists in the repo. | `lint-node-scope` in CI |
+| Every install uses the hoisted layout of `bunfig.toml`. No command overrides it. | review |
+| Each toolchain version that a Dockerfile names, such as `GO_VERSION`, `NODE_VERSION`, or `BUN_VERSION`, is the version of the dev shell. | `ci` in CI |
 | A Rust service requires its own ADR. It records the measured inadequacy of Go or a Rust-native canonical ecosystem, and how the service meets [ADR-0500](../adr/0500-observability.md). | review |
 | A Python service requires its own ADR, and is admitted only where the library ecosystem is the reason the service exists. | review |
 | JVM, .NET, and JavaScript backends are not permitted, with or without an ADR. | review |
@@ -253,7 +254,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | Route groups inside `apps/frontend/` do not import from each other. | `lint-ts` in CI |
 | `tools/` holds only the module that pins Go tools. `scripts/` holds shell. A recipe calls a program directly. A shell script that only shells out to one is not written. | review |
 | `test/` holds the external harnesses that drive an assembled system: `test/e2e/` and `test/perf/`. A test of the code in one package lives beside that package. | review |
-| Each workspace outside the Bun workspaces runs in its own dev shell of `flake.nix`. `test/` itself has no package manifest or lockfile. | `lint-node-scope` in CI |
+| Every JS package is a member of the root Bun workspace. `test/` itself has no package manifest or lockfile. | `lint-node-scope` in CI |
 | Build-graph tools are not used on day one. These are Nx, moon, Pants, and Bazel. Adoption requires its own ADR. | review |
 
 ## ADR-0112: Release, Tagging and Versioning
@@ -337,6 +338,8 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | **The forge runs outside the workload cluster it serves.** *Where the forge runs* gives the reason. | review |
 | Pipelines run on Forgejo Actions, with runners on controlled infrastructure. No second CI engine is introduced, per principle 5 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
 | A runner executes `ubuntu-24.04` jobs on a dedicated machine. It never runs them inside a job container or on a workload-cluster node. | review |
+| The forge and the runner are NixOS machines, built from `infra/forge-host/forge.nix` and `infra/runner/runner.nix`. A deploy applies every change. | `ci` in CI |
+| A secret of the forge or the runner never enters the Nix store. A data step writes it on the machine. | review |
 | The repository lives at `forge.<apex>/platform/<project>`. An organisation owns it, never a person, and Argo CD reconciles from that URL. | review |
 | Workflow YAML checks out, sets up the toolchain, and calls a `just` recipe. Pipeline logic is not written in YAML. | `lint-thin-workflows` in CI |
 | Branch protection and required checks are configuration in the repository, never set through the forge UI, per principle 1 of [ADR-0000](../adr/0000-platform-foundations.md). | review |
@@ -767,15 +770,14 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 
 | Rule | Enforced by |
 | --- | --- |
-| The internal admin tool is Lowdefy, self-hosted and deployed through Helm and Argo CD. | review |
-| Admin pages live as YAML in `apps/admin/`. The generated directory is never edited by hand. | `ci-gen` in CI |
-| **Every admin mutation goes through the service Go API, never raw SQL.** | review |
-| Direct Postgres connections, both Lowdefy's and pgweb's, are read-only. They are used only for inspection that the REST API cannot serve, and the database role enforces read-only. | review |
-| Lowdefy's built-in auth and sessions are not used, and no datastore is deployed for it. | review |
+| The admin console is the first-party app in `apps/admin/`, deployed through Helm and Argo CD. | review |
+| The console renders the pages of `apps/admin/_generated/manifest.json`. The manifest is never edited by hand. | `ci-gen` in CI |
+| **Every admin mutation goes through the service Go API, never raw SQL.** The console has no database connection. | review |
+| pgweb connects with a read-only database role. It is used only for inspection that the REST API cannot serve. | review |
+| The console has no auth or session store of its own, and no datastore is deployed for it. | review |
 | The admin console is served on its own ops-tier origin behind the forward-auth. Fine-grained authorization is the `Checker` call inside the service APIs that the pages call. | review |
 | The spec markers determine the generated pages. A service with neither marker gets no generated pages. | `lint-openapi` in CI |
 | `apps/admin/` is the only first-party application under `apps/` besides the frontend. A third one requires its own ADR. | review |
-| Lowdefy is pinned to a specific release tag. | `lint-floating-tags` in CI |
 
 ## ADR-0500: Observability
 
@@ -892,7 +894,7 @@ The ratio is a fact about the set, not a target. A rule moves into the first row
 | In `test/`, Node is permitted only as the Playwright runner, in the `.#e2e` dev shell. `@playwright/test` matches the `playwright-driver` of nixpkgs. | `lint-node-scope` in CI |
 | k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and self-written generators are not used. | review |
 | Performance tests live in `test/perf/` as committed JavaScript, never as a plan written in a GUI or recorded. | review |
-| `test/perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. | `lint-node-scope` in CI |
+| `test/perf/` contains no `package.json`, no lockfile, and no `node_modules`. | review |
 | The k6 binary comes from `flake.lock`, in the default dev shell. | review |
 | Load metrics reach Prometheus as an OTLP push through the OTel collector. No private metrics store, exporter sidecar, or remote-write receiver is added. | review |
 | Load series carry the `k6_*` prefix and `service_name="k6"`. k6's `url`, `name`, and `error` tags are not exported. Request identity is a bounded `endpoint` route-template tag. | review |

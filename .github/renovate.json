@@ -50,15 +50,5 @@
       "matchPackageNames": ["codeberg.org/forgejo/forgejo"],
       "overridePackageName": "data.forgejo.org/forgejo/forgejo"
     }
-  ],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "The forge and runner kits pin the release they install on a machine, per ADR-0116. A marker comment above each pin names its image.",
-      "managerFilePatterns": ["/^infra/(forge-host|runner)/[^/]+\\.env$/"],
-      "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>\\S+)\\s+[A-Z_]+=(?<currentValue>\\S+)"
-      ]
-    }
   ]
 }

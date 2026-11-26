@@ -1,0 +1,11 @@
+apiVersion: v2
+name: admin
+description: |
+  The admin console, per ADR-0401. It is a stateless Next.js server. CI builds
+  apps/admin/ into an OCI image, and this chart pulls it like any other
+  first-party image.
+type: application
+version: "2026.11.0"
+appVersion: "2026.11.0"
+annotations:
+  app-version-from: "none"

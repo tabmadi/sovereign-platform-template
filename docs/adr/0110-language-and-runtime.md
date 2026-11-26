@@ -146,17 +146,17 @@ The gaps of Bun that reach this repo:
 
 Bun stays the installer, because its install is fast and its lock gives `bun.nix` through bun2nix, per [ADR-0111](0111-monorepo.md).
 
-### The workspaces with their own dev shell
+### One install for every workspace
 
-Two workspaces keep their own dev shell and their own package manager, because upstream chooses their tools. The default dev shell holds no browser and no `pnpm`.
+Bun installs every JS workspace from the one root `bun.lock`. The frontend, the admin console, the shared libraries, the generated SDKs, and the e2e suite are all members. No other package manager runs in the repo, and no other lockfile exists.
 
-| Workspace | Why it has its own shell | Containment |
-| --- | --- | --- |
-| Playwright e2e and visual runner, per [ADR-0601](0601-testing-strategy.md) | it needs the browsers of nixpkgs, and `@playwright/test` must match their release | the `.#e2e` dev shell, runner and CI only |
-| Lowdefy admin console, per [ADR-0401](0401-internal-admin.md) | installed and run, not built. Its CLI stops without `pnpm` on `PATH` | the `.#admin` dev shell and the image of that app |
-| API mock, per [ADR-0600](0600-local-development-loop.md) | the only contract mock that is complete for OpenAPI 3.1 is a Node program | used as a pinned upstream container. It adds no `package.json` |
-
-nd adds no `package.json` |
+| Part | How it runs |
+| --- | --- |
+| Every member of the workspace | Bun installs it, and Node.js runs it |
+| The install layout | hoisted, set once in `bunfig.toml`. The dev shell, the Nix checks, and each image build get the same `node_modules` |
+| An image build | it installs only its own member with `bun install --filter`. Each toolchain version names the version of the dev shell |
+| The e2e suite, per [ADR-0601](0601-testing-strategy.md) | a member like the others. Only its dev shell differs: `.#e2e` adds the browsers of nixpkgs, and `@playwright/test` matches their release |
+| The API mock, per [ADR-0600](0600-local-development-loop.md) | a pinned container image, like every other image. It adds no `package.json` |
 
 ### What makes a language an escape hatch
 
@@ -184,6 +184,7 @@ Every escape-hatch service has its own ADR that records the measured need. A Rus
 - Verbose error handling is accepted. There are no custom error-handling DSLs.
 - **The money type is first-party code on a correctness-critical path.** A bug in it is a bug in every price, total, and ledger entry at once. A language with a native decimal inherits a vetted implementation instead. The money type has no third-party dependency, so we test the exposure ourselves and do not trust others with it.
 - **Two JS tools instead of one.** Node.js and Bun each have a version to pin. A Bun release that changes the lock format also changes `bun.nix`.
+- **One lockfile for every member.** A dependency change of the e2e suite also changes the lockfile that the frontend image reads. The filtered install keeps the packages of one member out of the image of another.
 - Every escape-hatch service is a permanent tax. It adds a toolchain, codegen pipeline, CI cache, base image, and review pool that exist for one service.
 
 ## Rules
@@ -194,8 +195,9 @@ Every escape-hatch service has its own ADR that records the measured need. A Rus
 - A frontend file that holds only display figures, such as a demo screen or a chart, opts out with `// lint:money-allow: <reason>`. The reason states that the platform never stores or moves those numbers. `(CI: lint-money)`
 - The frontend is TypeScript.
 - Node.js runs every JS program we author: the build, the tests, and the frontend server. Bun only installs.
-- Bun installs every workspace except the two with their own dev shell. No npm lockfile exists outside `test/e2e/`. `(CI: lint-node-scope)`
-- The Node.js version of `flake.nix` and the base image of the frontend are the same release.
+- Bun installs every workspace from the root `bun.lock`. No lockfile of another package manager exists in the repo. `(CI: lint-node-scope)`
+- Every install uses the hoisted layout of `bunfig.toml`. No command overrides it.
+- Each toolchain version that a Dockerfile names, such as `GO_VERSION`, `NODE_VERSION`, or `BUN_VERSION`, is the version of the dev shell. `(CI: ci)`
 - A Rust service requires its own ADR. It records the measured inadequacy of Go or a Rust-native canonical ecosystem, and how the service meets [ADR-0500](0500-observability.md).
 - A Python service requires its own ADR, and is admitted only where the library ecosystem is the reason the service exists.
 - JVM, .NET, and JavaScript backends are not permitted, with or without an ADR.

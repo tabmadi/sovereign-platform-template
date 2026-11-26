@@ -14,7 +14,7 @@ const TOOLS: Array<{ tool: string; title?: RegExp }> = [
   { tool: "seaweedfs", title: /SeaweedFS Admin/ },
   { tool: "grafana" },
   { tool: "mailpit" },
-  { tool: "lowdefy" },
+  { tool: "admin" },
 ];
 
 for (const { tool, title } of TOOLS) {

@@ -14,7 +14,7 @@ tuples:
   # Ops tier, per ADR-0306: alice is an operator. The admin console is a direct
   # grant. Every other dashboard is granted to the operator group.
   - { user: user:alice, relation: member, object: group:operator }
-  - { user: user:alice, relation: viewer, object: dashboard:lowdefy }
+  - { user: user:alice, relation: viewer, object: dashboard:admin }
   - { user: group:operator#member, relation: viewer, object: dashboard:hubble }
   - { user: group:operator#member, relation: viewer, object: dashboard:grafana }
   - { user: group:operator#member, relation: viewer, object: dashboard:argocd }
@@ -70,7 +70,7 @@ tests:
         object: group:operator
         assertions: { member: true }
       - user: user:alice
-        object: dashboard:lowdefy
+        object: dashboard:admin
         assertions: { view: true }
       - user: user:alice
         object: dashboard:grafana
@@ -104,7 +104,7 @@ tests:
         object: group:operator
         assertions: { member: false }
       - user: user:bob
-        object: dashboard:lowdefy
+        object: dashboard:admin
         assertions: { view: false }
       - user: user:bob
         object: dashboard:grafana

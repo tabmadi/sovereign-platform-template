@@ -3,8 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-08-06
 - **Deciders:** Platform team
-- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0111](0111-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0202](0202-secrets.md), [ADR-0300](0300-data.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0500](0500-observability.md)
-- **Decides:** Lowdefy pages over the service APIs are the admin surface, and every admin mutation goes through the Go API, not raw SQL.
+- **Related:** [ADR-0000](0000-platform-foundations.md), [ADR-0110](0110-language-and-runtime.md), [ADR-0111](0111-monorepo.md), [ADR-0201](0201-gitops.md), [ADR-0300](0300-data.md), [ADR-0302](0302-temporal.md), [ADR-0303](0303-api-contracts-and-lifecycle.md), [ADR-0304](0304-identity-and-authorization.md), [ADR-0306](0306-trust-tiers-and-urls.md), [ADR-0400](0400-frontend.md), [ADR-0500](0500-observability.md)
+- **Decides:** A first-party console renders the admin pages from the specs, and every admin mutation goes through the Go API, not raw SQL.
 
 ## Context
 
@@ -22,27 +22,26 @@ Each service owns its own database, per [ADR-0300](0300-data.md). Each spec alre
 
 ## Decision drivers
 
-1. **Declarative over imperative.** Admin pages are files in the repo, so a page edit is a file edit, per principle 1 of [ADR-0000](0000-platform-foundations.md).
+1. **Declarative over imperative.** An admin page is a marker in a spec, so a page edit is a file edit, per principle 1 of [ADR-0000](0000-platform-foundations.md).
 2. **REST through services, never direct SQL.** Admin convenience does not bypass service boundaries.
-3. **Generated from the spec, custom for the rest.** The specs describe every resource, so most pages are generated.
-4. **A small change costs a small amount of work for the person who makes it.** Backend and platform engineers edit admin screens between other work. A frontend team does not. The cost of an edit is what the editor must learn again, not the language. Examples are a build, a component library, a data-fetching layer, and a review from another discipline.
+3. **Generated from the spec.** The specs describe every resource, so the pages come from them.
+4. **A small change costs a small amount of work for the person who makes it.** Backend and platform engineers edit admin screens between other work. A frontend team does not. The cost of an edit is what the editor must learn again, not the language.
 5. **Zero new auth surface.** The edge authenticates, and the tool trusts the upstream identity header.
 6. **One stateless container.** No new database and no new operator.
+7. **One toolchain.** The console builds and runs with the Bun install and the Node.js runtime of every other workspace, per [ADR-0110](0110-language-and-runtime.md).
 
 ## Considered options
 
-| Option | 1 Config format | Licence | Verdict |
+| Option | 1 Authoring surface | 7 Toolchain | Verdict |
 | --- | --- | --- | --- |
-| **Lowdefy** | **pure YAML**, about 30 lines per page | [Apache-2.0](https://github.com/lowdefy/lowdefy/blob/main/LICENSE) | **Chosen.** These engineers already read YAML every day for Helm, Kubernetes, and GitOps. YAML is dense, and LLMs write it well. Lowdefy has first-class REST and Postgres connectors. It is stateless when it uses external auth *(documented)* |
-| **An `(admin)` route group in the existing frontend** | **React, in the app that already exists** | not applicable, first-party | **The baseline, and the real contender.** It adds no component and reuses the design system, session, and generated clients. It loses on driver 4. Every CRUD screen is React written by hand, by the people whom driver 4 describes as unwilling to write it. The generated pages in the chosen option are exactly that work. It also puts an operator-facing surface inside the product origin, against [ADR-0306](0306-trust-tiers-and-urls.md) |
-| Appsmith | positional widget-tree JSON | Apache-2.0 | A diff cannot show it for review, and an LLM cannot edit it. Its OSS authentication is limited |
-| Windmill | scripts and a YAML app definition | [AGPL-3.0](https://github.com/windmill-labs/windmill/blob/main/LICENSE-AGPL) | The closest competitor on driver 1, with real config as files. But it is a workflow and job platform first. Adopting it puts a second execution engine next to Temporal, per [ADR-0302](0302-temporal.md) |
-| ToolJet | authored in the UI | AGPL-3.0 | Excluded on the authoring model before the licence matters |
-| Budibase | authored in the UI | GPL-3.0 | The same as above |
-| Retool | authored in the UI | proprietary, SaaS-first | Fails principle 3 completely |
-| Refine, react-admin | **React** | MIT | Capable and type-safe against the generated clients, but the authoring surface is React. A small change lands in hooks and providers. Driver 4 exists to avoid exactly that |
-| NocoDB | UI-first | AGPL-3.0 | A database UI, not an application builder. Driver 2 forbids the direct-SQL shape that it does best |
-| Directus | UI-first | [BUSL 1.1](https://directus.io/bsl) | The same as above, and the licence is not OSI-approved |
+| **A first-party console that renders a manifest of the specs** | **the `x-admin` markers in each spec** | **a member of the root Bun workspace, on Node.js** | **Chosen.** A new page is a marker, and the generic pages hold every form, table, and action. The console reuses the stack of the frontend, so it adds no runtime and no package manager |
+| Lowdefy | YAML pages, generated from the same markers | its CLI stops unless `pnpm` is on `PATH`, at build and at start | Rejected on driver 7. It needs a second package manager and its own dev shell. Its community is the smallest of any candidate |
+| An `(admin)` route group in the existing frontend | React, in the app that already exists | the frontend's | Rejected. Every screen is React written by hand, against driver 4. It also puts an operator surface inside the product origin, against [ADR-0306](0306-trust-tiers-and-urls.md) |
+| Refine, react-admin | React | the frontend's | Rejected on driver 4. A small change lands in hooks and providers |
+| Appsmith | positional widget-tree JSON | its own server | Rejected. A diff cannot show it for review, and an LLM cannot edit it |
+| Windmill | scripts and a YAML app definition | its own server | Rejected. It is a workflow and job platform first, and it puts a second execution engine next to Temporal, per [ADR-0302](0302-temporal.md) |
+| ToolJet, Budibase, Retool | authored in the UI | their own servers | Rejected on the authoring model. Retool also fails principle 3 |
+| NocoDB, Directus | UI-first database tools | their own servers | Rejected. Driver 2 forbids the direct-SQL shape that they do best |
 
 Sources:
 
@@ -52,14 +51,14 @@ Sources:
 
 | Option | Shape | 2 Read-only enforcement | Verdict |
 | --- | --- | --- | --- |
-| **pgweb** | a single Go binary | the `--readonly` flag, and a read-only database role | **Chosen.** It has the same one-stateless-container shape as Lowdefy, and two independent read-only layers *(reasoned)* |
-| pgAdmin | a stateful Python application | none, because it is a full client | It goes against a toolchain of single binaries, per [ADR-0110](0110-language-and-runtime.md). It offers write access that the role must then remove |
-| CloudBeaver | a Java server | at the connection level | A heavier runtime again, for extra features that break-glass does not use |
-| `psql` through `talosctl` and a pod | none | the role only | Always available, and the real fallback. It is not a UI. The inspector exists so that an operator does not need this row during an incident |
+| **pgweb** | a single Go binary | the `--readonly` flag, and a read-only database role | **Chosen.** It is one stateless container like the console, with two independent read-only layers *(reasoned)* |
+| pgAdmin | a stateful Python application | none, because it is a full client | Rejected. It offers write access that the role must then remove |
+| CloudBeaver | a Java server | at the connection level | Rejected. A heavier runtime, for features that break-glass does not use |
+| `psql` through `talosctl` and a pod | none | the role only | Always available, and the real fallback. It is not a UI |
 
 Sources:
 
-- [pgweb](https://github.com/sosedoff/pgweb), [Adminer](https://www.adminer.org/), [pgAdmin](https://www.pgadmin.org/).
+- [pgweb](https://github.com/sosedoff/pgweb), [pgAdmin](https://www.pgadmin.org/).
 
 ## Decision
 
@@ -77,69 +76,59 @@ A raw-SQL write bypasses all three. The authorization store falls out of sync wi
 
 The invariant applies to both tools:
 
-- **Lowdefy is correct only when it points at the API.** Direct Postgres connections exist only as a **read-only** escape hatch.
-- **pgweb and `psql` speak only raw SQL**, so they are never the write path. They are allowed as break-glass **inspectors** that run SELECTs during an incident. They are read-only **at the database-role level**, not by convention. The user cannot run `UPDATE` at all.
+- **The console calls only the service APIs.** It has no database connection.
+- **pgweb and `psql` speak only raw SQL**, so they are never the write path. They are break-glass **inspectors** that run SELECTs during an incident. They are read-only **at the database-role level**, not by convention.
 
 ### Deployment
 
 | Property | Value |
 | --- | --- |
-| Chart | `infra/helm/platform/lowdefy/`, reconciled by Argo CD |
-| Shape | one stateless container, with no persistent volume |
-| Datastore | **none.** Lowdefy's built-in auth providers need a session store. They are not configured, so no store is needed |
-| Origin | `lowdefy.ops.<host>`, per [ADR-0306](0306-trust-tiers-and-urls.md). It is its own ops-tier origin behind the forward-auth, never a product path |
-| Coarse gate | the `operator` claim and AAL2, with **no authz call**, per [ADR-0304](0304-identity-and-authorization.md). So the admin console does not fail when the product authorization plane fails |
-| Identity | Oathkeeper forwards the authenticated identity as a header, and Lowdefy exposes it to pages |
-| Fine-grained authorization | `Checker` calls inside **the service APIs that the pages call** enforce it. The admin tool owns no RBAC of its own |
+| Chart | `infra/helm/platform/admin/`, reconciled by Argo CD |
+| Shape | one stateless Next.js server on Node.js, with no persistent volume |
+| Datastore | **none** |
+| Origin | `admin.ops.<host>`, per [ADR-0306](0306-trust-tiers-and-urls.md). It is its own ops-tier origin behind the forward-auth, never a product path |
+| Coarse gate | the `operator` claim and AAL2, with **no authz call**, per [ADR-0304](0304-identity-and-authorization.md). So the console does not fail when the product authorization plane fails |
+| Identity | Oathkeeper forwards the authenticated identity as a header, and the console shows it |
+| Service calls | from the console server to each service, east-west on its server port. The browser never calls a service |
+| Fine-grained authorization | `Checker` calls inside **the service APIs that the pages call** enforce it. The console owns no RBAC of its own |
 
 ### Repository layout
 
 ```text
 apps/admin/
-├── lowdefy.yaml       # root config: connections, page index, theme
-├── pages/             # hand-written pages not tied to one service
-├── custom/<service>/  # hand-written pages the generator cannot express
-└── _generated/        # `tabkit gen admin` output, committed, drift-checked, never edited
-    ├── pages.yaml     # page index: hand-written first, then generated
-    └── <service>/
-        ├── <resource>.yaml    # one CRUD page per x-admin: crud tag
-        └── <operationId>.yaml # one action page per x-admin: action operation
+├── _generated/
+│   └── manifest.json   # `tabkit gen admin` output, committed, drift-checked, never edited
+└── src/
+    ├── app/            # the dashboard, one generic page route, and one Server Action
+    └── lib/            # the manifest types, the service client, and the form helpers
 ```
 
-`apps/admin/` is the second application under `apps/`. [ADR-0111](0111-monorepo.md) requires an ADR for it, and this is that ADR. The server itself deploys from its platform chart. `apps/admin/` holds only the configuration mounted into it.
+`apps/admin/` is the second application under `apps/`. [ADR-0111](0111-monorepo.md) requires an ADR for it, and this is that ADR.
 
 ### Generation from the spec
 
-`tabkit gen admin` generates pages from the service specs. Two markers drive it:
+`tabkit gen admin` writes one manifest from the service specs. Two markers drive it:
 
 | Marker | Placed on | Produces |
 | --- | --- | --- |
-| `x-admin: crud` | a tag | one CRUD page with a list table. It adds a create form where a collection `POST` returns **201**. It adds an edit form where `PUT` exists, and a delete control where `DELETE` exists |
-| `x-admin: action` | an operation | one action page, with inputs for path parameters and the request body, and a button that calls the endpoint |
+| `x-admin: crud` | a tag | a list page. It adds a create page where a collection `POST` returns **201**, and an edit page where `PUT` or `DELETE` exists |
+| `x-admin: action` | an operation | an action page, with inputs for path parameters and the request body, and a button that calls the endpoint |
 
-An async `202` create is a workflow trigger, not a form to scaffold. So a resource with an async create stays list-only.
+An async `202` create is a workflow trigger, not a form. So a resource with an async create stays list-only.
 
-The generator emits **only REST-connector pages**, and each page calls its service in-cluster. It never generates direct-database pages. Pages use raw spec paths, so the output does not depend on the edge prefix. The output is deterministic, committed, and drift-checked. `just gen-admin` runs it inside `just gen`.
+The manifest names each page, its service, its calls, and its fields. A `Money` property becomes an amount field and a currency field. The output is deterministic, committed, and drift-checked. `just gen-admin` runs it inside `just gen`.
 
 The `x-admin` markers are specification extensions. So they are stripped from the rendered developer portals and never leak into public docs.
 
-The spec already describes every resource. So a page that needs shaping beyond the generator can be scaffolded by hand under `custom/`, directly from the spec. Neither a human nor an LLM needs to learn React.
-
-### Connections
-
-| Kind | Purpose | Credentials |
-| --- | --- | --- |
-| REST, one per service | **the write path.** Auth is the user's session, which the edge forwards as identity headers | none |
-| Postgres, one per service database | **read-only.** Views that the REST API cannot serve: cross-table joins for diagnostics, and raw inspection | read-only roles. The operator materialises them from SOPS-encrypted files, per [ADR-0202](0202-secrets.md) |
+A view that the generator cannot make, such as the dashboard across services, is a hand-written page of the console.
 
 ### What would change this decision
 
 | Change | Effect |
 | --- | --- |
 | A frontend team edits the admin surface | **Decisive.** Driver 4 is a claim about who makes the edit. If those people write React every day, the `(admin)` route group wins on every other driver |
-| A page needs interaction that the config format cannot express | **None, once.** `custom/` exists for this. **Decisive if it repeats**, because a config tool with a growing hand-written region is a framework with extra steps |
+| Hand-written pages grow past the generated ones | **Decisive.** A console of mostly hand-written pages is a second frontend, and it belongs in the frontend app |
 | Admin screens must use the design system | **Decisive.** Operator tooling is deliberately outside the design contract, per [ADR-0400](0400-frontend.md). If it moves inside, the surface belongs in the frontend app |
-| Upstream stalls | **Decisive**, on the trigger in *Negative and Risks* below |
 | An admin action needs to bypass a service API | **None.** The write-path invariant ranks above the tool. A mutation that the API cannot express is a missing endpoint |
 
 ### What this tool does not own
@@ -154,40 +143,25 @@ The spec already describes every resource. So a page that needs shaping beyond t
 
 ### Positive
 
-- Admin pages are files in the same repo. They are reviewed in PRs, and `git blame` works on them.
-- Authoring with an LLM is the easiest path, not a workaround.
-- Backend and platform engineers make small admin changes without touching React.
+- A new service gets admin pages when it ships a spec with markers. No page code changes.
+- Backend and platform engineers make small admin changes in the spec, without touching React.
+- The console builds, tests, and runs with the toolchain of the frontend. It adds no package manager, no dev shell, and no runtime.
 - One stateless container: no datastore, no operator, and no new auth integration.
-- The contract work gives admin pages for free. A new service gets coverage when it ships a spec.
 - Service boundaries hold, because admin actions go through REST and not around it.
 
 ### Negative and Risks
 
-- **Lowdefy's community is the smallest of any component on the floor.** If upstream stalls, the platform owns a server with YAML configs. The configuration is declarative and portable, so the lock-in is the runtime and not the data. But the pages are the smaller half of the loss. The larger half is the operator habits built on them, and those habits transfer to nothing.
-
-**The fallback has a name, and it is the runner-up.**
-
-| Field | Value |
-| --- | --- |
-| **Trigger** | upstream releases stop for two quarters, or a security advisory against the runtime gets no answer for one quarter |
-| **Seam** | ✓ the `(admin)` route group in the existing frontend, with its cost in *Considered options* above. The write path does not change, because both authoring surfaces call the same service APIs. The generated CRUD pages are generated again, not ported |
-| **Cost if adopted late** | every hand-written custom page is rewritten in React once. The surface moves from an ops-tier origin into the product app. [ADR-0306](0306-trust-tiers-and-urls.md) treats that as a tier change, not a move |
-
-So the weakest dependency on the floor is a **deferral, not a bet**. The alternative exists, it is first-party, and it is already compared.
-
-- **No compile-time type safety between a spec change and a page.** The generator and the drift check keep generated pages in step. Only review and runtime errors on first load catch problems in hand-written pages.
-- **Read-only Postgres connections are a discipline risk**, because an engineer could try to add a mutation behind them. Enforcement at the database-role level mitigates this, not convention.
-- **The generated directory makes PR diffs larger** on spec changes. The same committed and drift-checked convention as every other generated artifact mitigates this. Generated pages are plain by design. Anything richer is a custom page.
-- **It has its own dev shell and package manager**, per [ADR-0110](0110-language-and-runtime.md). It is installed and run, not built, so upstream chooses its tools. It stays inside this app's image and its optional local tasks.
+- **The platform owns the console code.** A form or table bug is a bug in every generated page at once. Unit tests cover the form helpers, and the e2e suite drives each kind of page, per [ADR-0601](0601-testing-strategy.md).
+- **The generic pages are plain by design.** A page that needs more is a hand-written page, and it is React.
+- **The generated manifest makes PR diffs larger** on spec changes. The same committed and drift-checked convention as every other generated artifact mitigates this.
 
 ## Rules
 
-- The internal admin tool is Lowdefy, self-hosted and deployed through Helm and Argo CD.
-- Admin pages live as YAML in `apps/admin/`. The generated directory is never edited by hand. `(CI: ci-gen)`
-- **Every admin mutation goes through the service Go API, never raw SQL.**
-- Direct Postgres connections, both Lowdefy's and pgweb's, are read-only. They are used only for inspection that the REST API cannot serve, and the database role enforces read-only.
-- Lowdefy's built-in auth and sessions are not used, and no datastore is deployed for it.
+- The admin console is the first-party app in `apps/admin/`, deployed through Helm and Argo CD.
+- The console renders the pages of `apps/admin/_generated/manifest.json`. The manifest is never edited by hand. `(CI: ci-gen)`
+- **Every admin mutation goes through the service Go API, never raw SQL.** The console has no database connection.
+- pgweb connects with a read-only database role. It is used only for inspection that the REST API cannot serve.
+- The console has no auth or session store of its own, and no datastore is deployed for it.
 - The admin console is served on its own ops-tier origin behind the forward-auth. Fine-grained authorization is the `Checker` call inside the service APIs that the pages call.
 - The spec markers determine the generated pages. A service with neither marker gets no generated pages. `(CI: lint-openapi)`
 - `apps/admin/` is the only first-party application under `apps/` besides the frontend. A third one requires its own ADR.
-- Lowdefy is pinned to a specific release tag. `(CI: lint-floating-tags)`

@@ -43,7 +43,7 @@ This rewrites three trees from the edited spec:
 
 - `libs/go/sdks/catalog/`: the ogen server interface, with validation compiled into the decoder, and the Go client that other services call through
 - `libs/ts/sdks/catalog/`: the TypeScript client that the frontend calls through
-- `apps/admin/_generated/`: the Lowdefy CRUD pages
+- `apps/admin/_generated/manifest.json`: the pages of the admin console
 
 **Generated code is committed**, per principle 9 of [ADR-0000](../adr/0000-platform-foundations.md). Commit it in the same pull request as the spec change. Nobody edits, lints, or formats it by hand. If the output is wrong, the input is wrong.
 

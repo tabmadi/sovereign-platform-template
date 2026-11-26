@@ -1,0 +1,5 @@
+# Ignore file for this Dockerfile, per ADR-0401. BuildKit uses it before the repo-root .dockerignore.
+# The build copies only the workspace manifests and apps/admin, so the context stays small.
+**/.git
+**/node_modules
+**/.next

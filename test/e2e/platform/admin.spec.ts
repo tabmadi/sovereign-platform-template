@@ -1,39 +1,39 @@
-// The Lowdefy admin console ops dashboard, on the same staged gauge as the others, per ADR-0401 and ADR-0306.
+// The admin console ops dashboard, on the same staged gauge as the others, per ADR-0401 and ADR-0306.
 import { expect, test } from "@playwright/test";
 import { OPERATOR_STATE, opsURL } from "../fixtures/env";
 import { OPERATOR, USER } from "../fixtures/identities";
 import { register } from "../fixtures/kratos";
 import { portForward } from "../fixtures/kube";
 
-const CONSOLE = `${opsURL("lowdefy")}/`;
+const CONSOLE = `${opsURL("admin")}/`;
 const PROMOTED_EMAIL = `promoted-${Date.now()}@e2e.localtest.me`;
 const PROMOTED_PASSWORD = "Harbor-Quill-Meadow-7!";
 
-test.describe("lowdefy ops dashboard", () => {
-  // The gauge: with the saved AAL2 session, the Lowdefy admin renders.
+test.describe("admin ops dashboard", () => {
+  // The gauge: with the saved AAL2 session, the admin console renders.
   test.describe("renders behind AAL2", () => {
     test.use({ storageState: OPERATOR_STATE });
     test("the admin dashboard paints @smoke", async ({ page }) => {
       await page.goto(CONSOLE);
       await expect(page).not.toHaveURL(/\/auth\/login/);
-      // dashboard.yaml renders a Markdown `# Platform admin` heading.
+      // The dashboard page renders a `Platform admin` heading.
       await expect(
         page.getByRole("heading", { name: "Platform admin" }),
       ).toBeVisible({ timeout: 30_000 });
     });
   });
 
-  // The data gauge: if the console cannot reach catalog, or the grid binds the HTTP envelope and not its body, the created row never appears.
+  // The data gauge: if the console cannot reach catalog, or the table reads the HTTP envelope and not its body, the created row never appears.
   test.describe("products CRUD", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test("create, list, edit and delete a product @smoke", { tag: ["@CAT-003", "@CAT-004", "@CAT-005"] }, async ({ page }) => {
       const name = `e2e-widget-${Date.now()}`;
       const renamed = `${name}-v2`;
-      const admin = opsURL("lowdefy");
+      const admin = opsURL("admin");
 
       // Add: the standalone create page, like a Django add form. On success it redirects to the changelist, and the new row is the confirmation.
-      // An empty grid fails this assertion. The NetworkPolicy, `.data`, and write-auth bugs each caused an empty grid.
+      // An empty table fails this assertion. A NetworkPolicy, body, or write-auth bug each gives an empty table.
       await page.goto(`${admin}/products_new`);
       await page.getByLabel(/^name$/i).fill(name);
       // Two fields, not one: a price is an amount AND a currency, per ADR-0300.
@@ -49,7 +49,7 @@ test.describe("lowdefy ops dashboard", () => {
       await expect(page).toHaveURL(/products_edit\?id=/, { timeout: 15_000 });
       await expect(page.getByLabel(/^name$/i)).toHaveValue(name, { timeout: 20_000 });
 
-      // Edit and save. The success toast confirms that the PUT resolved.
+      // Edit and save. The status message confirms that the PUT resolved.
       await page.getByLabel(/^name$/i).fill(renamed);
       await page.getByRole("button", { name: "Save", exact: true }).click();
       await expect(page.getByText("Saved changes")).toBeVisible({ timeout: 20_000 });
@@ -69,16 +69,16 @@ test.describe("lowdefy ops dashboard", () => {
   });
 
   // Rows come from Kratos admin through authz. This path works only when authz can reach the Kratos admin API, per network-policies/30-ory.yaml.
-  // A paint-only check would pass on an empty grid. So this asserts that the seeded identities are present,
+  // A paint-only check would pass on an empty table. So this asserts that the seeded identities are present,
   // then edits one to test the PUT write path, per ADR-0401.
   test.describe("identities", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test("list shows seeded identities and an edit round-trips @smoke", { tag: ["@AUZ-008"] }, async ({ page }) => {
-      const admin = opsURL("lowdefy");
+      const admin = opsURL("admin");
 
-      // Changelist: the seeded operator and product user must both appear. An empty grid fails here.
-      // Causes of an empty grid: a stale authz image without /identities, a blocked Kratos admin call, or a grid that binds the HTTP envelope and not `list.data`.
+      // Changelist: the seeded operator and product user must both appear. An empty table fails here.
+      // Causes of an empty table: a stale authz image without /identities, or a blocked Kratos admin call.
       await page.goto(`${admin}/identities`);
       await expect(page).not.toHaveURL(/\/auth\/login/);
       await expect(page.getByText(OPERATOR.email)).toBeVisible({ timeout: 30_000 });
@@ -92,7 +92,7 @@ test.describe("lowdefy ops dashboard", () => {
       const original = await nameField.inputValue();
       const renamed = `e2e-op-${Date.now()}`;
 
-      // Edit the name and save. The success toast confirms that the PUT resolved.
+      // Edit the name and save. The status message confirms that the PUT resolved.
       // This proves that the operator identity header and the OpenFGA grant let the write through.
       await nameField.fill(renamed);
       await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -154,7 +154,7 @@ test.describe("lowdefy ops dashboard", () => {
         await anon.close();
       }
 
-      const admin = opsURL("lowdefy");
+      const admin = opsURL("admin");
       for (const want of [true, false]) {
         await page.goto(`${admin}/identities`);
         await page.getByText(PROMOTED_EMAIL).first().click({ timeout: 30_000 });
@@ -170,7 +170,7 @@ test.describe("lowdefy ops dashboard", () => {
   });
 
   // The other generated pages, from `tabkit gen admin`. Behind the AAL2 operator session, each must paint a page-specific control.
-  // This proves that the Lowdefy page rendered, and did not redirect to login or stop on an empty shell.
+  // This proves that the page rendered, and did not redirect to login or stop on an empty shell.
   test.describe("generated pages render", () => {
     test.use({ storageState: OPERATOR_STATE });
 
@@ -181,15 +181,15 @@ test.describe("lowdefy ops dashboard", () => {
       // The changelist is the whole page, so its own hint is the control that proves it painted.
       { path: "/orgs", control: "Click a row to edit.", role: "text" },
       // The money columns: an amount and its currency, not minor units.
-      { path: "/orders", control: "Total", role: "text" }, // list-only grid header
-      { path: "/charges", control: "Amount", role: "text" }, // list-only grid header
+      { path: "/orders", control: "Total", role: "text" }, // list-only table header
+      { path: "/charges", control: "Amount", role: "text" }, // list-only table header
       { path: "/refundCharge", control: "Refund charge", role: "button" }, // action form
       { path: "/cancelOrder", control: "Cancel order", role: "button" }, // action form
     ];
 
     for (const p of pages) {
       test(`${p.path} paints @smoke`, async ({ page }) => {
-        await page.goto(`${opsURL("lowdefy")}${p.path}`);
+        await page.goto(`${opsURL("admin")}${p.path}`);
         await expect(page).not.toHaveURL(/\/auth\/login/);
         const control =
           p.role === "button"

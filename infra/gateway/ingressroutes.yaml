@@ -50,25 +50,25 @@ spec:
   tls:
     secretName: wildcard-ops-tls
 ---
-# Lowdefy internal-admin console, per ADR-0401. Oathkeeper injects `X-User-Email`,
-# and Lowdefy keys on it. See the `ops-lowdefy` access rule.
+# Admin console, per ADR-0401. Oathkeeper injects `X-User-Email`,
+# and the console shows it. See the `ops-admin` access rule.
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: ops-lowdefy
+  name: ops-admin
   namespace: platform
 spec:
   entryPoints: [websecure]
   routes:
     - kind: Rule
-      match: HostRegexp(`^lowdefy\.ops\..+`)
+      match: HostRegexp(`^admin\.ops\..+`)
       middlewares:
         - name: problem-json-errors
         - name: strip-identity-headers
         - name: oathkeeper-forward-auth
         - name: security-headers
       services:
-        - name: lowdefy
+        - name: admin
           port: 80
   tls:
     secretName: wildcard-ops-tls

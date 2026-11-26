@@ -37,9 +37,9 @@
     ]
   },
   {
-    "id": "ops-lowdefy",
+    "id": "ops-admin",
     "match": {
-      "url": "<{http,https}>://lowdefy.ops.<**>/<**>",
+      "url": "<{http,https}>://admin.ops.<**>/<**>",
       "methods": [
         "GET",
         "POST",
@@ -57,7 +57,7 @@
       "handler": "remote_json",
       "config": {
         "remote": "http://authz-server.platform.svc.cluster.local/authorize",
-        "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"lowdefy\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.metadata_public.operator }}\"}"
+        "payload": "{\"subject\":\"{{ print .Subject }}\",\"tool\":\"admin\",\"aal\":\"{{ print .Extra.authenticator_assurance_level }}\",\"operator\":\"{{ print .Extra.identity.metadata_public.operator }}\"}"
       }
     },
     "mutators": [

@@ -1,9 +1,10 @@
 # Ignore file for this Dockerfile, per ADR-0400. BuildKit uses <Dockerfile>.dockerignore before the repo-root .dockerignore.
 # The root file is for the Go service images and excludes apps/, libs/ts, and package.json, which the frontend build needs.
-# This file excludes only VCS, dep, and build-output dirs and the unrelated admin app, so the context is correct for `bun run build`.
+# This file excludes only VCS, dep, and build-output dirs and the source of the admin app. Its manifest stays, because it is a workspace member.
 **/.git
 **/.DS_Store
 **/node_modules
 **/.next
 **/.turbo
-apps/admin
+apps/admin/*
+!apps/admin/package.json

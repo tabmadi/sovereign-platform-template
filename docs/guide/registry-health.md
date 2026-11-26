@@ -24,10 +24,10 @@ The probe runs outside the workload cluster, so a failure includes the public pa
 
 2. Store it as the `password` key of the `external-probe-auth` Secret, per the [secrets runbook](secrets-runbook.md).
 
-3. Install the exporter with the bcrypt hash of the password. Set `PROBE_ENABLED=true` in `infra/runner/runner.env` first.
+3. Print the bcrypt hash of the password. Set `probe.enable` to `true` and `probe.passwordHash` to the hash in `infra/runner/settings.nix`. Then run `just runner-deploy`.
 
    ```bash
-   PROBE_PASSWORD_HASH="$(nix shell nixpkgs#apacheHttpd --command htpasswd -nbBC 10 "" "$PROBE_PASSWORD" | cut -d: -f2)" bash infra/runner/runner.sh install
+   nix shell nixpkgs#apacheHttpd --command htpasswd -nbBC 10 "" "$PROBE_PASSWORD" | cut -d: -f2
    ```
 
 4. Set the probe in the values of the environment. Both the collector and the network policy read these keys:

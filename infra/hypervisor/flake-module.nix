@@ -10,12 +10,20 @@ let
   pkgs = inputs.nixos.legacyPackages.${system};
   settings = import ./settings.nix;
   keys = import "${pkgs.path}/nixos/tests/ssh-keys.nix" pkgs;
+  # The forge kit builds the forge and the runner. A project without it reads none of this.
+  guest = import ../forge-host/guest.nix { inherit inputs; };
 
   host =
     settings: extra:
     inputs.nixos.lib.nixosSystem {
       inherit system;
-      specialArgs = { inherit settings; };
+      specialArgs = {
+        inherit settings;
+        # The forge and the runner boot from their own NixOS image, with the admin keys of this host.
+        guestImages = lib.genAttrs [ "forge" "runner" ] (
+          name: guest.image name { tabkit.server.adminKeys = lib.mkForce settings.adminKeys; }
+        );
+      };
       modules = [
         inputs.tabkit.nixosModules.server
         inputs.disko.nixosModules.disko
@@ -67,10 +75,7 @@ let
   };
 in
 {
-  imports = [
-    inputs.tabkit.flakeModules.deploy
-    inputs.tabkit.flakeModules.full-tier
-  ];
+  imports = [ inputs.tabkit.flakeModules.full-tier ];
 
   # The QEMU copy on one disk. lab.sh adds the registry forward and the offline network at run time.
   tabkit.fullTier.lab = {

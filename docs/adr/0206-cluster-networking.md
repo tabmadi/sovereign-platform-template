@@ -117,7 +117,7 @@ Provider Load Balancer  (L4, one stable public IP per env)
 Traefik  (TLS via cert-manager, L7 routing, rate limiting)
   ├── <host>/api/*                        ─▶ Oathkeeper ─▶ backend service   (ADR-0305)
   ├── <host>/(landing|panel|devportal)/*  ─▶ frontend pod                     (ADR-0400)
-  ├── lowdefy.ops.<host>/                 ─▶ Oathkeeper ─▶ Lowdefy            (ADR-0401)
+  ├── admin.ops.<host>/                   ─▶ Oathkeeper ─▶ admin console      (ADR-0401)
   ├── grafana.ops.<host>/                 ─▶ Oathkeeper ─▶ Grafana            (ADR-0501)
   └── hubble.ops.<host>/                  ─▶ Oathkeeper ─▶ Hubble UI          (ADR-0501)
 ```

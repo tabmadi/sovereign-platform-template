@@ -45,4 +45,4 @@ The second way is worth its price only where an outside party must believe the r
 
 **It is not a compliance artefact.** ASVS is the bar that this platform designs to. A framework that a project must prove it meets goes in [`per-instance-hardening.md`](per-instance-hardening.md).
 
-**It does not cover vendored surfaces.** Lowdefy, Grafana, and pgweb are outside the bar, per [ADR-0304](../adr/0304-identity-and-authorization.md). [ADR-0400](../adr/0400-frontend.md) draws the same boundary for accessibility. The platform cannot keep a claim about software that it does not write.
+**It does not cover vendored surfaces.** Grafana and pgweb are outside the bar, and the first-party admin console is inside it, per [ADR-0304](../adr/0304-identity-and-authorization.md). [ADR-0400](../adr/0400-frontend.md) draws the same boundary for accessibility. The platform cannot keep a claim about software that it does not write.

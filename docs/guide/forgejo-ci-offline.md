@@ -4,8 +4,8 @@ Use this guide in a project generated with `forge: forgejo`, per [Setup modes](.
 
 ## Set up the internal services
 
-1. Provision Forgejo and a dedicated runner with Nix and Docker. Follow `infra/forge-host/README.md` and `infra/runner/README.md`. Stage the OS packages and installer binaries if provisioning also takes place on the closed network.
-2. Mirror the Actions used in `.forgejo/workflows/` and `.github/actions/` at the revisions those files use. Point Forgejo and the workflows at the internal copies. Replace the direct Nix installer step in `check.yml` with the runner's preinstalled Nix. Configure artifact upload and cache steps to use services reachable from the runner.
+1. Provision Forgejo and a dedicated runner as NixOS machines. Follow `infra/forge-host/README.md` and `infra/runner/README.md`. Seed the internal binary cache with both systems if the build also takes place on the closed network.
+2. Mirror the Actions used in `.forgejo/workflows/` and `.github/actions/` at the revisions those files use. Point Forgejo and the workflows at the internal copies. Replace the direct Nix installer step in `check.yml` with the Nix of the NixOS runner. Configure artifact upload and cache steps to use services reachable from the runner.
 3. Configure the runner's Nix daemon to use and trust the internal binary cache, per [ADR-0101](../adr/0101-source-control-and-ci.md). Keep its local store between jobs. Test that the runner can read imported paths with public substituters disabled.
 4. Set the Forgejo registry variables and credentials for the internal Zot, per [ADR-0114](../adr/0114-image-registry.md). Point Argo CD at the internal Forgejo repository, per the [GitOps runbook](gitops-runbook.md). Give the runner, builders, and clusters access to internal DNS and any internal CA they need.
 
@@ -14,8 +14,8 @@ Use this guide in a project generated with `forge: forgejo`, per [Setup modes](.
 | Job | Inputs and configuration |
 | --- | --- |
 | PR checks | Import the locked flake sources and make them resolvable from the internal network or local store. Seed the cache with the dev shells and the prepared Go, Bun, and Helm dependencies used by `just ci`. Point Go commands outside the Nix sandbox at an internal module proxy. |
-| Image publishing and design preview | Import the BuildKit image, the Dockerfile frontend, and each base and copy stage image. Configure Docker and BuildKit to pull from the internal registry. Provide Go modules, Bun and npm packages, and the Lowdefy CLI, server, and server dependencies. Keep Inter and Vazirmatn in the frontend as local font files and load them with `next/font/local`. |
-| E2E, preview, perf, and Lighthouse | Import the images in `infra/local/image-refs.txt`, the kind node and Zot images, and the images that Lighthouse starts directly. Seed the runner-local Zot from the internal registry before `cluster-up full` warms it. Serve Helm subcharts to both bootstrap and Argo CD. Import the E2E shell with its Playwright browsers. Serve the tarballs in `test/e2e/package-lock.json` to `npm ci`. |
+| Image publishing and design preview | Import the BuildKit image, the Dockerfile frontend, and each base and copy stage image. Configure Docker and BuildKit to pull from the internal registry. Provide Go modules and the Bun packages of the root lockfile. Keep Inter and Vazirmatn in the frontend as local font files and load them with `next/font/local`. |
+| E2E, preview, perf, and Lighthouse | Import the images in `infra/local/image-refs.txt`, the kind node and Zot images, and the images that Lighthouse starts directly. Seed the runner-local Zot from the internal registry before `cluster-up full` warms it. Serve Helm subcharts to both bootstrap and Argo CD. Import the E2E shell with its Playwright browsers. Serve the Bun packages of the root lockfile to `bun install`. |
 | Trivy scan | Import the vulnerability database and the checks bundle on a schedule. Configure `just ci-scan` to use these copies in offline mode. |
 | Scheduled jobs | Use a Forgejo-compatible endpoint for the nightly gate in `tabkit-ops ci-nightly-gate`. Run public DNS drift checks and Renovate upstream discovery in a network that can reach their providers. |
 

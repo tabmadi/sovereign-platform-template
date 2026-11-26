@@ -87,7 +87,7 @@ The set is large, and each task needs a small part of it. Grep the Rules section
 - Nix pins every tool, per [ADR-0100](docs/adr/0100-toolchain.md). Enter the dev shell with `nix develop`, or allow `.envrc` with direnv. Outside it, a bare `kubectl`, `helm`, `go`, or `bun` comes from `PATH`, and it is not pinned.
 - `just` runs every task, per [ADR-0103](docs/adr/0103-tasks.md). `just --list` lists the recipes. A recipe that calls a tool stops outside the dev shell. `just cluster-up` and `just cluster-up full` start the local cluster, per [ADR-0600](docs/adr/0600-local-development-loop.md).
 - The recipes of one service are in `services/<name>/justfile`. Run them from that folder, such as `just server`.
-- The Playwright suite runs in `nix develop .#e2e`, and the Lowdefy console in `nix develop .#admin`. The `e2e*` recipes enter that shell for you.
+- The Playwright suite runs in `nix develop .#e2e`, which adds the browsers to the default shell. The `e2e*` recipes enter that shell for you.
 - Generated code is committed, and CI checks it for drift, per [ADR-0000](docs/adr/0000-platform-foundations.md) and [ADR-0303](docs/adr/0303-api-contracts-and-lifecycle.md). Regenerate it with `just gen`. Do not edit generated files by hand.
 - Argo CD reconciles the cluster from `master`. A change in the working tree is not visible in the cluster until someone pushes it, per [ADR-0201](docs/adr/0201-gitops.md).
   - To test uncommitted work on the full tier, pause Argo CD first with `just argo-pause`. Resume it with `just argo-resume` when you finish.

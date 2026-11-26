@@ -147,9 +147,9 @@ All e2e and visual tests share one Playwright config in the `test/e2e/` workspac
 
 ### Runtime containment
 
-The `.#e2e` dev shell of `flake.nix` holds the Node and the browsers of Playwright. Its browsers come from nixpkgs, so `@playwright/test` in `test/e2e/package.json` matches the version of `playwright-driver` in nixpkgs. The `e2e*` recipes enter that shell, so the default dev shell carries no browser. The default dev shell holds k6, and the `perf*` recipes run `test/perf/run.sh`.
+`test/e2e/` is a member of the root Bun workspace, per [ADR-0110](0110-language-and-runtime.md). The `.#e2e` dev shell of `flake.nix` adds Node and the browsers of Playwright. Its browsers come from nixpkgs, so `@playwright/test` in `test/e2e/package.json` matches the version of `playwright-driver` in nixpkgs. The `e2e*` recipes enter that shell, so the default dev shell carries no browser. The default dev shell holds k6, and the `perf*` recipes run `test/perf/run.sh`.
 
-k6 scenarios are JavaScript on k6's own embedded engine. **This does not extend the Node escape hatch.** `test/perf/` has no `package.json`, no lockfile, no `node_modules`, and no Node binary. `lint-node-scope` asserts that npm exists only in `test/e2e/`.
+k6 scenarios are JavaScript on k6's own embedded engine, not on Node. `test/perf/` has no `package.json`, no lockfile, no `node_modules`, and no Node binary.
 
 ### Load scenarios
 
@@ -227,7 +227,6 @@ The CI gate diffs committed, accepted snapshots against the baselines in `test/e
 
 ### Negative and Risks
 
-- **The e2e runner has its own workspace.** It installs with npm in `.#e2e`, apart from the Bun workspaces. [ADR-0110](0110-language-and-runtime.md) gives one other workspace its own shell for the same vendored-tool reason: the Lowdefy admin console of [ADR-0401](0401-internal-admin.md).
 - **With label-gated smoke, a PR without the label gets no full-platform signal until the nightly run.** So a cross-service break can stay in `master` for up to about 24h. This is the accepted cost of not paying for a full bring-up on each PR.
 - **Operator-dashboard e2e runs only in the nightly suite.** So platform-contract regressions appear within 24h.
 - **The gauge is also the bottleneck.** The verdict sits at the slowest layer, which has the most flaky results. A broken top layer blocks the signal completely. Preflight finds the cause, but it does not make the layer faster or more stable.
@@ -235,7 +234,7 @@ The CI gate diffs committed, accepted snapshots against the baselines in `test/e
 - **Local load numbers are not capacity numbers.** Every report of results states this. The k6-operator swap resolves it when absolute figures are needed.
 - **A single local node is not a production topology.** Saturation shapes transfer, but absolute ceilings do not. [ADR-0205](0205-environment-parity.md) states the same limit for the local tier.
 - **Scenario rot.** A scenario that drives `/api/orders` breaks when that contract changes, and it is not on the path for each PR. The label-gated `perf-smoke` and the nightly run reduce this.
-- **JavaScript appears again outside the approved island.** The rule of no Node, no npm, and no lockfile limits it. So does keeping `test/perf/` out of the Bun workspace.
+- **The load scenarios are JavaScript outside the Bun workspace.** They run on k6 alone, and `test/perf/` holds no package manifest, so no package manager reaches them.
 
 ## Rules
 
@@ -250,7 +249,7 @@ The CI gate diffs committed, accepted snapshots against the baselines in `test/e
 - In `test/`, Node is permitted only as the Playwright runner, in the `.#e2e` dev shell. `@playwright/test` matches the `playwright-driver` of nixpkgs. `(CI: lint-node-scope)`
 - k6 is the only load-generation tool. Locust, Gatling, JMeter, Vegeta, and self-written generators are not used.
 - Performance tests live in `test/perf/` as committed JavaScript, never as a plan written in a GUI or recorded.
-- `test/perf/` contains no `package.json`, no npm lockfile, and no `node_modules`. `(CI: lint-node-scope)`
+- `test/perf/` contains no `package.json`, no lockfile, and no `node_modules`.
 - The k6 binary comes from `flake.lock`, in the default dev shell.
 - Load metrics reach Prometheus as an OTLP push through the OTel collector. No private metrics store, exporter sidecar, or remote-write receiver is added.
 - Load series carry the `k6_*` prefix and `service_name="k6"`. k6's `url`, `name`, and `error` tags are not exported. Request identity is a bounded `endpoint` route-template tag.

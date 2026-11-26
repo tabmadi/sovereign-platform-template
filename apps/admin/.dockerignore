@@ -1,4 +1,0 @@
-# Keep the build context to source only. Never ship a host-side build or deps.
-.lowdefy/
-node_modules/
-**/.DS_Store

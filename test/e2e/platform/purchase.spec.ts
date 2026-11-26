@@ -65,7 +65,7 @@ test.describe("full purchase scenario", () => {
     test.use({ storageState: OPERATOR_STATE });
 
     test("through the admin console add-product page @smoke", { tag: ["@PUR-001", "@CAT-003"] }, async ({ page }) => {
-      await page.goto(`${opsURL("lowdefy")}/products_new`);
+      await page.goto(`${opsURL("admin")}/products_new`);
       await page.getByLabel(/^name$/i).fill(PRODUCT_NAME);
       // Two fields, not one: a price is an amount AND a currency, per ADR-0300.
       // The admin generator renders the shared Money component as the pair.

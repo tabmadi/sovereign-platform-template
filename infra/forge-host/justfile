@@ -1,0 +1,25 @@
+# The recipes of the forge mode, per ADR-0116. The root justfile imports this file only when it exists.
+
+# Build the disk image that a new forge VM starts from, where no hypervisor of this repo runs it
+forge-image: in-shell
+    nix build .#forge-image --out-link forge.img
+
+# Deploy the forge. A deploy that loses SSH rolls back by itself
+forge-deploy: in-shell
+    deploy .#forge
+
+# Create the break-glass admin, the machine users, the repository, and the push mirror on the forge
+forge-seed: in-shell
+    bash infra/forge-host/forge.sh seed
+
+# Build the disk image that a new runner VM starts from, where no hypervisor of this repo runs it
+runner-image: in-shell
+    nix build .#runner-image --out-link runner.img
+
+# Deploy the runner. A deploy that loses SSH rolls back by itself
+runner-deploy: in-shell
+    deploy .#runner
+
+# Mint a registration token on the forge, write it on the runner, and start every instance
+runner-token: in-shell
+    bash infra/runner/runner.sh token

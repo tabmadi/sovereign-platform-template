@@ -19,7 +19,7 @@ migrations:
 # Not exposed at the edge, so the chart's default rule from Traefik to the server port must be off.
 networkPolicy:
   allowFromGateway: false
-  allowFrom: [oathkeeper, lowdefy, frontend]
+  allowFrom: [oathkeeper, admin, frontend]
 secrets:
   envFrom: [openfga-creds]
 env:

@@ -39,12 +39,12 @@ The seam exists. You remove each row by not deploying a chart, and you restore i
 | **pgweb** | `psql` over a port-forward, against the same read-only role | break-glass DB inspection happens under time pressure so often that the port-forward is the delay | a chart, per [ADR-0401](adr/0401-internal-admin.md) |
 | **Headlamp** | `kubectl`, which every operator of this platform must have anyway | a person who needs to read cluster state does not use `kubectl` | a chart, per [ADR-0501](adr/0501-operator-uis-and-dashboards.md) |
 | **Pyroscope** and **Alloy** | metrics and traces show *what* is slow. Nothing shows *where* in the code | a CPU or memory regression that metrics locate to a service but not to a function, twice | two charts. Services already expose `pprof`, so nothing needs new instrumentation, per [ADR-0500](adr/0500-observability.md) |
-| **Lowdefy admin** | the Go API directly, and any DB inspector that is still deployed | a person who does not write API calls does an operational task, or a support workflow becomes recurring | a chart and its YAML pages, per [ADR-0401](adr/0401-internal-admin.md) |
+| **Admin console** | the Go API directly, and any DB inspector that is still deployed | a person who does not write API calls does an operational task, or a support workflow becomes recurring | a chart and the generated page manifest, per [ADR-0401](adr/0401-internal-admin.md) |
 | **Tempo** | logs correlated by trace ID. The log line has the trace ID in both cases | a fault crosses more than two services, and log correlation is no longer enough | a chart and one collector exporter. OpenTelemetry instrumentation does not change. That is the purpose of the OTel-first rule in [ADR-0500](adr/0500-observability.md) |
 
 **Take this band from top to bottom.** The upper rows lose a convenience. The lower rows lose a diagnostic. A project at axis C high that takes every row in this band has a longer time to diagnose. It says so in the same place where it records its detection posture.
 
-**Lowdefy and pgweb affect each other.** If you drop both, the only path to the data is `psql`. That is a legitimate position for a team where everyone is an engineer. It stops working as soon as a person who is not an engineer does support work.
+**The admin console and pgweb affect each other.** If you drop both, the only path to the data is `psql`. That is a legitimate position for a team where everyone is an engineer. It stops working as soon as a person who is not an engineer does support work.
 
 ## Band 2: giving up the operator
 
@@ -190,7 +190,7 @@ This section walks one project from end to end. The rules above are complete but
 - maddy needs deliverability work.
 - Alertmanager means that *nothing pages anyone*, on a product that moves money.
 
-**Step 2: all of Band 1.** They take every row: no Hubble UI, no pgweb, no Headlamp, no Pyroscope or Alloy, no Lowdefy, and no Tempo. Each one is a chart that they do not deploy, and application code does not change. They record that the time to diagnose is now longer. They expect the restore trigger for Tempo to fire first: a fault that crosses more than two services.
+**Step 2: all of Band 1.** They take every row: no Hubble UI, no pgweb, no Headlamp, no Pyroscope or Alloy, no admin console, and no Tempo. Each one is a chart that they do not deploy, and application code does not change. They record that the time to diagnose is now longer. They expect the restore trigger for Tempo to fire first: a fault that crosses more than two services.
 
 **Step 3: Band 2, in order.**
 

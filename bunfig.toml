@@ -1,0 +1,4 @@
+# Every install uses one layout: the dev shell, the Nix checks, and each image build, per ADR-0110.
+# Next.js needs the hoisted layout, so a tool sits in the root node_modules wherever Bun runs.
+[install]
+linker = "hoisted"

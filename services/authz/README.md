@@ -6,7 +6,7 @@ Unlike the shop services, it is **internal**. It has no `/api` edge route and no
 
 - Oathkeeper, on `POST /authorize`.
 - The frontend server, on `POST /authorize/relation`, in `apps/frontend/src/lib/auth/panel-access.ts`.
-- The `authz` connection of the Lowdefy admin console in `apps/admin/lowdefy.yaml`, on `/identities`. This is the console's Users page.
+- The `authz` connection of the admin console in `apps/admin/admin.yaml`, on `/identities`. This is the console's Users page.
 
 ```sh
 cd services/authz

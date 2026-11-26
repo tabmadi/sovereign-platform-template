@@ -217,7 +217,8 @@ Radix supplies keyboard behaviour, focus management, and ARIA semantics for the 
 | `(landing)`, `(panel)`, `(devportal)` | WCAG 2.2 AA |
 | The kitchen-sink page | AA per primitive. A primitive's conformance is proven once here, not again in every consumer |
 | Scalar's rendered console | not claimed. It is a vendored island with its own theme. The route group around it is AA |
-| Operator tooling: Lowdefy, Grafana, pgweb, per [ADR-0401](0401-internal-admin.md) and [ADR-0501](0501-operator-uis-and-dashboards.md) | not claimed. These are third-party UIs behind an operator session, and the exclusion is stated, not assumed |
+| The admin console, per [ADR-0401](0401-internal-admin.md) | not claimed. It is plain HTML with a label on each field, behind an operator session, outside the design contract |
+| Operator tooling: Grafana and pgweb, per [ADR-0501](0501-operator-uis-and-dashboards.md) | not claimed. These are third-party UIs behind an operator session, and the exclusion is stated, not assumed |
 
 **Enforcement is `@axe-core/playwright`** inside the existing e2e suite, per [ADR-0601](0601-testing-strategy.md). There is no second toolchain. Every kitchen-sink section and every product journey is scanned. A `serious` or `critical` violation fails the merge. Colour contrast is also checked against the design-token file, not per component, because a token change moves every surface at once.
 

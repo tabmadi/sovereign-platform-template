@@ -20,7 +20,7 @@ secrets: { envFrom: [openfga-creds] }
 # so it must be off here.
 networkPolicy:
   allowFromGateway: false
-  allowFrom: [oathkeeper, lowdefy, frontend]
+  allowFrom: [oathkeeper, admin, frontend]
 env:
   OPENFGA_API_URL: "http://openfga.platform.svc.cluster.local:8080"
   # Blank, so `libs/go/authz` falls back to `openfga-creds.preshared_key` from `envFrom`.

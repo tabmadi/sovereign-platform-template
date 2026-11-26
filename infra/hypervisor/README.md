@@ -12,7 +12,7 @@ This directory exists in a project whose `provisioning` answer is `hypervisor`, 
 | --- | --- |
 | the host, its disk, its uplink, its public addresses, the private network, the VM sizes, and the images | `settings.nix` |
 | the node names and private addresses | `infra/talos/inventory/<env>/nodes.yml` |
-| the forge and runner addresses | `infra/forge-host/forge.env` and `infra/runner/runner.env` |
+| the forge and runner addresses | `infra/forge-host/settings.nix` and `infra/runner/settings.nix` |
 
 ## Files
 

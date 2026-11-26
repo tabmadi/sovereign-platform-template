@@ -7,8 +7,8 @@
 localPath.enabled                # Talos ships no provisioner, and kind brings its own StorageClass
 externalObjectStorage            # prod's off-cluster bucket, which is absent below prod
 policies.registrySecret           # the local registry is unauthenticated
-lowdefy.image.digest             # promoted images are pinned by digest, and local runs from a tag
-lowdefy.imagePullSecrets         # registry auth, only on deployed environments
+admin.image.digest             # promoted images are pinned by digest, and local runs from a tag
+admin.imagePullSecrets         # registry auth, only on deployed environments
 publicTls                        # ACME and the deployed apex. Local uses a self-signed wildcard
 maddy                            # the mail agent, only on deployed environments
 maddyEnabled                     # the mail agent's toggle, only on deployed environments

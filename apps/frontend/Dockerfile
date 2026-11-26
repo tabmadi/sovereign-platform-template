@@ -8,10 +8,11 @@ FROM oven/bun:${BUN_VERSION}-alpine AS bun
 FROM node:${NODE_VERSION}-alpine AS build
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
-COPY package.json bun.lock ./
+COPY package.json bun.lock bunfig.toml ./
 # Every workspace member's manifest, because `bun install` resolves the workspace list before it installs anything.
 # A member in the root package.json that is not in the build context fails the install with `Workspace not found`.
 # A new member needs a line here: the root list and this stage are one decision.
+COPY apps/admin/package.json apps/admin/
 COPY apps/frontend/package.json apps/frontend/
 COPY libs/ts/id/package.json libs/ts/id/
 COPY libs/ts/money/package.json libs/ts/money/
@@ -21,7 +22,9 @@ COPY libs/ts/schemas/package.json libs/ts/schemas/
 # A list cannot name them, because each new service brings a new SDK. Copying the tree misses the install cache when an SDK changes.
 # That is the cheaper failure. The other is `@sdks/<name>@workspace:* failed to resolve`, minutes into an image build.
 COPY libs/ts/sdks/ libs/ts/sdks/
-RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile
+COPY test/e2e/package.json test/e2e/
+# bunfig.toml sets the hoisted layout of the dev shell and the Nix checks. The filter skips the packages of the e2e suite.
+RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile --filter=frontend
 # The install and the build share one stage. A second stage would copy every file of node_modules, and that copy cost more than the install.
 # The build context excludes node_modules, per Dockerfile.dockerignore, so a developer's host install cannot hide a missing manifest above.
 COPY . .

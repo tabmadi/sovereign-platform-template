@@ -5,6 +5,7 @@
   pkgs,
   modulesPath,
   settings,
+  guestImages,
   ...
 }:
 let
@@ -15,19 +16,9 @@ let
     ''
   );
 
-  # One value of a KEY=value file, such as forge.env.
-  envValue =
-    file: key:
-    let
-      line = lib.findFirst (l: lib.hasPrefix "${key}=" l) "" (
-        lib.splitString "\n" (builtins.readFile file)
-      );
-    in
-    lib.removePrefix "${key}=" line;
-
-  forgeEnv = ../forge-host/forge.env;
-  runnerEnv = ../runner/runner.env;
-  forgeAddress = lib.last (lib.splitString "@" (envValue forgeEnv "FORGE_SSH"));
+  forgeSettings = ../forge-host/settings.nix;
+  runnerSettings = ../runner/settings.nix;
+  forgeAddress = (import forgeSettings).address;
 
   # A QEMU copy of the host names its own nodes. A real host takes them from the inventory.
   nodes = lib.mapAttrs (_: node: {
@@ -37,17 +28,19 @@ let
   }) (settings.nodes or inventory.nodes);
 
   guests =
-    lib.optionalAttrs (builtins.pathExists forgeEnv) {
+    lib.optionalAttrs (builtins.pathExists forgeSettings) {
       forge = {
-        kind = "debian";
+        kind = "nixos";
+        image = guestImages.forge;
         address = forgeAddress;
         inherit (settings.sizes.forge) cores memory disk;
       };
     }
-    // lib.optionalAttrs (builtins.pathExists runnerEnv) {
+    // lib.optionalAttrs (builtins.pathExists runnerSettings) {
       runner = {
-        kind = "debian";
-        address = envValue runnerEnv "RUNNER_ADDRESS";
+        kind = "nixos";
+        image = guestImages.runner;
+        address = (import runnerSettings).address;
         inherit (settings.sizes.runner) cores memory disk;
       };
     };
@@ -104,11 +97,7 @@ in
 
   hypervisor = {
     vms = nodes // guests;
-    images = {
-      talos = pkgs.fetchurl { inherit (settings.talos) url hash; };
-      debian = pkgs.fetchurl { inherit (settings.debian) url hash; };
-    };
-    inherit (settings) adminKeys;
+    images.talos = pkgs.fetchurl { inherit (settings.talos) url hash; };
     uplink = settings.uplink.interface;
     inherit (settings) private;
     public = {

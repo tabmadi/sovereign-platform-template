@@ -77,10 +77,10 @@ podDisruptionBudgets:
   tempo:
     enabled: true
 
-# Lowdefy admin console, per ADR-0401. It is the one platform image built in this repo. On a CalVer
+# Admin console, per ADR-0401. It is the one platform image built in this repo. On a CalVer
 # release, promote-on-release pins it to the release commit by digest. Every prod service gets the same
 # immutable identity.
-lowdefy:
+admin:
   # The registry that this environment pulls from authenticates every pull, per ADR-0114.
   imagePullSecrets:
     - name: registry-pull

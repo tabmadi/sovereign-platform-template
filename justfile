@@ -6,6 +6,7 @@ set positional-arguments
 
 import? 'template/justfile'
 import? 'infra/hypervisor/justfile'
+import? 'infra/forge-host/justfile'
 
 # List the recipes
 default:
@@ -132,20 +133,17 @@ mock-logs: in-shell
 db-migrate *args: in-shell
     tabkit-ops db-migrate "$@"
 
-# The release of Lowdefy, from the one place that pins it
-lowdefy := `sed -n 's/^ARG LOWDEFY_VERSION=//p' apps/admin/Dockerfile`
+# Build the admin console for production, per ADR-0401
+admin-build: in-shell
+    cd apps/admin && node --run build
 
-# Build the Lowdefy admin console in its island shell, per ADR-0401
-admin-build:
-    nix develop .#admin --command bash -c 'cd apps/admin && pnpm dlx lowdefy@{{ lowdefy }} build'
+# Run the admin console on :3001 with live reload. ADMIN_SERVICE_URL points it at a service, per ADR-0401
+admin-run: in-shell
+    cd apps/admin && node --run dev
 
-# Run the Lowdefy admin console with live reload, per ADR-0401
-admin-run:
-    nix develop .#admin --command bash -c 'cd apps/admin && pnpm dlx lowdefy@{{ lowdefy }} dev'
-
-# Validate the Lowdefy config, per ADR-0401
-admin-lint:
-    nix develop .#admin --command bash -c 'cd apps/admin && pnpm dlx lowdefy@{{ lowdefy }} validate'
+# Type-check the admin console, per ADR-0401
+admin-lint: in-shell
+    cd apps/admin && node ../../node_modules/typescript/bin/tsc --noEmit -p .
 
 # Build the frontend for production, per ADR-0400
 frontend-build: in-shell
@@ -183,7 +181,7 @@ gen-shared-components: in-shell
 gen-openapi: gen-shared-components
     tabkit-ops gen-openapi
 
-# Write the Lowdefy admin pages from the OpenAPI specs, per ADR-0401
+# Write the admin page manifest from the OpenAPI specs, per ADR-0401
 gen-admin: gen-openapi
     tabkit-ops gen-admin
 
@@ -235,7 +233,7 @@ format-data: in-shell
     nixfmt $(git ls-files --cached --others --exclude-standard '*.nix')
 
 # Run every linter
-lint: lint-go lint-gostyle lint-template-build lint-determinism lint-ts lint-prose lint-md lint-data lint-nix lint-just lint-secrets lint-platform
+lint: lint-go lint-gostyle lint-template-build lint-determinism lint-ts admin-lint lint-prose lint-md lint-data lint-nix lint-just lint-secrets lint-platform
 
 # The gates of the platform that run with no network and no cluster. CI runs them in the sandbox
 lint-platform: lint-sql lint-service-deps lint-activity-register lint-authz-dual-write lint-money lint-naming lint-helm-deps lint-app-versions lint-openapi lint-api-audience lint-floating-tags lint-shell lint-node-scope lint-auth-inline lint-authz lint-log-vocab lint-resource-governance lint-ports lint-l7-routes lint-service-databases lint-workspace-copies lint-service-contract lint-adr-xref lint-readme-drift lint-rules-index lint-data-classes lint-image-allowlist lint-thin-workflows lint-workarounds lint-dns lint-contrast lint-i18n lint-fixtures lint-tool-register lint-alert-severity lint-parity lint-gitops-env-scope lint-etcd-addresses
@@ -408,7 +406,7 @@ lint-shell: in-shell
 lint-log-vocab: in-shell
     tabkit check --only script/log-vocabulary
 
-# npm stays in the e2e island, and Bun installs every other workspace, per ADR-0110 and ADR-0601
+# Bun installs every workspace, and no other package manager leaves a lockfile, per ADR-0110
 lint-node-scope: in-shell
     tabkit check --only service/node-scope
 
@@ -468,7 +466,7 @@ test-alerts: in-shell
 test-go: in-shell
     go test ./...
 
-# The tests of the shared TypeScript libraries, on Vitest, per ADR-0110
+# The tests of the shared TypeScript libraries and the admin console, on Vitest, per ADR-0110
 test-ts: in-shell
     node node_modules/vitest/vitest.mjs run
 
@@ -667,9 +665,9 @@ secrets-age: in-shell
 secrets-updatekeys: in-shell
     tabkit-ops secrets-updatekeys
 
-# The Node.js dependencies of the e2e island, per ADR-0601. The browsers come from nixpkgs
+# The dependencies of the e2e suite from the root Bun lockfile, per ADR-0601. The browsers come from nixpkgs
 e2e-install:
-    nix develop .#e2e --command bash -c 'cd test/e2e && npm ci'
+    nix develop .#e2e --command bun install --frozen-lockfile
 
 # The full browser suite against a running full tier, per ADR-0601
 e2e *args:

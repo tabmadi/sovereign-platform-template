@@ -58,7 +58,7 @@ The **Auth** column is the coarse gate, which is always on. It requires the `ope
 | `hubble.ops.dev.localtest.me:8443` | Hubble UI: live service map, flows, drop verdicts | none |
 | `temporal.ops.dev.localtest.me:8443` | Temporal Web UI | none |
 | `argocd.ops.dev.localtest.me:8443` | Argo CD | none |
-| `lowdefy.ops.dev.localtest.me:8443` | Lowdefy admin console | none |
+| `admin.ops.dev.localtest.me:8443` | admin console | none |
 | `headlamp.ops.dev.localtest.me:8443` | Headlamp: Kubernetes debug UI, read-only | none |
 | `pgweb.ops.dev.localtest.me:8443` | pgweb: read-only database inspector | none |
 | `mailpit.ops.dev.localtest.me:8443` | Mailpit: the viewer of the mail sink, non-prod only | none |
