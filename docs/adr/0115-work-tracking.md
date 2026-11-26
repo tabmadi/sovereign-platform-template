@@ -182,7 +182,7 @@ The forge holds the data that a planning view needs: labels, milestones, due dat
 - The task manager of a project is the issues and projects of its forge, per the `forge` mode of [ADR-0117](0117-updates-and-setup-modes.md). No second tracker holds the state of a task, per principle 5 of [ADR-0000](0000-platform-foundations.md).
 - A tracker gives no person a new credential. Sign-in goes through an identity that the person already has.
 - Work with no code change lives in a repository named `work`, which holds no code.
-- A request enters through an issue form. The forms and the label set are committed files, per principle 1 of [ADR-0000](0000-platform-foundations.md).
+- A request enters through an issue form and follows [ADR-0101](0101-source-control-and-ci.md). The forms and the label set are committed files, per principle 1 of [ADR-0000](0000-platform-foundations.md).
 - Each team plans on one organization project.
 - A pull request closes the issue that it resolves with a closing keyword.
 - In the `github` mode, a sprint is the iteration field of the team's project.
