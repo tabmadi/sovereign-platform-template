@@ -107,7 +107,7 @@ Talos writes that correctly into the node's containerd configuration, but **cont
 
 ## Behind a proxy
 
-Apply the machine config patch from the [proxy guide](../../docs/guide/http-proxy.md#talos-nodes) before Talos boots.
+Apply the machine config patch from the [cluster egress guide](../../docs/guide/cluster-egress.md#talos-nodes) before Talos boots.
 
 ## Secrets
 

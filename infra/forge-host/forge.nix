@@ -64,16 +64,17 @@ in
       };
       actions = {
         ENABLED = true;
-        # The workflows call actions from GitHub that the default action mirror does not carry.
-        DEFAULT_ACTIONS_URL = "github";
+        # Where a workflow finds `uses:` actions, per the egress ADR of tabkit. See `actionsUrl` in settings.nix.
+        DEFAULT_ACTIONS_URL = settings.actionsUrl;
       };
     };
   };
   # `just forge-signing` imports the key here. It never enters the Nix store.
   systemd.services.forgejo = {
     environment.GNUPGHOME = "${config.services.forgejo.stateDir}/.gnupg";
-    serviceConfig.EnvironmentFile = "-/etc/platform/proxy.env";
   };
+  # Forgejo fetches mirrors and webhooks, so it gets the egress of the machine.
+  tabkit.egress.units = [ "forgejo" ];
 
   # Forgejo binds 80 and 443 itself. The sandbox of the unit drops every capability, so the kernel allows the ports.
   boot.kernel.sysctl."net.ipv4.ip_unprivileged_port_start" = 80;

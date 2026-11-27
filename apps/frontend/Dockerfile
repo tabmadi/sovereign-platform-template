@@ -24,7 +24,9 @@ COPY libs/ts/schemas/package.json libs/ts/schemas/
 COPY libs/ts/sdks/ libs/ts/sdks/
 COPY test/e2e/package.json test/e2e/
 # bunfig.toml sets the hoisted layout of the dev shell and the Nix checks. The filter skips the packages of the e2e suite.
-RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile --filter=frontend
+# The packages come from the bun-cache output of the flake, per the egress ADR of tabkit. So the install fetches nothing.
+# The mount is gone after this step, so the install copies each file and links none.
+RUN --mount=type=bind,from=nix-bun-cache,target=/root/.bun/install/cache,rw bun install --frozen-lockfile --backend=copyfile --filter=frontend
 # The install and the build share one stage. A second stage would copy every file of node_modules, and that copy cost more than the install.
 # The build context excludes node_modules, per Dockerfile.dockerignore, so a developer's host install cannot hide a missing manifest above.
 COPY . .

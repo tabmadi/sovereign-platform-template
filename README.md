@@ -246,7 +246,7 @@ cd services/catalog
 just server
 ```
 
-The full walkthrough is [`docs/dev-loop.md`](docs/dev-loop.md). Follow the [proxy guide](docs/guide/http-proxy.md) for a restricted network.
+The full walkthrough is [`docs/dev-loop.md`](docs/dev-loop.md). Follow the [egress guide](docs/egress.md) and the [cluster egress guide](docs/guide/cluster-egress.md) for a restricted network.
 
 ### Starting a project
 

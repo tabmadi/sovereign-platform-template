@@ -1,7 +1,7 @@
 import "@/styles/globals.css";
 
 import type { Metadata } from "next";
-import { Inter, Vazirmatn } from "next/font/google";
+import localFont from "next/font/local";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
@@ -18,8 +18,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
 // The document root is here because `lang` and `dir` depend on the locale, and only this segment knows the locale.
 // Two fonts, one variable: Inter has no Persian coverage. So each font declares the same custom property, the locale selects which one loads, and `--font-sans` stays one token.
-const inter = Inter({ subsets: ["latin"], variable: "--font-app", display: "swap" });
-const vazirmatn = Vazirmatn({ subsets: ["arabic"], variable: "--font-app", display: "swap" });
+// The fonts come from packages in bun.lock, so a build fetches nothing, per the egress ADR of tabkit. A loader takes literals.
+const inter = localFont({
+  src: "../../../../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+  weight: "100 900",
+  variable: "--font-app",
+  display: "swap",
+});
+const vazirmatn = localFont({
+  src: "../../../../../node_modules/@fontsource-variable/vazirmatn/files/vazirmatn-arabic-wght-normal.woff2",
+  weight: "100 900",
+  variable: "--font-app",
+  display: "swap",
+});
 
 // Prerender every locale, and do not resolve them on demand.
 export function generateStaticParams() {

@@ -3,7 +3,10 @@ ARG GO_VERSION=1.27.3
 FROM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/root/go/pkg/mod go mod download
+# The modules come from the go-modules output of the flake, per the egress ADR of tabkit. So the build fetches nothing.
+RUN --mount=type=bind,from=nix-go-modules,target=/goproxy --mount=type=cache,target=/root/go/pkg/mod \
+    GOPROXY=file:///goproxy GOSUMDB=off go mod download
+ENV GOPROXY=off
 # Copy only the shared libs and this service's source. Then an edit to one service
 # does not invalidate the build cache of the others.
 COPY libs/go ./libs/go

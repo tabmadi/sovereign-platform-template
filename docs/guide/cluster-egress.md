@@ -1,6 +1,6 @@
-# Install and run behind an HTTP proxy
+# Cluster egress
 
-Use this guide for a developer workstation, a Forgejo host and runner, or a deployed cluster. One HTTP proxy can serve all three.
+Use this guide for the cluster and the machines of this platform at each egress level. The shared [egress guide](../egress.md) sets up each developer machine and each server first.
 
 ## Plan the network
 
@@ -24,82 +24,38 @@ The proxy must allow the hosts in the lockfiles, the image references, and any r
 
 Use an internal service when a firewall rule blocks a required public destination. If the proxy has no public route, follow [Run with internal sources](#run-with-internal-sources).
 
-## Configure the host before the first download
-
-On a systemd host, store proxy settings in a host file such as `/etc/platform/proxy.env`. Set its owner to root and its mode to `0600` on servers. Use a file readable by your own user for your interactive shell. Keep both out of Git.
-
-Use the same proxy URL in the four variables. Replace the example bypass entries with the names and ranges at your site. Keep `.localtest.me` for local development.
-
-```sh
-HTTP_PROXY='http://proxy.example.net:3128'
-HTTPS_PROXY='http://proxy.example.net:3128'
-http_proxy='http://proxy.example.net:3128'
-https_proxy='http://proxy.example.net:3128'
-NO_PROXY='localhost,127.0.0.1,::1,.localtest.me,.svc,.cluster.local,10.96.0.0/12,10.244.0.0/16,forge.internal,registry.internal,kube.internal'
-no_proxy='localhost,127.0.0.1,::1,.localtest.me,.svc,.cluster.local,10.96.0.0/12,10.244.0.0/16,forge.internal,registry.internal,kube.internal'
-```
-
-If the proxy needs credentials, percent encode special characters in its URL. Keep credentials in the host file or a Kubernetes Secret. Limit access to Docker because users can inspect container environment variables.
-
-1. Load the settings in the shell that installs Nix and runs Git or package managers.
-2. Add the drop-in below for `nix-daemon.service` and `docker.service`. Create the files before installing the daemons if needed.
-3. Add `extra-experimental-features = nix-command flakes` to `/etc/nix/nix.conf`. On NixOS, use `nix.settings.experimental-features`.
-4. Reload systemd and restart the installed services. Configure them before the first `nix develop` or image pull.
-
-```sh
-set -a
-. "$HOME/.config/platform/proxy.env"
-set +a
-```
-
-```ini
-[Service]
-EnvironmentFile=/etc/platform/proxy.env
-```
-
-Save the drop-ins under `/etc/systemd/system/<unit>.d/platform-proxy.conf`. For rootless Docker, use the user unit and a proxy file the service user can read.
-
-Docker proxy settings in `daemon.json` take precedence. If that file sets a proxy, update it as well. On NixOS, set the service drop-ins in your host module with `systemd.services.<unit>.serviceConfig.EnvironmentFile`. Provide the file before the first build on the host. Load the same settings in the rescue system shell for a NixOS install.
-
 ## Set up a developer workstation
 
-1. Clone the repository over HTTPS if your firewall allows Git through the proxy.
-2. Enter the development shell and run bootstrap. Run the proxy setup before you start kind.
-3. Start the full cluster. Use the local test hosts in your browser.
+1. Write the egress file of the machine, per the [egress guide](../egress.md).
+2. Enter the dev shell and check the machine.
+3. Start the full cluster.
 
 ```sh
 nix develop
-just bootstrap
-just proxy-setup
-just proxy-setup --check
+just egress-setup
+just egress-setup --check
 just cluster-up full
 ```
 
-`just proxy-setup` writes Docker CLI proxy settings and two ignored files in `infra/local`. The first file gives kind the proxy and lets it add its API names to the bypass list. The second gives the Argo CD repo-server the pod-facing address. Protect these files when the proxy URL includes credentials.
+`just egress-setup` writes the Docker build settings. It also writes the drop-ins of the Nix daemon and Docker, and prints the commands that install them as root.
 
-Use an address reachable from inside Docker and Kubernetes. If the proxy runs on your workstation, bind it to a reachable interface and limit access to that network. `127.0.0.1` inside a container points to the container.
+Each cluster command reads the egress file. kind gets the proxy, and the Argo CD repo-server gets the address that the kind network reaches. Run `just cluster-up full` after a change of the file.
 
-The cluster warms local Zot before it starts pulling images. Release, design preview, and Lighthouse builds use Docker CLI settings for BuildKit and its build steps. Keep `proxies.default` in the Docker config of the user or CI job that runs each build.
+Use a proxy address that Docker and Kubernetes reach. `127.0.0.1` inside a container points to the container. tabkit-ops replaces a loopback proxy with the gateway of each Docker network.
 
-Run `just proxy-setup` again after a proxy address or bypass change. Run `just cluster-up full` to apply the local values.
+With `TABKIT_REGISTRY_MIRROR`, every image build takes its base images from the mirror. A Dockerfile mounts its Go modules and Bun packages from the Nix outputs `go-modules` and `bun-cache`, so a build step fetches nothing.
 
 ## Set up servers
 
 ### Forgejo, runner, and hypervisor
 
-Use these steps with the Forgejo or hypervisor modes. See [Setup modes](../reference/modes.md).
+Every machine imports `infra/egress.nix`. Set the level, the proxy, and the mirrors there before you build the images. See [Setup modes](../reference/modes.md).
 
-1. Set up the operator shell and the server daemons before provisioning.
-2. Install `/etc/platform/proxy.env` on the Forgejo host, each runner, and the hypervisor. The NixOS units load it.
-3. Follow `infra/forge-host/README.md` and `infra/runner/README.md`. Restart the services after a proxy change.
-4. For container builds, set the Docker CLI proxy in each runner user's Docker config. Give it the address BuildKit can reach.
-5. Give runner jobs the proxy environment. In CI, `just cluster-up` prepares proxy files on the first run in each checkout.
-
-Use a proxy URL without embedded credentials for runners that build pull request Dockerfiles. Build instructions can read proxy arguments. Use a restricted relay if the upstream proxy requires authentication.
+Use a proxy URL without credentials for runners that build pull request Dockerfiles. Build instructions can read proxy arguments. Use a restricted relay if the upstream proxy requires authentication.
 
 For an internal Forgejo, set `enableAcme = false` in `infra/forge-host/settings.nix` before you deploy. Install the certificate chain and key at `/etc/forgejo/tls/fullchain.pem` and `/etc/forgejo/tls/key.pem`. Make them readable by the `forgejo` user and restrict access to the key. Install the site CA on Git clients, runners, and Argo CD.
 
-Use the host steps on the machine that runs the install in `infra/hypervisor/README.md`. The NixOS host needs the proxy or an internal cache for updates. Give each VM that fetches artifacts its own proxy settings.
+At the internal and airgap levels, set `actionsUrl = "self"` in `infra/forge-host/settings.nix`. Mirror each action repository that a workflow names into the forge.
 
 ### Talos nodes
 

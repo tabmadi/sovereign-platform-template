@@ -13,7 +13,7 @@
     };
     # A new version is a new tag here.
     tabkit = {
-      url = "github:tabmadi/tabkit/v0.28.0";
+      url = "github:tabmadi/tabkit/v0.29.0";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
       inputs.nixos-stable.follows = "nixos";
@@ -323,6 +323,17 @@
           packages = {
             go-modules = goProxy;
             helm-charts = helmCharts;
+            # The Bun cache of bun.lock for the image builds, per the egress ADR of tabkit. The copy follows each link into
+            # the store, because a build container sees no store. It keeps only the x64 packages that an image installs.
+            bun-cache = pkgs.runCommand "bun-cache-linux-x64" { } ''
+              cp -rL ${config.tabkit.bun.install.bunDeps}/share/bun-cache $out
+              chmod -R u+w $out
+              find $out -mindepth 1 -maxdepth 2 \( -name '*arm64*' -o -name '*aarch64*' -o -name '*-arm-*' \
+                -o -name '*-arm@*' -o -name '*ppc64*' -o -name '*s390x*' -o -name '*riscv64*' -o -name '*loong64*' \
+                -o -name '*-ia32*' \) -prune -exec rm -rf {} +
+              # The fetch points each script at a Node.js in the store. An image has its own, on the PATH.
+              find $out -type f -perm -u+x -exec sed -i '1s|^#!/nix/store/[^ ]*/bin/|#!/usr/bin/env |' {} +
+            '';
           };
 
           checks = {

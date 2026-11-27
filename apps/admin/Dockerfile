@@ -20,7 +20,9 @@ COPY libs/ts/schemas/package.json libs/ts/schemas/
 COPY libs/ts/sdks/ libs/ts/sdks/
 COPY test/e2e/package.json test/e2e/
 # The filter installs only the packages of the console.
-RUN --mount=type=cache,target=/root/.bun bun install --frozen-lockfile --filter=admin
+# The packages come from the bun-cache output of the flake, per the egress ADR of tabkit. So the install fetches nothing.
+# The mount is gone after this step, so the install copies each file and links none.
+RUN --mount=type=bind,from=nix-bun-cache,target=/root/.bun/install/cache,rw bun install --frozen-lockfile --backend=copyfile --filter=admin
 COPY apps/admin/ apps/admin/
 ARG SERVICE_VERSION=dev
 ENV SERVICE_VERSION=$SERVICE_VERSION NEXT_TELEMETRY_DISABLED=1

@@ -26,6 +26,8 @@ let
       };
       modules = [
         inputs.tabkit.nixosModules.server
+        inputs.tabkit.nixosModules.egress
+        ../egress.nix
         inputs.disko.nixosModules.disko
         ./disk.nix
         ./host.nix

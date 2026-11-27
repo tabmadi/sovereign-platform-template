@@ -75,7 +75,7 @@ The task lays the floor that Argo CD cannot install for itself:
 
 It then applies the root Application, per [ADR-0200](../adr/0200-cluster-topology.md). Set `CLUSTER_AGE_KEY` only where the machine config does not already carry the key.
 
-Set `ARGOCD_VALUES_FILE` to apply site values at the first Argo CD install. Follow the [proxy guide](http-proxy.md#argo-cd-and-workloads).
+Set `ARGOCD_VALUES_FILE` to apply site values at the first Argo CD install. Follow the [cluster egress guide](cluster-egress.md#argo-cd-and-workloads).
 
 When the applications are Healthy, log in as the first operator. See [break-glass](break-glass.md).
 
@@ -114,7 +114,7 @@ Cluster faults in this platform often look like something unrelated. The compone
 | Pods time out on `10.96.0.1:443`, and Cilium reports healthy | **RBAC or the dataplane**, not the API server. `cilium-dbg` reports the agent's own view. It shows `KubeProxyReplacement: True` and `Cluster health: 3/3` while no pod can reach a Service |
 | etcd is stuck in `Preparing`, and waits on a service that is Running | The **etcd spec is missing**. The waiting list is static. It names every precondition, not the unmet one. A bootstrap sent before a post-apply reboot writes a spec that dies with the old instance |
 | A pod stays in `ContainerCreating` with **no pull events at all** | A **volume**, not an image. A missing secret, or a hostPath that the kubelet never got, stays in mount with no error |
-| `403 Forbidden` on the pull of `registry.k8s.io/etcd`, and the cluster never bootstraps | A **proxy** that the machine config does not carry. See [`http-proxy`](http-proxy.md) |
+| `403 Forbidden` on the pull of `registry.k8s.io/etcd`, and the cluster never bootstraps | A **proxy** that the machine config does not carry. See [`cluster-egress`](cluster-egress.md) |
 | One admission webhook times out, and other webhooks work | The webhook pod **is older than the current CNI**. A CNI replacement leaves stale endpoints for pods that were already running. Only pods that nothing restarted since then are affected. Roll the deployment |
 | A replica join retries forever with `no route to host` | **Network policy**, not routing. A Cilium drop looks like `no route to host` to the caller. `hubble observe --verdict DROPPED` shows the missing rule in one line |
 | An Application reports **OutOfSync, but `argocd app diff` prints nothing** | A **mutating webhook** and a client-side diff. The live object has fields that no chart rendered, so the diff never converges. A tier waits for every Application to be Synced, so one such resource blocks every later wave. The fix is `controller.diff.server.side`, per [ADR-0201](../adr/0201-gitops.md) |

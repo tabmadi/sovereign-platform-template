@@ -8,7 +8,11 @@ in
 {
   name = "forge-runner";
   defaults = {
-    imports = [ inputs.tabkit.nixosModules.server ];
+    imports = [
+      inputs.tabkit.nixosModules.server
+      inputs.tabkit.nixosModules.egress
+      ../egress.nix
+    ];
     tabkit.server.adminKeys = lib.mkForce [ testKey ];
     virtualisation.memorySize = 2048;
   };
@@ -54,14 +58,11 @@ in
     runner.succeed("systemctl show gitea-runner-1 -p SupplementaryGroups | grep -q docker")
     runner.succeed("systemctl list-timers runner-gc.timer | grep -q runner-gc")
 
-    runner.succeed("install -d -m 0700 /etc/platform")
-    runner.succeed("printf 'NO_PROXY=forge,internal.example\n' > /etc/platform/proxy.env")
-    runner.succeed("systemctl restart gitea-runner-1 docker")
-    runner.wait_for_unit("gitea-runner-1.service")
-    runner.succeed("docker info --format '{{.NoProxy}}' | grep -qx forge,internal.example")
+    # The jobs and Docker fetch with the egress of the machine, per the egress ADR of tabkit.
+    runner.succeed("docker info --format '{{.NoProxy}}' | grep -q '^localhost,127.0.0.1,'")
     runner.succeed(
         "pid=$(systemctl show gitea-runner-1 -p MainPID --value); "
-        "tr '\\0' '\\n' < /proc/$pid/environ | grep -qx NO_PROXY=forge,internal.example"
+        "tr '\\0' '\\n' < /proc/$pid/environ | grep -q '^NO_PROXY=localhost,127.0.0.1,'"
     )
   '';
 }

@@ -97,9 +97,9 @@ verify: in-shell
 cluster-populate-zot: in-shell
     tabkit-ops populate-zot
 
-# Set up this machine once for a network behind a proxy, before the first cluster-up
-proxy-setup *args: in-shell
-    tabkit-ops proxy-setup "$@"
+# Check this machine's egress and write the files that need root, per the egress ADR of tabkit. Pass --check to change nothing
+egress-setup *args: in-shell
+    tabkit-ops egress setup "$@"
 
 # Pause the Argo CD application controller for a live patch
 argo-pause: in-shell

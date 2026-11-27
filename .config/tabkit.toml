@@ -34,6 +34,8 @@ root-files = [
   "adoption-path.md",
   "tool-register.md",
   "security-baseline.md",
+  # The shared guide of every template, per the egress ADR of tabkit.
+  "egress.md",
 ]
 forbidden-links = [{ from = "docs/**", to = "README.md", reason = "a generated project rewrites the root README" }]
 

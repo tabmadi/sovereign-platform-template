@@ -61,7 +61,7 @@ The second factor is enrolled at run time, not imported, because Kratos cannot i
 
 ## HTTP proxies
 
-Follow the [proxy guide](guide/http-proxy.md#set-up-a-developer-workstation) before the first `nix develop` on a restricted network.
+Follow the [egress guide](egress.md) before the first `nix develop` on a restricted network.
 
 ## After a reboot
 

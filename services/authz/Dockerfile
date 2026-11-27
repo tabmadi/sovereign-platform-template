@@ -3,7 +3,10 @@ ARG GO_VERSION=1.27.3
 FROM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/root/go/pkg/mod go mod download
+# The modules come from the go-modules output of the flake, per the egress ADR of tabkit. So the build fetches nothing.
+RUN --mount=type=bind,from=nix-go-modules,target=/goproxy --mount=type=cache,target=/root/go/pkg/mod \
+    GOPROXY=file:///goproxy GOSUMDB=off go mod download
+ENV GOPROXY=off
 COPY libs/go ./libs/go
 ARG APP_CMD=server
 ARG SERVICE=authz

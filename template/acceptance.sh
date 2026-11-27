@@ -89,8 +89,8 @@ git_pid=$!
 detail "Argo CD reads git://${gateway}:${GIT_PORT}/project.git"
 
 if [ "${ACCEPTANCE_PROXY_ONLY:-0}" = 1 ]; then
-  just proxy-setup
-  just proxy-setup --check
+  just egress-setup
+  just egress-setup --check
 fi
 step "bringing the full tier up"
 just cluster-up full

@@ -18,6 +18,9 @@
   enableAcme = true;
   # The organisation that owns the repository, so the repository URL names no person.
   org = "platform";
+  # Where a workflow finds its `uses:` actions. `github` reads them from GitHub. At the internal and airgap levels of
+  # the egress ADR of tabkit, set `self` and mirror each action repository into the forge.
+  actionsUrl = "github";
   # A push mirror of the repository, such as `ssh://git@github.com/acme/acmeplat.git`. Null means no mirror.
   mirrorUrl = null;
 

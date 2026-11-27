@@ -143,9 +143,10 @@ in
         value = {
           unitConfig.ConditionPathExists = tokenFile;
           serviceConfig = {
+            # The token, and the egress file of the egress ADR of tabkit, so a job fetches as the machine does.
             EnvironmentFile = lib.mkForce [
               tokenFile
-              "-/etc/platform/proxy.env"
+              "/etc/tabkit/egress.env"
             ];
             SupplementaryGroups = lib.mkForce [ "docker" ];
             ExecStartPre = lib.mkAfter [
@@ -156,7 +157,6 @@ in
       }) names
     )
     // {
-      docker.serviceConfig.EnvironmentFile = "-/etc/platform/proxy.env";
       runner-gc = {
         description = "Reclaim what finished CI jobs left behind";
         serviceConfig = {
