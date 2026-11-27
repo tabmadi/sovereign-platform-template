@@ -50,10 +50,7 @@ jobs:
       # The toolchain for the signing step. cosign, syft, sops, and yq are pinned in flake.nix, per ADR-0100.
       # So CI signs with the same binaries that a developer verifies with.
       - uses: ./.github/actions/setup
-      # buildx in a run step finds the hosted cache service through these variables, and only an action can read them.
-      - if: runner.environment == 'github-hosted'
-        uses: crazy-max/ghaction-github-runtime@v4.0.0
-      - uses: docker/login-action@v4.8.0
+      - uses: ./.github/actions/registry-login
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           # The forge's own token works for the forge's own registry, which is the default.
@@ -85,9 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
-      - if: runner.environment == 'github-hosted'
-        uses: crazy-max/ghaction-github-runtime@v4.0.0
-      - uses: docker/login-action@v4.8.0
+      - uses: ./.github/actions/registry-login
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
@@ -122,8 +117,7 @@ jobs:
           token: "${{ secrets.PROMOTE_TOKEN || secrets.GITHUB_TOKEN }}",
         }
       - uses: ./.github/actions/setup
-      - uses: docker/setup-buildx-action@v4.4.1
-      - uses: docker/login-action@v4.8.0
+      - uses: ./.github/actions/registry-login
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
@@ -163,7 +157,7 @@ jobs:
       # The stack pulls Traefik and Prism from Docker Hub. Unset on a fork, where the secrets do not resolve.
       - name: Log in to Docker Hub
         if: env.DOCKERHUB_USERNAME != ''
-        uses: docker/login-action@v4.8.0
+        uses: ./.github/actions/registry-login
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}

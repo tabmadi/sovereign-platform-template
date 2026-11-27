@@ -58,7 +58,7 @@ jobs:
       - name: Log in to Docker Hub
         # Unset on a fork, where the secrets do not resolve.
         if: env.DOCKERHUB_USERNAME != ''
-        uses: docker/login-action@v4.8.0
+        uses: ./.github/actions/registry-login
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}

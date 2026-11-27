@@ -97,6 +97,10 @@ verify: in-shell
 cluster-populate-zot: in-shell
     tabkit-ops populate-zot
 
+# Log Docker in to REGISTRY as REGISTRY_USER. The password comes from REGISTRY_PASSWORD, never from an argument
+registry-login: in-shell
+    printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY" --username "$REGISTRY_USER" --password-stdin
+
 # Check this machine's egress and write the files that need root, per the egress ADR of tabkit. Pass --check to change nothing
 egress-setup *args: in-shell
     tabkit-ops egress setup "$@"

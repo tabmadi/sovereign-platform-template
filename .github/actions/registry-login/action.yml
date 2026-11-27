@@ -1,0 +1,25 @@
+# The registry login of every workflow, per the egress ADR of tabkit. A local action, so a forge with no internet
+# mirrors no third-party action for it. The password goes through `env`, never into the script text.
+name: registry-login
+description: Log Docker in to one registry with a username and a password.
+
+inputs:
+  registry:
+    description: The registry host. Docker Hub when empty.
+    default: docker.io
+  username:
+    description: The user name.
+    required: true
+  password:
+    description: The password or token.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        REGISTRY_USER: ${{ inputs.username }}
+        REGISTRY_PASSWORD: ${{ inputs.password }}
+      run: nix develop --command just registry-login

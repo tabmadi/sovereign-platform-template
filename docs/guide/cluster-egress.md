@@ -55,7 +55,9 @@ Use a proxy URL without credentials for runners that build pull request Dockerfi
 
 For an internal Forgejo, set `enableAcme = false` in `infra/forge-host/settings.nix` before you deploy. Install the certificate chain and key at `/etc/forgejo/tls/fullchain.pem` and `/etc/forgejo/tls/key.pem`. Make them readable by the `forgejo` user and restrict access to the key. Install the site CA on Git clients, runners, and Argo CD.
 
-At the internal and airgap levels, set `actionsUrl = "self"` in `infra/forge-host/settings.nix`. Mirror each action repository that a workflow names into the forge.
+At the internal and airgap levels, set `actionsUrl = "self"` in `infra/forge-host/settings.nix`. Mirror three action repositories into the forge: `actions/checkout`, `actions/cache`, and `actions/upload-artifact`. Every other step is a local action or a `just` recipe.
+
+The workflows install Nix only on a GitHub-hosted runner. A runner of this repo has Nix already. A hosted runner keeps its build cache in the image registry, so no step needs the cache service of a forge.
 
 ### Talos nodes
 

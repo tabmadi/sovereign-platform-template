@@ -43,9 +43,7 @@ jobs:
       # The base branch, never the pull request's head. The scripts and the toolchain that run here are reviewed code.
       - uses: actions/checkout@v7.0.1
       - uses: ./.github/actions/setup
-      - if: runner.environment == 'github-hosted'
-        uses: crazy-max/ghaction-github-runtime@v4.0.0
-      - uses: docker/login-action@v4.8.0
+      - uses: ./.github/actions/registry-login
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ secrets.REGISTRY_USERNAME || github.actor }}
